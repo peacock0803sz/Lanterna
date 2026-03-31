@@ -27,12 +27,41 @@
         # module parameters provide easy access to attributes of the same
         # system.
 
-        pre-commit.settings.hooks = { };
+        pre-commit.check.enable = false;
+        pre-commit.settings.hooks = {
+          swiftformat = {
+            enable = true;
+            entry = "${pkgs.swiftformat}/bin/swiftformat";
+            types = [ "swift" ];
+          };
+          swiftlint = {
+            enable = true;
+            entry = "${pkgs.writeShellScript "swiftlint-hook" ''
+              export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+              exec ${pkgs.swiftlint}/bin/swiftlint lint --strict "$@"
+            ''}";
+            types = [ "swift" ];
+          };
+        };
 
         # Equivalent to  inputs'.nixpkgs.legacyPackages.hello;
         devShells.default = pkgs.mkShell {
           inputsFrom = [ config.pre-commit.devShell ];
-          packages = with pkgs; [ ];
+          packages = with pkgs; [
+            swift
+            swiftformat
+            swiftlint
+          ];
+          shellHook = ''
+            if ! xcode-select -p &>/dev/null; then
+              echo "WARNING: Xcode CLI tools not found."
+              echo "  Install with: xcode-select --install"
+              echo "  Or install Xcode from the App Store."
+            fi
+            echo "swiftformat $(swiftformat --version)"
+            echo "swiftlint $(swiftlint version)"
+            echo "swift $(swift --version 2>&1 | head -1)"
+          '';
         };
 
       };
