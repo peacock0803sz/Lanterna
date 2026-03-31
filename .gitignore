@@ -63,3 +63,18 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# SPM workspace
+.swiftpm/
+Package.resolved
+
+# Xcode user state
+*.xcuserstate
+*.profraw
+
+# Nix
+result
+.nix-*
+
+# OS
+.DS_Store
