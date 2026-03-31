@@ -37,7 +37,23 @@
           swiftlint = {
             enable = true;
             entry = "${pkgs.writeShellScript "swiftlint-hook" ''
-              export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+              # Nix sets DEVELOPER_DIR to its Apple SDK, which lacks SourceKit.
+              # Reset to the real system path so SwiftLint can load sourcekitd.
+              if [ -n "''${XCODE_DEVELOPER_DIR:-}" ] && [ -d "''${XCODE_DEVELOPER_DIR}" ]; then
+                export DEVELOPER_DIR="$XCODE_DEVELOPER_DIR"
+              else
+                unset DEVELOPER_DIR
+                if [ -x /usr/bin/xcode-select ]; then
+                  export DEVELOPER_DIR=$(/usr/bin/xcode-select -p 2>/dev/null)
+                fi
+              fi
+
+              if [ -z "''${DEVELOPER_DIR:-}" ] || [ ! -d "$DEVELOPER_DIR" ]; then
+                echo "swiftlint: skipped (Xcode/CLI tools not found; set XCODE_DEVELOPER_DIR)" >&2
+                exit 0
+              fi
+              # Nix sandbox hides system framework paths; point dyld to SourceKit
+              export DYLD_FRAMEWORK_PATH="$DEVELOPER_DIR/usr/lib"
               exec ${pkgs.swiftlint}/bin/swiftlint lint --strict "$@"
             ''}";
             types = [ "swift" ];
