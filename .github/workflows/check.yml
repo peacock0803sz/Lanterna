@@ -37,7 +37,7 @@ jobs:
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
           extra_nix_config: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - uses: DeterminateSystems/magic-nix-cache-action@87e8236f46702ab0ce5a058b605a173ec88d618e # v9
+      - uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39 # v9
       - name: Cache SPM build
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
