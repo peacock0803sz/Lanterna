@@ -9,5 +9,6 @@ let package = Package(
     ],
     targets: [
         .executableTarget(name: "Lanterna"),
+        .testTarget(name: "LanternaTests", dependencies: ["Lanterna"]),
     ]
 )
