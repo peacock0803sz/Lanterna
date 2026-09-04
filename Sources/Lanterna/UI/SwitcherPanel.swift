@@ -29,8 +29,9 @@ final class SwitcherPanel: NSPanel {
         hidesOnDeactivate = false
     }
 
-    /// No keyboard input reaches the panel yet, so it must never become key or
-    /// main. The local key monitor of a later step will revisit this.
+    /// No keyboard input is routed to the panel, and the process must never
+    /// become the active application, so key and main status stay with the
+    /// application the user is working in.
     override var canBecomeKey: Bool {
         false
     }
