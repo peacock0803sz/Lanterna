@@ -34,7 +34,6 @@ struct WindowRow: View {
         // The fixed height is what keeps the panel-height formula exact.
         .frame(height: PanelMetrics.rowHeight)
         .background(selectionHighlight)
-        .contentShape(Rectangle())
     }
 
     @ViewBuilder
