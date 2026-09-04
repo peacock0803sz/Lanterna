@@ -15,6 +15,10 @@ struct PanelMetricsTests {
         }
     }
 
+    @Test func widthIsFixedByTheUIContract() {
+        #expect(PanelMetrics.width == 680)
+    }
+
     @Test func heightStopsAtTheCap() {
         #expect(PanelMetrics.maximumHeight == 400)
         #expect(PanelMetrics.height(rowCount: 11) == PanelMetrics.maximumHeight)
