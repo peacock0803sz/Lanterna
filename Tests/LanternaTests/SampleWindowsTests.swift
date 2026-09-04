@@ -1,10 +1,18 @@
 @testable import Lanterna
 import Testing
 
-/// The fixture is the only data the mock panel shows, so its variety is what
-/// makes the layout reviewable. These checks pin that variety down.
+/// The fixture is what the panel shows unless `--sample-count` asks for a
+/// different length, so its variety is what makes the layout reviewable. These
+/// checks pin that variety down.
 @MainActor
 struct SampleWindowsTests {
+    /// One application, as the data model identifies it: two rows count as the
+    /// same application only when the name and the bundle identifier match.
+    private struct ApplicationKey: Hashable {
+        let appName: String
+        let bundleIdentifier: String?
+    }
+
     private let windows = SampleWindows.standard()
 
     @Test func fixtureExceedsThePanelHeightCap() {
@@ -13,8 +21,10 @@ struct SampleWindowsTests {
     }
 
     @Test func fixtureRepeatsAnApplication() {
-        let countsByApp = Dictionary(grouping: windows, by: \.appName).mapValues(\.count)
-        #expect(countsByApp.values.contains { $0 >= 2 })
+        let countsByApplication = Dictionary(grouping: windows) {
+            ApplicationKey(appName: $0.appName, bundleIdentifier: $0.bundleIdentifier)
+        }.mapValues(\.count)
+        #expect(countsByApplication.values.contains { $0 >= 2 })
     }
 
     @Test func fixtureCoversTruncation() {
@@ -38,5 +48,13 @@ struct SampleWindowsTests {
         let windows = SampleWindows.make(count: count)
         #expect(windows.count == count)
         #expect(Set(windows.map(\.id)).count == count)
+    }
+
+    @Test func overrideCyclesTheFixtureContent() {
+        #expect(SampleWindows.make(count: 3).map(\.appName) == windows.prefix(3).map(\.appName))
+
+        // One past the fixture length wraps back to the first template.
+        let wrapped = SampleWindows.make(count: windows.count + 1)
+        #expect(wrapped.last?.appName == windows.first?.appName)
     }
 }
