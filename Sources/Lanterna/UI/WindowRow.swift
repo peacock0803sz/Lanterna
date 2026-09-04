@@ -30,7 +30,6 @@ struct WindowRow: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 4)
         .padding(.horizontal, 8)
         // The fixed height is what keeps the panel-height formula exact.
         .frame(height: PanelMetrics.rowHeight)
