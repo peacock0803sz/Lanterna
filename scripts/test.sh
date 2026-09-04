@@ -25,4 +25,6 @@ if [ -d "$CLT_FRAMEWORKS/Testing.framework" ]; then
     )
 fi
 
-exec env -u SDKROOT -u DEVELOPER_DIR /usr/bin/swift test "${flags[@]}" "$@"
+# `"${flags[@]}"` alone aborts under `set -u` in bash 3.2, the /bin/bash macOS
+# ships, when the array is empty.
+exec env -u SDKROOT -u DEVELOPER_DIR /usr/bin/swift test ${flags[@]+"${flags[@]}"} "$@"
