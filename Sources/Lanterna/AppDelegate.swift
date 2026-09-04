@@ -31,8 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // The delegate holds the panel because nothing else does: a panel that
         // is only ordered front would be deallocated.
-        let panel = SwitcherPanel(rowCount: windows.count)
-        panel.contentView = NSHostingView(rootView: SwitcherView(windows: windows))
+        let panel = SwitcherPanel(content: SwitcherView(windows: windows))
         self.panel = panel
 
         centerOnMainDisplay(panel)
