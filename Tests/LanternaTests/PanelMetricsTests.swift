@@ -1,15 +1,22 @@
+import Foundation
 @testable import Lanterna
 import Testing
 
 struct PanelMetricsTests {
     @Test func heightGrowsWithRowCount() {
-        #expect(PanelMetrics.height(rowCount: 0) == 16)
-        #expect(PanelMetrics.height(rowCount: 1) == 52)
+        // One literal pin on the contract, so changing a constant fails here
+        // and not only inside the formula the other cases share.
         #expect(PanelMetrics.height(rowCount: 3) == 124)
-        #expect(PanelMetrics.height(rowCount: 10) == 376)
+
+        for rowCount in [0, 1, 3, 10] {
+            let expected = CGFloat(rowCount) * PanelMetrics.rowHeight
+                + 2 * PanelMetrics.verticalPadding
+            #expect(PanelMetrics.height(rowCount: rowCount) == expected)
+        }
     }
 
     @Test func heightStopsAtTheCap() {
+        #expect(PanelMetrics.maximumHeight == 400)
         #expect(PanelMetrics.height(rowCount: 11) == PanelMetrics.maximumHeight)
         #expect(PanelMetrics.height(rowCount: 30) == PanelMetrics.maximumHeight)
     }
