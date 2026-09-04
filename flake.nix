@@ -61,10 +61,15 @@
         };
 
         # Equivalent to  inputs'.nixpkgs.legacyPackages.hello;
-        devShells.default = pkgs.mkShell {
+        # The Swift toolchain (swift, swiftc, SwiftPM) comes from Xcode or the
+        # Command Line Tools, not from nixpkgs: the nixpkgs `swift` package on
+        # Darwin ships only the compiler (no swift-build), and its stdenv exports
+        # DEVELOPER_DIR/SDKROOT pointing at the Nix Apple SDK, which hides the
+        # system toolchain. mkShellNoCC keeps the Nix C toolchain and Apple SDK
+        # out of the shell so /usr/bin/swift resolves to the real toolchain.
+        devShells.default = pkgs.mkShellNoCC {
           inputsFrom = [ config.pre-commit.devShell ];
           packages = with pkgs; [
-            swift
             swiftformat
             swiftlint
           ];
