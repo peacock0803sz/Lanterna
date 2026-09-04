@@ -16,8 +16,15 @@ final class SwitcherPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         isOpaque = false
         backgroundColor = .clear
-        // The SwiftUI surface draws its own shadow.
-        hasShadow = false
+        if #available(macOS 26.0, *) {
+            // Liquid Glass brings its own shadow.
+            hasShadow = false
+        } else {
+            // A shadow drawn inside SwiftUI would be clipped, because the panel
+            // frame is exactly the content frame, so AppKit draws the drop
+            // shadow the macOS 15 appearance requires.
+            hasShadow = true
+        }
         becomesKeyOnlyIfNeeded = true
         hidesOnDeactivate = false
     }
