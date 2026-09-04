@@ -7,8 +7,9 @@ import SwiftUI
 struct SwitcherView: View {
     let windows: [WindowItem]
 
-    /// Selection is fixed at the first entry for now; an empty list has none.
-    private var selectedID: WindowItem.ID? {
+    /// The first entry is selected and the selection never moves: this view has
+    /// no navigation. An empty list has no selection at all.
+    var selectedID: WindowItem.ID? {
         windows.first?.id
     }
 
