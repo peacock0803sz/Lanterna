@@ -4,8 +4,9 @@ import Testing
 
 @MainActor
 struct WindowItemTests {
-    private func item(appName: String) -> WindowItem {
+    private func item(appName: String, id: WindowItem.Identifier = WindowItem.Identifier()) -> WindowItem {
         WindowItem(
+            id: id,
             appName: appName,
             bundleIdentifier: nil,
             windowTitle: "Untitled",
@@ -25,5 +26,14 @@ struct WindowItemTests {
 
     @Test func shortcutHintHandlesNonASCIINames() {
         #expect(item(appName: "メモ").shortcutHint == "メモ")
+    }
+
+    @Test func identityIsSuppliedByTheCaller() {
+        let id = WindowItem.Identifier()
+        #expect(item(appName: "Safari", id: id).id == id)
+    }
+
+    @Test func freshIdentitiesAreDistinct() {
+        #expect(item(appName: "Safari").id != item(appName: "Safari").id)
     }
 }

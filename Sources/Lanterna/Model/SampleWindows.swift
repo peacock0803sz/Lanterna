@@ -28,6 +28,7 @@ enum SampleWindows {
 
     private static func item(from template: Template) -> WindowItem {
         WindowItem(
+            id: WindowItem.Identifier(),
             appName: template.appName,
             bundleIdentifier: template.bundleIdentifier,
             windowTitle: template.windowTitle,
