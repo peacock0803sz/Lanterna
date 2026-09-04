@@ -10,7 +10,7 @@ enum PanelMetrics {
     /// Height for a given number of rows. The panel grows with its content until
     /// the cap, past which the list scrolls instead of the panel growing.
     static func height(rowCount: Int) -> CGFloat {
-        let rows = CGFloat(max(0, rowCount))
-        return min(rows * rowHeight + verticalPadding * 2, maximumHeight)
+        precondition(rowCount >= 0, "rowCount must not be negative")
+        return min(CGFloat(rowCount) * rowHeight + verticalPadding * 2, maximumHeight)
     }
 }

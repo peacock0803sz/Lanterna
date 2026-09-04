@@ -13,8 +13,4 @@ struct PanelMetricsTests {
         #expect(PanelMetrics.height(rowCount: 11) == PanelMetrics.maximumHeight)
         #expect(PanelMetrics.height(rowCount: 30) == PanelMetrics.maximumHeight)
     }
-
-    @Test func negativeRowCountsCollapseToPaddingOnly() {
-        #expect(PanelMetrics.height(rowCount: -5) == PanelMetrics.height(rowCount: 0))
-    }
 }
