@@ -54,9 +54,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// `NSWindow.center()` centres on whichever screen the window already sits
-    /// on, so the main display is chosen explicitly instead.
+    /// on, so the display is picked explicitly. `NSScreen.screens.first` is the
+    /// display that carries the menu bar, which is the main display the spec
+    /// asks for; `NSScreen.main` would instead follow the key window and so
+    /// could be any display.
     private func centerOnMainDisplay(_ panel: SwitcherPanel) {
-        guard let area = NSScreen.main?.visibleFrame else {
+        guard let area = NSScreen.screens.first?.visibleFrame else {
             panel.center()
             return
         }
