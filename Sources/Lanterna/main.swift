@@ -7,7 +7,7 @@ let sampleCount: Int?
 do {
     sampleCount = try LaunchArguments.sampleCount(from: ProcessInfo.processInfo.arguments)
 } catch {
-    Diagnostics.writeLine(error.usage)
+    Diagnostics.writeLine("\(error)\n\(LaunchArguments.usage)")
     exit(EX_USAGE)
 }
 

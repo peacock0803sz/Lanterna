@@ -34,8 +34,15 @@ struct LaunchArgumentsTests {
         }
     }
 
-    @Test func everyErrorCarriesAUsageLine() {
-        let errors: [LaunchArguments.ParseError] = [.missingValue, .invalidValue("abc")]
-        #expect(errors.allSatisfy { $0.usage.hasPrefix("usage: Lanterna") })
+    @Test func usageLineIsPinnedOnce() {
+        #expect(LaunchArguments.usage == "usage: Lanterna [--sample-count N]")
+    }
+
+    @Test func errorTextIsTheReasonAlone() {
+        #expect("\(LaunchArguments.ParseError.missingValue)" == "--sample-count needs a value")
+        #expect(
+            "\(LaunchArguments.ParseError.invalidValue("abc"))"
+                == "\"abc\" is not a whole number of zero or more"
+        )
     }
 }

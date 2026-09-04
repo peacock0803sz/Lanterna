@@ -5,24 +5,26 @@ import Foundation
 /// Parsing is a pure function over an argument array rather than a read of
 /// `ProcessInfo`, so every accepted and rejected form is unit-testable.
 enum LaunchArguments {
-    /// Why an argument could not be turned into a sample count.
-    enum ParseError: Error, Equatable {
+    /// Why an argument could not be turned into a sample count. The text is the
+    /// reason alone; the usage line is `LaunchArguments.usage`.
+    enum ParseError: Error, Equatable, CustomStringConvertible {
         case missingValue
         case invalidValue(String)
 
-        /// One line describing correct usage, for stderr.
-        var usage: String {
+        var description: String {
             switch self {
             case .missingValue:
-                "usage: Lanterna [\(sampleCountFlag) N] — \(sampleCountFlag) needs a value"
+                "\(LaunchArguments.sampleCountFlag) needs a value"
             case let .invalidValue(value):
-                "usage: Lanterna [\(sampleCountFlag) N] — "
-                    + "\"\(value)\" is not a whole number of zero or more"
+                "\"\(value)\" is not a whole number of zero or more"
             }
         }
     }
 
     static let sampleCountFlag = "--sample-count"
+
+    /// One line describing correct usage, for stderr.
+    static let usage = "usage: Lanterna [\(sampleCountFlag) N]"
 
     /// Number of fixture entries requested on the command line, or `nil` when
     /// the flag is absent. Both `--sample-count N` and `--sample-count=N` are
