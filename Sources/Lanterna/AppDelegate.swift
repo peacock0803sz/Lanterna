@@ -68,7 +68,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let elapsed = ContinuousClock.now - launchedAt
         let milliseconds = Double(elapsed.components.seconds) * 1000
             + Double(elapsed.components.attoseconds) * 1e-15
-        let elapsedText = milliseconds.formatted(.number.precision(.fractionLength(1)))
+        // `%.1f` rather than a FormatStyle: a developer log line must read the
+        // same in every locale, and a formatted number would switch decimal
+        // and grouping separators.
+        let elapsedText = String(format: "%.1f", milliseconds)
         Diagnostics.writeLine("panel ordered front after \(elapsedText) ms (\(entryCount) entries)")
     }
 }
