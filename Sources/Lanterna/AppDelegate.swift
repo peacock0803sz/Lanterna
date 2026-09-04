@@ -13,16 +13,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_: Notification) {
-        // The switcher has to answer a hotkey immediately, so the process must
-        // never be put to sleep between invocations.
+        // App Nap suspends idle background processes, and this one is idle
+        // between invocations, so the activity is held for the whole run.
         appNapActivity = ProcessInfo.processInfo.beginActivity(
             options: [.userInitiatedAllowingIdleSystemSleep],
-            reason: "Switcher must respond to the hotkey without a wake-up delay"
+            reason: "Switcher panel must be drawn without a wake-up delay"
         )
 
         let windows = sampleWindows()
-        // Built once and retained: later steps show and hide this same panel
-        // instead of creating a new one per invocation.
+        // The delegate holds the panel because nothing else does: a panel that
+        // is only ordered front would be deallocated.
         let panel = SwitcherPanel(rowCount: windows.count)
         panel.contentView = NSHostingView(rootView: SwitcherView(windows: windows))
         self.panel = panel
