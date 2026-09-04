@@ -23,14 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let windows = sampleWindows()
         // Built once and retained: later steps show and hide this same panel
         // instead of creating a new one per invocation.
-        let panel = SwitcherPanel(
-            contentRect: NSRect(
-                x: 0,
-                y: 0,
-                width: PanelMetrics.width,
-                height: PanelMetrics.height(rowCount: windows.count)
-            )
-        )
+        let panel = SwitcherPanel(rowCount: windows.count)
         panel.contentView = NSHostingView(rootView: SwitcherView(windows: windows))
         self.panel = panel
 

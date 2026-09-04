@@ -5,9 +5,16 @@ import AppKit
 /// The non-activating style is what lets the panel appear without taking focus
 /// away from the application the user is working in.
 final class SwitcherPanel: NSPanel {
-    init(contentRect: NSRect) {
+    /// The panel frame is the one place the switcher's size is decided; the
+    /// SwiftUI content fills whatever frame the panel is given.
+    init(rowCount: Int) {
         super.init(
-            contentRect: contentRect,
+            contentRect: NSRect(
+                x: 0,
+                y: 0,
+                width: PanelMetrics.width,
+                height: PanelMetrics.height(rowCount: rowCount)
+            ),
             // Borderless is the absence of `.titled`, so it needs no flag.
             styleMask: [.nonactivatingPanel],
             backing: .buffered,

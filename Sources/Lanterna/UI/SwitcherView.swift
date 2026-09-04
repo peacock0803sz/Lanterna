@@ -1,6 +1,9 @@
 import SwiftUI
 
 /// Content of the switcher panel: a compact list of windows.
+///
+/// The view fills the frame the hosting panel gives it, so `PanelMetrics` is
+/// consulted for row height only; the panel owns the overall size.
 struct SwitcherView: View {
     let windows: [WindowItem]
 
@@ -24,10 +27,6 @@ struct SwitcherView: View {
         .environment(\.defaultMinListRowHeight, PanelMetrics.rowHeight)
         .scrollContentBackground(.hidden)
         .padding(.vertical, PanelMetrics.verticalPadding)
-        .frame(
-            width: PanelMetrics.width,
-            height: PanelMetrics.height(rowCount: windows.count)
-        )
         .adaptiveGlass()
     }
 }
