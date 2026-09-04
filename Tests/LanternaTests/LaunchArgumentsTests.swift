@@ -34,6 +34,32 @@ struct LaunchArgumentsTests {
         }
     }
 
+    @Test func mistypedFlagIsRejected() {
+        #expect(throws: LaunchArguments.ParseError.unknownOption("--sample-cout")) {
+            try LaunchArguments.sampleCount(from: ["Lanterna", "--sample-cout", "5"])
+        }
+    }
+
+    @Test(arguments: [
+        ["Lanterna", "--sample-count", "3", "--sample-count", "5"],
+        ["Lanterna", "--sample-count=3", "--sample-count"],
+    ])
+    func repeatedFlagIsRejected(arguments: [String]) {
+        #expect(throws: LaunchArguments.ParseError.duplicateFlag) {
+            try LaunchArguments.sampleCount(from: arguments)
+        }
+    }
+
+    @Test func singleDashArgumentsInjectedByTheSystemAreIgnored() throws {
+        let arguments = ["Lanterna", "-NSDocumentRevisionsDebugMode", "YES"]
+        #expect(try LaunchArguments.sampleCount(from: arguments) == nil)
+    }
+
+    @Test func flagNeedNotComeFirst() throws {
+        let arguments = ["Lanterna", "-ApplePersistenceIgnoreState", "YES", "--sample-count", "3"]
+        #expect(try LaunchArguments.sampleCount(from: arguments) == 3)
+    }
+
     @Test func usageLineIsPinnedOnce() {
         #expect(LaunchArguments.usage == "usage: Lanterna [--sample-count N]")
     }
@@ -43,6 +69,14 @@ struct LaunchArgumentsTests {
         #expect(
             "\(LaunchArguments.ParseError.invalidValue("abc"))"
                 == "\"abc\" is not a whole number of zero or more"
+        )
+        #expect(
+            "\(LaunchArguments.ParseError.unknownOption("--sample-cout"))"
+                == "unknown option \"--sample-cout\""
+        )
+        #expect(
+            "\(LaunchArguments.ParseError.duplicateFlag)"
+                == "--sample-count given more than once"
         )
     }
 }

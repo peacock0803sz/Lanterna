@@ -10,6 +10,8 @@ enum LaunchArguments {
     enum ParseError: Error, Equatable, CustomStringConvertible {
         case missingValue
         case invalidValue(String)
+        case unknownOption(String)
+        case duplicateFlag
 
         var description: String {
             switch self {
@@ -17,6 +19,10 @@ enum LaunchArguments {
                 "\(LaunchArguments.sampleCountFlag) needs a value"
             case let .invalidValue(value):
                 "\"\(value)\" is not a whole number of zero or more"
+            case let .unknownOption(option):
+                "unknown option \"\(option)\""
+            case .duplicateFlag:
+                "\(LaunchArguments.sampleCountFlag) given more than once"
             }
         }
     }
@@ -28,28 +34,45 @@ enum LaunchArguments {
 
     /// Number of fixture entries requested on the command line, or `nil` when
     /// the flag is absent. Both `--sample-count N` and `--sample-count=N` are
-    /// accepted; anything else about the flag is a usage error, so a typo
-    /// cannot silently fall back to the standard fixture.
+    /// accepted, in any position. A missing or malformed value, an unknown
+    /// `--` option and a repeated flag are all rejected, so a typo cannot
+    /// silently fall back to the standard fixture.
+    ///
+    /// Single-dash arguments are ignored: macOS and Xcode inject their own,
+    /// such as `-NSDocumentRevisionsDebugMode YES`.
     static func sampleCount(from arguments: [String]) throws(ParseError) -> Int? {
         let inlinePrefix = sampleCountFlag + "="
-        guard let flagIndex = arguments.firstIndex(where: {
-            $0 == sampleCountFlag || $0.hasPrefix(inlinePrefix)
-        }) else {
-            return nil
-        }
+        var count: Int?
+        var index = arguments.index(after: arguments.startIndex)
 
-        let argument = arguments[flagIndex]
-        let rawValue: String
-        if argument == sampleCountFlag {
-            let valueIndex = arguments.index(after: flagIndex)
-            guard valueIndex < arguments.endIndex else {
-                throw .missingValue
+        while index < arguments.endIndex {
+            let argument = arguments[index]
+            if argument == sampleCountFlag {
+                guard count == nil else {
+                    throw .duplicateFlag
+                }
+                let valueIndex = arguments.index(after: index)
+                guard valueIndex < arguments.endIndex else {
+                    throw .missingValue
+                }
+                count = try parsedCount(arguments[valueIndex])
+                index = arguments.index(after: valueIndex)
+            } else if argument.hasPrefix(inlinePrefix) {
+                guard count == nil else {
+                    throw .duplicateFlag
+                }
+                count = try parsedCount(String(argument.dropFirst(inlinePrefix.count)))
+                index = arguments.index(after: index)
+            } else if argument.hasPrefix("--") {
+                throw .unknownOption(argument)
+            } else {
+                index = arguments.index(after: index)
             }
-            rawValue = arguments[valueIndex]
-        } else {
-            rawValue = String(argument.dropFirst(inlinePrefix.count))
         }
+        return count
+    }
 
+    private static func parsedCount(_ rawValue: String) throws(ParseError) -> Int {
         guard let count = Int(rawValue), count >= 0 else {
             throw .invalidValue(rawValue)
         }
