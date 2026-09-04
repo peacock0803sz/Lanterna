@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 # Runs the test suite with the host Apple toolchain.
 #
-# Two workarounds are applied when only Command Line Tools are installed:
-#   - Nix's devshell exports SDKROOT/DEVELOPER_DIR pointing at an old Apple SDK
-#     that has no SwiftPM, so both are cleared.
-#   - CLT ships Swift Testing outside the toolchain's default search paths, and
-#     DYLD_* variables are stripped from the SIP-protected test helper, so the
-#     framework and its interop dylib must be baked in as rpaths at link time.
-# With a full Xcode installation neither is needed and the flags stay empty.
+# SDKROOT and DEVELOPER_DIR are cleared unconditionally: Nix's devshell exports
+# them pointing at an old Apple SDK that has no SwiftPM. A DEVELOPER_DIR set on
+# purpose is discarded here too, so /usr/bin/swift always picks the toolchain it
+# would use with no environment at all.
+#
+# The extra flags are added whenever the Command Line Tools directory holds
+# Testing.framework, whether or not Xcode is installed as well: CLT ships Swift
+# Testing outside the toolchain's default search paths, and DYLD_* variables are
+# stripped from the SIP-protected test helper, so the framework and its interop
+# dylib have to be baked in as rpaths at link time. Without that directory the
+# flags stay empty.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
