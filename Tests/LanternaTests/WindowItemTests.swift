@@ -33,7 +33,15 @@ struct WindowItemTests {
         #expect(item(appName: "Safari", id: id).id == id)
     }
 
+    @Test func identityHasValueSemantics() {
+        let id = WindowItem.Identifier()
+        let copy = id
+        #expect(copy == id)
+        #expect(Set([id, copy]).count == 1)
+    }
+
     @Test func freshIdentitiesAreDistinct() {
         #expect(item(appName: "Safari").id != item(appName: "Safari").id)
+        #expect(Set([WindowItem.Identifier(), WindowItem.Identifier()]).count == 2)
     }
 }

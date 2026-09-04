@@ -5,16 +5,12 @@ import AppKit
 /// Every value except the icon comes from a static fixture, and the view layer
 /// consumes nothing else, so this shape is the contract between the two.
 struct WindowItem: Identifiable {
-    /// Identity of a row, and so `WindowItem.ID` through `Identifiable`. The
-    /// payload is a UUID because a fixture row has no system handle to borrow;
-    /// wrapping it means the payload can change without touching
-    /// `SwitcherView.selectedID` or the list rendering.
+    /// Identity of a row, and so `WindowItem.ID` through `Identifiable`.
+    /// `Identifier()` mints a fresh one and nothing else can be done with it,
+    /// which is all the view layer needs: the stored value can become a window
+    /// id without touching `SwitcherView.selectedID` or the list rendering.
     struct Identifier: Hashable {
-        let rawValue: UUID
-
-        init(rawValue: UUID = UUID()) {
-            self.rawValue = rawValue
-        }
+        private let storage = UUID()
     }
 
     let id: Identifier
