@@ -70,12 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let elapsed = ContinuousClock.now - launchedAt
         let milliseconds = Double(elapsed.components.seconds) * 1000
             + Double(elapsed.components.attoseconds) * 1e-15
-        Diagnostics.writeLine(
-            String(
-                format: "panel ordered front after %.1f ms (%d entries)",
-                milliseconds,
-                entryCount
-            )
-        )
+        let elapsedText = milliseconds.formatted(.number.precision(.fractionLength(1)))
+        Diagnostics.writeLine("panel ordered front after \(elapsedText) ms (\(entryCount) entries)")
     }
 }
