@@ -10,7 +10,7 @@ import AppKit
 enum SampleWindows {
     private struct Template {
         let appName: String
-        let bundleIdentifier: String?
+        let bundleIdentifier: String
         let windowTitle: String
     }
 
