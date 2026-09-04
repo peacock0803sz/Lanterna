@@ -12,8 +12,8 @@ do {
 }
 
 let application = NSApplication.shared
-// Set before the run loop starts so no window is ever created under the default
-// policy, which would put an icon in the Dock.
+// Set before the run loop starts, because `finishLaunching` under the default
+// `.regular` policy is what puts an icon in the Dock.
 application.setActivationPolicy(.accessory)
 
 let delegate = AppDelegate(launchedAt: launchedAt, sampleCount: sampleCount)
