@@ -39,8 +39,4 @@ struct SampleWindowsTests {
         #expect(windows.count == count)
         #expect(Set(windows.map(\.id)).count == count)
     }
-
-    @Test func overrideTreatsNegativeCountsAsEmpty() {
-        #expect(SampleWindows.make(count: -1).isEmpty)
-    }
 }

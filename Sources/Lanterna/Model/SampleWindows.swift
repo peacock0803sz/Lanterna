@@ -21,8 +21,11 @@ enum SampleWindows {
     /// Builds exactly `count` entries for verifying how the panel reacts to list
     /// length. Templates are cycled, but every entry gets a fresh identity —
     /// duplicate ids would make list rendering and selection undefined.
+    ///
+    /// The count is validated where it enters the process (`LaunchArguments`),
+    /// so a negative value reaching here is a programming error.
     static func make(count: Int) -> [WindowItem] {
-        guard count > 0 else { return [] }
+        precondition(count >= 0, "count must not be negative")
         return (0 ..< count).map { item(from: templates[$0 % templates.count]) }
     }
 

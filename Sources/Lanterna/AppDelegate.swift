@@ -4,11 +4,15 @@ import SwiftUI
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let launchedAt: ContinuousClock.Instant
+    private let sampleCount: Int?
     private var panel: SwitcherPanel?
     private var appNapActivity: NSObjectProtocol?
 
-    init(launchedAt: ContinuousClock.Instant) {
+    /// `sampleCount` overrides the number of fixture entries; `nil` uses the
+    /// standard fixture.
+    init(launchedAt: ContinuousClock.Instant, sampleCount: Int?) {
         self.launchedAt = launchedAt
+        self.sampleCount = sampleCount
         super.init()
     }
 
@@ -20,7 +24,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             reason: "Switcher panel must be drawn without a wake-up delay"
         )
 
-        let windows = sampleWindows()
+        let windows = if let sampleCount {
+            SampleWindows.make(count: sampleCount)
+        } else {
+            SampleWindows.standard()
+        }
         // The delegate holds the panel because nothing else does: a panel that
         // is only ordered front would be deallocated.
         let panel = SwitcherPanel(rowCount: windows.count)
@@ -30,27 +38,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         centerOnMainDisplay(panel)
         panel.orderFrontRegardless()
 
-        reportTimeToOrderFront()
+        reportTimeToOrderFront(entryCount: windows.count)
     }
 
     func applicationWillTerminate(_: Notification) {
         if let appNapActivity {
             ProcessInfo.processInfo.endActivity(appNapActivity)
         }
-    }
-
-    /// `--sample-count N` swaps the fixture for N entries so panel sizing can be
-    /// checked without editing the fixture the tests assert on.
-    private func sampleWindows() -> [WindowItem] {
-        let arguments = ProcessInfo.processInfo.arguments
-        guard let flagIndex = arguments.firstIndex(of: "--sample-count") else {
-            return SampleWindows.standard()
-        }
-        let valueIndex = arguments.index(after: flagIndex)
-        guard valueIndex < arguments.endIndex, let count = Int(arguments[valueIndex]) else {
-            return SampleWindows.standard()
-        }
-        return SampleWindows.make(count: count)
     }
 
     /// `NSWindow.center()` centres on whichever screen the window already sits
@@ -72,10 +66,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Logged rather than eyeballed: the launch-to-visible budget is a number.
     /// The reading is taken right after `orderFrontRegardless()`, so it covers
     /// the work up to that call and not the compositing that follows.
-    private func reportTimeToOrderFront() {
+    private func reportTimeToOrderFront(entryCount: Int) {
         let elapsed = ContinuousClock.now - launchedAt
         let milliseconds = Double(elapsed.components.seconds) * 1000
             + Double(elapsed.components.attoseconds) * 1e-15
-        Diagnostics.writeLine(String(format: "panel ordered front after %.1f ms", milliseconds))
+        Diagnostics.writeLine(
+            String(
+                format: "panel ordered front after %.1f ms (%d entries)",
+                milliseconds,
+                entryCount
+            )
+        )
     }
 }
