@@ -8,7 +8,8 @@ final class SwitcherPanel: NSPanel {
     init(contentRect: NSRect) {
         super.init(
             contentRect: contentRect,
-            styleMask: [.nonactivatingPanel, .fullSizeContentView, .borderless],
+            // Borderless is the absence of `.titled`, so it needs no flag.
+            styleMask: [.nonactivatingPanel],
             backing: .buffered,
             defer: true
         )
@@ -25,7 +26,6 @@ final class SwitcherPanel: NSPanel {
             // shadow the macOS 15 appearance requires.
             hasShadow = true
         }
-        becomesKeyOnlyIfNeeded = true
         hidesOnDeactivate = false
     }
 
