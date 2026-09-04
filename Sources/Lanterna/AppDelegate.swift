@@ -30,7 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         centerOnMainDisplay(panel)
         panel.orderFrontRegardless()
 
-        reportTimeToVisible()
+        reportTimeToOrderFront()
     }
 
     func applicationWillTerminate(_: Notification) {
@@ -67,13 +67,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Logged rather than eyeballed: the launch-to-visible budget is a number.
-    /// Written to stderr so it appears immediately even when the app is launched
-    /// detached with its output redirected to a file.
-    private func reportTimeToVisible() {
+    /// The reading is taken right after `orderFrontRegardless()`, so it covers
+    /// the work up to that call and not the compositing that follows.
+    private func reportTimeToOrderFront() {
         let elapsed = ContinuousClock.now - launchedAt
         let milliseconds = Double(elapsed.components.seconds) * 1000
             + Double(elapsed.components.attoseconds) * 1e-15
-        let line = String(format: "panel visible after %.1f ms\n", milliseconds)
-        FileHandle.standardError.write(Data(line.utf8))
+        Diagnostics.writeLine(String(format: "panel ordered front after %.1f ms", milliseconds))
     }
 }
