@@ -6,8 +6,8 @@ import Testing
 /// checks pin that variety down.
 @MainActor
 struct SampleWindowsTests {
-    /// One application, as the data model identifies it: two rows count as the
-    /// same application only when the name and the bundle identifier match.
+    /// Key for grouping rows by application: two rows count as the same
+    /// application only when both the name and the bundle identifier match.
     private struct ApplicationKey: Hashable {
         let appName: String
         let bundleIdentifier: String?

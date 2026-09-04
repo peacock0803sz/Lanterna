@@ -16,8 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_: Notification) {
-        // App Nap suspends idle background processes, and this one is idle
-        // between invocations, so the activity is held for the whole run.
+        // App Nap suspends idle background processes, and this one sits idle
+        // once the panel is up, so the activity is held for the whole run.
         appNapActivity = ProcessInfo.processInfo.beginActivity(
             options: [.userInitiatedAllowingIdleSystemSleep],
             reason: "Switcher panel must be drawn without a wake-up delay"

@@ -3,7 +3,8 @@ import SwiftUI
 /// Content of the switcher panel: a compact list of windows.
 ///
 /// The view fills the frame the hosting panel gives it, so `PanelMetrics` is
-/// consulted for row height only; the panel owns the overall size.
+/// consulted for row height and vertical padding only; the panel owns the
+/// overall size.
 struct SwitcherView: View {
     let windows: [WindowItem]
 
@@ -17,8 +18,9 @@ struct SwitcherView: View {
         List {
             ForEach(windows) { window in
                 WindowRow(window: window, isSelected: window.id == selectedID)
-                    // Insets and separators are removed so the List adds
-                    // nothing to WindowRow's fixed height.
+                    // Vertical insets and separators are removed so the List
+                    // adds nothing to WindowRow's fixed height; the horizontal
+                    // insets stay.
                     .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
