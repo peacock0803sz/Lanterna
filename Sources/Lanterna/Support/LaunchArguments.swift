@@ -34,12 +34,13 @@ enum LaunchArguments {
 
     /// Number of fixture entries requested on the command line, or `nil` when
     /// the flag is absent. Both `--sample-count N` and `--sample-count=N` are
-    /// accepted, in any position. A missing or malformed value, an unknown
-    /// `--` option and a repeated flag are all rejected, so a typo cannot
-    /// silently fall back to the standard fixture.
+    /// accepted, in any position. An unknown `--` option, a repeated flag and
+    /// a missing or malformed value are usage errors.
     ///
-    /// Single-dash arguments are ignored: macOS and Xcode inject their own,
-    /// such as `-NSDocumentRevisionsDebugMode YES`.
+    /// Single-dash arguments and bare values are ignored, because macOS and
+    /// Xcode inject `-Key Value` pairs such as
+    /// `-NSDocumentRevisionsDebugMode YES`. A single-dash typo of the flag,
+    /// `-sample-count 5`, is therefore not detected.
     static func sampleCount(from arguments: [String]) throws(ParseError) -> Int? {
         let inlinePrefix = sampleCountFlag + "="
         var count: Int?
