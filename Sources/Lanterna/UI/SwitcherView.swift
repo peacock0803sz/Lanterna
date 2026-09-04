@@ -16,8 +16,8 @@ struct SwitcherView: View {
         List {
             ForEach(windows) { window in
                 WindowRow(window: window, isSelected: window.id == selectedID)
-                    // Zero vertical insets and no separators keep each row at
-                    // exactly PanelMetrics.rowHeight.
+                    // Insets and separators are removed so the List adds
+                    // nothing to WindowRow's fixed height.
                     .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
