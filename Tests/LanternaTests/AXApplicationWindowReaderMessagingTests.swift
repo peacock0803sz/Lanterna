@@ -11,96 +11,6 @@ import Testing
 struct AXApplicationWindowReaderMessagingTests {
     private typealias Reader = AXApplicationWindowReader
 
-    /// One application and its windows.
-    ///
-    /// `@unchecked Sendable` because the reader's seams are `@Sendable`
-    /// closures, while these tests drive it synchronously on a single thread,
-    /// so there is nothing to protect.
-    private final class FakeApplication: @unchecked Sendable {
-        let windows: [AXUIElement]
-
-        private(set) var preparedElements: [Int?] = []
-        /// Every attribute read, in order, with the window it was read from;
-        /// `nil` is the application itself.
-        private(set) var reads: [(index: Int?, name: String)] = []
-        private(set) var windowIDReads: [Int] = []
-
-        var attributesRead: [String] {
-            reads.map { $0.name }
-        }
-
-        /// Time each message costs, so a budget can be spent without waiting.
-        var costPerMessage: Duration = .zero
-        /// Answers `nil` to fall through to the default behaviour. The index is
-        /// the window's position, or `nil` for the application itself.
-        var costOverride: @Sendable (Int?, String) -> Duration? = { _, _ in nil }
-        var windowIDCostOverride: @Sendable (Int) -> Duration? = { _ in nil }
-        var timeoutResult: @Sendable (Int?) -> AXError = { _ in .success }
-        var attributeResult: @Sendable (Int?, String) -> (AXError, CFTypeRef?)? = { _, _ in nil }
-        var windowIDResult: @Sendable (Int) -> (AXError, CGWindowID)? = { _ in nil }
-
-        private var clock = ContinuousClock.now
-
-        /// Distinct elements, so a closure can tell which window it was asked
-        /// about. Creating one sends nothing and needs no permission.
-        init(windowCount: Int) {
-            windows = (0 ..< windowCount).map { AXUIElementCreateApplication(pid_t(9001 + $0)) }
-        }
-
-        func reader() -> AXApplicationWindowReader {
-            AXApplicationWindowReader(
-                setMessagingTimeout: { [self] element, _ in
-                    // Client-side, so it costs no time and is charged nothing.
-                    let index = windowIndex(of: element)
-                    preparedElements.append(index)
-                    return timeoutResult(index)
-                },
-                copyAttribute: { [self] element, name in
-                    let index = windowIndex(of: element)
-                    clock = clock.advanced(by: costOverride(index, name) ?? costPerMessage)
-                    reads.append((index, name))
-                    return attributeResult(index, name) ?? (.success, value(at: index, for: name))
-                },
-                copyWindowID: { [self] element in
-                    guard let index = windowIndex(of: element) else {
-                        return (.illegalArgument, 0)
-                    }
-                    clock = clock.advanced(by: windowIDCostOverride(index) ?? costPerMessage)
-                    windowIDReads.append(index)
-                    return windowIDResult(index) ?? (.success, CGWindowID(100 + index))
-                },
-                now: { [self] in clock }
-            )
-        }
-
-        func read() -> Result<ApplicationRead, ReadFailure> {
-            reader().read(processIdentifier: 42)
-        }
-
-        /// The attributes read from one window, in order.
-        func attributesRead(of index: Int) -> [String] {
-            reads.filter { $0.index == index }.map { $0.name }
-        }
-
-        private func windowIndex(of element: AXUIElement) -> Int? {
-            windows.firstIndex { CFEqual($0, element) }
-        }
-
-        /// An ordinary standard window, unless a test says otherwise.
-        private func value(at index: Int?, for name: String) -> CFTypeRef? {
-            guard let index else {
-                return name == kAXWindowsAttribute ? windows as CFArray : nil
-            }
-            switch name {
-            case kAXRoleAttribute: return kAXWindowRole as CFString
-            case kAXSubroleAttribute: return kAXStandardWindowSubrole as CFString
-            case kAXTitleAttribute: return "Window \(index)" as CFString
-            case kAXMinimizedAttribute: return NSNumber(value: false)
-            default: return nil
-            }
-        }
-    }
-
     @Test func anOrdinaryApplicationYieldsOneRecordPerWindow() {
         let application = FakeApplication(windowCount: 2)
         let read = try? application.read().get()
@@ -290,5 +200,95 @@ struct AXApplicationWindowReaderMessagingTests {
 
         #expect(application.read() == .failure(failure))
         #expect(application.attributesRead == [kAXWindowsAttribute])
+    }
+}
+
+/// One application and its windows.
+///
+/// `@unchecked Sendable` because the reader's seams are `@Sendable`
+/// closures, while these tests drive it synchronously on a single thread,
+/// so there is nothing to protect.
+private final class FakeApplication: @unchecked Sendable {
+    let windows: [AXUIElement]
+
+    private(set) var preparedElements: [Int?] = []
+    /// Every attribute read, in order, with the window it was read from;
+    /// `nil` is the application itself.
+    private(set) var reads: [(index: Int?, name: String)] = []
+    private(set) var windowIDReads: [Int] = []
+
+    var attributesRead: [String] {
+        reads.map { $0.name }
+    }
+
+    /// Time each message costs, so a budget can be spent without waiting.
+    var costPerMessage: Duration = .zero
+    /// Answers `nil` to fall through to the default behaviour. The index is
+    /// the window's position, or `nil` for the application itself.
+    var costOverride: @Sendable (Int?, String) -> Duration? = { _, _ in nil }
+    var windowIDCostOverride: @Sendable (Int) -> Duration? = { _ in nil }
+    var timeoutResult: @Sendable (Int?) -> AXError = { _ in .success }
+    var attributeResult: @Sendable (Int?, String) -> (AXError, CFTypeRef?)? = { _, _ in nil }
+    var windowIDResult: @Sendable (Int) -> (AXError, CGWindowID)? = { _ in nil }
+
+    private var clock = ContinuousClock.now
+
+    /// Distinct elements, so a closure can tell which window it was asked
+    /// about. Creating one sends nothing and needs no permission.
+    init(windowCount: Int) {
+        windows = (0 ..< windowCount).map { AXUIElementCreateApplication(pid_t(9001 + $0)) }
+    }
+
+    func reader() -> AXApplicationWindowReader {
+        AXApplicationWindowReader(
+            setMessagingTimeout: { [self] element, _ in
+                // Client-side, so it costs no time and is charged nothing.
+                let index = windowIndex(of: element)
+                preparedElements.append(index)
+                return timeoutResult(index)
+            },
+            copyAttribute: { [self] element, name in
+                let index = windowIndex(of: element)
+                clock = clock.advanced(by: costOverride(index, name) ?? costPerMessage)
+                reads.append((index, name))
+                return attributeResult(index, name) ?? (.success, value(at: index, for: name))
+            },
+            copyWindowID: { [self] element in
+                guard let index = windowIndex(of: element) else {
+                    return (.illegalArgument, 0)
+                }
+                clock = clock.advanced(by: windowIDCostOverride(index) ?? costPerMessage)
+                windowIDReads.append(index)
+                return windowIDResult(index) ?? (.success, CGWindowID(100 + index))
+            },
+            now: { [self] in clock }
+        )
+    }
+
+    func read() -> Result<ApplicationRead, ReadFailure> {
+        reader().read(processIdentifier: 42)
+    }
+
+    /// The attributes read from one window, in order.
+    func attributesRead(of index: Int) -> [String] {
+        reads.filter { $0.index == index }.map { $0.name }
+    }
+
+    private func windowIndex(of element: AXUIElement) -> Int? {
+        windows.firstIndex { CFEqual($0, element) }
+    }
+
+    /// An ordinary standard window, unless a test says otherwise.
+    private func value(at index: Int?, for name: String) -> CFTypeRef? {
+        guard let index else {
+            return name == kAXWindowsAttribute ? windows as CFArray : nil
+        }
+        switch name {
+        case kAXRoleAttribute: return kAXWindowRole as CFString
+        case kAXSubroleAttribute: return kAXStandardWindowSubrole as CFString
+        case kAXTitleAttribute: return "Window \(index)" as CFString
+        case kAXMinimizedAttribute: return NSNumber(value: false)
+        default: return nil
+        }
     }
 }
