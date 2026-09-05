@@ -93,6 +93,29 @@ struct AXApplicationWindowReaderMessagingTests {
         #expect(application.windowIDReads.isEmpty)
     }
 
+    /// The API scopes a timeout to the element it was set on, so the
+    /// application's covers none of its windows: each element gets its own,
+    /// at the contract's one second, before anything is asked of it.
+    @Test func everyElementGetsItsOwnTimeoutBeforeItIsMessaged() {
+        let application = FakeApplication(windowCount: 2)
+        _ = application.read()
+
+        #expect(application.preparedElements == [nil, 0, 1])
+        #expect(application.preparedTimeouts == [1.0, 1.0, 1.0])
+        #expect(application.messagedBeforePrepared.isEmpty)
+    }
+
+    /// The application element is prepared like any other: without its
+    /// timeout the window list itself would be requested with the default.
+    @Test func anApplicationWhoseTimeoutCannotBeSetIsNeverMessaged() {
+        let application = FakeApplication(windowCount: 2)
+        application.timeoutResult = { $0 == nil ? .cannotComplete : .success }
+
+        #expect(application.read() == .failure(.unavailable(.cannotComplete)))
+        #expect(application.attributesRead.isEmpty)
+        #expect(application.preparedElements == [nil])
+    }
+
     /// Without its timeout an element would be messaged with the multi-second
     /// default, so it is not messaged at all.
     @Test func anElementWhoseTimeoutCannotBeSetIsNeverMessaged() {
@@ -207,15 +230,21 @@ struct AXApplicationWindowReaderMessagingTests {
 ///
 /// `@unchecked Sendable` because the reader's seams are `@Sendable`
 /// closures, while these tests drive it synchronously on a single thread,
-/// so there is nothing to protect.
+/// so there is nothing to protect. For these tests only: read through
+/// `WindowEnumerator`, which reads on several threads at once, it would race.
 private final class FakeApplication: @unchecked Sendable {
     let windows: [AXUIElement]
 
     private(set) var preparedElements: [Int?] = []
+    /// The timeout each of those elements was given.
+    private(set) var preparedTimeouts: [Float] = []
     /// Every attribute read, in order, with the window it was read from;
     /// `nil` is the application itself.
     private(set) var reads: [(index: Int?, name: String)] = []
     private(set) var windowIDReads: [Int] = []
+    /// Elements messaged before their timeout was set; such a message would
+    /// have waited the multi-second default.
+    private(set) var messagedBeforePrepared: [Int?] = []
 
     var attributesRead: [String] {
         reads.map { $0.name }
@@ -241,14 +270,16 @@ private final class FakeApplication: @unchecked Sendable {
 
     func reader() -> AXApplicationWindowReader {
         AXApplicationWindowReader(
-            setMessagingTimeout: { [self] element, _ in
+            setMessagingTimeout: { [self] element, timeout in
                 // Client-side, so it costs no time and is charged nothing.
                 let index = windowIndex(of: element)
                 preparedElements.append(index)
+                preparedTimeouts.append(timeout)
                 return timeoutResult(index)
             },
             copyAttribute: { [self] element, name in
                 let index = windowIndex(of: element)
+                noteMessage(to: index)
                 clock = clock.advanced(by: costOverride(index, name) ?? costPerMessage)
                 reads.append((index, name))
                 return attributeResult(index, name) ?? (.success, value(at: index, for: name))
@@ -257,6 +288,7 @@ private final class FakeApplication: @unchecked Sendable {
                 guard let index = windowIndex(of: element) else {
                     return (.illegalArgument, 0)
                 }
+                noteMessage(to: index)
                 clock = clock.advanced(by: windowIDCostOverride(index) ?? costPerMessage)
                 windowIDReads.append(index)
                 return windowIDResult(index) ?? (.success, CGWindowID(100 + index))
@@ -276,6 +308,12 @@ private final class FakeApplication: @unchecked Sendable {
 
     private func windowIndex(of element: AXUIElement) -> Int? {
         windows.firstIndex { CFEqual($0, element) }
+    }
+
+    private func noteMessage(to index: Int?) {
+        if !preparedElements.contains(index) {
+            messagedBeforePrepared.append(index)
+        }
     }
 
     /// An ordinary standard window, unless a test says otherwise.
