@@ -220,6 +220,36 @@ struct AXApplicationWindowReaderMessagingTests {
         #expect(application.read() == .failure(failure))
     }
 
+    /// The ceiling measures the one message, not the read so far: an instant
+    /// refusal that arrives after half a second of ordinary messages is still
+    /// a refusal. Measured from the start of the read instead, an application
+    /// that quit would be reported as hung whenever a few messages had already
+    /// gone out before the one it refused.
+    @Test func aQuickRefusalLateInTheBudgetIsStillARefusal() {
+        let application = FakeApplication(windowCount: 1)
+        // Window list, role and subrole take 540 ms; the title is then refused
+        // at once.
+        application.costPerMessage = .milliseconds(180)
+        application.attributeResult = { _, name in
+            name == kAXTitleAttribute ? (.cannotComplete, nil) : nil
+        }
+        application.costOverride = { _, name in
+            name == kAXTitleAttribute ? .zero : nil
+        }
+        #expect(application.read() == .failure(.unavailable(.cannotComplete)))
+    }
+
+    /// The id fetch shares that measurement.
+    @Test func aQuickRefusalOfTheWindowIDLateInTheBudgetIsStillARefusal() {
+        let application = FakeApplication(windowCount: 1)
+        // The five attribute reads take 900 ms; the id fetch is then refused
+        // at once.
+        application.costPerMessage = .milliseconds(180)
+        application.windowIDResult = { _ in (.cannotComplete, 0) }
+        application.windowIDCostOverride = { _ in .zero }
+        #expect(application.read() == .failure(.unavailable(.cannotComplete)))
+    }
+
     /// Permission revoked between two messages is about this process, not about
     /// the element, so it must not be counted as a window that had no id.
     @Test func aRevokedPermissionOnTheWindowIDFetchEndsTheRead() {
