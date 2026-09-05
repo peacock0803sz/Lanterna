@@ -2,10 +2,12 @@ import AppKit
 
 /// One running application the switcher may list windows for.
 ///
-/// Built on the main thread before any window is read, because
-/// `NSRunningApplication` and `NSImage` must not leave it. Only the process
-/// identifier travels to the reading threads; the name and icon wait here and
-/// are attached to the rows afterwards.
+/// Built on the main thread before any window is read, and kept there by
+/// `@MainActor` on this type: the `NSRunningApplication` it is built from and
+/// the `NSImage` it holds are used from the main thread only, by policy, not
+/// because they could not be sent. Only the process identifier travels to the
+/// reading threads; the name and icon wait here and are attached to the rows
+/// afterwards.
 @MainActor
 struct RunningApplicationInfo {
     let processIdentifier: pid_t
