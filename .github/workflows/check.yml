@@ -44,9 +44,7 @@ jobs:
           path: .build
           key: ${{ runner.os }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: ${{ runner.os }}-spm-
-      # The triple is pinned rather than left to the runner: the target
-      # architecture is a property of the product, not of whichever machine
-      # happens to build it.
+      # The triple is pinned; CONTRIBUTING.md says why.
       - name: Build
         run: nix develop --command swift build --triple arm64-apple-macosx15.0
       - name: Verify architecture

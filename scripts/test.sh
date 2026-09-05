@@ -6,8 +6,7 @@
 # purpose is discarded here too, so /usr/bin/swift always picks the toolchain it
 # would use with no environment at all.
 #
-# The triple is pinned rather than left to the host: the target architecture is
-# a property of the product, not of whichever machine happens to build it.
+# The triple is pinned; CONTRIBUTING.md says why.
 #
 # The extra flags are added whenever the Command Line Tools directory holds
 # Testing.framework, whether or not Xcode is installed as well: CLT ships Swift

@@ -37,9 +37,7 @@ This provides `swiftformat`, `swiftlint`, and installs pre-commit hooks automati
 
 ### Build and Test
 
-The target architecture is pinned rather than left to the host, so the triple is
-given on every build. `scripts/test.sh` passes it for you, along with the search
-paths Swift Testing needs when only the Command Line Tools are installed.
+The target architecture is pinned rather than left to the host, so the triple is given on every build: the architecture is a property of the product, not of whichever machine happens to build it. `scripts/test.sh` passes it for you, along with the search paths Swift Testing needs when only the Command Line Tools are installed.
 
 ```bash
 swift build --triple arm64-apple-macosx15.0
