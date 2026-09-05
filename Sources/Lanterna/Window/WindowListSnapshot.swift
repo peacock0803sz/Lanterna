@@ -5,9 +5,8 @@ import Foundation
 /// Nothing is kept between passes: the list is gathered when the panel is about
 /// to be shown and lives no longer than the process.
 struct WindowListSnapshot {
-    /// An application that answered with nothing usable. Named in the
-    /// diagnostics line so a missing application is explained rather than
-    /// silently absent.
+    /// An application whose read failed. Named in the diagnostics line so a
+    /// missing application is explained rather than silently absent.
     struct SkippedApplication {
         let name: String
         let reason: ReadFailure
@@ -18,7 +17,8 @@ struct WindowListSnapshot {
     let items: [WindowItem]
     /// Every application the pass looked at, including the skipped ones.
     let applicationCount: Int
-    /// Entry to assembled list, covering everything the panel waited for.
+    /// From the start of the pass, before applications are collected, to the
+    /// assembled list: everything the panel waited for.
     let gatheringDuration: Duration
     let skipped: [SkippedApplication]
     let droppedWithoutID: Int
