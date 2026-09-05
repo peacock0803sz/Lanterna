@@ -28,7 +28,6 @@ struct WindowItemTests {
 
     @Test func shortcutHintFallsBackToWholeNameWhenShorter() {
         #expect(item(appName: "X").shortcutHint == "x")
-        #expect(item(appName: "").shortcutHint == "")
     }
 
     @Test func shortcutHintHandlesNonASCIINames() {

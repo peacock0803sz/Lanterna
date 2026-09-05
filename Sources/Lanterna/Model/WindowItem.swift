@@ -26,6 +26,30 @@ struct WindowItem: Identifiable {
     let isMinimized: Bool
     let icon: NSImage
 
+    /// The enumerator's name fallback (`RunningApplicationInfo.displayName`)
+    /// rules out an empty name upstream, so one reaching a row is a programming
+    /// error; `displayTitle` is never empty only because of this.
+    init(
+        id: Identifier,
+        ownerProcessIdentifier: pid_t,
+        appName: String,
+        bundleIdentifier: String?,
+        windowTitle: String,
+        kind: WindowKind,
+        isMinimized: Bool,
+        icon: NSImage
+    ) {
+        precondition(!appName.isEmpty, "appName must not be empty")
+        self.id = id
+        self.ownerProcessIdentifier = ownerProcessIdentifier
+        self.appName = appName
+        self.bundleIdentifier = bundleIdentifier
+        self.windowTitle = windowTitle
+        self.kind = kind
+        self.isMinimized = isMinimized
+        self.icon = icon
+    }
+
     /// Title to draw. Trimming decides emptiness only: a title that has any
     /// content is drawn verbatim, leading and trailing whitespace included, so
     /// the row matches the title bar.
