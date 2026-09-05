@@ -257,9 +257,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
         case .apiDisabled:
             throw .permissionMissing
         case .cannotComplete:
-            throw now() - sentAt >= Self.unreachableAnswerCeiling
-                ? .timedOut
-                : .unavailable(.cannotComplete)
+            throw Self.failure(forCannotCompleteAfter: now() - sentAt)
         default:
             throw .unavailable(error)
         }
@@ -268,17 +266,36 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     /// The window-server id, or `nil` when the element has none.
     ///
     /// The one call whose failure is expected rather than exceptional: an
-    /// element without an id is not a window worth listing, and says nothing
-    /// about the health of the application that owns it. Spending the budget
-    /// still ends the read, since that is about the application, not the id.
+    /// element without an id — `illegalArgument`, in practice — is not a
+    /// window worth listing, and says nothing about the health of the
+    /// application that owns it. `cannotComplete` is the exception. The fetch
+    /// is a round trip like any attribute read, and reading its timeout as
+    /// "no id" would turn a hung application's last window into a dropped
+    /// element and the rest into the partial list that discarding the whole
+    /// application exists to avoid. Spending the budget ends the read for the
+    /// same reason.
     private func identifier(
         of element: AXUIElement,
         within budget: ReadBudget
     ) throws(ReadFailure) -> CGWindowID? {
-        guard !budget.isExpired(at: now()) else {
+        let sentAt = now()
+        guard !budget.isExpired(at: sentAt) else {
             throw .timedOut
         }
         let (error, identifier) = windowIdentifier(element)
-        return error == .success ? identifier : nil
+        switch error {
+        case .success:
+            return identifier
+        case .cannotComplete:
+            throw Self.failure(forCannotCompleteAfter: now() - sentAt)
+        default:
+            return nil
+        }
+    }
+
+    /// What a `kAXErrorCannotComplete` that took `elapsed` to come back means:
+    /// a wait that ran out, or a refusal that never waited.
+    private static func failure(forCannotCompleteAfter elapsed: Duration) -> ReadFailure {
+        elapsed >= unreachableAnswerCeiling ? .timedOut : .unavailable(.cannotComplete)
     }
 }

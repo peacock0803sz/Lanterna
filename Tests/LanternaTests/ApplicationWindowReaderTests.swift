@@ -150,6 +150,7 @@ struct AXApplicationWindowReaderMessagingTests {
         /// Answers `nil` to fall through to the default behaviour. The index is
         /// the window's position, or `nil` for the application itself.
         var costOverride: @Sendable (Int?, String) -> Duration? = { _, _ in nil }
+        var windowIDCostOverride: @Sendable (Int) -> Duration? = { _ in nil }
         var timeoutResult: @Sendable (Int?) -> AXError = { _ in .success }
         var attributeResult: @Sendable (Int?, String) -> (AXError, CFTypeRef?)? = { _, _ in nil }
         var windowIDResult: @Sendable (Int) -> (AXError, CGWindowID)? = { _ in nil }
@@ -177,10 +178,10 @@ struct AXApplicationWindowReaderMessagingTests {
                     return attributeResult(index, name) ?? (.success, value(at: index, for: name))
                 },
                 windowIdentifier: { [self] element in
-                    clock = clock.advanced(by: costPerMessage)
                     guard let index = windowIndex(of: element) else {
                         return (.illegalArgument, 0)
                     }
+                    clock = clock.advanced(by: windowIDCostOverride(index) ?? costPerMessage)
                     windowIDReads.append(index)
                     return windowIDResult(index) ?? (.success, CGWindowID(100 + index))
                 },
@@ -304,9 +305,10 @@ struct AXApplicationWindowReaderMessagingTests {
         #expect(application.windowIDReads.isEmpty)
     }
 
-    /// The window id is the one answer whose absence is ordinary, so it costs
-    /// its own row and nothing else.
-    @Test(arguments: [AXError.cannotComplete, .illegalArgument, .invalidUIElement])
+    /// The window id is the one answer whose absence is ordinary, whether it
+    /// comes as an error or as a zero id, so it costs its own row and nothing
+    /// else.
+    @Test(arguments: [AXError.illegalArgument, .invalidUIElement, .success])
     func aMissingWindowIDCostsOnlyItsOwnRow(error: AXError) {
         let application = FakeApplication(windowCount: 3)
         application.windowIDResult = { $0 == 1 ? (error, 0) : nil }
@@ -314,6 +316,22 @@ struct AXApplicationWindowReaderMessagingTests {
         let read = try? application.read().get()
         #expect(read?.records.map(\.windowID) == [100, 102])
         #expect(read?.droppedWithoutID == 1)
+    }
+
+    /// The id fetch is a round trip like any attribute read. Read as "no id",
+    /// a hang on the last window would have turned that window into a dropped
+    /// element and the others into a partial list of a hung application, the
+    /// outcome discarding the whole application exists to avoid.
+    @Test(arguments: [
+        (Duration.zero, ReadFailure.unavailable(.cannotComplete)),
+        (.seconds(1), .timedOut),
+    ])
+    func aCannotCompleteOnTheLastWindowIDFetchEndsTheRead(cost: Duration, failure: ReadFailure) {
+        let application = FakeApplication(windowCount: 3)
+        application.windowIDResult = { $0 == 2 ? (.cannotComplete, 0) : nil }
+        application.windowIDCostOverride = { $0 == 2 ? cost : nil }
+
+        #expect(application.read() == .failure(failure))
     }
 
     /// An application with nothing open answers an empty list, which is a
