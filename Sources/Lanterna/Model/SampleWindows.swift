@@ -17,8 +17,10 @@ enum SampleWindows {
     }
 
     /// Window ids are synthesised from a base far above any id the window
-    /// server hands out, so a fixture row can never collide with a live one.
-    private static let fixtureWindowIDBase: CGWindowID = 1_000_000_000
+    /// server hands out, so a fixture id is recognisable as synthetic and
+    /// cannot be mistaken for a live window's. Internal because the tests
+    /// assert the range.
+    static let fixtureWindowIDBase: CGWindowID = 1_000_000_000
 
     static func standard() -> [WindowItem] {
         templates.enumerated().map { index, template in

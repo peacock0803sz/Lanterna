@@ -1,9 +1,10 @@
 @testable import Lanterna
 import Testing
 
-/// The fixture is what the panel shows unless `--sample-count` asks for a
-/// different length, so its variety is what makes the layout reviewable. These
-/// checks pin that variety down.
+/// The fixture stands in for the live list only when `--sample-count` asks for
+/// it, and it is what CI and the layout tests can render without accessibility
+/// permission, so its variety is what makes the layout reviewable. These checks
+/// pin that variety down.
 @MainActor
 struct SampleWindowsTests {
     /// Key for grouping rows by application: two rows count as the same
@@ -45,7 +46,8 @@ struct SampleWindowsTests {
     }
 
     /// The override cycles the templates, so ids have to come from the position
-    /// rather than the content: 30 entries reuse every template twice.
+    /// rather than the content: 30 entries outnumber the templates, so some
+    /// content appears twice and content alone could not tell entries apart.
     @Test(arguments: [0, 3, 30]) func overrideReturnsTheRequestedCountWithUniqueIDs(count: Int) {
         let windows = SampleWindows.make(count: count)
         #expect(windows.count == count)
@@ -55,8 +57,9 @@ struct SampleWindowsTests {
     /// Fixture ids are synthesised, so they must stay clear of the ids the
     /// window server hands out to real windows.
     @Test func fixtureIDsSitInTheReservedRange() {
-        #expect(windows.allSatisfy { $0.id.windowID >= 1_000_000_000 })
-        #expect(SampleWindows.make(count: 30).allSatisfy { $0.id.windowID >= 1_000_000_000 })
+        let base = SampleWindows.fixtureWindowIDBase
+        #expect(windows.allSatisfy { $0.id.windowID >= base })
+        #expect(SampleWindows.make(count: 30).allSatisfy { $0.id.windowID >= base })
     }
 
     @Test func overrideCyclesTheFixtureContent() {
