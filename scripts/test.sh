@@ -6,6 +6,9 @@
 # purpose is discarded here too, so /usr/bin/swift always picks the toolchain it
 # would use with no environment at all.
 #
+# The triple is pinned rather than left to the host: the target architecture is
+# a property of the product, not of whichever machine happens to build it.
+#
 # The extra flags are added whenever the Command Line Tools directory holds
 # Testing.framework, whether or not Xcode is installed as well: CLT ships Swift
 # Testing outside the toolchain's default search paths, and DYLD_* variables are
@@ -31,4 +34,5 @@ fi
 
 # `"${flags[@]}"` alone aborts under `set -u` in bash 3.2, which macOS ships as
 # /bin/bash and which this script may run under, when the array is empty.
-exec env -u SDKROOT -u DEVELOPER_DIR /usr/bin/swift test ${flags[@]+"${flags[@]}"} "$@"
+exec env -u SDKROOT -u DEVELOPER_DIR /usr/bin/swift test \
+    --triple arm64-apple-macosx15.0 ${flags[@]+"${flags[@]}"} "$@"

@@ -37,9 +37,14 @@ This provides `swiftformat`, `swiftlint`, and installs pre-commit hooks automati
 
 ### Build and Test
 
+The target architecture is pinned rather than left to the host, so the triple is
+given on every build. `scripts/test.sh` passes it for you, along with the search
+paths Swift Testing needs when only the Command Line Tools are installed.
+
 ```bash
-swift build
-swift test
+swift build --triple arm64-apple-macosx15.0
+lipo -archs .build/debug/Lanterna   # must print arm64 and nothing else
+bash scripts/test.sh
 ```
 
 ### CI-to-Local Command Mapping
@@ -47,8 +52,9 @@ swift test
 | CI Step | Local Command |
 |---------|---------------|
 | nix-validate | `nix flake check` |
-| swift-build (build) | `nix develop --command swift build` |
-| swift-build (test) | `nix develop --command swift test` |
+| swift-build (build) | `nix develop --command swift build --triple arm64-apple-macosx15.0` |
+| swift-build (verify architecture) | `lipo -archs .build/debug/Lanterna \| grep -qx arm64` |
+| swift-build (test) | `nix develop --command swift test --triple arm64-apple-macosx15.0` |
 
 ## Troubleshooting
 
