@@ -253,14 +253,27 @@ struct WindowEnumeratorTests {
         ) == "Safari")
     }
 
-    @Test(arguments: ["", " ", "\n"])
-    func aBlankLocalizedNameFallsBackToTheBundleName(localizedName: String) {
+    /// A missing name and a blank one are the same absence: both must move on
+    /// to the bundle, not past it to the executable or the process.
+    @Test(arguments: ["", " ", "\n", nil])
+    func aBlankLocalizedNameFallsBackToTheBundleName(localizedName: String?) {
         #expect(RunningApplicationInfo.displayName(
             localizedName: localizedName,
             bundleURL: URL(fileURLWithPath: "/Applications/Safari.app"),
             executableURL: URL(fileURLWithPath: "/usr/bin/whatever"),
             processIdentifier: 42
         ) == "Safari")
+    }
+
+    /// Not every bundle ends in `.app`; stripping an extension that is not
+    /// there must leave the name whole rather than empty.
+    @Test func aBundleWithoutAnExtensionKeepsItsWholeName() {
+        #expect(RunningApplicationInfo.displayName(
+            localizedName: nil,
+            bundleURL: URL(fileURLWithPath: "/Applications/Probe"),
+            executableURL: nil,
+            processIdentifier: 42
+        ) == "Probe")
     }
 
     @Test func anApplicationWithoutABundleFallsBackToItsExecutable() {
