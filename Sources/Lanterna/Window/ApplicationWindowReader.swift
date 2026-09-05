@@ -46,6 +46,23 @@ enum ReadFailure: Error, Sendable, Equatable {
     case unavailable(AXError)
 }
 
+extension ReadFailure: CustomStringConvertible {
+    /// The reason as the diagnostics line prints it. The manual acceptance
+    /// check greps these words, so they are stable.
+    var description: String {
+        switch self {
+        case .timedOut:
+            "timed out"
+        case .permissionMissing:
+            "permission missing"
+        case .malformedAnswer:
+            "malformed answer"
+        case let .unavailable(error):
+            "error \(error.rawValue)"
+        }
+    }
+}
+
 /// Reads the windows of a single application.
 ///
 /// A protocol because the enumerator's assembly rules — ordering, skipping,

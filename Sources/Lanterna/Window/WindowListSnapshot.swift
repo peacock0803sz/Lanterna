@@ -47,25 +47,12 @@ struct WindowListSnapshot {
         var line = "listed \(items.count) windows from \(applicationCount) applications "
             + "in \(Diagnostics.millisecondsText(gatheringDuration)) ms"
         if !skipped.isEmpty {
-            let reasons = skipped.map { "\($0.name) (\(Self.text(for: $0.reason)))" }
+            let reasons = skipped.map { "\($0.name) (\($0.reason))" }
             line += "; skipped " + reasons.joined(separator: ", ")
         }
         if droppedWithoutID > 0 {
             line += "; dropped \(droppedWithoutID) elements without a window id"
         }
         return line
-    }
-
-    private static func text(for reason: ReadFailure) -> String {
-        switch reason {
-        case .timedOut:
-            "timed out"
-        case .permissionMissing:
-            "permission missing"
-        case .malformedAnswer:
-            "malformed answer"
-        case let .unavailable(error):
-            "error \(error.rawValue)"
-        }
     }
 }
