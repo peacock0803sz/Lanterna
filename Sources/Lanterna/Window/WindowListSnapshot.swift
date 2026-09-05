@@ -23,6 +23,24 @@ struct WindowListSnapshot {
     let skipped: [SkippedApplication]
     let droppedWithoutID: Int
 
+    /// `assert` rather than `precondition`: a duplicated id is loud in debug
+    /// builds and under test, but a doubled row must never take the panel
+    /// down in release.
+    init(
+        items: [WindowItem],
+        applicationCount: Int,
+        gatheringDuration: Duration,
+        skipped: [SkippedApplication],
+        droppedWithoutID: Int
+    ) {
+        assert(Set(items.map(\.id)).count == items.count, "window ids must be unique")
+        self.items = items
+        self.applicationCount = applicationCount
+        self.gatheringDuration = gatheringDuration
+        self.skipped = skipped
+        self.droppedWithoutID = droppedWithoutID
+    }
+
     /// The one line written after a pass. Counts, timings and skipped
     /// application names only — never a window title.
     var summaryLine: String {
