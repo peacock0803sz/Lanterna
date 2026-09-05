@@ -44,10 +44,19 @@ struct SampleWindowsTests {
         #expect(windows.allSatisfy { !$0.appName.isEmpty && !$0.windowTitle.isEmpty })
     }
 
+    /// The override cycles the templates, so ids have to come from the position
+    /// rather than the content: 30 entries reuse every template twice.
     @Test(arguments: [0, 3, 30]) func overrideReturnsTheRequestedCountWithUniqueIDs(count: Int) {
         let windows = SampleWindows.make(count: count)
         #expect(windows.count == count)
         #expect(Set(windows.map(\.id)).count == count)
+    }
+
+    /// Fixture ids are synthesised, so they must stay clear of the ids the
+    /// window server hands out to real windows.
+    @Test func fixtureIDsSitInTheReservedRange() {
+        #expect(windows.allSatisfy { $0.id.windowID >= 1_000_000_000 })
+        #expect(SampleWindows.make(count: 30).allSatisfy { $0.id.windowID >= 1_000_000_000 })
     }
 
     @Test func overrideCyclesTheFixtureContent() {

@@ -6,6 +6,8 @@ import AppKit
 /// two windows of one application, a title and an application name long enough
 /// to truncate, an application that is not installed, and enough rows to exceed
 /// the panel's maximum height.
+///
+/// Reached only through `--sample-count`; the default path lists live windows.
 @MainActor
 enum SampleWindows {
     private struct Template {
@@ -14,27 +16,37 @@ enum SampleWindows {
         let windowTitle: String
     }
 
+    /// Window ids are synthesised from a base far above any id the window
+    /// server hands out, so a fixture row can never collide with a live one.
+    private static let fixtureWindowIDBase: CGWindowID = 1_000_000_000
+
     static func standard() -> [WindowItem] {
-        templates.map(item(from:))
+        templates.enumerated().map { index, template in
+            item(from: template, index: index)
+        }
     }
 
     /// Builds exactly `count` entries for verifying how the panel reacts to list
-    /// length. Templates are cycled, but every entry gets a fresh identity —
-    /// duplicate ids would make list rendering and selection undefined.
+    /// length. Templates are cycled, but the index keeps every entry's id
+    /// distinct — duplicate ids would make list rendering and selection
+    /// undefined.
     ///
     /// The count is validated where it enters the process (`LaunchArguments`),
     /// so a negative value reaching here is a programming error.
     static func make(count: Int) -> [WindowItem] {
         precondition(count >= 0, "count must not be negative")
-        return (0 ..< count).map { item(from: templates[$0 % templates.count]) }
+        return (0 ..< count).map { item(from: templates[$0 % templates.count], index: $0) }
     }
 
-    private static func item(from template: Template) -> WindowItem {
+    private static func item(from template: Template, index: Int) -> WindowItem {
         WindowItem(
-            id: WindowItem.Identifier(),
+            id: WindowItem.Identifier(windowID: fixtureWindowIDBase + CGWindowID(index)),
+            ownerProcessIdentifier: 0,
             appName: template.appName,
             bundleIdentifier: template.bundleIdentifier,
             windowTitle: template.windowTitle,
+            kind: .standard,
+            isMinimized: false,
             icon: AppIconResolver.icon(forBundleIdentifier: template.bundleIdentifier)
         )
     }
