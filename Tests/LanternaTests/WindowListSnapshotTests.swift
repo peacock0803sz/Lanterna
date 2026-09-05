@@ -43,6 +43,13 @@ struct WindowListSnapshotTests {
         #expect(snapshot().summaryLine == "listed 9 windows from 11 applications in 71.2 ms")
     }
 
+    /// An empty pass is reported in the same words, so the quickstart's grep
+    /// finds the line whether or not anything was listed.
+    @Test func summaryReportsAnEmptyPass() {
+        #expect(snapshot(windowCount: 0, applicationCount: 0).summaryLine
+            == "listed 0 windows from 0 applications in 71.2 ms")
+    }
+
     @Test func summaryStopsAfterTheCountsWhenNothingWentWrong() {
         #expect(!snapshot().summaryLine.contains(";"))
     }

@@ -58,6 +58,8 @@ struct WindowEnumeratorTests {
 
     // MARK: - Ordering
 
+    /// The input is unsorted on purpose: the ids prove that each application
+    /// kept its own read through the sort, not only its place.
     @Test func applicationsAreGroupedInProcessIdentifierOrder() {
         let result = snapshot(
             applications: [application(300, name: "Mail"), application(100, name: "Finder")],
@@ -65,6 +67,7 @@ struct WindowEnumeratorTests {
         )
         #expect(result.items.map(\.appName) == ["Finder", "Mail"])
         #expect(result.items.map(\.ownerProcessIdentifier) == [100, 300])
+        #expect(result.items.map(\.id.windowID) == [7, 9])
     }
 
     /// The accessibility list is ordered front to back, so it changes whenever
@@ -171,6 +174,16 @@ struct WindowEnumeratorTests {
         #expect(result.skipped.isEmpty)
     }
 
+    /// Nothing in the Dock at all leaves the concurrent read with no work to
+    /// fan out, and must still come back as an ordinary, empty snapshot.
+    @Test func noApplicationsMakeAnEmptySnapshot() {
+        let result = snapshot(applications: [], reads: [:])
+        #expect(result.items.isEmpty)
+        #expect(result.applicationCount == 0)
+        #expect(result.skipped.isEmpty)
+        #expect(result.droppedWithoutID == 0)
+    }
+
     // MARK: - Isolating a failing application
 
     /// One application that cannot be read must not cost the others their rows.
@@ -202,6 +215,7 @@ struct WindowEnumeratorTests {
             reads: [300: .failure(.permissionMissing), 100: .failure(.timedOut)]
         )
         #expect(result.skipped.map(\.name) == ["Finder", "Mail"])
+        #expect(result.skipped.map(\.reason) == [.timedOut, .permissionMissing])
     }
 
     // MARK: - Candidate applications
