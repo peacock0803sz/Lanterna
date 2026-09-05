@@ -22,7 +22,8 @@ struct WindowItem: Identifiable {
     /// nothing but whitespace.
     let windowTitle: String
     let kind: WindowKind
-    /// Read for later steps; minimised rows look like any other row today.
+    /// Kept for window activation; minimised rows look like any other row
+    /// today.
     let isMinimized: Bool
     let icon: NSImage
 

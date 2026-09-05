@@ -2,7 +2,7 @@ import ApplicationServices
 
 /// What kind of window a listed row stands for.
 ///
-/// The value is carried on `WindowItem` for later steps; the switcher draws
+/// Carried on every row for the features that follow; the switcher draws
 /// every kind the same way today.
 enum WindowKind: Sendable {
     case standard
