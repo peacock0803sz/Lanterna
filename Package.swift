@@ -8,7 +8,10 @@ let package = Package(
         .macOS(.v15),
     ],
     targets: [
-        .executableTarget(name: "Lanterna"),
+        // Declarations of the private ApplicationServices functions the app is
+        // allowed to call. Kept in C because Swift cannot declare them.
+        .target(name: "PrivateAPIs"),
+        .executableTarget(name: "Lanterna", dependencies: ["PrivateAPIs"]),
         .testTarget(
             name: "LanternaTests",
             dependencies: ["Lanterna"]
