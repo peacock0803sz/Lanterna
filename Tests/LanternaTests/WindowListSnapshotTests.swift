@@ -54,9 +54,11 @@ struct WindowListSnapshotTests {
             WindowListSnapshot.SkippedApplication(name: "TextEdit", reason: .timedOut),
             WindowListSnapshot.SkippedApplication(name: "Foo", reason: .permissionMissing),
             WindowListSnapshot.SkippedApplication(name: "Bar", reason: .unavailable(.invalidUIElement)),
+            WindowListSnapshot.SkippedApplication(name: "Baz", reason: .malformedAnswer),
         ]).summaryLine
         #expect(line.hasSuffix(
-            "; skipped TextEdit (timed out), Foo (permission missing), Bar (error -25202)"
+            "; skipped TextEdit (timed out), Foo (permission missing), "
+                + "Bar (error -25202), Baz (malformed answer)"
         ))
     }
 

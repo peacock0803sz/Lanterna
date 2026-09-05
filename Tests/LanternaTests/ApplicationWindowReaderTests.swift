@@ -316,15 +316,46 @@ struct AXApplicationWindowReaderMessagingTests {
         #expect(read?.droppedWithoutID == 1)
     }
 
-    /// An application with nothing open is a normal answer, not a failure.
-    @Test(arguments: [AXError.noValue, .attributeUnsupported])
-    func anApplicationWithoutWindowsReadsSuccessfully(error: AXError) {
+    /// An application with nothing open answers an empty list, which is a
+    /// normal read, not a skipped application.
+    @Test func anApplicationWithoutWindowsReadsSuccessfully() {
         let application = FakeApplication(windowCount: 0)
+        let read = try? application.read().get()
+        #expect(read?.records.isEmpty == true)
+    }
+
+    /// "No value" is accepted as nothing open too. The windows behind the fake
+    /// prove that the answer, not the default, produced the empty list.
+    @Test func aWindowListWithNoValueReadsAsEmpty() {
+        let application = FakeApplication(windowCount: 2)
         application.attributeResult = { _, name in
-            name == kAXWindowsAttribute ? (error, nil) : nil
+            name == kAXWindowsAttribute ? (.noValue, nil) : nil
         }
 
         let read = try? application.read().get()
         #expect(read?.records.isEmpty == true)
+        #expect(application.attributesRead == [kAXWindowsAttribute])
+    }
+
+    /// Every live application answers the window list with an array, an empty
+    /// one included, so anything else is an application that cannot be read,
+    /// not one that is idle. Folding it into "no windows" would count the
+    /// application without a row and without a reason.
+    @Test(arguments: [
+        (AXError.attributeUnsupported, nil, ReadFailure.unavailable(.attributeUnsupported)),
+        (.success, "oops", .malformedAnswer),
+    ])
+    func anAbnormalWindowListAnswerDiscardsTheApplication(
+        error: AXError,
+        value: String?,
+        failure: ReadFailure
+    ) {
+        let application = FakeApplication(windowCount: 2)
+        application.attributeResult = { _, name in
+            name == kAXWindowsAttribute ? (error, value as CFString?) : nil
+        }
+
+        #expect(application.read() == .failure(failure))
+        #expect(application.attributesRead == [kAXWindowsAttribute])
     }
 }

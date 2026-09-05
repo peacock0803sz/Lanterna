@@ -44,6 +44,8 @@ struct WindowListSnapshot {
             "timed out"
         case .permissionMissing:
             "permission missing"
+        case .malformedAnswer:
+            "malformed answer"
         case let .unavailable(error):
             "error \(error.rawValue)"
         }

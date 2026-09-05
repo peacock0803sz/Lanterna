@@ -28,6 +28,9 @@ enum ReadFailure: Error, Sendable, Equatable {
     /// The same code answered at once is `unavailable`: nothing was waited
     /// for, the application has quit or is not reachable yet.
     case timedOut
+    /// The application answered the window list with something that is not
+    /// one. The call itself succeeded, so there is no `AXError` to report.
+    case malformedAnswer
     case unavailable(AXError)
 }
 
@@ -150,11 +153,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
         let budget = ReadBudget(startedAt: now())
         let application = AXUIElementCreateApplication(processIdentifier)
         try prepare(application)
-
-        // A regular application with no open window is a successful read of an
-        // empty list, never a skipped application.
-        let windows = try attribute(application, kAXWindowsAttribute, within: budget)
-            as? [AXUIElement] ?? []
+        let windows = try windowElements(of: application, within: budget)
 
         var records: [WindowRecord] = []
         var droppedWithoutID = 0
@@ -169,6 +168,34 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
             }
         }
         return ApplicationRead(records: records, droppedWithoutID: droppedWithoutID)
+    }
+
+    /// The application's window list, empty when nothing is open.
+    ///
+    /// Every live application answers this attribute with an array, an empty
+    /// one included, so any other answer means the application cannot be
+    /// read, not that it has no windows. Folding it into an empty list would
+    /// count the application without a row and without a reason, the one gap
+    /// the summary line exists to close. "No value" alone is accepted as
+    /// nothing open.
+    private func windowElements(
+        of application: AXUIElement,
+        within budget: ReadBudget
+    ) throws(ReadFailure) -> [AXUIElement] {
+        let (error, value) = try send(kAXWindowsAttribute, to: application, within: budget)
+        switch error {
+        case .success:
+            guard let windows = value as? [AXUIElement] else {
+                throw .malformedAnswer
+            }
+            return windows
+        case .noValue:
+            return []
+        default:
+            // Only `attributeUnsupported` gets this far: the accessibility
+            // server has no window list to give.
+            throw .unavailable(error)
+        }
     }
 
     private func outcome(
