@@ -20,8 +20,14 @@ struct AXApplicationWindowReaderMessagingTests {
         let windows: [AXUIElement]
 
         private(set) var preparedElements: [Int?] = []
-        private(set) var attributesRead: [String] = []
+        /// Every attribute read, in order, with the window it was read from;
+        /// `nil` is the application itself.
+        private(set) var reads: [(index: Int?, name: String)] = []
         private(set) var windowIDReads: [Int] = []
+
+        var attributesRead: [String] {
+            reads.map { $0.name }
+        }
 
         /// Time each message costs, so a budget can be spent without waiting.
         var costPerMessage: Duration = .zero
@@ -52,7 +58,7 @@ struct AXApplicationWindowReaderMessagingTests {
                 copyAttribute: { [self] element, name in
                     let index = windowIndex(of: element)
                     clock = clock.advanced(by: costOverride(index, name) ?? costPerMessage)
-                    attributesRead.append(name)
+                    reads.append((index, name))
                     return attributeResult(index, name) ?? (.success, value(at: index, for: name))
                 },
                 windowIdentifier: { [self] element in
@@ -69,6 +75,11 @@ struct AXApplicationWindowReaderMessagingTests {
 
         func read() -> Result<ApplicationRead, ReadFailure> {
             reader().read(processIdentifier: 42)
+        }
+
+        /// The attributes read from one window, in order.
+        func attributesRead(of index: Int) -> [String] {
+            reads.filter { $0.index == index }.map { $0.name }
         }
 
         private func windowIndex(of element: AXUIElement) -> Int? {
@@ -181,6 +192,32 @@ struct AXApplicationWindowReaderMessagingTests {
         #expect(application.read() == .failure(.unavailable(.cannotComplete)))
         #expect(application.attributesRead == [kAXWindowsAttribute])
         #expect(application.windowIDReads.isEmpty)
+    }
+
+    /// An element the rule table rules out — the Finder desktop, a font panel —
+    /// is asked nothing more once its role and subrole are in. Every message
+    /// is a round trip, and a failing one would discard the whole application
+    /// over an element that was never going to be a row.
+    @Test func anExcludedElementIsNotMessagedFurther() {
+        let application = FakeApplication(windowCount: 2)
+        application.attributeResult = { index, name in
+            guard index == 0 else { return nil }
+            switch name {
+            case kAXRoleAttribute: return (.success, kAXScrollAreaRole as CFString)
+            // Never sent, so it never gets the chance to fail the read.
+            case kAXTitleAttribute: return (.invalidUIElement, nil)
+            default: return nil
+            }
+        }
+
+        let read = try? application.read().get()
+        #expect(read?.records.map(\.windowID) == [101])
+        #expect(read?.droppedWithoutID == 0)
+        #expect(application.attributesRead(of: 0) == [kAXRoleAttribute, kAXSubroleAttribute])
+        #expect(application.attributesRead(of: 1) == [
+            kAXRoleAttribute, kAXSubroleAttribute, kAXTitleAttribute, kAXMinimizedAttribute,
+        ])
+        #expect(application.windowIDReads == [1])
     }
 
     /// The window id is the one answer whose absence is ordinary, whether it

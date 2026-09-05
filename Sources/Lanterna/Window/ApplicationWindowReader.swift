@@ -203,9 +203,18 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
         within budget: ReadBudget
     ) throws(ReadFailure) -> ElementOutcome {
         try prepare(window)
+        let role = try attribute(window, kAXRoleAttribute, within: budget) as? String
+        let subrole = try attribute(window, kAXSubroleAttribute, within: budget) as? String
+        // The rule table's first check, applied as soon as it can be: every
+        // message is a round trip, and a failing one discards the whole
+        // application, so an element that will not become a row is asked
+        // nothing more.
+        guard WindowKind.classify(role: role, subrole: subrole) != nil else {
+            return .excluded
+        }
         return try Self.outcome(
-            role: attribute(window, kAXRoleAttribute, within: budget) as? String,
-            subrole: attribute(window, kAXSubroleAttribute, within: budget) as? String,
+            role: role,
+            subrole: subrole,
             title: attribute(window, kAXTitleAttribute, within: budget) as? String ?? "",
             isMinimized: attribute(window, kAXMinimizedAttribute, within: budget) as? Bool ?? false,
             windowID: identifier(of: window, within: budget)
