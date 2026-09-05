@@ -324,14 +324,16 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
 
     /// The window-server id, or `nil` when the fetch fails.
     ///
-    /// The one call whose failure is expected rather than exceptional: every
-    /// error but one — `illegalArgument`, in practice — is treated as "no id",
-    /// an element that is not a window worth listing, rather than as a verdict
-    /// on the application that owns it; `outcome` reads a zero id the same way.
-    /// `cannotComplete` is the exception. The fetch is a round trip like any
-    /// attribute read, and reading its timeout as "no id" would turn a hung
-    /// application's last window into a dropped element and the rest into the
-    /// partial list that discarding the whole application exists to avoid.
+    /// The one call whose failure is expected rather than exceptional: an error
+    /// here is treated as "no id" — an element that is not a window worth
+    /// listing (`illegalArgument`, in practice) — rather than as a verdict on
+    /// the application that owns it; `outcome` reads a zero id the same way.
+    /// Two answers are about the application, not the element, and end the
+    /// read like they would anywhere else: `apiDisabled`, because permission
+    /// was revoked, and `cannotComplete`, because the fetch is a round trip
+    /// like any attribute read and reading its timeout as "no id" would turn a
+    /// hung application's last window into a dropped element and the rest into
+    /// the partial list that discarding the whole application exists to avoid.
     /// Spending the budget ends the read for the same reason.
     private func windowID(
         of element: AXUIElement,
@@ -345,6 +347,8 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
         switch error {
         case .success:
             return windowID
+        case .apiDisabled:
+            throw .permissionMissing
         case .cannotComplete:
             throw Self.failure(forCannotCompleteAfter: now() - sentAt)
         default:

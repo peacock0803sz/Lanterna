@@ -220,6 +220,15 @@ struct AXApplicationWindowReaderMessagingTests {
         #expect(application.read() == .failure(failure))
     }
 
+    /// Permission revoked between two messages is about this process, not about
+    /// the element, so it must not be counted as a window that had no id.
+    @Test func aRevokedPermissionOnTheWindowIDFetchEndsTheRead() {
+        let application = FakeApplication(windowCount: 3)
+        application.windowIDResult = { $0 == 2 ? (.apiDisabled, 0) : nil }
+
+        #expect(application.read() == .failure(.permissionMissing))
+    }
+
     /// An application with nothing open answers an empty list, which is a
     /// normal read, not a skipped application.
     @Test func anApplicationWithoutWindowsReadsSuccessfully() {
