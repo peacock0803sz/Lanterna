@@ -10,6 +10,18 @@ struct WindowRecord: Sendable, Equatable {
     let title: String
     let kind: WindowKind
     let isMinimized: Bool
+
+    /// Zero is what the id fetch reports for "none", and a row's identity is
+    /// built from this value. `AXApplicationWindowReader.outcome` counts such
+    /// an element as dropped before a record exists, so one getting this far
+    /// is a programming error.
+    init(windowID: CGWindowID, title: String, kind: WindowKind, isMinimized: Bool) {
+        precondition(windowID != 0, "a window record needs a window-server id")
+        self.windowID = windowID
+        self.title = title
+        self.kind = kind
+        self.isMinimized = isMinimized
+    }
 }
 
 /// The outcome of reading one application that answered.
