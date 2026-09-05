@@ -106,15 +106,28 @@ struct AXApplicationWindowReaderMessagingTests {
         #expect(application.read() == .failure(.timedOut))
     }
 
-    @Test func nothingIsSentOnceTheBudgetIsSpent() {
+    /// The budget is checked before every message, the id fetch included. At
+    /// 400 ms a message, three go out at 0, 400 and 800 ms and the fourth is
+    /// refused at 1200 ms. At 200 ms the five attribute reads land at 0
+    /// through 800 ms and the id fetch falls exactly on the line, where it
+    /// must be refused too: without a check of its own it would go out, and
+    /// the read would end a window later with the id already fetched. At
+    /// 999 ms the second message starts just under the line, the documented
+    /// worst case.
+    @Test(arguments: [
+        (Duration.milliseconds(400), 3),
+        (.milliseconds(200), 5),
+        (.milliseconds(999), 2),
+    ])
+    func nothingIsSentOnceTheBudgetIsSpent(costPerMessage: Duration, messagesSent: Int) {
         let application = FakeApplication(windowCount: 10)
-        // Four messages fit in a one-second budget at this cost.
-        application.costPerMessage = .milliseconds(400)
+        application.costPerMessage = costPerMessage
 
+        let messagesInOrder = [
+            kAXWindowsAttribute, kAXRoleAttribute, kAXSubroleAttribute, kAXTitleAttribute, kAXMinimizedAttribute,
+        ]
         #expect(application.read() == .failure(.timedOut))
-        #expect(application.attributesRead == [
-            kAXWindowsAttribute, kAXRoleAttribute, kAXSubroleAttribute,
-        ])
+        #expect(application.attributesRead == Array(messagesInOrder.prefix(messagesSent)))
         #expect(application.windowIDReads.isEmpty)
     }
 
