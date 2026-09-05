@@ -1,13 +1,13 @@
 @testable import Lanterna
 import Testing
 
-/// The millisecond figure is what the quickstart reads off the summary line
-/// to check the timing criteria, so the conversion is pinned term by term.
+/// The millisecond figure is what the manual acceptance check reads off the
+/// summary line to check the timing criteria, so the conversion is pinned term
+/// by term.
 struct DiagnosticsTests {
     /// A pass that runs past a second must show its seconds too: with the
-    /// seconds term dropped, the contract's own example of a timed-out
-    /// application, 1004.8 ms, would print 4.8 and every other case would
-    /// still pass.
+    /// seconds term dropped, a timed-out application's 1004.8 ms would print
+    /// 4.8 and every other case would still pass.
     @Test(arguments: [
         (Duration.milliseconds(1004.8), "1004.8"),
         (.zero, "0.0"),

@@ -133,7 +133,7 @@ struct AXApplicationWindowReaderMessagingTests {
 
     /// The API scopes a timeout to the element it was set on, so the
     /// application's covers none of its windows: each element gets its own,
-    /// at the contract's one second, before anything is asked of it.
+    /// at `messagingTimeout`, before anything is asked of it.
     @Test func everyElementGetsItsOwnTimeoutBeforeItIsMessaged() {
         let application = FakeApplication(windowCount: 2)
         _ = application.read()
