@@ -47,8 +47,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// only way to see anything other than what is really open.
     private func windowsToShow() -> [WindowItem] {
         if let sampleCount {
+            // The fixture needs no permission, so the check is skipped with it.
             Diagnostics.writeLine("showing \(sampleCount) sample entries (--sample-count)")
             return SampleWindows.make(count: sampleCount)
+        }
+        // Asked once per launch. The system shows its own dialog, and the panel
+        // still appears, because an empty panel with a reason in the log
+        // explains itself better than no panel at all.
+        guard AccessibilityPermission.isTrusted(promptingIfNeeded: true) else {
+            Diagnostics.writeLine(
+                "accessibility permission not granted; the window list is empty until it is "
+                    + "granted in System Settings > Privacy & Security > Accessibility"
+            )
+            return []
         }
         let snapshot = WindowEnumerator().enumerateRegularApplications()
         Diagnostics.writeLine(snapshot.summaryLine)
