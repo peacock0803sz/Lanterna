@@ -2,8 +2,8 @@ import AppKit
 @testable import Lanterna
 import Testing
 
-/// The summary line is what the quickstart greps to check the success criteria,
-/// so its wording is pinned down here.
+/// The summary line is what the manual acceptance check greps, so its wording
+/// is pinned down here.
 @MainActor
 struct WindowListSnapshotTests {
     private func item(_ windowID: CGWindowID) -> WindowItem {
@@ -43,8 +43,8 @@ struct WindowListSnapshotTests {
         #expect(snapshot().summaryLine == "listed 9 windows from 11 applications in 71.2 ms")
     }
 
-    /// An empty pass is reported in the same words, so the quickstart's grep
-    /// finds the line whether or not anything was listed.
+    /// An empty pass is reported in the same words, so the manual acceptance
+    /// check's grep finds the line whether or not anything was listed.
     @Test func summaryReportsAnEmptyPass() {
         #expect(snapshot(windowCount: 0, applicationCount: 0).summaryLine
             == "listed 0 windows from 0 applications in 71.2 ms")
@@ -55,7 +55,8 @@ struct WindowListSnapshotTests {
     }
 
     /// An application missing from the panel is explained by name and reason,
-    /// which is how the quickstart tells a wedged application from a bug.
+    /// which is how the manual acceptance check tells a wedged application
+    /// from a bug.
     @Test func summaryNamesEverySkippedApplicationAndWhy() {
         let line = snapshot(skipped: [
             WindowListSnapshot.SkippedApplication(name: "TextEdit", reason: .timedOut),
