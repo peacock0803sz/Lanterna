@@ -24,7 +24,9 @@ struct ApplicationRead: Sendable, Equatable {
 enum ReadFailure: Error, Sendable, Equatable {
     case permissionMissing
     /// The application spent its budget, or answered `kAXErrorCannotComplete`
-    /// to an attribute read, which means busy or wedged.
+    /// only after roughly the messaging timeout, which means busy or wedged.
+    /// The same code answered at once is `unavailable`: nothing was waited
+    /// for, the application has quit or is not reachable yet.
     case timedOut
     case unavailable(AXError)
 }
@@ -69,6 +71,16 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
 
     /// Client-side ceiling on every message this reader sends.
     static let messagingTimeout: Float = 1.0
+
+    /// How fast a `kAXErrorCannotComplete` must come back to count as a refusal
+    /// rather than a wait.
+    ///
+    /// The API answers with that one code both when the message timed out and
+    /// when the peer cannot be reached at all — it quit, or its accessibility
+    /// server is not up yet. A timeout takes the whole messaging timeout to
+    /// come back, so an answer in a fraction of it was a refusal, not a wait.
+    /// Half the timeout leaves a wide margin on both sides.
+    static let unreachableAnswerCeiling: Duration = .seconds(Double(messagingTimeout) / 2)
 
     private let setMessagingTimeout: @Sendable (AXUIElement, Float) -> AXError
     private let copyAttribute: @Sendable (AXUIElement, String) -> (AXError, CFTypeRef?)
@@ -185,27 +197,42 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
         }
     }
 
-    /// Reads one attribute, separating "the application has no such value" from
-    /// "the application could not answer".
+    /// Reads one attribute, or `nil` when the element has no such value. An
+    /// absent value is an answer: an untitled window reports no title.
     private func attribute(
         _ element: AXUIElement,
         _ name: String,
         within budget: ReadBudget
     ) throws(ReadFailure) -> CFTypeRef? {
-        guard !budget.isExpired(at: now()) else {
+        let (error, value) = try send(name, to: element, within: budget)
+        return error == .success ? value : nil
+    }
+
+    /// Sends one attribute read, separating the answers that are about the
+    /// attribute from the failures that are about the application.
+    ///
+    /// `success`, `noValue` and `attributeUnsupported` come back as answered:
+    /// what each means depends on what was asked. Everything else ends the
+    /// read.
+    private func send(
+        _ name: String,
+        to element: AXUIElement,
+        within budget: ReadBudget
+    ) throws(ReadFailure) -> (AXError, CFTypeRef?) {
+        let sentAt = now()
+        guard !budget.isExpired(at: sentAt) else {
             throw .timedOut
         }
         let (error, value) = copyAttribute(element, name)
         switch error {
-        case .success:
-            return value
-        case .noValue, .attributeUnsupported:
-            // An absent value is an answer: an untitled window reports no title.
-            return nil
+        case .success, .noValue, .attributeUnsupported:
+            return (error, value)
         case .apiDisabled:
             throw .permissionMissing
         case .cannotComplete:
-            throw .timedOut
+            throw now() - sentAt >= Self.unreachableAnswerCeiling
+                ? .timedOut
+                : .unavailable(.cannotComplete)
         default:
             throw .unavailable(error)
         }

@@ -131,6 +131,8 @@ struct ReadBudgetTests {
 /// real application can be asked to return one, so a stand-in answers instead
 /// and records every message it received.
 struct AXApplicationWindowReaderMessagingTests {
+    private typealias Reader = AXApplicationWindowReader
+
     /// One application and its windows.
     ///
     /// `@unchecked Sendable` because the reader's seams are `@Sendable`
@@ -147,6 +149,7 @@ struct AXApplicationWindowReaderMessagingTests {
         var costPerMessage: Duration = .zero
         /// Answers `nil` to fall through to the default behaviour. The index is
         /// the window's position, or `nil` for the application itself.
+        var costOverride: @Sendable (Int?, String) -> Duration? = { _, _ in nil }
         var timeoutResult: @Sendable (Int?) -> AXError = { _ in .success }
         var attributeResult: @Sendable (Int?, String) -> (AXError, CFTypeRef?)? = { _, _ in nil }
         var windowIDResult: @Sendable (Int) -> (AXError, CGWindowID)? = { _ in nil }
@@ -168,9 +171,9 @@ struct AXApplicationWindowReaderMessagingTests {
                     return timeoutResult(index)
                 },
                 copyAttribute: { [self] element, name in
-                    clock = clock.advanced(by: costPerMessage)
-                    attributesRead.append(name)
                     let index = windowIndex(of: element)
+                    clock = clock.advanced(by: costOverride(index, name) ?? costPerMessage)
+                    attributesRead.append(name)
                     return attributeResult(index, name) ?? (.success, value(at: index, for: name))
                 },
                 windowIdentifier: { [self] element in
@@ -220,7 +223,7 @@ struct AXApplicationWindowReaderMessagingTests {
     @Test(arguments: [
         (AXError.noValue, nil),
         (.attributeUnsupported, nil),
-        (.cannotComplete, ReadFailure.timedOut),
+        (.cannotComplete, ReadFailure.unavailable(.cannotComplete)),
         (.apiDisabled, .permissionMissing),
         (.invalidUIElement, .unavailable(.invalidUIElement)),
         (.illegalArgument, .unavailable(.illegalArgument)),
@@ -245,12 +248,35 @@ struct AXApplicationWindowReaderMessagingTests {
         }
     }
 
+    /// A dead or unreachable application is answered with the same code as a
+    /// timeout, only at once; how long the answer took is the only way to tell
+    /// which of the two it was.
+    @Test(arguments: [
+        (Duration.zero, ReadFailure.unavailable(.cannotComplete)),
+        (Reader.unreachableAnswerCeiling - .milliseconds(1), .unavailable(.cannotComplete)),
+        (Reader.unreachableAnswerCeiling, .timedOut),
+        (.seconds(Double(Reader.messagingTimeout)), .timedOut),
+    ])
+    func aCannotCompleteAnswerIsATimeoutOnlyIfItTookLongEnough(cost: Duration, failure: ReadFailure) {
+        let application = FakeApplication(windowCount: 2)
+        application.attributeResult = { index, name in
+            index == 1 && name == kAXTitleAttribute ? (.cannotComplete, nil) : nil
+        }
+        application.costOverride = { index, name in
+            index == 1 && name == kAXTitleAttribute ? cost : nil
+        }
+        #expect(application.read() == .failure(failure))
+    }
+
     /// A partly read application is worse than a missing one, so nothing that
     /// was already gathered survives the failure.
     @Test func aFailureDiscardsTheRecordsAlreadyGathered() {
         let application = FakeApplication(windowCount: 3)
         application.attributeResult = { index, name in
             index == 2 && name == kAXRoleAttribute ? (.cannotComplete, nil) : nil
+        }
+        application.costOverride = { index, name in
+            index == 2 && name == kAXRoleAttribute ? .seconds(1) : nil
         }
         #expect(application.read() == .failure(.timedOut))
     }
