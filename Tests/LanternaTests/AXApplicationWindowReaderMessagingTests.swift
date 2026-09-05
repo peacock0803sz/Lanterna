@@ -61,7 +61,7 @@ struct AXApplicationWindowReaderMessagingTests {
                     reads.append((index, name))
                     return attributeResult(index, name) ?? (.success, value(at: index, for: name))
                 },
-                windowIdentifier: { [self] element in
+                copyWindowID: { [self] element in
                     guard let index = windowIndex(of: element) else {
                         return (.illegalArgument, 0)
                     }

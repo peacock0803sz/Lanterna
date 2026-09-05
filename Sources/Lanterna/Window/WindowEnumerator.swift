@@ -38,13 +38,13 @@ struct WindowEnumerator {
         startedAt: ContinuousClock.Instant
     ) -> WindowListSnapshot {
         let ordered = applications.sorted { $0.processIdentifier < $1.processIdentifier }
-        let reads = Self.read(ordered.map(\.processIdentifier), using: reader)
+        let results = Self.read(ordered.map(\.processIdentifier), using: reader)
 
         var items: [WindowItem] = []
         var skipped: [WindowListSnapshot.SkippedApplication] = []
         var droppedWithoutID = 0
-        for (application, read) in zip(ordered, reads) {
-            switch read {
+        for (application, result) in zip(ordered, results) {
+            switch result {
             case let .failure(reason):
                 skipped.append(
                     WindowListSnapshot.SkippedApplication(name: application.name, reason: reason)

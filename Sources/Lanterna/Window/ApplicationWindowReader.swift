@@ -116,7 +116,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
 
     private let setMessagingTimeout: @Sendable (AXUIElement, Float) -> AXError
     private let copyAttribute: @Sendable (AXUIElement, String) -> (AXError, CFTypeRef?)
-    private let windowIdentifier: @Sendable (AXUIElement) -> (AXError, CGWindowID)
+    private let copyWindowID: @Sendable (AXUIElement) -> (AXError, CGWindowID)
     private let now: @Sendable () -> ContinuousClock.Instant
 
     /// The defaults talk to the real accessibility API. Tests replace them,
@@ -131,16 +131,16 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
             let error = AXUIElementCopyAttributeValue(element, name as CFString, &value)
             return (error, value)
         },
-        windowIdentifier: @escaping @Sendable (AXUIElement) -> (AXError, CGWindowID) = { element in
-            var identifier: CGWindowID = 0
-            let error = _AXUIElementGetWindow(element, &identifier)
-            return (error, identifier)
+        copyWindowID: @escaping @Sendable (AXUIElement) -> (AXError, CGWindowID) = { element in
+            var windowID: CGWindowID = 0
+            let error = _AXUIElementGetWindow(element, &windowID)
+            return (error, windowID)
         },
         now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
     ) {
         self.setMessagingTimeout = setMessagingTimeout
         self.copyAttribute = copyAttribute
-        self.windowIdentifier = windowIdentifier
+        self.copyWindowID = copyWindowID
         self.now = now
     }
 
@@ -170,7 +170,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
 
     func read(processIdentifier: pid_t) -> Result<ApplicationRead, ReadFailure> {
         do {
-            return try .success(records(of: processIdentifier))
+            return try .success(applicationRead(of: processIdentifier))
         } catch {
             // Half of a wedged application's windows is a worse list than none
             // of them, so whatever was read so far goes with it.
@@ -178,7 +178,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
         }
     }
 
-    private func records(of processIdentifier: pid_t) throws(ReadFailure) -> ApplicationRead {
+    private func applicationRead(of processIdentifier: pid_t) throws(ReadFailure) -> ApplicationRead {
         let budget = ReadBudget(startedAt: now())
         let application = AXUIElementCreateApplication(processIdentifier)
         try prepare(application)
@@ -246,7 +246,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
             subrole: subrole,
             title: attribute(window, kAXTitleAttribute, within: budget) as? String ?? "",
             isMinimized: attribute(window, kAXMinimizedAttribute, within: budget) as? Bool ?? false,
-            windowID: identifier(of: window, within: budget)
+            windowID: windowID(of: window, within: budget)
         )
     }
 
@@ -312,7 +312,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     /// element and the rest into the partial list that discarding the whole
     /// application exists to avoid. Spending the budget ends the read for the
     /// same reason.
-    private func identifier(
+    private func windowID(
         of element: AXUIElement,
         within budget: ReadBudget
     ) throws(ReadFailure) -> CGWindowID? {
@@ -320,10 +320,10 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
         guard !budget.isExpired(at: sentAt) else {
             throw .timedOut
         }
-        let (error, identifier) = windowIdentifier(element)
+        let (error, windowID) = copyWindowID(element)
         switch error {
         case .success:
-            return identifier
+            return windowID
         case .cannotComplete:
             throw Self.failure(forCannotCompleteAfter: now() - sentAt)
         default:
