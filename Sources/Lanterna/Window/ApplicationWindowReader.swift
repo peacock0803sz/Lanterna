@@ -32,17 +32,24 @@ struct ApplicationRead: Sendable, Equatable {
     let droppedWithoutID: Int
 }
 
-/// Why an application contributed no rows at all.
+/// Why an application was skipped rather than read.
 enum ReadFailure: Error, Sendable, Equatable {
+    /// `kAXErrorAPIDisabled`: this process is not a trusted accessibility
+    /// client.
     case permissionMissing
     /// The application spent its budget, or answered `kAXErrorCannotComplete`
-    /// only after roughly the messaging timeout, which means busy or wedged.
-    /// The same code answered at once is `unavailable`: nothing was waited
-    /// for, the application has quit or is not reachable yet.
+    /// only after `AXApplicationWindowReader.unreachableAnswerCeiling` or
+    /// longer, which means busy or wedged. The same code answered faster is
+    /// `unavailable`: nothing was waited for, the application has quit or is
+    /// not reachable yet.
     case timedOut
     /// The application answered the window list with something that is not
     /// one. The call itself succeeded, so there is no `AXError` to report.
     case malformedAnswer
+    /// Anything else: a `kAXErrorCannotComplete` answered at once because the
+    /// application quit or is not reachable yet, `kAXErrorInvalidUIElement`,
+    /// an element whose messaging timeout could not be set, or a window list
+    /// the accessibility server does not support.
     case unavailable(AXError)
 }
 
@@ -65,6 +72,11 @@ extension ReadFailure: CustomStringConvertible {
 
 /// Reads the windows of a single application.
 ///
+/// Called once per application, concurrently from worker threads, so a
+/// conforming type must not rely on shared mutable state. An empty success is
+/// an application with no windows; a failure skips the application whole, so
+/// nothing partially read may be returned.
+///
 /// A protocol because the enumerator's assembly rules — ordering, skipping,
 /// fallbacks — are worth testing without a live accessibility connection.
 protocol ApplicationWindowReading: Sendable {
@@ -73,11 +85,15 @@ protocol ApplicationWindowReading: Sendable {
 
 /// How long one application may take before its windows are given up on.
 ///
-/// The per-message timeout alone is not enough: an application that answers the
-/// window list and then wedges would pay that timeout once per attribute, up to
-/// five per window. Checking the total before each message is sent bounds the
-/// wait at roughly the limit, and at worst one more message's timeout on top of
-/// it when the last message starts just under the line.
+/// The per-message timeout alone is not enough: an application that keeps
+/// answering, slowly, never trips it and would pay up to a full timeout per
+/// attribute of every window. Checking the total before each message is sent
+/// bounds the wait at roughly the limit, plus at worst one message's timeout
+/// when the last message starts just under the line.
+///
+/// That worst case comes from three knobs together: this limit,
+/// `AXApplicationWindowReader.messagingTimeout` and its
+/// `unreachableAnswerCeiling`. Changing one means revisiting the others.
 struct ReadBudget {
     static let limit: Duration = .seconds(1)
 
@@ -97,11 +113,16 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     /// What one element of an application's window list turned into.
     enum ElementOutcome: Equatable {
         case record(WindowRecord)
+        /// Not a listable window: wrong role, or an auxiliary subrole. Counted
+        /// nowhere, because nothing the user could switch to was lost.
         case excluded
+        /// A listable window with no window-server id. Counted in
+        /// `ApplicationRead.droppedWithoutID` so the loss shows in the log.
         case droppedWithoutID
     }
 
-    /// Client-side ceiling on every message this reader sends.
+    /// Client-side ceiling on every message this reader sends. One of the
+    /// three knobs `ReadBudget` documents together; change them as a set.
     static let messagingTimeout: Float = 1.0
 
     /// How fast a `kAXErrorCannotComplete` must come back to count as a refusal
@@ -301,17 +322,17 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
         }
     }
 
-    /// The window-server id, or `nil` when the element has none.
+    /// The window-server id, or `nil` when the fetch fails.
     ///
-    /// The one call whose failure is expected rather than exceptional: an
-    /// element without an id — `illegalArgument`, in practice — is not a
-    /// window worth listing, and says nothing about the health of the
-    /// application that owns it. `cannotComplete` is the exception. The fetch
-    /// is a round trip like any attribute read, and reading its timeout as
-    /// "no id" would turn a hung application's last window into a dropped
-    /// element and the rest into the partial list that discarding the whole
-    /// application exists to avoid. Spending the budget ends the read for the
-    /// same reason.
+    /// The one call whose failure is expected rather than exceptional: every
+    /// error but one — `illegalArgument`, in practice — is treated as "no id",
+    /// an element that is not a window worth listing, rather than as a verdict
+    /// on the application that owns it; `outcome` reads a zero id the same way.
+    /// `cannotComplete` is the exception. The fetch is a round trip like any
+    /// attribute read, and reading its timeout as "no id" would turn a hung
+    /// application's last window into a dropped element and the rest into the
+    /// partial list that discarding the whole application exists to avoid.
+    /// Spending the budget ends the read for the same reason.
     private func windowID(
         of element: AXUIElement,
         within budget: ReadBudget
