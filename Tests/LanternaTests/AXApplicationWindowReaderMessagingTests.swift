@@ -290,12 +290,19 @@ private final class FakeApplication: @unchecked Sendable {
 
     /// Time each message costs, so a budget can be spent without waiting.
     var costPerMessage: Duration = .zero
-    /// Answers `nil` to fall through to the default behaviour. The index is
-    /// the window's position, or `nil` for the application itself.
+    /// Answers `nil` to fall through to `costPerMessage`. The index is the
+    /// window's position, or `nil` for the application itself.
     var costOverride: @Sendable (Int?, String) -> Duration? = { _, _ in nil }
+    /// Answers `nil` to fall through to `costPerMessage`.
     var windowIDCostOverride: @Sendable (Int) -> Duration? = { _ in nil }
+    /// The answer itself rather than an override: setting a timeout always
+    /// answers, `.success` unless a test says otherwise. The index is the
+    /// window's position, or `nil` for the application itself.
     var timeoutResult: @Sendable (Int?) -> AXError = { _ in .success }
+    /// Answers `nil` to fall through to `value(at:for:)`. The index is the
+    /// window's position, or `nil` for the application itself.
     var attributeResult: @Sendable (Int?, String) -> (AXError, CFTypeRef?)? = { _, _ in nil }
+    /// Answers `nil` to fall through to a successful fetch of `100 + index`.
     var windowIDResult: @Sendable (Int) -> (AXError, CGWindowID)? = { _ in nil }
 
     private var clock = ContinuousClock.now
