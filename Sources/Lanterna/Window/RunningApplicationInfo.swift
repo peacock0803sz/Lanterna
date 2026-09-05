@@ -42,7 +42,7 @@ struct RunningApplicationInfo {
 
     /// Menu-bar utilities and background helpers own no window a user switches
     /// to, and the switcher's own panel must not list itself.
-    static func isCandidate(
+    nonisolated static func isCandidate(
         activationPolicy: NSApplication.ActivationPolicy,
         processIdentifier: pid_t,
         currentProcess: pid_t
@@ -53,7 +53,7 @@ struct RunningApplicationInfo {
     /// The name shown in the Dock, or the closest thing to it that can be
     /// found. Never empty: a row without a name is worse than a row named after
     /// its process, and the name is also what an untitled window shows.
-    static func displayName(
+    nonisolated static func displayName(
         localizedName: String?,
         bundleURL: URL?,
         executableURL: URL?,
