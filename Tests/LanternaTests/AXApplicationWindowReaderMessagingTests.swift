@@ -14,8 +14,33 @@ struct AXApplicationWindowReaderMessagingTests {
     @Test func anOrdinaryApplicationYieldsOneRecordPerWindow() {
         let application = FakeApplication(windowCount: 2)
         let read = try? application.read().get()
-        #expect(read?.records.map(\.windowID) == [100, 101])
+        #expect(read?.records == [
+            WindowRecord(windowID: 100, title: "Window 0", kind: .standard, isMinimized: false),
+            WindowRecord(windowID: 101, title: "Window 1", kind: .standard, isMinimized: false),
+        ])
         #expect(read?.droppedWithoutID == 0)
+    }
+
+    /// A record is only as good as the casts that build it: a subrole that
+    /// did not read as a string would classify every window as undetermined,
+    /// and a minimized flag that did not read as a boolean would report every
+    /// window as visible, with no failure to show for either.
+    @Test func aRecordCarriesTheKindAndStateTheAnswersDescribe() {
+        let application = FakeApplication(windowCount: 2)
+        application.attributeResult = { index, name in
+            guard index == 1 else { return nil }
+            switch name {
+            case kAXSubroleAttribute: return (.success, kAXDialogSubrole as CFString)
+            case kAXMinimizedAttribute: return (.success, kCFBooleanTrue)
+            default: return nil
+            }
+        }
+
+        let read = try? application.read().get()
+        #expect(read?.records == [
+            WindowRecord(windowID: 100, title: "Window 0", kind: .standard, isMinimized: false),
+            WindowRecord(windowID: 101, title: "Window 1", kind: .dialog, isMinimized: true),
+        ])
     }
 
     /// Only an absent value is an answer; anything else means the application
@@ -325,7 +350,7 @@ private final class FakeApplication: @unchecked Sendable {
         case kAXRoleAttribute: return kAXWindowRole as CFString
         case kAXSubroleAttribute: return kAXStandardWindowSubrole as CFString
         case kAXTitleAttribute: return "Window \(index)" as CFString
-        case kAXMinimizedAttribute: return NSNumber(value: false)
+        case kAXMinimizedAttribute: return kCFBooleanFalse
         default: return nil
         }
     }
