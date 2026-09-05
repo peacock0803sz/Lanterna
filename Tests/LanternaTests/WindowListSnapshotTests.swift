@@ -46,4 +46,41 @@ struct WindowListSnapshotTests {
     @Test func summaryStopsAfterTheCountsWhenNothingWentWrong() {
         #expect(!snapshot().summaryLine.contains(";"))
     }
+
+    /// An application missing from the panel is explained by name and reason,
+    /// which is how the quickstart tells a wedged application from a bug.
+    @Test func summaryNamesEverySkippedApplicationAndWhy() {
+        let line = snapshot(skipped: [
+            WindowListSnapshot.SkippedApplication(name: "TextEdit", reason: .timedOut),
+            WindowListSnapshot.SkippedApplication(name: "Foo", reason: .permissionMissing),
+            WindowListSnapshot.SkippedApplication(name: "Bar", reason: .unavailable(.invalidUIElement)),
+        ]).summaryLine
+        #expect(line.hasSuffix(
+            "; skipped TextEdit (timed out), Foo (permission missing), Bar (error -25202)"
+        ))
+    }
+
+    @Test func summaryCountsElementsLostForWantOfAWindowID() {
+        #expect(snapshot(droppedWithoutID: 1).summaryLine
+            .hasSuffix("; dropped 1 elements without a window id"))
+    }
+
+    @Test func skippedApplicationsComeBeforeDroppedElements() {
+        let line = snapshot(
+            skipped: [WindowListSnapshot.SkippedApplication(name: "TextEdit", reason: .timedOut)],
+            droppedWithoutID: 1
+        ).summaryLine
+        #expect(line == "listed 9 windows from 11 applications in 71.2 ms"
+            + "; skipped TextEdit (timed out)"
+            + "; dropped 1 elements without a window id")
+    }
+
+    /// A title never reaches the log, whatever went wrong.
+    @Test func summaryNeverCarriesAWindowTitle() {
+        let line = snapshot(
+            skipped: [WindowListSnapshot.SkippedApplication(name: "TextEdit", reason: .timedOut)],
+            droppedWithoutID: 1
+        ).summaryLine
+        #expect(!line.contains("Downloads"))
+    }
 }

@@ -13,7 +13,7 @@ struct WindowRecord: Sendable, Equatable {
 }
 
 /// The outcome of reading one application that answered.
-struct ApplicationRead: Sendable {
+struct ApplicationRead: Sendable, Equatable {
     let records: [WindowRecord]
     /// Elements that were windows but reported no window-server id, counted for
     /// the diagnostics line so a silently missing row is still visible.
@@ -21,7 +21,7 @@ struct ApplicationRead: Sendable {
 }
 
 /// Why an application contributed no rows at all.
-enum ReadFailure: Error, Sendable {
+enum ReadFailure: Error, Sendable, Equatable {
     case permissionMissing
     /// The application spent its budget, or answered `kAXErrorCannotComplete`
     /// to an attribute read, which means busy or wedged.

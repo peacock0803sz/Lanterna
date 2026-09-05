@@ -1,4 +1,5 @@
 import ApplicationServices
+import Foundation
 @testable import Lanterna
 import Testing
 
@@ -106,5 +107,198 @@ struct ApplicationWindowReaderTests {
         #expect(outcome == .record(
             WindowRecord(windowID: 42, title: title, kind: .standard, isMinimized: false)
         ))
+    }
+}
+
+/// How long an application is given before its windows are abandoned.
+struct ReadBudgetTests {
+    private let budget = ReadBudget(startedAt: .now)
+
+    @Test(arguments: [Duration.zero, .milliseconds(300), .milliseconds(999)])
+    func timeStillLeft(elapsed: Duration) {
+        #expect(!budget.isExpired(at: budget.startedAt.advanced(by: elapsed)))
+    }
+
+    @Test(arguments: [Duration.seconds(1), .milliseconds(1001), .seconds(5)])
+    func timeSpent(elapsed: Duration) {
+        #expect(budget.isExpired(at: budget.startedAt.advanced(by: elapsed)))
+    }
+}
+
+/// What the reader sends, and what it does with each answer.
+///
+/// Which error an application returns is the whole behaviour under test, and no
+/// real application can be asked to return one, so a stand-in answers instead
+/// and records every message it received.
+struct AXApplicationWindowReaderMessagingTests {
+    /// One application and its windows.
+    ///
+    /// `@unchecked Sendable` because the reader's seams are `@Sendable`
+    /// closures, while these tests drive it synchronously on a single thread,
+    /// so there is nothing to protect.
+    private final class FakeApplication: @unchecked Sendable {
+        let windows: [AXUIElement]
+
+        private(set) var preparedElements: [Int?] = []
+        private(set) var attributesRead: [String] = []
+        private(set) var windowIDReads: [Int] = []
+
+        /// Time each message costs, so a budget can be spent without waiting.
+        var costPerMessage: Duration = .zero
+        /// Answers `nil` to fall through to the default behaviour. The index is
+        /// the window's position, or `nil` for the application itself.
+        var timeoutResult: @Sendable (Int?) -> AXError = { _ in .success }
+        var attributeResult: @Sendable (Int?, String) -> (AXError, CFTypeRef?)? = { _, _ in nil }
+        var windowIDResult: @Sendable (Int) -> (AXError, CGWindowID)? = { _ in nil }
+
+        private var clock = ContinuousClock.now
+
+        /// Distinct elements, so a closure can tell which window it was asked
+        /// about. Creating one sends nothing and needs no permission.
+        init(windowCount: Int) {
+            windows = (0 ..< windowCount).map { AXUIElementCreateApplication(pid_t(9001 + $0)) }
+        }
+
+        func reader() -> AXApplicationWindowReader {
+            AXApplicationWindowReader(
+                setMessagingTimeout: { [self] element, _ in
+                    // Client-side, so it costs no time and is charged nothing.
+                    let index = windowIndex(of: element)
+                    preparedElements.append(index)
+                    return timeoutResult(index)
+                },
+                copyAttribute: { [self] element, name in
+                    clock = clock.advanced(by: costPerMessage)
+                    attributesRead.append(name)
+                    let index = windowIndex(of: element)
+                    return attributeResult(index, name) ?? (.success, value(at: index, for: name))
+                },
+                windowIdentifier: { [self] element in
+                    clock = clock.advanced(by: costPerMessage)
+                    guard let index = windowIndex(of: element) else {
+                        return (.illegalArgument, 0)
+                    }
+                    windowIDReads.append(index)
+                    return windowIDResult(index) ?? (.success, CGWindowID(100 + index))
+                },
+                now: { [self] in clock }
+            )
+        }
+
+        func read() -> Result<ApplicationRead, ReadFailure> {
+            reader().read(processIdentifier: 42)
+        }
+
+        private func windowIndex(of element: AXUIElement) -> Int? {
+            windows.firstIndex { CFEqual($0, element) }
+        }
+
+        /// An ordinary standard window, unless a test says otherwise.
+        private func value(at index: Int?, for name: String) -> CFTypeRef? {
+            guard let index else {
+                return name == kAXWindowsAttribute ? windows as CFArray : nil
+            }
+            switch name {
+            case kAXRoleAttribute: return kAXWindowRole as CFString
+            case kAXSubroleAttribute: return kAXStandardWindowSubrole as CFString
+            case kAXTitleAttribute: return "Window \(index)" as CFString
+            case kAXMinimizedAttribute: return NSNumber(value: false)
+            default: return nil
+            }
+        }
+    }
+
+    @Test func anOrdinaryApplicationYieldsOneRecordPerWindow() {
+        let application = FakeApplication(windowCount: 2)
+        let read = try? application.read().get()
+        #expect(read?.records.map(\.windowID) == [100, 101])
+        #expect(read?.droppedWithoutID == 0)
+    }
+
+    /// Only an absent value is an answer; anything else means the application
+    /// could not be read, and its records go with it.
+    @Test(arguments: [
+        (AXError.noValue, nil),
+        (.attributeUnsupported, nil),
+        (.cannotComplete, ReadFailure.timedOut),
+        (.apiDisabled, .permissionMissing),
+        (.invalidUIElement, .unavailable(.invalidUIElement)),
+        (.illegalArgument, .unavailable(.illegalArgument)),
+    ])
+    func anAttributeErrorEitherMeansAbsentOrDiscardsTheApplication(
+        error: AXError,
+        failure: ReadFailure?
+    ) {
+        let application = FakeApplication(windowCount: 2)
+        application.attributeResult = { index, name in
+            index == 1 && name == kAXTitleAttribute ? (error, nil) : nil
+        }
+
+        switch application.read() {
+        case let .success(read):
+            #expect(failure == nil)
+            // An untitled window is still a window.
+            #expect(read.records.count == 2)
+            #expect(read.records.last?.title == "")
+        case let .failure(reason):
+            #expect(reason == failure)
+        }
+    }
+
+    /// A partly read application is worse than a missing one, so nothing that
+    /// was already gathered survives the failure.
+    @Test func aFailureDiscardsTheRecordsAlreadyGathered() {
+        let application = FakeApplication(windowCount: 3)
+        application.attributeResult = { index, name in
+            index == 2 && name == kAXRoleAttribute ? (.cannotComplete, nil) : nil
+        }
+        #expect(application.read() == .failure(.timedOut))
+    }
+
+    @Test func nothingIsSentOnceTheBudgetIsSpent() {
+        let application = FakeApplication(windowCount: 10)
+        // Four messages fit in a one-second budget at this cost.
+        application.costPerMessage = .milliseconds(400)
+
+        #expect(application.read() == .failure(.timedOut))
+        #expect(application.attributesRead == [
+            kAXWindowsAttribute, kAXRoleAttribute, kAXSubroleAttribute,
+        ])
+        #expect(application.windowIDReads.isEmpty)
+    }
+
+    /// Without its timeout an element would be messaged with the multi-second
+    /// default, so it is not messaged at all.
+    @Test func anElementWhoseTimeoutCannotBeSetIsNeverMessaged() {
+        let application = FakeApplication(windowCount: 2)
+        application.timeoutResult = { $0 == 0 ? .cannotComplete : .success }
+
+        #expect(application.read() == .failure(.unavailable(.cannotComplete)))
+        #expect(application.attributesRead == [kAXWindowsAttribute])
+        #expect(application.windowIDReads.isEmpty)
+    }
+
+    /// The window id is the one answer whose absence is ordinary, so it costs
+    /// its own row and nothing else.
+    @Test(arguments: [AXError.cannotComplete, .illegalArgument, .invalidUIElement])
+    func aMissingWindowIDCostsOnlyItsOwnRow(error: AXError) {
+        let application = FakeApplication(windowCount: 3)
+        application.windowIDResult = { $0 == 1 ? (error, 0) : nil }
+
+        let read = try? application.read().get()
+        #expect(read?.records.map(\.windowID) == [100, 102])
+        #expect(read?.droppedWithoutID == 1)
+    }
+
+    /// An application with nothing open is a normal answer, not a failure.
+    @Test(arguments: [AXError.noValue, .attributeUnsupported])
+    func anApplicationWithoutWindowsReadsSuccessfully(error: AXError) {
+        let application = FakeApplication(windowCount: 0)
+        application.attributeResult = { _, name in
+            name == kAXWindowsAttribute ? (error, nil) : nil
+        }
+
+        let read = try? application.read().get()
+        #expect(read?.records.isEmpty == true)
     }
 }

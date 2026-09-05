@@ -171,6 +171,39 @@ struct WindowEnumeratorTests {
         #expect(result.skipped.isEmpty)
     }
 
+    // MARK: - Isolating a failing application
+
+    /// One application that cannot be read must not cost the others their rows.
+    @Test(arguments: [ReadFailure.timedOut, .permissionMissing, .unavailable(.invalidUIElement)])
+    func anApplicationThatFailsIsNamedAndLeavesTheRestIntact(reason: ReadFailure) {
+        let result = snapshot(
+            applications: [
+                application(100, name: "Finder"),
+                application(200, name: "TextEdit"),
+                application(300, name: "Mail"),
+            ],
+            reads: [
+                100: read([record(10), record(11)]),
+                200: .failure(reason),
+                300: read([record(12)]),
+            ]
+        )
+        #expect(result.items.map(\.id.windowID) == [10, 11, 12])
+        #expect(result.skipped.map(\.name) == ["TextEdit"])
+        #expect(result.skipped.first?.reason == reason)
+    }
+
+    @Test func skippedApplicationsAreListedInApplicationOrder() {
+        let result = snapshot(
+            applications: [
+                application(300, name: "Mail"),
+                application(100, name: "Finder"),
+            ],
+            reads: [300: .failure(.permissionMissing), 100: .failure(.timedOut)]
+        )
+        #expect(result.skipped.map(\.name) == ["Finder", "Mail"])
+    }
+
     // MARK: - Candidate applications
 
     @Test(arguments: [NSApplication.ActivationPolicy.accessory, .prohibited])
