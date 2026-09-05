@@ -131,6 +131,19 @@ struct AXApplicationWindowReaderMessagingTests {
         #expect(application.windowIDReads.isEmpty)
     }
 
+    /// The check guards the send, not the answer: a read whose last message
+    /// starts under the line succeeds even though it ends past it. Checked
+    /// after the answer instead, every application that answers slowly but
+    /// answers would vanish from the panel as timed out.
+    @Test func aReadWhoseLastMessageStartsUnderTheLineSucceeds() {
+        let application = FakeApplication(windowCount: 1)
+        // Six messages start at 0, 199, …, 995 ms; the last one ends at 1194 ms.
+        application.costPerMessage = .milliseconds(199)
+        let read = try? application.read().get()
+        #expect(read?.records.map(\.windowID) == [100])
+        #expect(application.windowIDReads == [0])
+    }
+
     /// The API scopes a timeout to the element it was set on, so the
     /// application's covers none of its windows: each element gets its own,
     /// at `messagingTimeout`, before anything is asked of it.
