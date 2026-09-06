@@ -23,7 +23,7 @@ struct WindowRow: View {
                 .resizable()
                 .frame(width: 18, height: 18)
 
-            Text(window.windowTitle)
+            Text(window.displayTitle)
                 .font(.system(size: 13))
                 .lineLimit(1)
                 .truncationMode(.tail)
