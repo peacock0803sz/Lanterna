@@ -7,8 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: SwitcherPanel?
     private var appNapActivity: NSObjectProtocol?
 
-    /// `sampleCount` overrides the number of fixture entries; `nil` uses the
-    /// standard fixture.
+    /// `sampleCount` draws that many fixture entries instead of the windows
+    /// that are really open; `nil` lists the live windows.
     init(launchedAt: ContinuousClock.Instant, sampleCount: Int?) {
         self.launchedAt = launchedAt
         self.sampleCount = sampleCount
@@ -23,11 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             reason: "Switcher panel must be drawn without a wake-up delay"
         )
 
-        let windows = if let sampleCount {
-            SampleWindows.make(count: sampleCount)
-        } else {
-            SampleWindows.standard()
-        }
+        let windows = windowsToShow()
         // The delegate holds the panel because nothing else does: a panel that
         // is only ordered front would be deallocated.
         let panel = SwitcherPanel(content: SwitcherView(windows: windows))
@@ -43,6 +39,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let appNapActivity {
             ProcessInfo.processInfo.endActivity(appNapActivity)
         }
+    }
+
+    /// The list the panel is built from.
+    ///
+    /// Live windows unless `--sample-count` asks for the fixture, which is the
+    /// only way to see anything other than what is really open.
+    private func windowsToShow() -> [WindowItem] {
+        if let sampleCount {
+            // The fixture needs no permission, so the check is skipped with it.
+            Diagnostics.writeLine("showing \(sampleCount) sample entries (--sample-count)")
+            return SampleWindows.make(count: sampleCount)
+        }
+        // Asked once per launch. The system shows its own dialog, and the panel
+        // still appears, because an empty panel with a reason in the log
+        // explains itself better than no panel at all.
+        guard AccessibilityPermission.isTrusted(promptingIfNeeded: true) else {
+            Diagnostics.writeLine(
+                "accessibility permission not granted; the window list is empty until it is "
+                    + "granted in System Settings > Privacy & Security > Accessibility"
+            )
+            return []
+        }
+        let snapshot = WindowEnumerator().enumerateRegularApplications()
+        Diagnostics.writeLine(snapshot.summaryLine)
+        return snapshot.items
     }
 
     /// `NSWindow.center()` centres on whichever screen the window already sits
@@ -65,13 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The reading is taken right after `orderFrontRegardless()`, so it covers
     /// the work up to that call and not the compositing that follows.
     private func reportTimeToOrderFront(entryCount: Int) {
-        let elapsed = ContinuousClock.now - launchedAt
-        let milliseconds = Double(elapsed.components.seconds) * 1000
-            + Double(elapsed.components.attoseconds) * 1e-15
-        // `%.1f` rather than a FormatStyle: a developer log line must read the
-        // same in every locale, and a formatted number would switch decimal
-        // and grouping separators.
-        let elapsedText = String(format: "%.1f", milliseconds)
-        Diagnostics.writeLine("panel ordered front after \(elapsedText) ms (\(entryCount) entries)")
+        let elapsed = Diagnostics.millisecondsText(ContinuousClock.now - launchedAt)
+        Diagnostics.writeLine("panel ordered front after \(elapsed) ms (\(entryCount) entries)")
     }
 }
