@@ -302,6 +302,37 @@ struct PanelPresenterWaitingForAListTests {
         #expect(fixture.log.lines.isEmpty)
     }
 
+    /// A notification naming this process touches neither the clock nor the
+    /// slot, so the press comes out exactly as it would have with no
+    /// notification at all: the same panel, the same line, and the same figure
+    /// in it as a wait nobody interrupted.
+    ///
+    /// Pinning that is what fixes where the own-process guard goes. This case
+    /// and `anActivationDuringTheWaitCallsThePanelOff` have to come out
+    /// opposite, and only asserting both says so: with the guard dropped, or
+    /// with the pending-press block moved above it, the panel the user asked
+    /// for here would be thrown away and no line written to say why.
+    @Test func thisProcessComingForwardDoesNotCallOffAPendingPress() async {
+        let fake = HeldGather(entryCount: 4)
+        let fixture = Fixture(store: storeHoldingNothing(fake))
+
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        await fake.waitUntilCalled()
+        fixture.presenter.handleActivation(of: ownProcess)
+
+        fake.finish()
+        await settle()
+
+        #expect(fixture.surface.presentedLists.count == 1)
+        #expect(fixture.surface.presentedLists.first?.count == 4)
+        #expect(
+            fixture.log.lines == [
+                "panel shown 4.8 ms after Cmd+Tab (4 entries)"
+                    + "; gathered on the spot (no list held yet)",
+            ]
+        )
+    }
+
     /// The wait that was called off must not leave the next press waiting on
     /// something that is never coming.
     @Test func aPressAfterAWaitWasCalledOffWorksNormally() async {
