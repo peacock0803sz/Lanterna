@@ -11,10 +11,10 @@ import Dispatch
 /// to call from it.
 @MainActor
 enum TerminationSignals {
-    /// The signals that mean "stop": Ctrl+C, a plain `kill` or `pkill`, and a
-    /// closed terminal. SIGKILL is absent and cannot be added — nothing in the
-    /// process runs after it.
-    private static let caught: [Int32] = [SIGINT, SIGTERM, SIGHUP]
+    /// The signals that mean "stop": Ctrl+C, Ctrl+\, a plain `kill` or
+    /// `pkill`, and a closed terminal. SIGKILL is absent and cannot be added —
+    /// nothing in the process runs after it.
+    private static let caught: [Int32] = [SIGINT, SIGQUIT, SIGTERM, SIGHUP]
 
     /// A source stops delivering as soon as it is released, so they are kept
     /// for the life of the process.
@@ -26,6 +26,17 @@ enum TerminationSignals {
     /// so `cleanUp` has to be the whole of the shutdown rather than a part
     /// of it.
     static func install(cleanUp: @escaping @Sendable @MainActor () -> Void) {
+        // SIGPIPE is kept out of `caught` deliberately: a reader that has
+        // gone away is not a request to stop, and running the shutdown for
+        // it would end a run that has nothing else wrong with it. It does
+        // have to be ignored somewhere, though. `Diagnostics.writeLine`
+        // writes to stderr on every press and discards a failed write, but
+        // when stderr is a pipe nobody is reading, the signal's default
+        // disposition kills the process during that write rather than
+        // letting it fail, so `cleanUp` never runs. Ignored, the write
+        // fails and the discard does its job.
+        signal(SIGPIPE, SIG_IGN)
+
         for number in caught {
             // Without this the default disposition kills the process outright,
             // before any dispatch source is woken. Ignoring the signal does
