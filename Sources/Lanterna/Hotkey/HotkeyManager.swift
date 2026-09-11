@@ -22,6 +22,25 @@ struct HotkeyRegistrationOutcome: Sendable {
     let registered: [HotkeyCombination]
     let failures: [Failure]
 
+    /// `assert` rather than `precondition`: a combination on both lists, or
+    /// on neither, is loud in debug builds and under test, but a misworded
+    /// line must never take the app down in release — an app that cannot
+    /// claim its hotkeys is the very thing this line exists to report.
+    init(registered: [HotkeyCombination], failures: [Failure]) {
+        // Two clauses because neither sees the other's case: a combination
+        // missing from both lists leaves the set short of the whole, while
+        // one on both lists or named twice leaves the count over it without
+        // the set noticing.
+        let accounted = registered + failures.map(\.combination)
+        assert(
+            Set(accounted) == Set(HotkeyCombination.all)
+                && accounted.count == HotkeyCombination.all.count,
+            "every combination must be registered or failed, exactly once"
+        )
+        self.registered = registered
+        self.failures = failures
+    }
+
     /// Nothing was registered, so there is no way left to reach the switcher
     /// and no reason to stay running.
     var isTotalFailure: Bool {
