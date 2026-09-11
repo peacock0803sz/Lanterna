@@ -29,8 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let panel = SwitcherPanel(content: SwitcherView(windows: windows))
         self.panel = panel
 
-        centerOnMainDisplay(panel)
-        panel.orderFrontRegardless()
+        panel.present(windows: windows)
 
         reportTimeToOrderFront(entryCount: windows.count)
     }
@@ -64,22 +63,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let snapshot = WindowEnumerator().enumerateRegularApplications()
         Diagnostics.writeLine(snapshot.summaryLine)
         return snapshot.items
-    }
-
-    /// `NSWindow.center()` centres on whichever screen the window already sits
-    /// on, so the display is picked explicitly. `NSScreen.screens.first` is the
-    /// display that carries the menu bar, which is the main display the spec
-    /// asks for; `NSScreen.main` would instead follow the key window and so
-    /// could be any display.
-    private func centerOnMainDisplay(_ panel: SwitcherPanel) {
-        guard let area = NSScreen.screens.first?.visibleFrame else {
-            panel.center()
-            return
-        }
-        let size = panel.frame.size
-        panel.setFrameOrigin(
-            NSPoint(x: area.midX - size.width / 2, y: area.midY - size.height / 2)
-        )
     }
 
     /// Logged rather than eyeballed: the launch-to-visible budget is a number.
