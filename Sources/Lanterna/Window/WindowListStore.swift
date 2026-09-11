@@ -102,12 +102,15 @@ final class WindowListStore {
 
     /// The list, waiting for a pass to finish if none has yet.
     ///
-    /// Only the first press after launch can find nothing held, and it is
-    /// almost certain to find a pass already running, because the loop starts
-    /// before the hotkeys are claimed. Such a press cannot ask for a pass of
-    /// its own — `refresh()` would refuse to start a second and hand it back
-    /// the same nothing — so what it waits for is the first list, whichever
-    /// pass produces it. Empty only if a pass genuinely found no windows.
+    /// Only a press arriving before the loop's first pass completes can find
+    /// nothing held, and it almost always finds that pass already running,
+    /// because the loop starts before the hotkeys are claimed. Such a press
+    /// parks until a pass produces a list, whichever pass that is, rather than
+    /// asking for one of its own: `refresh()` would refuse to start a second
+    /// and hand it back the same nothing. A pass is started here only when
+    /// none is running at all, which the launch order makes unlikely but
+    /// nothing here relies on. Empty only if a pass genuinely found no
+    /// windows.
     func listWhenGathered() async -> [WindowItem] {
         if snapshot == nil {
             if isRefreshing {
