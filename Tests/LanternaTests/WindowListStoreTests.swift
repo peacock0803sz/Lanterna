@@ -184,8 +184,23 @@ struct WindowListStoreTests {
         let store = WindowListStore(gather: { snapshot(count: 3) }, writeLine: { _ in })
         await store.refresh()
         store.stop()
+        #expect(store.snapshot?.items.count == 3)
+    }
+
+    /// `stop()` ends the loop, not the store. The restart path leans on that:
+    /// `start()` stops whatever it started before and then gathers from the
+    /// loop it puts in its place, so a `stop()` that latched the store off
+    /// would leave a freshly started loop producing nothing at all.
+    @Test func aRefreshAfterTheLoopHasStoppedStillReplacesTheList() async {
+        var counts = [3, 7]
+        let store = WindowListStore(
+            gather: { snapshot(count: counts.removeFirst()) },
+            writeLine: { _ in }
+        )
         await store.refresh()
-        #expect(store.snapshot != nil)
+        store.stop()
+        await store.refresh()
+        #expect(store.snapshot?.items.count == 7)
     }
 
     // MARK: - Asking for the list
