@@ -81,10 +81,11 @@ final class HotkeyManager {
     fileprivate let onPress: @MainActor (HotkeyCombination, Duration?) -> Void
 
     private var eventHandler: EventHandlerRef?
-    /// Only the ones that were actually taken. The combination is kept
-    /// alongside the reference so what is held can be read off the state
-    /// rather than inferred.
-    private var hotKeys: [(HotkeyCombination, EventHotKeyRef)] = []
+    /// Only the ones that were actually taken.
+    private var hotKeys: [EventHotKeyRef] = []
+    /// What the first `register()` achieved. Present from that call until
+    /// `unregister()`, and the reason a repeat call need attempt nothing.
+    private var registrationOutcome: HotkeyRegistrationOutcome?
 
     init(onPress: @escaping @MainActor (HotkeyCombination, Duration?) -> Void) {
         self.onPress = onPress
@@ -94,17 +95,30 @@ final class HotkeyManager {
     ///
     /// Called once at launch. Either combination can be refused on its own, so
     /// the result says which were taken rather than whether the call worked.
+    ///
+    /// The answer is remembered: a second call reports what the first
+    /// achieved rather than attempting any of it again, because Carbon would
+    /// either refuse the combinations this manager is still holding — which
+    /// reads as a total failure — or accept them a second time and fire
+    /// `onPress` twice for one press. `unregister()` is what lets a later
+    /// call start over.
     func register() -> HotkeyRegistrationOutcome {
+        if let registrationOutcome {
+            return registrationOutcome
+        }
+
         if let status = installHandler() {
             // A hotkey with no handler behind it would swallow the press and
             // do nothing with it, which is worse than not claiming it, so none
             // is claimed.
-            return HotkeyRegistrationOutcome(
+            let outcome = HotkeyRegistrationOutcome(
                 registered: [],
                 failures: HotkeyCombination.all.map {
                     HotkeyRegistrationOutcome.Failure(combination: $0, status: status)
                 }
             )
+            registrationOutcome = outcome
+            return outcome
         }
 
         var registered: [HotkeyCombination] = []
@@ -124,7 +138,7 @@ final class HotkeyManager {
                 &reference
             )
             if status == noErr, let reference {
-                hotKeys.append((combination, reference))
+                hotKeys.append(reference)
                 registered.append(combination)
             } else {
                 failures.append(
@@ -132,12 +146,17 @@ final class HotkeyManager {
                 )
             }
         }
-        return HotkeyRegistrationOutcome(registered: registered, failures: failures)
+        let outcome = HotkeyRegistrationOutcome(registered: registered, failures: failures)
+        registrationOutcome = outcome
+        return outcome
     }
 
-    /// Gives every claimed combination back and takes the handler down.
+    /// Gives every claimed combination back, takes the handler down and
+    /// forgets the outcome, which is one job in three parts: a manager that
+    /// had given the combinations back but still remembered an outcome would
+    /// refuse to claim them again.
     func unregister() {
-        for (_, reference) in hotKeys {
+        for reference in hotKeys {
             UnregisterEventHotKey(reference)
         }
         hotKeys.removeAll()
@@ -145,15 +164,14 @@ final class HotkeyManager {
             RemoveEventHandler(eventHandler)
             self.eventHandler = nil
         }
+        registrationOutcome = nil
     }
 
-    /// Installs the one handler both hotkeys report to, or returns why it
-    /// could not be installed. Doing nothing and returning `nil` when one is
-    /// already installed keeps a second `register()` from stacking handlers.
+    /// Installs the one handler both hotkeys report to, and returns `nil`
+    /// having done so, or the status saying why it could not. Keeping a
+    /// second `register()` from stacking handlers is `register()`'s job now,
+    /// so this is only ever reached with nothing installed.
     private func installHandler() -> OSStatus? {
-        guard eventHandler == nil else {
-            return nil
-        }
         var spec = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
             eventKind: UInt32(kEventHotKeyPressed)
