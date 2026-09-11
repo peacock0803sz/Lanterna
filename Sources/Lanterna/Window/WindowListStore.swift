@@ -10,16 +10,16 @@
 final class WindowListStore {
     /// How long to wait between passes.
     ///
-    /// A change can arrive just after a pass has read past it, so the list is
-    /// behind by up to one interval plus one pass. A cold parallel pass
-    /// measured 71 ms, which puts the ordinary case at 1.571 s. The worst case
-    /// is far longer and no interval bounds it: `ReadBudget` gives each
-    /// application a second, and the last message a wedged one is sent may run
-    /// a further messaging timeout past that, so a single application that has
-    /// stopped answering can stretch a pass to seconds on its own. This number
-    /// is chosen for the ordinary case. One second would leave the list
-    /// fresher at the price of half again as many log lines, because every
-    /// pass writes one.
+    /// A change can arrive just after a pass has read past it, so it waits out
+    /// the rest of that pass, then the interval, then the pass that finds it.
+    /// A cold parallel pass measured 71 ms, which puts the ordinary case at
+    /// 1.642 s. The worst case is far longer and no interval bounds it:
+    /// `ReadBudget` gives each application a second, and the last message a
+    /// wedged one is sent may run a further messaging timeout past that, so a
+    /// single application that has stopped answering can stretch a pass to
+    /// about two seconds on its own. This number is chosen for the ordinary
+    /// case. One second would leave the list fresher at the price of half
+    /// again as many log lines, because every pass writes one.
     static let defaultInterval: Duration = .milliseconds(1500)
 
     /// What the last completed pass found, or `nil` if none has completed.
