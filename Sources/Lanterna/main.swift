@@ -1,8 +1,6 @@
 import AppKit
 import Darwin
 
-let launchedAt = ContinuousClock.now
-
 let sampleCount: Int?
 do {
     sampleCount = try LaunchArguments.sampleCount(from: ProcessInfo.processInfo.arguments)
@@ -16,6 +14,6 @@ let application = NSApplication.shared
 // `.regular` policy is what puts an icon in the Dock.
 application.setActivationPolicy(.accessory)
 
-let delegate = AppDelegate(launchedAt: launchedAt, sampleCount: sampleCount)
+let delegate = AppDelegate(sampleCount: sampleCount)
 application.delegate = delegate
 application.run()

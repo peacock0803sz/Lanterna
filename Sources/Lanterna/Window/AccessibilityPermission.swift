@@ -11,7 +11,7 @@ enum AccessibilityPermission {
     /// The prompt is the system's because a home-grown explanation would be one
     /// more thing to keep in step with the settings pane it points at. Nothing
     /// here limits how often it is shown; asking once per launch is the
-    /// caller's rule (`AppDelegate.windowsToShow()`).
+    /// caller's rule (`AppDelegate.windowSource()`).
     static func isTrusted(promptingIfNeeded: Bool) -> Bool {
         let options = [promptOptionKey: promptingIfNeeded] as CFDictionary
         return AXIsProcessTrustedWithOptions(options)

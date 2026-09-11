@@ -1,16 +1,16 @@
-// swift-tools-version: 6.1
+// swift-tools-version: 6.2
 
 import PackageDescription
 
 let package = Package(
     name: "Lanterna",
     platforms: [
-        .macOS(.v15),
+        .macOS(.v26),
     ],
     targets: [
-        // Declarations of the private ApplicationServices functions the app is
-        // allowed to call. Kept in C because Swift has no supported way to
-        // declare them.
+        // Declarations of the private system functions the app calls; the
+        // case for each is made in the header. Kept in C because Swift has no
+        // supported way to declare them.
         .target(name: "PrivateAPIs"),
         .executableTarget(name: "Lanterna", dependencies: ["PrivateAPIs"]),
         .testTarget(

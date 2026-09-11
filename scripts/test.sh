@@ -34,4 +34,4 @@ fi
 # `"${flags[@]}"` alone aborts under `set -u` in bash 3.2, which macOS ships as
 # /bin/bash and which this script may run under, when the array is empty.
 exec env -u SDKROOT -u DEVELOPER_DIR /usr/bin/swift test \
-    --triple arm64-apple-macosx15.0 ${flags[@]+"${flags[@]}"} "$@"
+    --triple arm64-apple-macosx26.0 ${flags[@]+"${flags[@]}"} "$@"

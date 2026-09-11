@@ -1,11 +1,11 @@
-# Contrubition Guidelines
+# Contribution Guidelines
 
 - (MUST) Write in English for all documents, including comments in source
 - (MUST) Use .gitmessage for commit template
 
 ## Prerequisites
 
-- macOS 15 (Sequoia) or later
+- macOS 26 (Tahoe) or later. macOS 15 (Sequoia) is not supported
 - [Nix](https://nixos.org/) with flakes enabled
 - Xcode with Command Line Tools (for Swift compiler and macOS SDK)
 
@@ -40,7 +40,7 @@ This provides `swiftformat`, `swiftlint`, and installs pre-commit hooks automati
 The target architecture is pinned rather than left to the host, so the triple is given on every build: the architecture is a property of the product, not of whichever machine happens to build it. `scripts/test.sh` passes it for you, along with the search paths Swift Testing needs when only the Command Line Tools are installed.
 
 ```bash
-swift build --triple arm64-apple-macosx15.0
+swift build --triple arm64-apple-macosx26.0
 lipo -archs .build/debug/Lanterna   # must print arm64 and nothing else
 bash scripts/test.sh
 ```
@@ -49,10 +49,10 @@ bash scripts/test.sh
 
 | CI Step | Local Command |
 |---------|---------------|
-| nix-validate | `nix flake check` |
-| swift-build (build) | `nix develop --command swift build --triple arm64-apple-macosx15.0` |
+| nix-validate | `nix flake check --all-systems` |
+| swift-build (build) | `nix develop --command swift build --triple arm64-apple-macosx26.0` |
 | swift-build (verify architecture) | `lipo -archs .build/debug/Lanterna \| grep -qx arm64` |
-| swift-build (test) | `nix develop --command swift test --triple arm64-apple-macosx15.0` |
+| swift-build (test) | `nix develop --command swift test --triple arm64-apple-macosx26.0` |
 
 ## Troubleshooting
 
