@@ -26,13 +26,11 @@ final class SwitcherPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         isOpaque = false
         backgroundColor = .clear
-        // On macOS 15 the drop shadow is the window's, which NSPanel draws by
-        // default: a shadow drawn inside SwiftUI would be clipped, because the
-        // panel frame is exactly the content frame. Only macOS 26 needs a
-        // change, where Liquid Glass brings its own shadow.
-        if #available(macOS 26.0, *) {
-            hasShadow = false
-        }
+        // Liquid Glass brings its own shadow, so the window must not draw the
+        // one NSPanel gives it by default. Drawing the shadow inside SwiftUI
+        // instead is not an option: it would be clipped, because the panel
+        // frame is exactly the content frame.
+        hasShadow = false
         hidesOnDeactivate = false
 
         let hostingView = NSHostingView(rootView: content)
