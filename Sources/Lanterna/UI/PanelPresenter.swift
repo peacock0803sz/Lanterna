@@ -48,6 +48,14 @@ final class PanelPresenter {
     /// One key does both, so the same key that summons the panel dismisses it
     /// and no second one has to be learned or claimed from the system.
     ///
+    /// Nothing here turns a press away for arriving too soon after the last
+    /// one. Holding the key down does not produce a stream of presses: three
+    /// seconds on Cmd+Tab yielded exactly one. That was measured while this
+    /// method could only put the panel up, so a repeat would have shown as a
+    /// second panel rather than as a flicker, and the reading cannot be a
+    /// toggle racing itself. A suppression window would have nothing to
+    /// suppress, at the price of a stored instant and a threshold.
+    ///
     /// Synchronous on purpose. The panel goes up in the same turn the press
     /// arrives, so the reading below starts where the press does and there is
     /// no ordering between a press and its panel to reason about.
