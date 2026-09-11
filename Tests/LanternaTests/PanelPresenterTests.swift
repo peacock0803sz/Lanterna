@@ -369,4 +369,31 @@ struct PanelPresenterWaitingForAListTests {
         #expect(fixture.surface.presentedLists.count == 1)
         #expect(fixture.log.lines.count == 1)
     }
+
+    /// A press landing between the call-off and the list still has to be
+    /// answered, and the panel belongs to that second press rather than to the
+    /// one the user abandoned. `aPressAfterAWaitWasCalledOffWorksNormally` cannot
+    /// reach that window: it presses once the list has arrived, by which time
+    /// nothing is waiting and the press is answered whatever came before it.
+    @Test func aPressAfterACallOffButBeforeTheListArrivesIsStillAnswered() async {
+        let fake = HeldGather(entryCount: 4)
+        let fixture = Fixture(store: storeHoldingNothing(fake))
+
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        await fake.waitUntilCalled()
+        fixture.presenter.handleActivation(of: otherProcess)
+        fixture.presenter.handleHotkey(.reverse, deliveryDelay: nil)
+
+        fake.finish()
+        await settle()
+
+        #expect(fixture.surface.presentedLists.count == 1)
+        #expect(fixture.surface.presentedLists.first?.count == 4)
+        #expect(
+            fixture.log.lines == [
+                "panel shown 4.8 ms after Shift+Cmd+Tab (4 entries)"
+                    + "; gathered on the spot (no list held yet)",
+            ]
+        )
+    }
 }

@@ -40,10 +40,6 @@ final class PanelPresenter {
         /// When the press arrived. The reading spans the gathering too, which
         /// is why the line it produces says the gathering happened.
         let startedAt: ContinuousClock.Instant
-        /// Set when the user moved to another application before the list
-        /// arrived, which makes the panel they asked for no longer the panel
-        /// they want.
-        var isCalledOff = false
     }
 
     init(
@@ -105,9 +101,13 @@ final class PanelPresenter {
     /// Holds the press until there is a list, then puts the panel up for it.
     ///
     /// Only the first press after launch can get here, and only if it beats
-    /// the loop's first pass. The press is remembered rather than closed over,
-    /// so that what happens in the meantime — another press, the user moving
-    /// on — can be answered.
+    /// the loop's first pass. The task below carries none of the press with
+    /// it; it is a standing "wake me once a list exists", and every field it
+    /// shows the panel with is read out of `pendingPress` at the moment it
+    /// resumes. That is what makes two such tasks interchangeable: when a
+    /// press is called off and another takes its place, whichever task wakes
+    /// first finds the press that is really waiting and puts the panel up for
+    /// it, and the other finds the slot empty and does nothing.
     private func waitForTheFirstList(
         _ combination: HotkeyCombination,
         deliveryDelay: Duration?,
@@ -122,7 +122,6 @@ final class PanelPresenter {
             let items = await store.listWhenGathered()
             guard let pending = pendingPress else { return }
             pendingPress = nil
-            guard !pending.isCalledOff else { return }
             show(
                 items,
                 for: pending.combination,
@@ -170,9 +169,14 @@ final class PanelPresenter {
         if pendingPress != nil {
             // Nothing is on screen to take down. What has to stop is the
             // panel still on its way, which would otherwise appear over
-            // whatever the user has just turned to. No line either: the panel
-            // never appeared, so there is no appearance to account for.
-            pendingPress?.isCalledOff = true
+            // whatever the user has just turned to, and letting the slot go
+            // is what stops it. It also leaves the way clear for whatever
+            // comes next: while the slot is occupied every press is turned
+            // away as the duplicate of one already being answered, so a press
+            // arriving before the list does would be dropped rather than
+            // shown. No line either: the panel never appeared, so there is no
+            // appearance to account for.
+            pendingPress = nil
             return
         }
         guard surface.isPresented else { return }
