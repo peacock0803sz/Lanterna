@@ -56,6 +56,11 @@ struct HotkeyRegistrationOutcomeTests {
 
     /// Every combination lands on exactly one of the two lists. A combination
     /// on neither would go missing from the line without anything noticing.
+    ///
+    /// The initialiser is what enforces this: a malformed outcome traps there
+    /// rather than failing an expectation here. This is kept because it
+    /// states the invariant at the type's boundary, and because it is still a
+    /// check in a release test build, where the assert is compiled out.
     @Test(arguments: [everything, onlyReverse, nothing])
     func theTwoListsTogetherAccountForEveryCombination(outcome: HotkeyRegistrationOutcome) {
         let accounted = outcome.registered.map(\.id) + outcome.failures.map(\.combination.id)

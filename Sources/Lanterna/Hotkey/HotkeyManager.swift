@@ -27,10 +27,11 @@ struct HotkeyRegistrationOutcome: Sendable {
     /// line must never take the app down in release — an app that cannot
     /// claim its hotkeys is the very thing this line exists to report.
     init(registered: [HotkeyCombination], failures: [Failure]) {
-        // Two clauses because neither sees the other's case: a combination
-        // missing from both lists leaves the set short of the whole, while
-        // one on both lists or named twice leaves the count over it without
-        // the set noticing.
+        // Two clauses because each catches a case the other passes: a
+        // duplicate standing in for a missing combination keeps the count
+        // right and is caught only by the set, while a duplicate on top of
+        // full coverage keeps the set whole and is caught only by the count.
+        // A plain omission trips both.
         let accounted = registered + failures.map(\.combination)
         assert(
             Set(accounted) == Set(HotkeyCombination.all)
