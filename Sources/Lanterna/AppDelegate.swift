@@ -4,7 +4,6 @@ import Darwin
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let sampleCount: Int?
-    private var panel: SwitcherPanel?
     private var hotkeys: HotkeyManager?
     private var appNapActivity: NSObjectProtocol?
 
@@ -27,10 +26,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // and building the window ahead of time keeps its cost off the path
         // between that press and the panel.
         let panel = SwitcherPanel(content: SwitcherView(windows: []))
-        self.panel = panel
 
-        // The presenter has no other owner: it stays alive because the
-        // manager's press handler holds it.
+        // The panel is held by the presenter, the presenter by the manager's
+        // press handler, and the manager by this delegate: that chain is the
+        // whole of what keeps any of them alive.
         let presenter = PanelPresenter(surface: panel, gather: windowSource())
         let hotkeys = HotkeyManager { combination, deliveryDelay in
             presenter.handleHotkey(combination, deliveryDelay: deliveryDelay)
