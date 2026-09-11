@@ -1,4 +1,4 @@
-# Contrubition Guidelines
+# Contribution Guidelines
 
 - (MUST) Write in English for all documents, including comments in source
 - (MUST) Use .gitmessage for commit template
@@ -49,7 +49,7 @@ bash scripts/test.sh
 
 | CI Step | Local Command |
 |---------|---------------|
-| nix-validate | `nix flake check` |
+| nix-validate | `nix flake check --all-systems` |
 | swift-build (build) | `nix develop --command swift build --triple arm64-apple-macosx26.0` |
 | swift-build (verify architecture) | `lipo -archs .build/debug/Lanterna \| grep -qx arm64` |
 | swift-build (test) | `nix develop --command swift test --triple arm64-apple-macosx26.0` |
