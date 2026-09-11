@@ -231,15 +231,14 @@ private func handleHotkeyEvent(
         return OSStatus(eventNotHandledErr)
     }
 
-    // Worked out before the hop, because `EventRef` is not `Sendable` and
-    // cannot be carried into the closure. Both readings are seconds since boot
-    // on the same clock, so the subtraction stands on its own with no
-    // conversion in between.
+    // Read before the press is acted on, so the figure covers the system's
+    // delivery of it and none of the work that follows. Both readings are
+    // seconds since boot on the same clock, so the subtraction stands on its
+    // own with no conversion in between.
     let delay = Duration.seconds(GetCurrentEventTime() - GetEventTime(event))
 
-    // Resolved out here rather than inside the closure: a raw pointer belongs
-    // to whatever region the caller is in and cannot be sent across, while the
-    // manager it points at is main-actor isolated and so is safe to hand over.
+    // The other end of the `passUnretained` in `installHandler()`: where the
+    // pointer becomes the manager again.
     let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
 
     // Carbon does not promise which thread runs a handler. The dispatcher
