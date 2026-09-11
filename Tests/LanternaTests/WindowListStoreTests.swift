@@ -1,17 +1,6 @@
 @testable import Lanterna
 import Testing
 
-/// Keeps the lines the store writes, so a test can read them back — including
-/// reading that there were none.
-@MainActor
-private final class DiagnosticsLog {
-    private(set) var lines: [String] = []
-
-    func write(_ line: String) {
-        lines.append(line)
-    }
-}
-
 @MainActor
 private func snapshot(count: Int) -> WindowListSnapshot {
     WindowListSnapshot(
@@ -44,39 +33,6 @@ private final class ReentrantGather {
             await store.refresh()
         }
         return answers[min(callCount - 1, answers.count - 1)]
-    }
-}
-
-/// A gather the test holds open, so a second caller can be made to arrive
-/// while a pass is genuinely in flight rather than whenever two tasks happen
-/// to interleave.
-@MainActor
-private final class HeldGather {
-    private(set) var callCount = 0
-    private let answer: WindowListSnapshot
-    private var called: CheckedContinuation<Void, Never>?
-    private var release: CheckedContinuation<Void, Never>?
-
-    init(answer: WindowListSnapshot) {
-        self.answer = answer
-    }
-
-    func gather() async -> WindowListSnapshot {
-        callCount += 1
-        called?.resume()
-        called = nil
-        await withCheckedContinuation { release = $0 }
-        return answer
-    }
-
-    func waitUntilCalled() async {
-        guard callCount == 0 else { return }
-        await withCheckedContinuation { called = $0 }
-    }
-
-    func finish() {
-        release?.resume()
-        release = nil
     }
 }
 

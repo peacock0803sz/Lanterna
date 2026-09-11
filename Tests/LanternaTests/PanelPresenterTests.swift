@@ -44,55 +44,6 @@ private final class SteppingClock {
     }
 }
 
-/// Keeps the lines the presenter writes, so a test can read them back.
-@MainActor
-private final class DiagnosticsLog {
-    private(set) var lines: [String] = []
-
-    func write(_ line: String) {
-        lines.append(line)
-    }
-}
-
-/// A gather the test holds open, so a press can be made to arrive while the
-/// list is still being gathered — the one window in which that happens for
-/// real is the moment just after launch.
-@MainActor
-private final class HeldGather {
-    private(set) var callCount = 0
-    private let answer: WindowListSnapshot
-    private var called: CheckedContinuation<Void, Never>?
-    private var release: CheckedContinuation<Void, Never>?
-
-    init(entryCount: Int) {
-        answer = WindowListSnapshot(
-            items: SampleWindows.make(count: entryCount),
-            applicationCount: entryCount,
-            gatheringDuration: .milliseconds(9),
-            skipped: [],
-            droppedWithoutID: 0
-        )
-    }
-
-    func gather() async -> WindowListSnapshot {
-        callCount += 1
-        called?.resume()
-        called = nil
-        await withCheckedContinuation { release = $0 }
-        return answer
-    }
-
-    func waitUntilCalled() async {
-        guard callCount == 0 else { return }
-        await withCheckedContinuation { called = $0 }
-    }
-
-    func finish() {
-        release?.resume()
-        release = nil
-    }
-}
-
 /// Lets the hand-offs between tasks on the main actor run out.
 ///
 /// Not a timeout: nothing here waits on the clock or on I/O. Once the gather
