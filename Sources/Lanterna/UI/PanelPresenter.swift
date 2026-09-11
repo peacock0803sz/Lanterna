@@ -15,6 +15,56 @@ protocol SwitcherSurface {
 
 extension SwitcherPanel: SwitcherSurface {}
 
+/// Decides when the panel is on screen, and writes down what each press cost.
+@MainActor
+final class PanelPresenter {
+    private let surface: any SwitcherSurface
+    /// Where the rows come from.
+    ///
+    /// Called on the press and answered synchronously, which is a stopgap. An
+    /// application that has stopped answering makes a pass take about a
+    /// second, and right now the press is what waits for it, so the timing
+    /// this class reports is not yet a timing anyone should rely on. Handing
+    /// over a list gathered in the background is what fixes that, and this is
+    /// where it goes.
+    private let gather: @MainActor () -> [WindowItem]
+    private let now: @MainActor () -> ContinuousClock.Instant
+    private let writeLine: @MainActor (String) -> Void
+
+    init(
+        surface: any SwitcherSurface,
+        gather: @escaping @MainActor () -> [WindowItem],
+        now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
+        writeLine: @escaping @MainActor (String) -> Void = Diagnostics.writeLine
+    ) {
+        self.surface = surface
+        self.gather = gather
+        self.now = now
+        self.writeLine = writeLine
+    }
+
+    /// Puts the panel up for a press.
+    ///
+    /// Synchronous on purpose. The panel goes up in the same turn the press
+    /// arrives, so the reading below starts where the press does and there is
+    /// no ordering between a press and its panel to reason about.
+    func handleHotkey(_ combination: HotkeyCombination, deliveryDelay: Duration?) {
+        let startedAt = now()
+        let windows = gather()
+        surface.present(windows: windows)
+        let measurement = HotkeyMeasurement(
+            combination: combination,
+            elapsed: now() - startedAt,
+            entryCount: windows.count,
+            deliveryDelay: deliveryDelay,
+            // No list is held anywhere yet, so every press gathers its own.
+            // The segment stops appearing once one is.
+            gatheredOnDemand: true
+        )
+        writeLine(measurement.summaryLine)
+    }
+}
+
 /// One press, measured.
 ///
 /// Whether the panel is fast enough is a number, not an impression, and this
