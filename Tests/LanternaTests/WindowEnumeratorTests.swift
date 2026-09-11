@@ -1,51 +1,58 @@
 import AppKit
 @testable import Lanterna
+import Synchronization
 import Testing
+
+/// Answers from a table keyed by process identifier, so a test states what
+/// each application replies and nothing else.
+private struct FakeReader: ApplicationWindowReading {
+    let reads: [pid_t: Result<ApplicationRead, ReadFailure>]
+
+    init(_ reads: [pid_t: Result<ApplicationRead, ReadFailure>]) {
+        self.reads = reads
+    }
+
+    func read(processIdentifier: pid_t) -> Result<ApplicationRead, ReadFailure> {
+        reads[processIdentifier] ?? .success(ApplicationRead(records: [], droppedWithoutID: 0))
+    }
+}
+
+/// The fixtures sit at file scope so both suites below can reach them, which
+/// is also what keeps either suite's body inside the length the linter allows.
+@MainActor
+private func application(
+    _ processIdentifier: pid_t,
+    name: String = "Finder"
+) -> RunningApplicationInfo {
+    RunningApplicationInfo(
+        processIdentifier: processIdentifier,
+        name: name,
+        bundleIdentifier: nil,
+        icon: NSImage()
+    )
+}
+
+private func record(
+    _ windowID: CGWindowID,
+    title: String = "Downloads",
+    kind: WindowKind = .standard,
+    isMinimized: Bool = false
+) -> WindowRecord {
+    WindowRecord(windowID: windowID, title: title, kind: kind, isMinimized: isMinimized)
+}
+
+private func read(
+    _ records: [WindowRecord],
+    droppedWithoutID: Int = 0
+) -> Result<ApplicationRead, ReadFailure> {
+    .success(ApplicationRead(records: records, droppedWithoutID: droppedWithoutID))
+}
 
 /// The assembly rules — grouping, ordering, fallbacks, isolation of a failing
 /// application — all live in the enumerator, and a fake reader exercises them
 /// without a live accessibility connection.
 @MainActor
 struct WindowEnumeratorTests {
-    /// Answers from a table keyed by process identifier, so a test states what
-    /// each application replies and nothing else.
-    private struct FakeReader: ApplicationWindowReading {
-        let reads: [pid_t: Result<ApplicationRead, ReadFailure>]
-
-        init(_ reads: [pid_t: Result<ApplicationRead, ReadFailure>]) {
-            self.reads = reads
-        }
-
-        func read(processIdentifier: pid_t) -> Result<ApplicationRead, ReadFailure> {
-            reads[processIdentifier] ?? .success(ApplicationRead(records: [], droppedWithoutID: 0))
-        }
-    }
-
-    private func application(
-        _ processIdentifier: pid_t,
-        name: String = "Finder"
-    ) -> RunningApplicationInfo {
-        RunningApplicationInfo(
-            processIdentifier: processIdentifier,
-            name: name,
-            bundleIdentifier: nil,
-            icon: NSImage()
-        )
-    }
-
-    private func record(
-        _ windowID: CGWindowID,
-        title: String = "Downloads",
-        kind: WindowKind = .standard,
-        isMinimized: Bool = false
-    ) -> WindowRecord {
-        WindowRecord(windowID: windowID, title: title, kind: kind, isMinimized: isMinimized)
-    }
-
-    private func read(_ records: [WindowRecord], droppedWithoutID: Int = 0) -> Result<ApplicationRead, ReadFailure> {
-        .success(ApplicationRead(records: records, droppedWithoutID: droppedWithoutID))
-    }
-
     private func snapshot(
         applications: [RunningApplicationInfo],
         reads: [pid_t: Result<ApplicationRead, ReadFailure>]
@@ -307,5 +314,60 @@ struct WindowEnumeratorTests {
         #expect(RunningApplicationInfo.resolvedIcon(nil) === AppIconResolver.placeholder)
         let icon = NSImage()
         #expect(RunningApplicationInfo.resolvedIcon(icon) === icon)
+    }
+}
+
+/// Counts the reads that ran on the main thread. A `Mutex` because the reads
+/// are concurrent by design, and a count that raced would report zero for the
+/// very reason the test below exists to rule out.
+private final class ThreadRecordingReader: ApplicationWindowReading {
+    private let mainThreadReads = Mutex(0)
+
+    var mainThreadReadCount: Int {
+        mainThreadReads.withLock { $0 }
+    }
+
+    func read(processIdentifier _: pid_t) -> Result<ApplicationRead, ReadFailure> {
+        if Thread.isMainThread {
+            mainThreadReads.withLock { $0 += 1 }
+        }
+        return .success(ApplicationRead(records: [], droppedWithoutID: 0))
+    }
+}
+
+/// The asynchronous path differs from the one above in where the reading runs
+/// and in nothing else, so both halves of that sentence are checked.
+@MainActor
+struct WindowEnumeratorOffMainThreadTests {
+    /// Where the reading runs is the whole point. An application that has
+    /// stopped answering blocks the thread reading it for about a second, and
+    /// that thread must not be the one the panel is drawn on.
+    @Test func theReadingRunsAwayFromTheMainThread() async {
+        let reader = ThreadRecordingReader()
+        _ = await WindowEnumerator(reader: reader).enumerateOffMainThread(
+            applications: [application(100), application(300)],
+            startedAt: .now
+        )
+        #expect(reader.mainThreadReadCount == 0)
+    }
+
+    /// Moving the reading must move nothing else: the two paths share the
+    /// assembly, and the same answers have to lay out the same way.
+    @Test func theSameAnswersAssembleTheSameList() async {
+        let applications = [application(300, name: "Mail"), application(100, name: "Finder")]
+        let reads: [pid_t: Result<ApplicationRead, ReadFailure>] = [
+            300: read([record(9), record(4)]),
+            100: read([record(7)], droppedWithoutID: 2),
+        ]
+        let enumerator = WindowEnumerator(reader: FakeReader(reads))
+        let expected = enumerator.enumerate(applications: applications, startedAt: .now)
+        let actual = await enumerator.enumerateOffMainThread(
+            applications: applications,
+            startedAt: .now
+        )
+        #expect(actual.items.map(\.id) == expected.items.map(\.id))
+        #expect(actual.items.map(\.appName) == expected.items.map(\.appName))
+        #expect(actual.applicationCount == expected.applicationCount)
+        #expect(actual.droppedWithoutID == expected.droppedWithoutID)
     }
 }
