@@ -47,6 +47,39 @@ private final class ReentrantGather {
     }
 }
 
+/// A gather the test holds open, so a second caller can be made to arrive
+/// while a pass is genuinely in flight rather than whenever two tasks happen
+/// to interleave.
+@MainActor
+private final class HeldGather {
+    private(set) var callCount = 0
+    private let answer: WindowListSnapshot
+    private var called: CheckedContinuation<Void, Never>?
+    private var release: CheckedContinuation<Void, Never>?
+
+    init(answer: WindowListSnapshot) {
+        self.answer = answer
+    }
+
+    func gather() async -> WindowListSnapshot {
+        callCount += 1
+        called?.resume()
+        called = nil
+        await withCheckedContinuation { release = $0 }
+        return answer
+    }
+
+    func waitUntilCalled() async {
+        guard callCount == 0 else { return }
+        await withCheckedContinuation { called = $0 }
+    }
+
+    func finish() {
+        release?.resume()
+        release = nil
+    }
+}
+
 @MainActor
 struct WindowListStoreTests {
     @Test func theFirstPassPutsAListInPlace() async {
@@ -119,5 +152,45 @@ struct WindowListStoreTests {
         store.stop()
         await store.refresh()
         #expect(store.snapshot != nil)
+    }
+
+    // MARK: - Asking for the list
+
+    @Test func aHeldListIsHandedOverWithoutGatheringAgain() async {
+        let fake = HeldGather(answer: snapshot(count: 5))
+        let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
+        let pass = Task { await store.refresh() }
+        await fake.waitUntilCalled()
+        fake.finish()
+        await pass.value
+
+        let items = await store.listWhenGathered()
+        #expect(items.count == 5)
+        #expect(fake.callCount == 1)
+    }
+
+    @Test func askingBeforeAnyPassHasRunGathersOne() async {
+        let store = WindowListStore(gather: { snapshot(count: 2) }, writeLine: { _ in })
+        let items = await store.listWhenGathered()
+        #expect(items.count == 2)
+    }
+
+    /// The press this is for lands just after launch, when the loop's first
+    /// pass is almost certainly already running. Asking for a pass of its own
+    /// would be refused and leave it with nothing, so what it waits for is the
+    /// first list rather than its own attempt at one.
+    @Test func askingDuringAPassWaitsForThatPassRatherThanStartingAnother() async {
+        let fake = HeldGather(answer: snapshot(count: 5))
+        let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
+
+        let pass = Task { await store.refresh() }
+        await fake.waitUntilCalled()
+        let waiting = Task { await store.listWhenGathered() }
+        fake.finish()
+
+        let items = await waiting.value
+        await pass.value
+        #expect(items.count == 5)
+        #expect(fake.callCount == 1)
     }
 }

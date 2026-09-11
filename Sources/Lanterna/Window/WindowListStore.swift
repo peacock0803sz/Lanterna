@@ -29,6 +29,8 @@ final class WindowListStore {
     private(set) var isRefreshing = false
 
     private var refreshTask: Task<Void, Never>?
+    /// Callers parked until the first pass produces something.
+    private var waitingForFirstList: [CheckedContinuation<Void, Never>] = []
     private let gather: @MainActor () async -> WindowListSnapshot
     private let writeLine: @MainActor (String) -> Void
 
@@ -86,6 +88,31 @@ final class WindowListStore {
         let gathered = await gather()
         snapshot = gathered
         writeLine(gathered.summaryLine)
+
+        let waiting = waitingForFirstList
+        waitingForFirstList = []
+        for continuation in waiting {
+            continuation.resume()
+        }
+    }
+
+    /// The list, waiting for a pass to finish if none has yet.
+    ///
+    /// Only the first press after launch can find nothing held, and it is
+    /// almost certain to find a pass already running, because the loop starts
+    /// before the hotkeys are claimed. Such a press cannot ask for a pass of
+    /// its own — `refresh()` would refuse to start a second and hand it back
+    /// the same nothing — so what it waits for is the first list, whichever
+    /// pass produces it. Empty only if a pass genuinely found no windows.
+    func listWhenGathered() async -> [WindowItem] {
+        if snapshot == nil {
+            if isRefreshing {
+                await withCheckedContinuation { waitingForFirstList.append($0) }
+            } else {
+                await refresh()
+            }
+        }
+        return snapshot?.items ?? []
     }
 
     /// Keeps the list current until `stop()`.
