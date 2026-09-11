@@ -96,9 +96,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Where the panel's rows will come from on every press.
     ///
     /// The choice between fixture, live windows and nothing is made once here
-    /// rather than per press. Permission in particular is asked for at launch
-    /// only: the system's dialog arriving in answer to a key press would be a
-    /// worse thing to explain than an empty panel with a reason in the log.
+    /// rather than per press, so a permission granted after launch takes
+    /// effect only on the next run. Permission in particular is asked for at
+    /// launch only: the system's dialog arriving in answer to a key press
+    /// would be a worse thing to explain than an empty panel with a reason in
+    /// the log.
     private func windowSource() -> @MainActor () -> [WindowItem] {
         if let sampleCount {
             // The fixture needs no permission, so the check is skipped with it.
@@ -108,8 +110,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         guard AccessibilityPermission.isTrusted(promptingIfNeeded: true) else {
             Diagnostics.writeLine(
-                "accessibility permission not granted; the window list is empty until it is "
-                    + "granted in System Settings > Privacy & Security > Accessibility"
+                "accessibility permission not granted; the window list stays empty for this run; "
+                    + "grant it in System Settings > Privacy & Security > Accessibility and "
+                    + "restart the app"
             )
             return { [] }
         }
