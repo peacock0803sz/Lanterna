@@ -47,6 +47,22 @@ final class SwitcherPanel: NSPanel {
         // window's content size or its minimum and maximum sizes.
         hostingView.sizingOptions = []
         contentView = hostingView
+
+        // Nothing is removed. The observation ends with the process, and the
+        // notification centre holds the token in the meantime whether or not
+        // anyone else does.
+        _ = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // The queue above is the main one, so this is the main actor's
+            // executor; nothing weaker than a trap is wanted if that ever
+            // stops being true.
+            MainActor.assumeIsolated {
+                self?.screensChanged()
+            }
+        }
     }
 
     /// Whether the panel is currently on screen.
@@ -80,6 +96,28 @@ final class SwitcherPanel: NSPanel {
 
     func dismiss() {
         orderOut(nil)
+    }
+
+    /// Puts the panel back where it belongs after the displays have been
+    /// rearranged.
+    ///
+    /// Between appearances nothing moves the panel, so a display change would
+    /// otherwise leave one that is up wherever the old arrangement had put it:
+    /// off centre on the display that is now the main one, or on a display the
+    /// user is no longer looking at. That second case costs a press. Changing
+    /// which display is the main one with the panel up was seen to leave a
+    /// panel the next press did not appear to take down — the line was
+    /// written, and nothing on the display in front of the user changed; the
+    /// press after that moved and showed it, and only the third took it down.
+    /// What the window server was doing was not established, and a panel the
+    /// user simply cannot see would look the same from where the press was
+    /// made. Moving it here is what keeps that state from arising either way.
+    ///
+    /// A panel that is down needs nothing. The next appearance places it, and
+    /// this runs whenever anyone plugs in a display.
+    func screensChanged() {
+        guard isPresented else { return }
+        centerOnMainDisplay()
     }
 
     /// No keyboard input is routed to the panel, and the process must never

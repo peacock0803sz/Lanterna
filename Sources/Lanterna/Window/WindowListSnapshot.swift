@@ -2,8 +2,11 @@ import Foundation
 
 /// The result of one pass over every listable application.
 ///
-/// Nothing is kept between passes: the list is gathered when the panel is about
-/// to be shown and lives no longer than the process.
+/// A pass produces one of these and `WindowListStore` holds the newest, so a
+/// press takes a list that is already gathered rather than waiting for one.
+/// The panel is handed the rows as an array when it is shown, which is why a
+/// pass finishing while the panel is up replaces what is held without
+/// disturbing what is on screen.
 struct WindowListSnapshot {
     /// An application whose read failed. Named in the diagnostics line so a
     /// missing application is explained rather than silently absent.

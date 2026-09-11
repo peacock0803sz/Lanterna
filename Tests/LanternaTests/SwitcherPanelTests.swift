@@ -53,4 +53,60 @@ struct SwitcherPanelTests {
         panel.update(windows: SampleWindows.make(count: 7))
         #expect(panel.contentView === before)
     }
+
+    /// Nothing moves the panel between appearances, so a display change leaves
+    /// a panel that is up wherever the old arrangement put it. Only the
+    /// putting back is pinned here; what was seen when a panel was left where
+    /// it fell is recorded on `screensChanged()`, and is not something a test
+    /// can arrange.
+    @Test func aPanelThatIsUpIsPutBackWhenTheScreensChange() {
+        let panel = panel()
+        panel.present(windows: SampleWindows.make(count: 3))
+        let belongs = panel.frame.origin
+        panel.setFrameOrigin(NSPoint(x: belongs.x + 400, y: belongs.y + 200))
+
+        panel.screensChanged()
+
+        #expect(panel.frame.origin == belongs)
+        panel.dismiss()
+    }
+
+    /// A panel that is not up is put in its place by the next appearance, and
+    /// this runs whenever anyone plugs in a display.
+    @Test func aPanelThatIsDownIsLeftAloneWhenTheScreensChange() {
+        let panel = panel()
+        panel.setFrameOrigin(NSPoint(x: 17, y: 23))
+        panel.screensChanged()
+        #expect(panel.frame.origin == NSPoint(x: 17, y: 23))
+    }
+
+    /// `aPanelThatIsUpIsPutBackWhenTheScreensChange` calls `screensChanged()`
+    /// itself, which says only that the method does its job once something
+    /// calls it. This says that something does. The subscription is made in
+    /// `init` and nothing else in the app reaches it, so registering the wrong
+    /// notification name or dropping the block would leave the method correct
+    /// and never called, and a panel that is up when the displays are
+    /// rearranged would stay wherever the old arrangement put it.
+    ///
+    /// The block is handed to `OperationQueue.main` rather than run on the
+    /// thread that posts, so the assertion has to give the main queue its turn
+    /// before reading the frame back. Yielding does that without waiting on a
+    /// clock; the count is slack, not a measurement.
+    @Test func aDisplayChangeNotificationPutsThePanelBack() async {
+        let panel = panel()
+        panel.present(windows: SampleWindows.make(count: 3))
+        let belongs = panel.frame.origin
+        panel.setFrameOrigin(NSPoint(x: belongs.x + 400, y: belongs.y + 200))
+
+        NotificationCenter.default.post(
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
+        for _ in 0 ..< 10 {
+            await Task.yield()
+        }
+
+        #expect(panel.frame.origin == belongs)
+        panel.dismiss()
+    }
 }
