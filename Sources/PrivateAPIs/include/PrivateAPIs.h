@@ -10,12 +10,11 @@
 /// Undocumented, but exported from ApplicationServices and the only direct way
 /// to tie an `AXUIElement` to a `CGWindowID` without Screen Recording; matching
 /// frames and owners against `CGWindowListCopyWindowInfo` would be the indirect
-/// one. The project's private-API policy allows this function by name, because
-/// it is what lets the switcher avoid Screen Recording; anything else added to
-/// this header needs the same case made for it. It is declared here because
-/// Swift has no supported syntax for declaring an external C symbol, and a C
-/// target's `include/` directory is what SwiftPM turns into an importable
-/// module.
+/// one. That is the test a symbol has to pass to be declared in this header:
+/// nothing public does the job, argued by name for the symbol rather than for
+/// private APIs as a class. It is declared here because Swift has no supported
+/// syntax for declaring an external C symbol, and a C target's `include/`
+/// directory is what SwiftPM turns into an importable module.
 ///
 /// Every real window seen so far returned `kAXErrorSuccess` and a non-zero id.
 /// The one failure observed is `kAXErrorIllegalArgument`, for an element that
@@ -40,11 +39,10 @@ enum {
 /// Turns one of those shortcuts off, or back on.
 ///
 /// Undocumented, but re-exported from CoreGraphics, so linking AppKit resolves
-/// it. The private-API policy above allows it by name for the same kind of
-/// reason `_AXUIElementGetWindow` is allowed: nothing public does the job.
-/// While the system still holds Cmd+Tab, the Dock and the window server
-/// consume the press before it reaches any application hotkey, so a switcher
-/// bound to Cmd+Tab is never reached at all. The public
+/// it. It passes the same test as `_AXUIElementGetWindow`: nothing public does
+/// the job. While the system still holds Cmd+Tab, the Dock and the window
+/// server consume the press before it reaches any application hotkey, so a
+/// switcher bound to Cmd+Tab is never reached at all. The public
 /// `PushSymbolicHotKeyMode` is not a substitute: it can only disable every
 /// symbolic hotkey at once — Cmd+Space and the screenshot keys with it — it
 /// needs accessibility access, and it undoes itself when the application is
