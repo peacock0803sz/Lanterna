@@ -80,6 +80,40 @@ private final class HeldGather {
     }
 }
 
+/// Counts the passes and lets a test wait until a given number of them have
+/// begun, so how far round the loop has gone is settled by an event rather
+/// than by how long a test was willing to wait for one.
+///
+/// Unlike `HeldGather` this does not hold the pass open. What these tests are
+/// about is the loop coming back round, and a pass that never returned would
+/// leave it nothing to come back round from.
+@MainActor
+private final class CountingGather {
+    private(set) var callCount = 0
+    private let answer: WindowListSnapshot
+    private var reached: CheckedContinuation<Void, Never>?
+    private var awaitedCount = 0
+
+    init(answer: WindowListSnapshot) {
+        self.answer = answer
+    }
+
+    func gather() async -> WindowListSnapshot {
+        callCount += 1
+        if callCount >= awaitedCount {
+            reached?.resume()
+            reached = nil
+        }
+        return answer
+    }
+
+    func waitUntilCalled(times: Int) async {
+        guard callCount < times else { return }
+        awaitedCount = times
+        await withCheckedContinuation { reached = $0 }
+    }
+}
+
 @MainActor
 struct WindowListStoreTests {
     @Test func theFirstPassPutsAListInPlace() async {
@@ -192,5 +226,66 @@ struct WindowListStoreTests {
         await pass.value
         #expect(items.count == 5)
         #expect(fake.callCount == 1)
+    }
+
+    // MARK: - The loop
+
+    /// Holding a list is worth something only if the list keeps up, and the
+    /// loop is the whole of what makes it. A loop that went round once and
+    /// stopped would leave the app showing the windows as they stood at launch
+    /// for as long as it ran, and nothing in the log would look wrong: the one
+    /// pass that did run wrote the same summary line a healthy pass writes.
+    ///
+    /// The time limit is not about slowness: these three are the only tests
+    /// here that await a count the store is free to stop producing, so a loop
+    /// reduced to a single pass would wait for ever rather than fail.
+    @Test(.timeLimit(.minutes(1))) func theLoopKeepsGoingUntilItIsStopped() async {
+        let fake = CountingGather(answer: snapshot(count: 3))
+        let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
+
+        store.start(interval: .milliseconds(1))
+        await fake.waitUntilCalled(times: 3)
+        store.stop()
+
+        #expect(fake.callCount >= 3)
+    }
+
+    /// The only wait on a real clock in this file, and it cannot be avoided:
+    /// what is pinned here is that nothing further happens, and there is no
+    /// event to await for something that must not occur. Fifty times the
+    /// interval is long enough that a loop still going would have gone round
+    /// many times over within it.
+    @Test(.timeLimit(.minutes(1))) func stoppingEndsTheLoop() async {
+        let fake = CountingGather(answer: snapshot(count: 3))
+        let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
+
+        store.start(interval: .milliseconds(1))
+        await fake.waitUntilCalled(times: 3)
+        store.stop()
+        let countWhenStopped = fake.callCount
+
+        try? await Task.sleep(for: .milliseconds(50))
+
+        #expect(fake.callCount == countWhenStopped)
+    }
+
+    /// Starting again ends what was started before, so two calls leave one
+    /// loop rather than two. Stopping once is what shows it: a first loop that
+    /// had survived would still be going after the second was stopped, because
+    /// only the second one's handle was kept, and the count would climb on
+    /// past the reading taken here.
+    @Test(.timeLimit(.minutes(1))) func startingAgainReplacesTheLoopRatherThanAddingOne() async {
+        let fake = CountingGather(answer: snapshot(count: 3))
+        let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
+
+        store.start(interval: .milliseconds(1))
+        store.start(interval: .milliseconds(1))
+        await fake.waitUntilCalled(times: 3)
+        store.stop()
+        let countWhenStopped = fake.callCount
+
+        try? await Task.sleep(for: .milliseconds(50))
+
+        #expect(fake.callCount == countWhenStopped)
     }
 }
