@@ -221,11 +221,12 @@ struct WindowListStoreTests {
         #expect(fake.callCount >= 3)
     }
 
-    /// The only wait on a real clock in this file, and it cannot be avoided:
-    /// what is pinned here is that nothing further happens, and there is no
-    /// event to await for something that must not occur. Fifty times the
-    /// interval is long enough that a loop still going would have gone round
-    /// many times over within it.
+    /// One of the two waits on a real clock in this file — the other is in
+    /// `startingAgainReplacesTheLoopRatherThanAddingOne`, made for the same
+    /// reason — and it cannot be avoided: what is pinned here is that nothing
+    /// further happens, and there is no event to await for something that
+    /// must not occur. Fifty times the interval is long enough that a loop
+    /// still going would have gone round many times over within it.
     @Test(.timeLimit(.minutes(1))) func stoppingEndsTheLoop() async {
         let fake = CountingGather(answer: snapshot(count: 3))
         let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
