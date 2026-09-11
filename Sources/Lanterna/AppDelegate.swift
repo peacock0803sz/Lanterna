@@ -52,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         TerminationSignals.install(cleanUp: shutDown)
 
         if let line = SystemSwitcherShortcuts.summaryLine(
-            disabling: SystemSwitcherShortcuts.disable()
+            disabling: SystemSwitcherShortcuts.disable(outcome.registered)
         ) {
             Diagnostics.writeLine(line)
         }
@@ -68,15 +68,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Reached twice over, once through the usual termination callback and
     /// once from a caught signal, which exits before that callback can run.
     private func shutDown() {
-        if let line = SystemSwitcherShortcuts.summaryLine(
-            restoring: SystemSwitcherShortcuts.restore()
-        ) {
+        let restoreFailures = SystemSwitcherShortcuts.restore()
+        if let line = SystemSwitcherShortcuts.summaryLine(restoring: restoreFailures) {
             Diagnostics.writeLine(line)
         }
         hotkeys?.unregister()
         if let appNapActivity {
             ProcessInfo.processInfo.endActivity(appNapActivity)
             self.appNapActivity = nil
+        }
+
+        // A run that ends with the system's shortcuts still off has left the
+        // machine without a working Cmd+Tab, and the diagnostics line saying
+        // so is easy to miss in a way an exit status is not. Both paths that
+        // reach here are the end of the process anyway: the caught-signal
+        // path exits as soon as this returns, and all this changes is the
+        // status it reports, while the termination-callback path gives up
+        // AppKit's remaining teardown, which is no loss when the windows and
+        // the run loop are going away with the process regardless. The code
+        // differs from the `EX_UNAVAILABLE` used at launch so the two cases
+        // stay apart.
+        if !restoreFailures.isEmpty {
+            exit(EX_OSERR)
         }
     }
 

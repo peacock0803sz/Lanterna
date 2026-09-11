@@ -6,9 +6,9 @@ import PrivateAPIs
 /// Registering an application hotkey is only half of taking a combination
 /// over. While the system still holds it, the Dock and the window server
 /// consume the press before any application sees it, so the other half is
-/// turning the system's assignment off. The two combinations are switched
-/// together: leaving Shift+Cmd+Tab alone would keep the system's reverse
-/// switcher answering a key this app believes it owns.
+/// turning the system's assignment off. That is done only for the
+/// combinations this app actually registered: one it could not claim is
+/// better left answered by the system than answered by nobody at all.
 @MainActor
 enum SystemSwitcherShortcuts {
     /// A shortcut that would not change, and what the window server said about
@@ -23,10 +23,11 @@ enum SystemSwitcherShortcuts {
         }
     }
 
-    /// Stops the system answering either combination. Returns the ones that
-    /// would not change; empty is the ordinary case.
-    static func disable() -> [Failure] {
-        write(isEnabled: false)
+    /// Stops the system answering the given combinations, which are the ones
+    /// this app registered. Returns the ones that would not change; empty is
+    /// the ordinary case.
+    static func disable(_ combinations: [HotkeyCombination]) -> [Failure] {
+        write(combinations, isEnabled: false)
     }
 
     /// Gives both back to the system.
@@ -36,8 +37,12 @@ enum SystemSwitcherShortcuts {
     /// read that state back would take it for the user's own preference and
     /// never turn them on again. On is the system default, and nothing but
     /// this app has a reason to turn them off.
+    ///
+    /// For the same reason this takes no list where `disable(_:)` does: the
+    /// combination left off may be one an earlier run took and never gave
+    /// back, and writing "enabled" over one that is already on costs nothing.
     static func restore() -> [Failure] {
-        write(isEnabled: true)
+        write(HotkeyCombination.all, isEnabled: true)
     }
 
     /// What to write when some of them would not go off. `nil` when they all
@@ -59,8 +64,8 @@ enum SystemSwitcherShortcuts {
             + failures.map(\.description).joined(separator: ", ")
     }
 
-    private static func write(isEnabled: Bool) -> [Failure] {
-        HotkeyCombination.all.compactMap { combination in
+    private static func write(_ combinations: [HotkeyCombination], isEnabled: Bool) -> [Failure] {
+        combinations.compactMap { combination in
             let status = CGSSetSymbolicHotKeyEnabled(symbolicHotKey(for: combination), isEnabled)
             guard status != .success else {
                 return nil
