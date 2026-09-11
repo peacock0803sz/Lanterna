@@ -66,6 +66,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ///
     /// Reached twice over, once through the usual termination callback and
     /// once from a caught signal, which exits before that callback can run.
+    ///
+    /// May end the process rather than return, when the system's shortcuts
+    /// could not be given back.
     private func shutDown() {
         let restoreFailures = SystemSwitcherShortcuts.restore()
         if let line = SystemSwitcherShortcuts.summaryLine(restoring: restoreFailures) {
