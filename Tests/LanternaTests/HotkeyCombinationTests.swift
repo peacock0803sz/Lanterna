@@ -29,9 +29,20 @@ struct HotkeyCombinationTests {
         #expect(HotkeyCombination.reverse.name == "Shift+Cmd+Tab")
     }
 
-    /// Both are Tab, and the reverse one is the forward one plus Shift. Stated
-    /// as a relation rather than as two literals, so a swapped table fails
-    /// here instead of at the keyboard.
+    /// Pinned to the literals, not to each other: these two numbers are what
+    /// the system is actually asked for, and nothing else in the suite would
+    /// notice them changing. The relation below would still hold for any key
+    /// and any base modifier, while the app went on logging "Cmd+Tab" and
+    /// taking the system's own Cmd+Tab away.
+    @Test func forwardIsTabWithCommandAndNothingElse() {
+        #expect(HotkeyCombination.forward.keyCode == UInt32(kVK_Tab))
+        #expect(HotkeyCombination.forward.carbonModifiers == UInt32(cmdKey))
+    }
+
+    /// The reverse combination differs from the forward one by exactly Shift,
+    /// on the same key. Stated as a relation because this is the only thing
+    /// holding the two together: the literals above pin the forward one, and
+    /// nothing but this would notice the reverse one drifting away from it.
     @Test func reverseIsForwardPlusShiftOnTheSameKey() {
         #expect(HotkeyCombination.reverse.keyCode == HotkeyCombination.forward.keyCode)
         #expect(
