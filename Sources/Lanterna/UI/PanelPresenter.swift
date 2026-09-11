@@ -161,9 +161,9 @@ final class PanelPresenter {
     /// This process is ruled out rather than assumed absent. The panel is
     /// built not to activate it — non-activating, neither key nor main,
     /// ordered front regardless — so a notification naming this process is not
-    /// expected; acting on one that did arrive would take the panel down the
-    /// moment it appeared, and one comparison is a cheap way never to find out
-    /// the hard way.
+    /// expected; acting on one that did arrive would take a panel down the
+    /// moment it appeared, or throw away a press still on its way to becoming
+    /// one, and one comparison is a cheap way never to find out the hard way.
     func handleActivation(of processIdentifier: pid_t) {
         guard processIdentifier != ownProcessIdentifier else { return }
         if pendingPress != nil {
