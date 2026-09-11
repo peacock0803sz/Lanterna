@@ -131,10 +131,15 @@ final class HotkeyManager {
                 combination.carbonModifiers,
                 EventHotKeyID(signature: hotkeySignature, id: combination.id),
                 GetEventDispatcherTarget(),
-                // Shared rather than exclusive. Exclusive would refuse the
-                // registration whenever another switcher already holds the
-                // combination, which would mean this app cannot start
-                // alongside one; shared lets both run and both answer.
+                // Shared rather than exclusive, and not as a preference.
+                // Asking exclusively was tried: it came back
+                // `eventHotKeyExistsErr` for both combinations, so exclusive
+                // is not a stricter form of this call but one that never
+                // hands back a hotkey at all. Something already holds them
+                // when this runs, and the system's own assignment is the one
+                // thing known to — it is switched off only after this loop
+                // has succeeded. Shared is also what lets this app run
+                // alongside another switcher, with both answering.
                 OptionBits(kEventHotKeyNoOptions),
                 &reference
             )
