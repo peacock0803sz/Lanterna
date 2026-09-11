@@ -245,8 +245,16 @@ private func handleHotkeyEvent(
     // Carbon does not promise which thread runs a handler. The dispatcher
     // target runs it on whichever thread pumps the event loop, which under a
     // running application is the main one, but the guard is what makes the
-    // assumption below sound rather than hopeful.
+    // assumption below sound rather than hopeful. It answers with a line and
+    // a refusal rather than a trap: a crash here would leave the process
+    // dead with the system's Cmd+Tab still disabled, the very failure the
+    // shutdown path exists to prevent. The drop is written down because with
+    // that switcher off, an unrecorded one is a key that does nothing for no
+    // visible reason.
     guard Thread.isMainThread else {
+        Diagnostics.writeLine(
+            "dropped \(combination.name); Carbon ran the handler off the main thread"
+        )
         return OSStatus(eventNotHandledErr)
     }
     MainActor.assumeIsolated {
