@@ -47,6 +47,22 @@ final class SwitcherPanel: NSPanel {
         // window's content size or its minimum and maximum sizes.
         hostingView.sizingOptions = []
         contentView = hostingView
+
+        // Nothing is removed. The observation ends with the process, and the
+        // notification centre holds the token in the meantime whether or not
+        // anyone else does.
+        _ = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // The queue above is the main one, so this is the main actor's
+            // executor; nothing weaker than a trap is wanted if that ever
+            // stops being true.
+            MainActor.assumeIsolated {
+                self?.screensChanged()
+            }
+        }
     }
 
     /// Whether the panel is currently on screen.
@@ -80,6 +96,24 @@ final class SwitcherPanel: NSPanel {
 
     func dismiss() {
         orderOut(nil)
+    }
+
+    /// Puts the panel back where it belongs after the displays have been
+    /// rearranged.
+    ///
+    /// Between appearances nothing moves the panel, so a display change would
+    /// otherwise leave one that is up wherever the old arrangement had put it.
+    /// That is not only the wrong place. A panel left behind on a display that
+    /// is no longer the main one does not go away when `dismiss()` asks it to,
+    /// and the press that asked is spent: the panel stays on screen until a
+    /// later appearance has moved it back. Moving it here is what keeps that
+    /// state from arising.
+    ///
+    /// A panel that is down needs nothing. The next appearance places it, and
+    /// this runs whenever anyone plugs in a display.
+    func screensChanged() {
+        guard isPresented else { return }
+        centerOnMainDisplay()
     }
 
     /// No keyboard input is routed to the panel, and the process must never

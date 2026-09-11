@@ -53,4 +53,29 @@ struct SwitcherPanelTests {
         panel.update(windows: SampleWindows.make(count: 7))
         #expect(panel.contentView === before)
     }
+
+    /// Nothing moves the panel between appearances, so a display change leaves
+    /// a panel that is up wherever the old arrangement put it — which may be a
+    /// display that is no longer the main one. In that state the window server
+    /// will not take the panel down when it is asked to.
+    @Test func aPanelThatIsUpIsPutBackWhenTheScreensChange() {
+        let panel = panel()
+        panel.present(windows: SampleWindows.make(count: 3))
+        let belongs = panel.frame.origin
+        panel.setFrameOrigin(NSPoint(x: belongs.x + 400, y: belongs.y + 200))
+
+        panel.screensChanged()
+
+        #expect(panel.frame.origin == belongs)
+        panel.dismiss()
+    }
+
+    /// A panel that is not up is put in its place by the next appearance, and
+    /// this runs whenever anyone plugs in a display.
+    @Test func aPanelThatIsDownIsLeftAloneWhenTheScreensChange() {
+        let panel = panel()
+        panel.setFrameOrigin(NSPoint(x: 17, y: 23))
+        panel.screensChanged()
+        #expect(panel.frame.origin == NSPoint(x: 17, y: 23))
+    }
 }
