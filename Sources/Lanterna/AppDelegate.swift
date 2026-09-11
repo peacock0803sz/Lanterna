@@ -54,6 +54,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) {
             Diagnostics.writeLine(line)
         }
+
+        observeFrontmostApplication(presenter)
+    }
+
+    /// Tells the presenter whenever an application comes to the front, so that
+    /// turning to something else puts the panel away.
+    ///
+    /// Every activation is announced, this process's own included, and sorting
+    /// out which of them matters is the presenter's decision rather than this
+    /// one's: the delegate would have to know why the panel is up in order to
+    /// know which notification should take it down.
+    ///
+    /// Nothing removes the observation. The token would only be needed to stop
+    /// observing, and this observation stops when the process does; the
+    /// notification centre holds it in the meantime whether or not anyone
+    /// else does. A removal in `applicationWillTerminate` would also run on
+    /// only one of the ways this process ends, which is a worse account of
+    /// itself than none.
+    private func observeFrontmostApplication(_ presenter: PanelPresenter) {
+        _ = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard
+                let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+                as? NSRunningApplication
+            else { return }
+            // The queue above is the main one, so this is the main actor's
+            // executor; nothing weaker than a trap is wanted if that ever
+            // stops being true.
+            MainActor.assumeIsolated {
+                presenter.handleActivation(of: application.processIdentifier)
+            }
+        }
     }
 
     func applicationWillTerminate(_: Notification) {
