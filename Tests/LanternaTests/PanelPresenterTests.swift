@@ -1,9 +1,9 @@
 @testable import Lanterna
 import Testing
 
-/// Stands in for the panel. A real one needs a window server, and the kind
-/// of decision checked here — whether the panel went up, and with which
-/// list — is not one a screen would show.
+/// Stands in for the panel. A real one needs a window server. A screen would
+/// show that a panel appeared, but not which list it was given, nor that it
+/// appeared once rather than twice, and those are what this records.
 @MainActor
 private final class FakeSurface: SwitcherSurface {
     private(set) var presentedLists: [[WindowItem]] = []

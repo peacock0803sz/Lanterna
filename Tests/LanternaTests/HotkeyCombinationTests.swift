@@ -30,10 +30,11 @@ struct HotkeyCombinationTests {
     }
 
     /// Pinned to the literals, not to each other: these two numbers are what
-    /// the system is actually asked for, and nothing else in the suite would
-    /// notice them changing. The relation below would still hold for any key
-    /// and any base modifier, while the app went on logging "Cmd+Tab" and
-    /// taking the system's own Cmd+Tab away.
+    /// the system is actually asked for. The key code is one property shared
+    /// by both combinations, so nothing else in the suite can see it change;
+    /// the relation below would still hold for any key and any base modifier,
+    /// while the app went on logging "Cmd+Tab" and taking the system's own
+    /// Cmd+Tab away.
     @Test func forwardIsTabWithCommandAndNothingElse() {
         #expect(HotkeyCombination.forward.keyCode == UInt32(kVK_Tab))
         #expect(HotkeyCombination.forward.carbonModifiers == UInt32(cmdKey))

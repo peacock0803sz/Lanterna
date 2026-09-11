@@ -12,9 +12,10 @@ private func failure(_ combination: HotkeyCombination, _ status: CGError = .fail
 
 /// The window-server calls cannot be exercised here — a real
 /// `CGSSetSymbolicHotKeyEnabled` would change the developer's own machine — so
-/// what is tested is the wording, which is all anyone gets. A run that could
-/// not take the user's Cmd+Tab, or could not give it back, says so in one of
-/// these lines and nowhere else, so they are pinned word by word.
+/// what is tested is the wording. Only the line says which combination would
+/// not change and what number the window server gave for it; a failed restore
+/// also raises the exit status, but that says neither, and a failed disable
+/// has nothing but the line. So the lines are pinned word by word.
 @MainActor
 struct SystemSwitcherShortcutsTests {
     /// The empty list is the ordinary case, and a line saying so every time
