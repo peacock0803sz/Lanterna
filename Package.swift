@@ -1,11 +1,11 @@
-// swift-tools-version: 6.1
+// swift-tools-version: 6.2
 
 import PackageDescription
 
 let package = Package(
     name: "Lanterna",
     platforms: [
-        .macOS(.v15),
+        .macOS(.v26),
     ],
     targets: [
         // Declarations of the private ApplicationServices functions the app is
