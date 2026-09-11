@@ -78,4 +78,34 @@ struct SwitcherPanelTests {
         panel.screensChanged()
         #expect(panel.frame.origin == NSPoint(x: 17, y: 23))
     }
+
+    /// `aPanelThatIsUpIsPutBackWhenTheScreensChange` calls `screensChanged()`
+    /// itself, which says only that the method does its job once something
+    /// calls it. This says that something does. The subscription is made in
+    /// `init` and nothing else in the app reaches it, so registering the wrong
+    /// notification name or dropping the block would leave the method correct
+    /// and never called, and a panel stranded on a display it cannot be
+    /// dismissed from.
+    ///
+    /// The block is handed to `OperationQueue.main` rather than run on the
+    /// thread that posts, so the assertion has to give the main queue its turn
+    /// before reading the frame back. Yielding does that without waiting on a
+    /// clock; the count is slack, not a measurement.
+    @Test func aDisplayChangeNotificationPutsThePanelBack() async {
+        let panel = panel()
+        panel.present(windows: SampleWindows.make(count: 3))
+        let belongs = panel.frame.origin
+        panel.setFrameOrigin(NSPoint(x: belongs.x + 400, y: belongs.y + 200))
+
+        NotificationCenter.default.post(
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
+        for _ in 0 ..< 10 {
+            await Task.yield()
+        }
+
+        #expect(panel.frame.origin == belongs)
+        panel.dismiss()
+    }
 }
