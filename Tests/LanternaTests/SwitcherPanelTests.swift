@@ -55,9 +55,10 @@ struct SwitcherPanelTests {
     }
 
     /// Nothing moves the panel between appearances, so a display change leaves
-    /// a panel that is up wherever the old arrangement put it — which may be a
-    /// display that is no longer the main one. In that state the window server
-    /// will not take the panel down when it is asked to.
+    /// a panel that is up wherever the old arrangement put it. Only the
+    /// putting back is pinned here; what was seen when a panel was left where
+    /// it fell is recorded on `screensChanged()`, and is not something a test
+    /// can arrange.
     @Test func aPanelThatIsUpIsPutBackWhenTheScreensChange() {
         let panel = panel()
         panel.present(windows: SampleWindows.make(count: 3))

@@ -102,12 +102,16 @@ final class SwitcherPanel: NSPanel {
     /// rearranged.
     ///
     /// Between appearances nothing moves the panel, so a display change would
-    /// otherwise leave one that is up wherever the old arrangement had put it.
-    /// That is not only the wrong place. A panel left behind on a display that
-    /// is no longer the main one does not go away when `dismiss()` asks it to,
-    /// and the press that asked is spent: the panel stays on screen until a
-    /// later appearance has moved it back. Moving it here is what keeps that
-    /// state from arising.
+    /// otherwise leave one that is up wherever the old arrangement had put it:
+    /// off centre on the display that is now the main one, or on a display the
+    /// user is no longer looking at. That second case costs a press. Changing
+    /// which display is the main one with the panel up was seen to leave a
+    /// panel the next press did not take down — the line was written, and the
+    /// panel was still there; the press after that moved and showed it, and
+    /// only the third took it down. What the window server was doing was not
+    /// established, and a panel the user simply cannot see would look the same
+    /// from where the press was made. Moving it here is what keeps that state
+    /// from arising either way.
     ///
     /// A panel that is down needs nothing. The next appearance places it, and
     /// this runs whenever anyone plugs in a display.
