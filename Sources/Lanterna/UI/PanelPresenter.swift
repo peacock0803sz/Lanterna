@@ -1,3 +1,5 @@
+import Darwin
+
 /// The panel as the code deciding when to show it sees it: something that can
 /// be put up with a list, taken down, and asked whether it is up.
 ///
@@ -27,17 +29,20 @@ final class PanelPresenter {
     /// over a list gathered in the background is what fixes that, and this is
     /// where it goes.
     private let gather: @MainActor () -> [WindowItem]
+    private let ownProcessIdentifier: pid_t
     private let now: @MainActor () -> ContinuousClock.Instant
     private let writeLine: @MainActor (String) -> Void
 
     init(
         surface: any SwitcherSurface,
         gather: @escaping @MainActor () -> [WindowItem],
+        ownProcessIdentifier: pid_t = getpid(),
         now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
         writeLine: @escaping @MainActor (String) -> Void = Diagnostics.writeLine
     ) {
         self.surface = surface
         self.gather = gather
+        self.ownProcessIdentifier = ownProcessIdentifier
         self.now = now
         self.writeLine = writeLine
     }
@@ -61,8 +66,7 @@ final class PanelPresenter {
     /// no ordering between a press and its panel to reason about.
     func handleHotkey(_ combination: HotkeyCombination, deliveryDelay: Duration?) {
         if surface.isPresented {
-            surface.dismiss()
-            writeLine("panel hidden (\(combination.name))")
+            takeDown(because: combination.name)
             return
         }
 
@@ -79,6 +83,30 @@ final class PanelPresenter {
             gatheredOnDemand: true
         )
         writeLine(measurement.summaryLine)
+    }
+
+    /// Takes the panel down when an application other than this one comes to
+    /// the front, which is the user having moved on to something else.
+    ///
+    /// Every activation is announced, so most calls arrive with no panel up
+    /// and must do nothing at all.
+    ///
+    /// This process is ruled out rather than assumed absent. The panel is
+    /// built not to activate it — non-activating, neither key nor main,
+    /// ordered front regardless — so a notification naming this process is not
+    /// expected; acting on one that did arrive would take the panel down the
+    /// moment it appeared, and one comparison is a cheap way never to find out
+    /// the hard way.
+    func handleActivation(of processIdentifier: pid_t) {
+        guard surface.isPresented, processIdentifier != ownProcessIdentifier else { return }
+        takeDown(because: "frontmost application changed")
+    }
+
+    /// The one place the panel goes away, so the reason is written down every
+    /// time and in the same words.
+    private func takeDown(because reason: String) {
+        surface.dismiss()
+        writeLine("panel hidden (\(reason))")
     }
 }
 

@@ -1,5 +1,11 @@
+import Darwin
 @testable import Lanterna
 import Testing
+
+/// Arbitrary and distinct. Nothing depends on the values, only on whether the
+/// process that came forward is the one the presenter was told to ignore.
+private let ownProcess: pid_t = 1234
+private let otherProcess: pid_t = 5678
 
 /// Stands in for the panel. A real one needs a window server. A screen would
 /// show that a panel appeared, but not which list it was given, nor that it
@@ -65,6 +71,7 @@ private struct Fixture {
         presenter = PanelPresenter(
             surface: surface,
             gather: { windows },
+            ownProcessIdentifier: ownProcess,
             now: clock.read,
             writeLine: log.write
         )
@@ -156,5 +163,37 @@ struct PanelPresenterTests {
         #expect(fixture.surface.presentedLists.count == 10)
         #expect(fixture.surface.dismissCount == 10)
         #expect(!fixture.surface.isPresented)
+    }
+
+    @Test func anotherApplicationComingForwardTakesThePanelDown() {
+        let fixture = Fixture()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.presenter.handleActivation(of: otherProcess)
+        #expect(fixture.surface.dismissCount == 1)
+        #expect(!fixture.surface.isPresented)
+        #expect(fixture.log.lines.last == "panel hidden (frontmost application changed)")
+    }
+
+    /// Nothing else about the panel would say it had closed, so a press that
+    /// followed would put a second one up if this were the wrong process.
+    @Test func thisProcessComingForwardLeavesThePanelUp() {
+        let fixture = Fixture()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        let linesSoFar = fixture.log.lines
+        fixture.presenter.handleActivation(of: ownProcess)
+        #expect(fixture.surface.dismissCount == 0)
+        #expect(fixture.surface.isPresented)
+        #expect(fixture.log.lines == linesSoFar)
+    }
+
+    /// Every application coming forward is announced, panel or no panel, so
+    /// the quiet case is the common one and has to stay quiet.
+    @Test(arguments: [ownProcess, otherProcess])
+    func anActivationWithNoPanelUpChangesNothing(processIdentifier: pid_t) {
+        let fixture = Fixture()
+        fixture.presenter.handleActivation(of: processIdentifier)
+        #expect(fixture.surface.presentedLists.isEmpty)
+        #expect(fixture.surface.dismissCount == 0)
+        #expect(fixture.log.lines.isEmpty)
     }
 }
