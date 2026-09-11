@@ -100,14 +100,14 @@ final class PanelPresenter {
 
     /// Holds the press until there is a list, then puts the panel up for it.
     ///
-    /// Only the first press after launch can get here, and only if it beats
-    /// the loop's first pass. The task below carries none of the press with
-    /// it; it is a standing "wake me once a list exists", and every field it
-    /// shows the panel with is read out of `pendingPress` at the moment it
-    /// resumes. That is what makes two such tasks interchangeable: when a
-    /// press is called off and another takes its place, whichever task wakes
-    /// first finds the press that is really waiting and puts the panel up for
-    /// it, and the other finds the slot empty and does nothing.
+    /// Only a press arriving before the loop's first pass completes can get
+    /// here. The task below carries none of the press with it; it is a
+    /// standing "wake me once a list exists", and every field it shows the
+    /// panel with is read out of `pendingPress` at the moment it resumes.
+    /// That is what makes two such tasks interchangeable: when a press is
+    /// called off and another takes its place, whichever task wakes first
+    /// finds the press that is really waiting and puts the panel up for it,
+    /// and the other finds the slot empty and does nothing.
     private func waitForTheFirstList(
         _ combination: HotkeyCombination,
         deliveryDelay: Duration?,
