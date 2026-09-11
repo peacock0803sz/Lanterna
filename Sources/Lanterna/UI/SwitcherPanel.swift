@@ -14,9 +14,10 @@ final class SwitcherPanel: NSPanel {
     /// place needs a handle on the view that holds it.
     private let hostingView: NSHostingView<SwitcherView>
 
-    /// The panel frame is the one place the switcher's size is decided. The row
-    /// count comes from the content itself, so the two cannot disagree, and the
-    /// hosting view is denied any say in the window size.
+    /// The window decides its own size and the hosting view is denied any say
+    /// in it. `update(windows:)` decides it again for a swapped-in list; the
+    /// two cannot disagree, because both take their numbers from
+    /// `PanelMetrics`.
     init(content: SwitcherView) {
         hostingView = NSHostingView(rootView: content)
         super.init(

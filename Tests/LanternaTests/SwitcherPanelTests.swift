@@ -2,9 +2,9 @@ import AppKit
 @testable import Lanterna
 import Testing
 
-/// The panel is configured entirely in its initialiser, and `defer: true` means
-/// no window-server window is created, so an instance can be inspected without
-/// a running application.
+/// `defer: true` means no window-server window is created, so an instance can
+/// be inspected — and driven through `update(windows:)` — without a running
+/// application.
 @MainActor
 struct SwitcherPanelTests {
     private func panel(rowCount: Int = 3) -> SwitcherPanel {
