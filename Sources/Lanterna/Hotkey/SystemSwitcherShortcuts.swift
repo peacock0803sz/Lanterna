@@ -40,7 +40,10 @@ enum SystemSwitcherShortcuts {
     ///
     /// For the same reason this takes no list where `disable(_:)` does: the
     /// combination left off may be one an earlier run took and never gave
-    /// back, and writing "enabled" over one that is already on costs nothing.
+    /// back. Writing "enabled" over one that is already on changes nothing
+    /// on the machine, but it is not free — a write that fails counts as a
+    /// failed restore, and `AppDelegate.shutDown()` exits non-zero for that
+    /// even when this run never disabled the combination.
     static func restore() -> [Failure] {
         write(HotkeyCombination.all, isEnabled: true)
     }

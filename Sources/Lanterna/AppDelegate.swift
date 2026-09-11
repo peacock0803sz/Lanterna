@@ -80,16 +80,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.appNapActivity = nil
         }
 
-        // A run that ends with the system's shortcuts still off has left the
-        // machine without a working Cmd+Tab, and the diagnostics line saying
-        // so is easy to miss in a way an exit status is not. Both paths that
-        // reach here are the end of the process anyway: the caught-signal
-        // path exits as soon as this returns, and all this changes is the
-        // status it reports, while the termination-callback path gives up
-        // AppKit's remaining teardown, which is no loss when the windows and
-        // the run loop are going away with the process regardless. The code
-        // differs from the `EX_UNAVAILABLE` used at launch so the two cases
-        // stay apart.
+        // Reaching this exit means the process could not leave the machine
+        // with both shortcuts on, and the diagnostics line saying so is easy
+        // to miss in a way an exit status is not. The one that would not go
+        // back on may well be off, left that way by an earlier run that was
+        // killed, and the write that would have fixed it is the one that
+        // failed. Both paths that reach here are the end of the process
+        // anyway: the caught-signal path exits as soon as this returns, and
+        // all this changes is the status it reports, while the
+        // termination-callback path gives up AppKit's remaining teardown,
+        // which is no loss when the windows and the run loop are going away
+        // with the process regardless. The code differs from the
+        // `EX_UNAVAILABLE` used at launch so the two cases stay apart.
         if !restoreFailures.isEmpty {
             exit(EX_OSERR)
         }
