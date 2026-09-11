@@ -28,8 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let panel = SwitcherPanel(content: SwitcherView(windows: []))
 
         // The panel is held by the presenter, the presenter by the manager's
-        // press handler, and the manager by this delegate: that chain is the
-        // whole of what keeps any of them alive.
+        // press handler, and the manager by this delegate.
         let presenter = PanelPresenter(surface: panel, gather: windowSource())
         let hotkeys = HotkeyManager { combination, deliveryDelay in
             presenter.handleHotkey(combination, deliveryDelay: deliveryDelay)
