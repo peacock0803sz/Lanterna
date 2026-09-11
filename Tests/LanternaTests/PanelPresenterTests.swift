@@ -1,8 +1,9 @@
 @testable import Lanterna
 import Testing
 
-/// Stands in for the panel. A real one needs a window server, and none of the
-/// decisions worth checking here are visible on screen anyway.
+/// Stands in for the panel. A real one needs a window server, and the kind
+/// of decision checked here — whether the panel went up, and with which
+/// list — is not one a screen would show.
 @MainActor
 private final class FakeSurface: SwitcherSurface {
     private(set) var presentedLists: [[WindowItem]] = []
@@ -37,8 +38,7 @@ private final class SteppingClock {
     }
 }
 
-/// Keeps the lines the presenter writes, so a test can read them back — and,
-/// just as importantly, can find that none were written.
+/// Keeps the lines the presenter writes, so a test can read them back.
 @MainActor
 private final class DiagnosticsLog {
     private(set) var lines: [String] = []
