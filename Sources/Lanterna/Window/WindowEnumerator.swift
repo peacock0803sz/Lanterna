@@ -15,18 +15,6 @@ struct WindowEnumerator {
         self.reader = reader
     }
 
-    /// The launch path: every running application that shows in the Dock, and
-    /// its windows.
-    func enumerateRegularApplications() -> WindowListSnapshot {
-        // Started before the applications are collected, because resolving
-        // names and icons is part of what the panel waits for.
-        let startedAt = ContinuousClock.now
-        return enumerate(
-            applications: RunningApplicationInfo.regularApplications(),
-            startedAt: startedAt
-        )
-    }
-
     /// Reads every application at once and assembles the rows in a fixed order.
     ///
     /// Applications are read in parallel because the first message to a process

@@ -5,6 +5,9 @@ import Darwin
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let sampleCount: Int?
     private var hotkeys: HotkeyManager?
+    /// Held so the refresh loop can be stopped on the way out. The presenter
+    /// holds it too, for reading.
+    private var windowList: WindowListStore?
     private var appNapActivity: NSObjectProtocol?
 
     /// `sampleCount` draws that many fixture entries instead of the windows
@@ -27,9 +30,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // between that press and the panel.
         let panel = SwitcherPanel(content: SwitcherView(windows: []))
 
+        // Before the hotkeys are claimed, so that the first pass has a head
+        // start on the first press and that press is unlikely to find nothing
+        // to show.
+        let windowList = makeWindowList()
+        self.windowList = windowList
+
         // The panel is held by the presenter, the presenter by the manager's
         // press handler, and the manager by this delegate.
-        let presenter = PanelPresenter(surface: panel, gather: windowSource())
+        let presenter = PanelPresenter(surface: panel, store: windowList)
         let hotkeys = HotkeyManager { combination, deliveryDelay in
             presenter.handleHotkey(combination, deliveryDelay: deliveryDelay)
         }
@@ -109,6 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Diagnostics.writeLine(line)
         }
         hotkeys?.unregister()
+        windowList?.stop()
         if let appNapActivity {
             ProcessInfo.processInfo.endActivity(appNapActivity)
             self.appNapActivity = nil
@@ -131,7 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Where the panel's rows will come from on every press.
+    /// Where the panel's rows come from, and whether they are kept current.
     ///
     /// The choice between fixture, live windows and nothing is made once here
     /// rather than per press, so a permission granted after launch takes
@@ -139,12 +149,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// launch only: the system's dialog arriving in answer to a key press
     /// would be a worse thing to explain than an empty panel with a reason in
     /// the log.
-    private func windowSource() -> @MainActor () -> [WindowItem] {
+    private func makeWindowList() -> WindowListStore {
         if let sampleCount {
-            // The fixture needs no permission, so the check is skipped with it.
+            // The fixture needs no permission, so the check is skipped with
+            // it, and it never changes, so nothing refreshes it.
             Diagnostics.writeLine("showing \(sampleCount) sample entries (--sample-count)")
-            let fixture = SampleWindows.make(count: sampleCount)
-            return { fixture }
+            return WindowListStore(fixed: SampleWindows.make(count: sampleCount))
         }
         guard AccessibilityPermission.isTrusted(promptingIfNeeded: true) else {
             Diagnostics.writeLine(
@@ -152,12 +162,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     + "grant it in System Settings > Privacy & Security > Accessibility and "
                     + "restart the app"
             )
-            return { [] }
+            // An empty list is held rather than a loop started, which would
+            // report the same missing permission on every pass for as long as
+            // the process ran.
+            return WindowListStore(fixed: [])
         }
-        return {
-            let snapshot = WindowEnumerator().enumerateRegularApplications()
-            Diagnostics.writeLine(snapshot.summaryLine)
-            return snapshot.items
-        }
+        let store = WindowListStore()
+        store.start()
+        return store
     }
 }

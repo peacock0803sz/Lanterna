@@ -20,28 +20,41 @@ extension SwitcherPanel: SwitcherSurface {}
 @MainActor
 final class PanelPresenter {
     private let surface: any SwitcherSurface
-    /// Where the rows come from.
-    ///
-    /// Called on the press and answered synchronously, which is a stopgap. An
-    /// application that has stopped answering makes a pass take about a
-    /// second, and right now the press is what waits for it, so the timing
-    /// this class reports is not yet a timing anyone should rely on. Handing
-    /// over a list gathered in the background is what fixes that, and this is
-    /// where it goes.
-    private let gather: @MainActor () -> [WindowItem]
+    /// Where the rows come from: already gathered, in the ordinary case.
+    private let store: WindowListStore
     private let ownProcessIdentifier: pid_t
     private let now: @MainActor () -> ContinuousClock.Instant
     private let writeLine: @MainActor (String) -> Void
 
+    /// A press that arrived before any list had been gathered and is waiting
+    /// for one.
+    ///
+    /// Kept here rather than read back off the store. The task that does the
+    /// waiting does not begin the instant it is made, and a second press
+    /// landing in that gap would find the store idle and start a second wait.
+    private var pendingPress: PendingPress?
+
+    private struct PendingPress {
+        let combination: HotkeyCombination
+        let deliveryDelay: Duration?
+        /// When the press arrived. The reading spans the gathering too, which
+        /// is why the line it produces says the gathering happened.
+        let startedAt: ContinuousClock.Instant
+        /// Set when the user moved to another application before the list
+        /// arrived, which makes the panel they asked for no longer the panel
+        /// they want.
+        var isCalledOff = false
+    }
+
     init(
         surface: any SwitcherSurface,
-        gather: @escaping @MainActor () -> [WindowItem],
+        store: WindowListStore,
         ownProcessIdentifier: pid_t = getpid(),
         now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
         writeLine: @escaping @MainActor (String) -> Void = Diagnostics.writeLine
     ) {
         self.surface = surface
-        self.gather = gather
+        self.store = store
         self.ownProcessIdentifier = ownProcessIdentifier
         self.now = now
         self.writeLine = writeLine
@@ -61,26 +74,81 @@ final class PanelPresenter {
     /// toggle racing itself. A suppression window would have nothing to
     /// suppress, at the price of a stored instant and a threshold.
     ///
-    /// Synchronous on purpose. The panel goes up in the same turn the press
-    /// arrives, so the reading below starts where the press does and there is
-    /// no ordering between a press and its panel to reason about.
+    /// Synchronous on purpose. With a list already held the panel goes up in
+    /// the same turn the press arrives, so the reading below starts where the
+    /// press does and there is no ordering between a press and its panel to
+    /// reason about.
     func handleHotkey(_ combination: HotkeyCombination, deliveryDelay: Duration?) {
         if surface.isPresented {
             takeDown(because: combination.name)
             return
         }
+        // A press is already waiting for the first list and is the one that
+        // will put the panel up. The panel is not up yet, so without this a
+        // second press would take the same path again and two would arrive.
+        guard pendingPress == nil else { return }
 
         let startedAt = now()
-        let windows = gather()
+        guard let held = store.snapshot else {
+            waitForTheFirstList(combination, deliveryDelay: deliveryDelay, startedAt: startedAt)
+            return
+        }
+        show(
+            held.items,
+            for: combination,
+            deliveryDelay: deliveryDelay,
+            startedAt: startedAt,
+            gatheredOnDemand: false
+        )
+    }
+
+    /// Holds the press until there is a list, then puts the panel up for it.
+    ///
+    /// Only the first press after launch can get here, and only if it beats
+    /// the loop's first pass. The press is remembered rather than closed over,
+    /// so that what happens in the meantime — another press, the user moving
+    /// on — can be answered.
+    private func waitForTheFirstList(
+        _ combination: HotkeyCombination,
+        deliveryDelay: Duration?,
+        startedAt: ContinuousClock.Instant
+    ) {
+        pendingPress = PendingPress(
+            combination: combination,
+            deliveryDelay: deliveryDelay,
+            startedAt: startedAt
+        )
+        Task { [self] in
+            let items = await store.listWhenGathered()
+            guard let pending = pendingPress else { return }
+            pendingPress = nil
+            guard !pending.isCalledOff else { return }
+            show(
+                items,
+                for: pending.combination,
+                deliveryDelay: pending.deliveryDelay,
+                startedAt: pending.startedAt,
+                gatheredOnDemand: true
+            )
+        }
+    }
+
+    /// The one place the panel goes up, so every appearance is measured and
+    /// every measurement describes an appearance.
+    private func show(
+        _ windows: [WindowItem],
+        for combination: HotkeyCombination,
+        deliveryDelay: Duration?,
+        startedAt: ContinuousClock.Instant,
+        gatheredOnDemand: Bool
+    ) {
         surface.present(windows: windows)
         let measurement = HotkeyMeasurement(
             combination: combination,
             elapsed: now() - startedAt,
             entryCount: windows.count,
             deliveryDelay: deliveryDelay,
-            // No list is held anywhere yet, so every press gathers its own.
-            // The segment stops appearing once one is.
-            gatheredOnDemand: true
+            gatheredOnDemand: gatheredOnDemand
         )
         writeLine(measurement.summaryLine)
     }
@@ -98,7 +166,16 @@ final class PanelPresenter {
     /// moment it appeared, and one comparison is a cheap way never to find out
     /// the hard way.
     func handleActivation(of processIdentifier: pid_t) {
-        guard surface.isPresented, processIdentifier != ownProcessIdentifier else { return }
+        guard processIdentifier != ownProcessIdentifier else { return }
+        if pendingPress != nil {
+            // Nothing is on screen to take down. What has to stop is the
+            // panel still on its way, which would otherwise appear over
+            // whatever the user has just turned to. No line either: the panel
+            // never appeared, so there is no appearance to account for.
+            pendingPress?.isCalledOff = true
+            return
+        }
+        guard surface.isPresented else { return }
         takeDown(because: "frontmost application changed")
     }
 
