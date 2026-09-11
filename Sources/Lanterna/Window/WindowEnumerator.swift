@@ -48,8 +48,8 @@ struct WindowEnumerator {
     /// thread per core and expects them to suspend rather than block; a
     /// detached task parked inside `concurrentPerform` holds those threads
     /// against everything else that wants them. A Dispatch queue is the pool
-    /// that is allowed to be blocked. 003 turned down a `TaskGroup` for the
-    /// reading over the same distinction.
+    /// that is allowed to be blocked. A `TaskGroup` was turned down for the
+    /// reading itself over the same distinction.
     ///
     /// Only the identifiers cross: the names and icons stay on this side and
     /// are joined on afterwards, which is what lets `RunningApplicationInfo`
