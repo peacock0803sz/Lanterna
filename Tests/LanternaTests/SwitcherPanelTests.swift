@@ -85,8 +85,8 @@ struct SwitcherPanelTests {
     /// calls it. This says that something does. The subscription is made in
     /// `init` and nothing else in the app reaches it, so registering the wrong
     /// notification name or dropping the block would leave the method correct
-    /// and never called, and a panel stranded on a display it cannot be
-    /// dismissed from.
+    /// and never called, and a panel that is up when the displays are
+    /// rearranged would stay wherever the old arrangement put it.
     ///
     /// The block is handed to `OperationQueue.main` rather than run on the
     /// thread that posts, so the assertion has to give the main queue its turn

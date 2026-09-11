@@ -106,12 +106,12 @@ final class SwitcherPanel: NSPanel {
     /// off centre on the display that is now the main one, or on a display the
     /// user is no longer looking at. That second case costs a press. Changing
     /// which display is the main one with the panel up was seen to leave a
-    /// panel the next press did not take down — the line was written, and the
-    /// panel was still there; the press after that moved and showed it, and
-    /// only the third took it down. What the window server was doing was not
-    /// established, and a panel the user simply cannot see would look the same
-    /// from where the press was made. Moving it here is what keeps that state
-    /// from arising either way.
+    /// panel the next press did not appear to take down — the line was
+    /// written, and nothing on the display in front of the user changed; the
+    /// press after that moved and showed it, and only the third took it down.
+    /// What the window server was doing was not established, and a panel the
+    /// user simply cannot see would look the same from where the press was
+    /// made. Moving it here is what keeps that state from arising either way.
     ///
     /// A panel that is down needs nothing. The next appearance places it, and
     /// this runs whenever anyone plugs in a display.
