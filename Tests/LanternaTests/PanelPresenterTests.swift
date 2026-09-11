@@ -109,4 +109,52 @@ struct PanelPresenterTests {
             ]
         )
     }
+
+    @Test func aPressWhileThePanelIsUpTakesItDown() {
+        let fixture = Fixture()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(fixture.surface.dismissCount == 1)
+        #expect(fixture.surface.presentedLists.count == 1)
+        #expect(!fixture.surface.isPresented)
+    }
+
+    /// Either combination closes it, and the line names the one that did, so a
+    /// log read afterwards says which key the panel answered.
+    @Test(arguments: [
+        (HotkeyCombination.forward, "Cmd+Tab"),
+        (.reverse, "Shift+Cmd+Tab"),
+    ])
+    func theKeyThatTookThePanelDownIsWrittenDown(
+        combination: HotkeyCombination,
+        name: String
+    ) {
+        let fixture = Fixture()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.presenter.handleHotkey(combination, deliveryDelay: nil)
+        #expect(fixture.log.lines.count == 2)
+        #expect(fixture.log.lines.last == "panel hidden (\(name))")
+    }
+
+    @Test func aPressAfterThatPutsThePanelBackUp() {
+        let fixture = Fixture()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(fixture.surface.presentedLists.count == 2)
+        #expect(fixture.surface.dismissCount == 1)
+        #expect(fixture.surface.isPresented)
+    }
+
+    /// Twenty presses rather than two. A toggle off by one still looks right
+    /// over a single round trip, and only stacks up over many.
+    @Test func pressesAlternateWithoutEverStackingASecondPanel() {
+        let fixture = Fixture()
+        for _ in 0 ..< 20 {
+            fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        }
+        #expect(fixture.surface.presentedLists.count == 10)
+        #expect(fixture.surface.dismissCount == 10)
+        #expect(!fixture.surface.isPresented)
+    }
 }

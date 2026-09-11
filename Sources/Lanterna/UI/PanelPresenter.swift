@@ -2,9 +2,9 @@
 /// be put up with a list, taken down, and asked whether it is up.
 ///
 /// It is behind a protocol because a real panel needs a window server, which
-/// a test process has no business asking for. `present(windows:)` is the one
-/// requirement the presenter drives today; the other two are declared here
-/// because taking the panel down belongs in the same place as putting it up.
+/// a test process has no business asking for. Whether it is up is asked of the
+/// panel rather than tracked alongside it: two records of one thing are two
+/// things that can disagree.
 @MainActor
 protocol SwitcherSurface {
     var isPresented: Bool { get }
@@ -42,12 +42,22 @@ final class PanelPresenter {
         self.writeLine = writeLine
     }
 
-    /// Puts the panel up for a press.
+    /// Puts the panel up for a press, or takes it down if the press found it
+    /// already up.
+    ///
+    /// One key does both, so the same key that summons the panel dismisses it
+    /// and no second one has to be learned or claimed from the system.
     ///
     /// Synchronous on purpose. The panel goes up in the same turn the press
     /// arrives, so the reading below starts where the press does and there is
     /// no ordering between a press and its panel to reason about.
     func handleHotkey(_ combination: HotkeyCombination, deliveryDelay: Duration?) {
+        if surface.isPresented {
+            surface.dismiss()
+            writeLine("panel hidden (\(combination.name))")
+            return
+        }
+
         let startedAt = now()
         let windows = gather()
         surface.present(windows: windows)
