@@ -1,3 +1,4 @@
+import CoreGraphics
 import Darwin
 
 /// The panel as the code deciding when to show it sees it: something that can
@@ -43,6 +44,15 @@ final class PanelPresenter {
     /// close. A run with no monitor answers no throughout.
     private let closesOnCommandRelease: @MainActor () -> Bool
 
+    /// Whether Command is down on the keyboard at this instant.
+    ///
+    /// Injected rather than read where it is used, because a test process
+    /// cannot hold a real Command key down and reading the live state inline
+    /// would answer no in every test there is. The decision below turns on
+    /// this answer, and a decision that cannot be put either way from a test
+    /// is a decision nothing checks.
+    private let commandIsHeld: @MainActor () -> Bool
+
     /// The row the panel is showing as selected, kept so a commit can name it.
     ///
     /// `displayTitle` and not `windowTitle`: the latter may be empty or hold
@@ -66,7 +76,10 @@ final class PanelPresenter {
         ownProcessIdentifier: pid_t = getpid(),
         now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
         writeLine: @escaping @MainActor (String) -> Void = Diagnostics.writeLine,
-        closesOnCommandRelease: @escaping @MainActor () -> Bool = { false }
+        closesOnCommandRelease: @escaping @MainActor () -> Bool = { false },
+        commandIsHeld: @escaping @MainActor () -> Bool = {
+            CGEventSource.flagsState(.combinedSessionState).contains(.maskCommand)
+        }
     ) {
         self.surface = surface
         self.store = store
@@ -74,6 +87,7 @@ final class PanelPresenter {
         self.now = now
         self.writeLine = writeLine
         self.closesOnCommandRelease = closesOnCommandRelease
+        self.commandIsHeld = commandIsHeld
     }
 
     /// Puts the panel up for a press, and on a run with no monitor takes it
@@ -107,6 +121,28 @@ final class PanelPresenter {
             // nothing rather than something that would have to be taken back.
             guard !closesOnCommandRelease() else { return }
             takeDown(because: combination.name)
+            return
+        }
+        // The press comes in through Carbon and the release through the tap,
+        // two sources with no order between them and a measured delay on the
+        // Carbon side, so a quick tap can deliver the release first and leave
+        // the press arriving after the gesture it belongs to is over. Putting
+        // a panel up for it would leave one on screen the user has finished
+        // with, and the next Command to be let go — a bare tap, the tail of a
+        // Cmd+C — would be written down as a commit of a row nobody chose.
+        // Only worth asking with a monitor running: without one there is no
+        // release being listened for and so none to lose, and the panel is
+        // still closed by a further press.
+        //
+        // Asked as the press arrives and not where the panel goes up, because
+        // a press held back waiting for the first list can lose its Command
+        // too, and that one is already answered — the release calls the
+        // pending press off. Here is what nothing else covers.
+        if closesOnCommandRelease(), !commandIsHeld() {
+            writeLine(
+                "turned away \(combination.name); Command was already up by the time "
+                    + "the press arrived"
+            )
             return
         }
         // A press is already waiting for the first list and is the one that

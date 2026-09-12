@@ -80,6 +80,20 @@ final class MonitorLiveness {
     }
 }
 
+/// Whether Command is down, as the presenter asks it.
+///
+/// A box for the same reason `MonitorLiveness` is one, and here it is the only
+/// way at all: a test process cannot put a real Command key down, so staging a
+/// press that arrives after its own release means saying so between presses.
+@MainActor
+final class CommandHold {
+    var isHeld: Bool
+
+    init(isHeld: Bool) {
+        self.isHeld = isHeld
+    }
+}
+
 /// A presenter and the fakes behind it, so a test can drive the one and then
 /// read the others.
 ///
@@ -99,20 +113,25 @@ struct Fixture {
     /// The very box the presenter asks, so a test can switch the monitor off
     /// between one press and the next.
     let monitorLiveness: MonitorLiveness
+    /// The very box the presenter asks, so a test can let Command go before
+    /// the press that was made with it arrives.
+    let commandHold: CommandHold
 
     /// A store that already holds a list, which is every press but the first
     /// one after launch.
     init(
         entryCount: Int = 12,
         step: Duration = .microseconds(4800),
-        closesOnCommandRelease: Bool = false
+        closesOnCommandRelease: Bool = false,
+        commandIsHeld: Bool = true
     ) {
         let windows = SampleWindows.make(count: entryCount)
         self.init(
             store: WindowListStore(fixed: windows),
             windows: windows,
             step: step,
-            closesOnCommandRelease: closesOnCommandRelease
+            closesOnCommandRelease: closesOnCommandRelease,
+            commandIsHeld: commandIsHeld
         )
     }
 
@@ -120,25 +139,32 @@ struct Fixture {
         store: WindowListStore,
         windows: [WindowItem] = [],
         step: Duration = .microseconds(4800),
-        closesOnCommandRelease: Bool = false
+        closesOnCommandRelease: Bool = false,
+        commandIsHeld: Bool = true
     ) {
         let surface = FakeSurface()
         let log = DiagnosticsLog()
         let clock = SteppingClock(step: step)
         let monitorLiveness = MonitorLiveness(isRunning: closesOnCommandRelease)
+        // Held by default, because that is what a press made with the key
+        // down means, and every test written before the presenter could ask
+        // was written for that press.
+        let commandHold = CommandHold(isHeld: commandIsHeld)
         presenter = PanelPresenter(
             surface: surface,
             store: store,
             ownProcessIdentifier: ownProcess,
             now: clock.read,
             writeLine: log.write,
-            closesOnCommandRelease: { [monitorLiveness] in monitorLiveness.isRunning }
+            closesOnCommandRelease: { [monitorLiveness] in monitorLiveness.isRunning },
+            commandIsHeld: { [commandHold] in commandHold.isHeld }
         )
         self.surface = surface
         self.log = log
         self.windows = windows
         self.clock = clock
         self.monitorLiveness = monitorLiveness
+        self.commandHold = commandHold
     }
 }
 

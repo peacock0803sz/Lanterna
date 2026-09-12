@@ -209,6 +209,47 @@ struct PanelPresenterCommitTests {
         #expect(!fixture.surface.isPresented)
         #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
     }
+
+    /// The two halves of one gesture come by different routes, so a quick tap
+    /// can deliver them the other way round. A panel put up for a press whose
+    /// Command has already gone is one the user has finished with, and the
+    /// release that eventually clears it belongs to some unrelated keystroke,
+    /// which would then be written down as a commit.
+    @Test func aPressThatOutlivedItsReleaseIsTurnedAway() {
+        let fixture = runningWithAMonitor()
+        fixture.commandHold.isHeld = false
+
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+        #expect(fixture.surface.presentedLists.isEmpty)
+        #expect(!fixture.surface.isPresented)
+        #expect(
+            fixture.log.lines == [
+                "turned away Cmd+Tab; Command was already up by the time the press arrived",
+            ]
+        )
+    }
+
+    /// The ordinary press, made with the key still down. Turning one of these
+    /// away would cost every switch there is, so the check must not reach it.
+    @Test func aPressMadeWithCommandDownStillPutsThePanelUp() {
+        let fixture = runningWithAMonitor()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+        #expect(fixture.surface.presentedLists.count == 1)
+        #expect(fixture.surface.isPresented)
+    }
+
+    /// Without a monitor no release is being listened for, so none can have
+    /// been lost and there is nothing to turn a press away for. The further
+    /// press is what closes this panel, and it has to be able to open one.
+    @Test func withoutAMonitorAPressIsAnsweredWhateverCommandIsDoing() {
+        let fixture = Fixture(commandIsHeld: false)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+        #expect(fixture.surface.presentedLists.count == 1)
+        #expect(fixture.surface.isPresented)
+    }
 }
 
 /// Letting go before the panel ever arrived.
