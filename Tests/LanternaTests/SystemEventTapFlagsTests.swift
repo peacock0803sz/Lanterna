@@ -56,10 +56,11 @@ struct SystemEventTapFlagsTests {
         #expect(!SystemEventTap.shouldReportRelease(previous: [], current: .maskCommand))
     }
 
-    /// Option and Control are covered by the same clause as Shift, and the
-    /// spec names all three. Asserting them keeps a later change that special-
-    /// cases one modifier from passing on the strength of the Shift cases
-    /// alone.
+    /// Option, Control and Caps Lock — `.maskAlphaShift` is the old name for
+    /// Caps Lock, not Shift, which has cases of its own above. None of the
+    /// three moves the Command bit, so none of them can produce this edge.
+    /// Asserting them keeps a later change that special-cases one modifier
+    /// from passing on the strength of the Shift cases alone.
     @Test(arguments: [CGEventFlags.maskAlternate, .maskControl, .maskAlphaShift])
     func anotherModifierMovingWithCommandUpIsNeverARelease(other: CGEventFlags) {
         #expect(!SystemEventTap.shouldReportRelease(previous: [], current: other))

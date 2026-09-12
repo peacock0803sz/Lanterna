@@ -66,8 +66,8 @@ struct HotkeyMeasurementTests {
         )
     }
 
-    /// Both timings round to one decimal place, so the budget can be read off
-    /// the line without arithmetic.
+    /// Both timings round to one decimal place, so how long the panel took can
+    /// be read off the line without arithmetic.
     @Test func timingsCarryExactlyOneDecimalPlace() {
         let line = Self.measurement(
             elapsed: .microseconds(71251),
@@ -242,7 +242,7 @@ struct CommandReleaseMeasurementTests {
     }
 
     /// Read off the line without arithmetic, and the same in every locale:
-    /// the hundred-millisecond budget is judged on this number.
+    /// how quickly a release was answered is judged on this number.
     @Test func theTimingCarriesExactlyOneDecimalPlace() {
         #expect(
             Self.measurement(.nothingToCommit, elapsed: .microseconds(71251)).summaryLine

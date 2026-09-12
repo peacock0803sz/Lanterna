@@ -47,9 +47,9 @@ struct PanelPresenterCommitTests {
     }
 
     /// The figure is defined to run until the call that hides the panel comes
-    /// back, and the hundred-millisecond budget is judged on it — so what the
-    /// span covers has to be pinned by something, or it could quietly shrink
-    /// to cover nothing and still read the same.
+    /// back, and how quickly the panel goes is judged on it — so what the span
+    /// covers has to be pinned by something, or it could quietly shrink to
+    /// cover nothing and still read the same.
     ///
     /// Nothing else in this file can tell the difference. Every reading of
     /// this clock costs one tick, so a figure taken after the dismissal and

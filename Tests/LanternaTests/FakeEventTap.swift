@@ -3,12 +3,14 @@
 /// Stands in for the system tap. A real one needs a login session and a
 /// permission grant, and there is no way to ask it to fail on demand.
 ///
-/// The point of the double is that the two kinds of stop can be told apart.
-/// A stop the system announces is made by calling the held
-/// `onDisabledBySystem`; a stop nothing announces is made by setting
-/// `isEnabled` to false and saying nothing, which is the only kind the
-/// periodic check can find. Anything that recovers from one but not the other
-/// passes only one of them.
+/// The double can stage two kinds of stop, and only one of them is driven
+/// today. A stop the system announces is made by calling the held
+/// `onDisabledBySystem`, and a test does that: what it pins is that the notice
+/// is written down, since nothing recovers from it. A stop nothing announces
+/// is made by setting `isEnabled` to false through `disable()` — built, but no
+/// test stages it, because only something polling `isEnabled` could tell that
+/// it happened and nothing polls. `enable()` and `enableSucceeds` sit unused
+/// for the same reason.
 @MainActor
 final class FakeEventTap: EventTapControlling {
     var hasPermission = true
