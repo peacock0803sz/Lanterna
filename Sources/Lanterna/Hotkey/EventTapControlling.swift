@@ -7,9 +7,11 @@ import Foundation
 /// needs a login session and a permission grant, which a test process has no
 /// business asking for.
 ///
-/// Every operation has to be safe with no tap in hand. `invalidate()` takes
-/// the tap down before the monitor stops its periodic check, so a check
-/// already in flight can run once against a tap that is gone.
+/// Every operation has to be safe with no tap in hand. The recovery that will
+/// poll `isEnabled` is not written yet, and when it is, it will be stopped
+/// after `invalidate()` rather than before — leaving one poll able to run
+/// against a tap that is already gone. Answering that safely is cheaper than
+/// ordering the teardown around it.
 @MainActor
 protocol EventTapControlling {
     /// Whether the system says this process may listen to events. Advisory
@@ -31,8 +33,9 @@ protocol EventTapControlling {
     func enable() -> Bool
 
     /// Turns the tap off without destroying it. Silent: nothing is delivered
-    /// to say it happened, which is what makes it stand in for the kind of
-    /// stop only the periodic check can find.
+    /// to say it happened, which is the point of it — it is how a stop that
+    /// announces itself to nobody will be staged, once there is something
+    /// polling for one.
     func disable()
 
     /// Takes the tap down for good.

@@ -74,11 +74,14 @@ final class PanelPresenter {
         self.writeLine = writeLine
     }
 
-    /// Puts the panel up for a press, or takes it down if the press found it
-    /// already up.
+    /// Puts the panel up for a press, and on a run with no monitor takes it
+    /// down again if the press found it already up.
     ///
-    /// One key does both, so the same key that summons the panel dismisses it
-    /// and no second one has to be learned or claimed from the system.
+    /// That second job is a fallback now rather than the design. One key doing
+    /// both was what let 004 dismiss the panel without learning or claiming a
+    /// second key; with a monitor running, letting go of Command does the
+    /// dismissing and a further press does nothing at all, because that
+    /// keystroke is spoken for a step from now [FR-005].
     ///
     /// Nothing here turns a press away for arriving too soon after the last
     /// one. Holding the key down does not produce a stream of presses: three
@@ -251,8 +254,11 @@ final class PanelPresenter {
     /// why. Saying it twice would be no better than not at all — the counting
     /// the quickstart does would see two events where the user saw one.
     ///
-    /// The selection goes with the panel. A stale one would name a row that is
-    /// no longer on screen at the next commit.
+    /// The selection goes with the panel. Nothing reads it while the panel is
+    /// down, so no sequence of calls can tell whether this line is here —
+    /// it is kept because a row outliving the panel it was on is the kind of
+    /// thing a later step, where the selection does move, would find already
+    /// wrong.
     private func dismissPanel() {
         surface.dismiss()
         selectedWindow = nil

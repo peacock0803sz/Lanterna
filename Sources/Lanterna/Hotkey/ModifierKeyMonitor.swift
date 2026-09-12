@@ -103,6 +103,13 @@ final class ModifierKeyMonitor {
     /// Called from the shutdown path after the system's own shortcuts have
     /// been put back, never before: the tap goes away with the process
     /// whatever happens here, while a shortcut left switched off outlives it.
+    ///
+    /// The outcome is kept rather than forgotten, which is where this parts
+    /// company with `HotkeyManager.unregister()`. That one forgets so a later
+    /// call can claim the combinations again; this has nothing to claim again.
+    /// What it is holding is the answer to a question asked once a launch —
+    /// whether this run has a monitor — and a `stop()` on the way out is not
+    /// the run changing its mind [FR-005].
     func stop() {
         tap.invalidate()
     }
