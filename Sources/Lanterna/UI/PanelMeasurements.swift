@@ -32,3 +32,83 @@ struct HotkeyMeasurement: Sendable {
         return line
     }
 }
+
+/// One Command release, and what it did.
+///
+/// Committing and calling a press off are two different events, and the spec
+/// keeps them apart. They share a type all the same: they are measured over
+/// the same span, they go to the same place, and telling them apart is itself
+/// the requirement. One type puts the three wordings in one `switch`, where a
+/// single test can hold all three apart; two types could only claim from the
+/// outside that they differ.
+///
+/// Holds two strings rather than the `WindowItem` they came from. The item
+/// carries an `NSImage` and so is not `Sendable`, and the line needs nothing
+/// from it but the names.
+struct CommandReleaseMeasurement: Sendable {
+    enum Outcome: Sendable, Equatable {
+        /// The panel was up and showing a row. `displayTitle` rather than
+        /// `windowTitle`: the latter may be empty or hold nothing but
+        /// whitespace, and a line trailing off after an em dash is not the
+        /// steady wording the quickstart greps for.
+        case committed(appName: String, displayTitle: String)
+        /// The panel was up with nothing in it.
+        case nothingToCommit
+        /// The panel had not appeared yet, so the press waiting for a list was
+        /// called off instead. Kept apart from the case above because the two
+        /// have different causes and different answers: one means the list was
+        /// gathered and held nothing, the other that there was no list yet.
+        case pressCalledOff
+    }
+
+    let outcome: Outcome
+    /// From the release arriving to the call that hides the panel returning.
+    /// The same way round as `HotkeyMeasurement.elapsed`, and for the same
+    /// reason: it is the part a process can measure for itself. The called-off
+    /// case hides nothing, so there it runs to the press being let go of.
+    let elapsed: Duration
+
+    /// Said of an application whose name flattened away to nothing, which
+    /// takes a name of spaces alone — the one shape the window enumeration's
+    /// own fallback does not rule out. A line naming nobody is worse than one
+    /// saying so, which is the reasoning behind that fallback's `pid N` too.
+    private static let unnamedApplication = "an unnamed application"
+
+    var summaryLine: String {
+        let timing = "\(Diagnostics.millisecondsText(elapsed)) ms after Command was released"
+        switch outcome {
+        case let .committed(appName, displayTitle):
+            let name = Self.oneLine(appName, fallback: Self.unnamedApplication)
+            let title = Self.oneLine(displayTitle, fallback: name)
+            return "committed \(name) — \(title) \(timing)"
+        case .nothingToCommit:
+            return "committed nothing \(timing) (the list was empty)"
+        case .pressCalledOff:
+            return "press called off \(timing), before the panel appeared"
+        }
+    }
+
+    /// Flattens a name or title into something that can sit on one line.
+    ///
+    /// Window titles may contain newlines, and one event printing as two lines
+    /// breaks both the one-line-per-event promise and the counting the
+    /// quickstart does with grep. Control characters that are not whitespace
+    /// go the same way: a bell or an escape in a title would otherwise reach a
+    /// terminal reading the log.
+    ///
+    /// Falling back when nothing is left is also what keeps a line from
+    /// trailing off after a bare em dash.
+    private static func oneLine(_ text: String, fallback: String) -> String {
+        let flattened = text
+            .map { character -> String in
+                let isControl = character.unicodeScalars.allSatisfy {
+                    $0.properties.generalCategory == .control
+                }
+                return character.isWhitespace || isControl ? " " : String(character)
+            }
+            .joined()
+            .split(separator: " ", omittingEmptySubsequences: true)
+            .joined(separator: " ")
+        return flattened.isEmpty ? fallback : flattened
+    }
+}
