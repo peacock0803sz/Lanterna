@@ -45,10 +45,6 @@ final class ModifierKeyMonitor {
     }
 
     private let tap: any EventTapControlling
-    /// How often the tap is asked whether it is still on. Unused until the
-    /// recovery lands; kept in the initialiser now so the loop it paces has
-    /// somewhere to read it from and tests have somewhere to shorten it.
-    private let healthCheckInterval: Duration
     private let onCommandRelease: @MainActor () -> Void
     private let writeLine: @MainActor (String) -> Void
 
@@ -58,12 +54,10 @@ final class ModifierKeyMonitor {
 
     init(
         tap: any EventTapControlling = SystemEventTap(),
-        healthCheckInterval: Duration = .seconds(2),
         onCommandRelease: @escaping @MainActor () -> Void,
         writeLine: @escaping @MainActor (String) -> Void = Diagnostics.writeLine
     ) {
         self.tap = tap
-        self.healthCheckInterval = healthCheckInterval
         self.onCommandRelease = onCommandRelease
         self.writeLine = writeLine
     }
