@@ -48,6 +48,51 @@ struct PanelPresenterCommitTests {
         #expect(fixture.log.lines.filter { $0.hasPrefix("panel hidden") }.isEmpty)
     }
 
+    /// The figure is defined to run until the call that hides the panel comes
+    /// back, and the hundred-millisecond budget is judged on it — so what the
+    /// span covers has to be pinned by something, or it could quietly shrink
+    /// to cover nothing and still read the same.
+    ///
+    /// Nothing else in this file can tell the difference. Every reading of
+    /// this clock costs one tick, so a figure taken after the dismissal and
+    /// one taken before it both come out at a single tick. Charging the
+    /// dismissal a tick of its own is what splits them: two ticks if the call
+    /// is inside the span, one if it is not.
+    @Test func theFigureCoversTheCallThatHidesThePanel() {
+        let fixture = runningWithAMonitor()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.surface.onDismiss = { [clock = fixture.clock] in
+            _ = clock.read()
+        }
+
+        fixture.presenter.handleCommandRelease()
+
+        let first = fixture.windows[0]
+        #expect(
+            fixture.log.lines.last
+                == "committed \(first.appName) — \(first.displayTitle) "
+                + "9.6 ms after Command was released"
+        )
+    }
+
+    /// An empty panel is still a panel, and hiding it is still part of the
+    /// span. The wording differs from the case above; the span must not.
+    @Test func anEmptyCommitIsMeasuredOverTheSameSpan() {
+        let fixture = runningWithAMonitor(entryCount: 0)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.surface.onDismiss = { [clock = fixture.clock] in
+            _ = clock.read()
+        }
+
+        fixture.presenter.handleCommandRelease()
+
+        #expect(fixture.surface.dismissCount == 1)
+        #expect(
+            fixture.log.lines.last
+                == "committed nothing 9.6 ms after Command was released (the list was empty)"
+        )
+    }
+
     @Test func aPanelWithNothingInItCommitsNothingAndSaysSo() {
         let fixture = runningWithAMonitor(entryCount: 0)
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
@@ -179,6 +224,33 @@ struct PanelPresenterCallOffTests {
 
         #expect(fixture.surface.presentedLists.isEmpty)
         // Nothing was on screen, so nothing came off it.
+        #expect(fixture.surface.dismissCount == 0)
+        #expect(
+            fixture.log.lines == [
+                "press called off 4.8 ms after Command was released, "
+                    + "before the panel appeared",
+            ]
+        )
+    }
+
+    /// The other half of what the span means. There is no panel to hide here,
+    /// so the figure runs to the press being let go of and stops. Hanging a
+    /// charge on the dismissal shows it is never paid: the figure stays at one
+    /// tick, where a commit's is two.
+    @Test func theFigureStopsShortWhenThereIsNoPanelToHide() async {
+        let fake = HeldGather(entryCount: 4)
+        let fixture = waitingForItsFirstList(fake)
+        fixture.surface.onDismiss = { [clock = fixture.clock] in
+            _ = clock.read()
+        }
+
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        await fake.waitUntilCalled()
+        fixture.presenter.handleCommandRelease()
+
+        fake.finish()
+        await settle()
+
         #expect(fixture.surface.dismissCount == 0)
         #expect(
             fixture.log.lines == [

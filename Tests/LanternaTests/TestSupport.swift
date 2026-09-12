@@ -15,6 +15,15 @@ final class FakeSurface: SwitcherSurface {
     private(set) var dismissCount = 0
     var isPresented = false
 
+    /// Run inside `dismiss()`, before it returns.
+    ///
+    /// Lets a test make the panel's disappearance cost something it can see.
+    /// A stepping clock gives every reading the same weight, so a figure that
+    /// is meant to span the dismissal and one that stops just short of it come
+    /// out identical — one tick either way. Charging the dismissal its own tick
+    /// is what separates them.
+    var onDismiss: (@MainActor () -> Void)?
+
     func present(windows: [WindowItem]) {
         presentedLists.append(windows)
         isPresented = true
@@ -23,6 +32,7 @@ final class FakeSurface: SwitcherSurface {
     func dismiss() {
         dismissCount += 1
         isPresented = false
+        onDismiss?()
     }
 }
 
@@ -68,6 +78,9 @@ struct Fixture {
     let log: DiagnosticsLog
     let windows: [WindowItem]
     let presenter: PanelPresenter
+    /// The very clock the presenter reads, so a test can charge one operation
+    /// a tick and then ask whether the figure counted it.
+    let clock: SteppingClock
 
     /// A store that already holds a list, which is every press but the first
     /// one after launch.
@@ -94,6 +107,7 @@ struct Fixture {
         self.surface = surface
         self.log = log
         self.windows = windows
+        self.clock = clock
     }
 }
 
