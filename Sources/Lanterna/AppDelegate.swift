@@ -8,9 +8,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Held so the refresh loop can be stopped on the way out. The presenter
     /// holds it too, for reading.
     private var windowList: WindowListStore?
-    /// Held so the tap can be taken down on the way out, and so it outlives
-    /// this method: Core Graphics is handed a pointer to it that stays live
-    /// for as long as the tap is installed.
+    /// Held so the tap can be taken down on the way out, and so what
+    /// `startMonitoringModifiers` builds outlives that call: this holds the
+    /// monitor, the monitor holds the tap, and Core Graphics is handed a raw
+    /// pointer to that tap which it hands back on every event. Something has
+    /// to keep the tap at that address for as long as it is installed, and
+    /// this property is the far end of that chain.
     private var monitor: ModifierKeyMonitor?
     private var appNapActivity: NSObjectProtocol?
 

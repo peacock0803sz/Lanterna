@@ -35,12 +35,13 @@ struct HotkeyMeasurement: Sendable {
 
 /// One Command release, and what it did.
 ///
-/// Committing and calling a press off are two different events, and the spec
-/// keeps them apart. They share a type all the same: they are measured over
-/// the same span, they go to the same place, and telling them apart is itself
-/// the requirement. One type puts the three wordings in one `switch`, where a
-/// single test can hold all three apart; two types could only claim from the
-/// outside that they differ.
+/// Committing and calling a press off are two different events: one is a
+/// release landing on a panel that is up, the other a press given up on
+/// before the panel ever appeared. They share a type all the same: they are
+/// measured over the same span, they go to the same place, and all the line
+/// has to do is let whoever reads it tell which of them happened. One type
+/// puts the three wordings in one `switch`, where a single test can hold all
+/// three apart; two types could only claim from the outside that they differ.
 ///
 /// Holds two strings rather than the `WindowItem` they came from. The item
 /// carries an `NSImage` and so is not `Sendable`, and the line needs nothing

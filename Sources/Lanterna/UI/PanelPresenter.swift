@@ -305,8 +305,7 @@ final class PanelPresenter {
     /// The selection goes with the panel. Nothing reads it while the panel is
     /// down, so no sequence of calls can tell whether this line is here —
     /// it is kept because a row outliving the panel it was on is the kind of
-    /// thing a later step, where the selection does move, would find already
-    /// wrong.
+    /// thing that would already be wrong the moment the selection can move.
     private func dismissPanel() {
         surface.dismiss()
         selectedWindow = nil
