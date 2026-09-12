@@ -34,6 +34,24 @@ final class PanelPresenter {
     /// landing in that gap would find the store idle and start a second wait.
     private var pendingPress: PendingPress?
 
+    /// Whether letting go of Command is what closes the panel.
+    ///
+    /// Settled once, from the monitor's single start attempt, and never
+    /// revisited. False until then and false for good on a run that could not
+    /// have a monitor, which leaves the behaviour of the release exactly where
+    /// it was: the intercepted key closes the panel and nothing watches the
+    /// modifiers.
+    var closesOnCommandRelease = false
+
+    /// The row the panel is showing as selected, kept so a commit can name it.
+    ///
+    /// `displayTitle` and not `windowTitle`: the latter may be empty or hold
+    /// nothing but whitespace, and the panel shows the application's name in
+    /// that case. A line disagreeing with the panel would be worse than no
+    /// line. The selection does not move yet, so this is the first row of
+    /// whatever was presented.
+    private var selectedWindow: (appName: String, displayTitle: String)?
+
     private struct PendingPress {
         let combination: HotkeyCombination
         let deliveryDelay: Duration?
@@ -76,6 +94,12 @@ final class PanelPresenter {
     /// reason about.
     func handleHotkey(_ combination: HotkeyCombination, deliveryDelay: Duration?) {
         if surface.isPresented {
+            // This is where 004 closed it, and where a run without a monitor
+            // still does. With one running, Command's release closes the panel
+            // and this keystroke is the one that will move the selection on a
+            // step from now — so it does nothing rather than something that
+            // would have to be taken back [FR-005].
+            guard !closesOnCommandRelease else { return }
             takeDown(because: combination.name)
             return
         }
@@ -142,6 +166,12 @@ final class PanelPresenter {
         gatheredOnDemand: Bool
     ) {
         surface.present(windows: windows)
+        // Read here rather than off the panel at commit time, so what the
+        // commit names is the list this appearance was given. The selection
+        // stays on the first row for the whole of this step [FR-017].
+        selectedWindow = windows.first.map {
+            (appName: $0.appName, displayTitle: $0.displayTitle)
+        }
         let measurement = HotkeyMeasurement(
             combination: combination,
             elapsed: now() - startedAt,
@@ -183,10 +213,68 @@ final class PanelPresenter {
         takeDown(because: "frontmost application changed")
     }
 
-    /// The one place the panel goes away, so the reason is written down every
-    /// time and in the same words.
-    private func takeDown(because reason: String) {
+    /// Acts on Command having been let go.
+    ///
+    /// The three questions are asked in this order, and the order carries
+    /// weight. A press still waiting for its first list means the panel is not
+    /// up, so asking whether it is up first would send that case down the
+    /// quiet path and leave the press to arrive as a panel over whatever the
+    /// user had turned to. Letting the slot go is what stops it [FR-006].
+    ///
+    /// With no panel and nothing pending, the release is somebody finishing a
+    /// Cmd+C, and nothing is said. A log with a line per keystroke is a log
+    /// nobody reads [FR-004].
+    func handleCommandRelease() {
+        let startedAt = now()
+        if pendingPress != nil {
+            pendingPress = nil
+            record(.pressCalledOff, since: startedAt)
+            return
+        }
+        guard surface.isPresented else { return }
+
+        // Read before the panel goes, because taking it down is what clears
+        // the selection.
+        let outcome: CommandReleaseMeasurement.Outcome = selectedWindow.map {
+            .committed(appName: $0.appName, displayTitle: $0.displayTitle)
+        } ?? .nothingToCommit
+        dismissPanel()
+        record(outcome, since: startedAt)
+    }
+
+    /// The one place the panel comes off the screen.
+    ///
+    /// 004 could say more than this: `takeDown(because:)` was the only way the
+    /// panel went away, so every disappearance wore the same wording. A commit
+    /// is a second way out, and it words its own line, so what holds now is
+    /// the weaker invariant: every time the panel goes, exactly one line says
+    /// why. Saying it twice would be no better than not at all — the counting
+    /// the quickstart does would see two events where the user saw one.
+    ///
+    /// The selection goes with the panel. A stale one would name a row that is
+    /// no longer on screen at the next commit.
+    private func dismissPanel() {
         surface.dismiss()
+        selectedWindow = nil
+    }
+
+    /// The wording for the two disappearances that are the app tidying up
+    /// after itself rather than the user deciding anything.
+    private func takeDown(because reason: String) {
+        dismissPanel()
         writeLine("panel hidden (\(reason))")
+    }
+
+    /// Reads the clock after the work, so the figure spans exactly the part
+    /// this process is answerable for.
+    private func record(
+        _ outcome: CommandReleaseMeasurement.Outcome,
+        since startedAt: ContinuousClock.Instant
+    ) {
+        let measurement = CommandReleaseMeasurement(
+            outcome: outcome,
+            elapsed: now() - startedAt
+        )
+        writeLine(measurement.summaryLine)
     }
 }
