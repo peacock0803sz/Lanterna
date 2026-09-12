@@ -194,6 +194,11 @@ struct PanelPresenterWaitingForAListTests {
     /// Turning to another application while the list is still coming means the
     /// panel is no longer wanted. Arriving late, it would land on top of
     /// whatever the user had moved to.
+    ///
+    /// The press is written down as it goes. A release calls one off in just
+    /// the same way and says so, and an activation that stayed quiet would
+    /// leave someone counting keystrokes against the log a press short, with
+    /// no way to tell whether it ever arrived.
     @Test func anActivationDuringTheWaitCallsThePanelOff() async {
         let fake = HeldGather(entryCount: 4)
         let fixture = Fixture(store: storeHoldingNothing(fake))
@@ -208,7 +213,12 @@ struct PanelPresenterWaitingForAListTests {
         #expect(fixture.surface.presentedLists.isEmpty)
         // Nothing was on screen, so nothing was taken off it either.
         #expect(fixture.surface.dismissCount == 0)
-        #expect(fixture.log.lines.isEmpty)
+        #expect(
+            fixture.log.lines == [
+                "called off the press waiting for its first list; "
+                    + "the frontmost application changed",
+            ]
+        )
     }
 
     /// A notification naming this process touches neither the clock nor the
@@ -220,7 +230,8 @@ struct PanelPresenterWaitingForAListTests {
     /// and `anActivationDuringTheWaitCallsThePanelOff` have to come out
     /// opposite, and only asserting both says so: with the guard dropped, or
     /// with the pending-press block moved above it, the panel the user asked
-    /// for here would be thrown away and no line written to say why.
+    /// for here would be thrown away and a call-off written down for a press
+    /// nobody abandoned.
     @Test func thisProcessComingForwardDoesNotCallOffAPendingPress() async {
         let fake = HeldGather(entryCount: 4)
         let fixture = Fixture(store: storeHoldingNothing(fake))
@@ -258,7 +269,13 @@ struct PanelPresenterWaitingForAListTests {
         await settle()
 
         #expect(fixture.surface.presentedLists.count == 1)
-        #expect(fixture.log.lines.count == 1)
+        #expect(
+            fixture.log.lines == [
+                "called off the press waiting for its first list; "
+                    + "the frontmost application changed",
+                "panel shown 4.8 ms after Cmd+Tab (4 entries)",
+            ]
+        )
     }
 
     /// A press landing between the call-off and the list still has to be
@@ -282,6 +299,8 @@ struct PanelPresenterWaitingForAListTests {
         #expect(fixture.surface.presentedLists.first?.count == 4)
         #expect(
             fixture.log.lines == [
+                "called off the press waiting for its first list; "
+                    + "the frontmost application changed",
                 "panel shown 4.8 ms after Shift+Cmd+Tab (4 entries)"
                     + "; gathered on the spot (no list held yet)",
             ]

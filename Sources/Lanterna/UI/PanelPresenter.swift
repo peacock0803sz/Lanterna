@@ -246,9 +246,17 @@ final class PanelPresenter {
             // comes next: while the slot is occupied every press is turned
             // away as the duplicate of one already being answered, so a press
             // arriving before the list does would be dropped rather than
-            // shown. No line either: the panel never appeared, so there is no
-            // appearance to account for.
+            // shown. The line is for the press and not for the panel: the
+            // press is what the user did, and one that disappeared without a
+            // word could not be told from one that never arrived at all.
+            // Written plainly rather than measured, because every figure in
+            // these lines is a span since Command was released, and no
+            // release happened here.
             pendingPress = nil
+            writeLine(
+                "called off the press waiting for its first list; "
+                    + "the frontmost application changed"
+            )
             return
         }
         guard surface.isPresented else { return }

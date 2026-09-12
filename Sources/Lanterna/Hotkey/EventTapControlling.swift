@@ -249,15 +249,26 @@ private func handleModifierEvent(
 ) -> Unmanaged<CGEvent>? {
     // Listen-only taps have their return value ignored, but the event still
     // has to come back unretained so its lifetime is not cut short.
-    guard let userInfo else { return Unmanaged.passUnretained(event) }
+    guard let userInfo else {
+        // `start` is the only caller and it always passes the pointer, so
+        // nothing reaches here. It says so all the same rather than slipping
+        // away quietly, because a return with nothing written would read
+        // exactly like a tap that was never sent an event at all.
+        Diagnostics.writeLine("event ignored; the callback arrived with no way back to the tap")
+        return Unmanaged.passUnretained(event)
+    }
     let tap = Unmanaged<SystemEventTap>.fromOpaque(userInfo).takeUnretainedValue()
 
     guard Thread.isMainThread else {
         // The tap is on the main run loop, so this should not happen; it was
         // measured not happening, 48 events out of 48. Say so rather than
         // dropping it in silence: a disable notice lost here would look
-        // exactly like a tap that never went down.
-        Diagnostics.writeLine("modifier monitor callback ran off the main thread; event ignored")
+        // exactly like a tap that never went down, and the type is the only
+        // thing in the line that tells those two apart.
+        Diagnostics.writeLine(
+            "modifier monitor callback ran off the main thread; event ignored "
+                + "(type \(type.rawValue))"
+        )
         return Unmanaged.passUnretained(event)
     }
     // Read out here rather than inside the hop. `CGEvent` is not `Sendable`,
