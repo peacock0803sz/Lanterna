@@ -96,15 +96,35 @@ struct CommandReleaseMeasurement: Sendable {
     /// go the same way: a bell or an escape in a title would otherwise reach a
     /// terminal reading the log.
     ///
+    /// Characters that take up no space go the same way, though none of them
+    /// reaches a terminal as anything. A zero width space hidden in an
+    /// application name gives a line that reads correctly to the eye and
+    /// matches nothing, and these lines are meant to be counted by matching
+    /// them: the count would go quietly short rather than visibly wrong.
+    ///
+    /// So do the characters that reverse the reading order. One of them makes
+    /// a terminal draw the rest of the line backwards, leaving the reader a
+    /// duration they cannot read and wording the app never wrote — and a title
+    /// mixing in a right-to-left script carries one with nobody meaning it.
+    ///
+    /// A character counts as invisible only when every part of it is, rather
+    /// than when any part is: an emoji is held together by invisible
+    /// characters, and the looser test would flatten a whole emoji to a space.
+    ///
     /// Falling back when nothing is left is also what keeps a line from
     /// trailing off after a bare em dash.
     private static func oneLine(_ text: String, fallback: String) -> String {
         let flattened = text
             .map { character -> String in
-                let isControl = character.unicodeScalars.allSatisfy {
-                    $0.properties.generalCategory == .control
+                let isInvisible = character.unicodeScalars.allSatisfy {
+                    switch $0.properties.generalCategory {
+                    case .control, .format:
+                        true
+                    default:
+                        false
+                    }
                 }
-                return character.isWhitespace || isControl ? " " : String(character)
+                return character.isWhitespace || isInvisible ? " " : String(character)
             }
             .joined()
             .split(separator: " ", omittingEmptySubsequences: true)

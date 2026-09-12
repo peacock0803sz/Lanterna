@@ -170,12 +170,72 @@ struct CommandReleaseMeasurementTests {
         )
     }
 
+    /// A character that prints as nothing leaves a line that reads correctly
+    /// and matches nothing, which is the worse of the two failures: a count
+    /// taken by matching these lines goes short without saying so. The whole
+    /// line is pinned rather than a fragment of it, so the test fails wherever
+    /// in the line the character survives.
+    @Test func aNameCarryingAZeroWidthSpaceStillMatchesThePlainWording() {
+        #expect(
+            Self.measurement(
+                // U+200B ZERO WIDTH SPACE, written as an escape: pasted in
+                // whole it is unreadable here and impossible to maintain.
+                .committed(appName: "Safari\u{200B}", displayTitle: "Release notes")
+            ).summaryLine
+                == "committed Safari — Release notes 4.8 ms after Command was released"
+        )
+    }
+
+    /// One of these makes a terminal draw the rest of the line backwards, so
+    /// the reader is shown a duration running the wrong way round and wording
+    /// the app never wrote. A title mixing in a right-to-left script carries
+    /// one with nobody meaning it.
+    @Test func aTitleReversingTheReadingOrderNeverReachesTheLine() {
+        #expect(
+            Self.measurement(
+                // U+202E RIGHT-TO-LEFT OVERRIDE
+                .committed(appName: "Mail", displayTitle: "Inbox\u{202E}draft")
+            ).summaryLine
+                == "committed Mail — Inbox draft 4.8 ms after Command was released"
+        )
+    }
+
+    /// The case that fails if the test for an invisible character is ever
+    /// loosened from every part of a character to any part of it. This name is
+    /// one character built from visible parts and the invisible ones holding
+    /// them together, so the looser test would flatten the whole of it away
+    /// and leave the line naming nobody.
+    @Test func anEmojiHeldTogetherByInvisibleCharactersSurvives() {
+        // U+200D ZERO WIDTH JOINER between the three figures.
+        let name = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}"
+        #expect(
+            Self.measurement(.committed(appName: name, displayTitle: "Album")).summaryLine
+                == "committed \(name) — Album 4.8 ms after Command was released"
+        )
+    }
+
     /// A name of nothing but spaces is the one shape the window enumeration's
     /// own fallback does not rule out, and it would leave the line naming
     /// nobody at all.
     @Test func anApplicationNameThatIsNothingIsSaidToBeMissing() {
         #expect(
             Self.measurement(.committed(appName: "  ", displayTitle: "  ")).summaryLine
+                == "committed an unnamed application — an unnamed application "
+                + "4.8 ms after Command was released"
+        )
+    }
+
+    /// A name of nothing but characters that take up no space flattens away as
+    /// completely as one of nothing but spaces, and has to be said to be
+    /// missing the same way. Left alone it would look like a name in the log
+    /// and read as an empty one to anything matching the line.
+    @Test func anApplicationNameOfNothingVisibleIsSaidToBeMissingTheSameWay() {
+        #expect(
+            Self.measurement(
+                // U+200B ZERO WIDTH SPACE, U+00AD SOFT HYPHEN and U+FEFF ZERO
+                // WIDTH NO-BREAK SPACE: none of the three is whitespace.
+                .committed(appName: "\u{200B}\u{00AD}\u{FEFF}", displayTitle: "\u{200B}")
+            ).summaryLine
                 == "committed an unnamed application — an unnamed application "
                 + "4.8 ms after Command was released"
         )
