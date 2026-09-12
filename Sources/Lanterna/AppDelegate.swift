@@ -8,6 +8,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Held so the refresh loop can be stopped on the way out. The presenter
     /// holds it too, for reading.
     private var windowList: WindowListStore?
+    /// Held so the tap can be taken down on the way out, and so it outlives
+    /// this method: Core Graphics is handed a pointer to it that stays live
+    /// for as long as the tap is installed.
+    private var monitor: ModifierKeyMonitor?
     private var appNapActivity: NSObjectProtocol?
 
     /// `sampleCount` draws that many fixture entries instead of the windows
@@ -64,7 +68,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Diagnostics.writeLine(line)
         }
 
+        startMonitoringModifiers(for: presenter)
         observeFrontmostApplication(presenter)
+    }
+
+    /// Puts the modifier tap up and tells the presenter what that achieved.
+    ///
+    /// Attempted here rather than alongside the panel, because a run that
+    /// could claim no hotkey at all exits above, and a tap asked for on the
+    /// way out would be a permission prompt for a process about to die.
+    ///
+    /// The presenter needs to know whether a monitor is running, and the
+    /// monitor needs a presenter to tell about a release; that ring is cut by
+    /// building the presenter first and handing it the answer afterwards. It
+    /// starts out behaving as a run with no monitor, which is where a refusal
+    /// leaves it anyway, so the window before this line is not a state the app
+    /// has to be able to be in.
+    private func startMonitoringModifiers(for presenter: PanelPresenter) {
+        let monitor = ModifierKeyMonitor {
+            presenter.handleCommandRelease()
+        }
+        self.monitor = monitor
+        let outcome = monitor.start()
+        Diagnostics.writeLine(outcome.summaryLine)
+        presenter.closesOnCommandRelease = outcome.closesOnCommandRelease
     }
 
     /// Tells the presenter whenever an application comes to the front, so that
@@ -119,6 +146,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         hotkeys?.unregister()
         windowList?.stop()
+        // After the restore above, never before it. The two are not equally
+        // recoverable: this tap goes away with the process whatever happens
+        // here, while a system shortcut left switched off outlives the process
+        // that switched it off. So nothing that could fail is allowed to stand
+        // between a launch and that shortcut coming back.
+        monitor?.stop()
         if let appNapActivity {
             ProcessInfo.processInfo.endActivity(appNapActivity)
             self.appNapActivity = nil
