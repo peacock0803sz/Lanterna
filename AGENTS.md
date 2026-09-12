@@ -6,3 +6,4 @@ DO NOT write directly CLAUDE.md or GEMINI.md (symlinked)
 ## Active Technologies
 
 - Swift (latest stable via Xcode), Nix (flakes) + flake-parts, git-hooks.nix, SwiftFormat, SwiftLint
+- Listen-only CGEvent tap on `.flagsChanged` for modifier-key monitoring; needs the Input Monitoring permission
