@@ -83,6 +83,16 @@ final class SystemEventTap: EventTapControlling {
     /// about and its release is not missed.
     private var previousFlags: CGEventFlags = []
 
+    /// Read for the wording of one diagnostics line and nothing else.
+    ///
+    /// `start` is the single source of truth about whether there is a tap:
+    /// this answers "would the system say yes", and only `tapCreate` answers
+    /// "did it". Keeping the decision on the return value is what absorbs the
+    /// open question of which grant a tap actually needs — there are reports
+    /// that Accessibility alone suffices, and nothing official either way. If
+    /// those reports are right, this returns false while the tap is made all
+    /// the same, and the only thing that would have been wrong is a sentence
+    /// telling the user where to look.
     var hasPermission: Bool {
         CGPreflightListenEventAccess()
     }
