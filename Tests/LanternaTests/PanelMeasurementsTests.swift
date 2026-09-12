@@ -128,7 +128,7 @@ struct CommandReleaseMeasurementTests {
 
     /// The one that matters most for the log: a title may hold newlines, and
     /// one event printing as two lines breaks both the one-line promise and
-    /// the counting the quickstart does with grep.
+    /// any count taken by matching these lines.
     @Test func aTitleHoldingNewlinesStillPrintsAsOneLine() {
         let line = Self.measurement(
             .committed(appName: "Notes", displayTitle: "first\nsecond\r\nthird")

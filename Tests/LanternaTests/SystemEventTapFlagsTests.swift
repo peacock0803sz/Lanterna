@@ -7,7 +7,7 @@ import Testing
 /// Pairs of states rather than single states, because that is the whole
 /// question: a `.flagsChanged` carrying no `.maskCommand` is either Command
 /// coming up or some other modifier moving with Command already up, and the
-/// two must not come out the same [FR-002].
+/// two must not come out the same.
 ///
 /// This is the only place that question is asked. The judgement sits below
 /// `EventTapControlling`, so `FakeEventTap` cannot reach it: every other test
@@ -27,9 +27,9 @@ struct SystemEventTapFlagsTests {
         )
     }
 
-    /// FR-002 names this case as one that must not commit. Command is already
-    /// up, and Shift going down carries no `.maskCommand` — which is exactly
-    /// what a real release looks like to anything reading `current` alone.
+    /// The case that must never commit. Command is already up, and Shift going
+    /// down carries no `.maskCommand` — which is exactly what a real release
+    /// looks like to anything reading `current` alone.
     @Test func pressingShiftWithCommandAlreadyUpIsNotARelease() {
         #expect(!SystemEventTap.shouldReportRelease(previous: [], current: .maskShift))
     }

@@ -61,18 +61,19 @@ final class SystemEventTap: EventTapControlling {
     /// would otherwise consume.
     private static let placement = CGEventTapPlacement.headInsertEventTap
 
-    /// This value *is* the guarantee FR-013 asks for. A listen-only tap
-    /// cannot alter or drop an event — the return value of its callback is
-    /// ignored by the system. Change it to `.defaultTap` and "does not
-    /// interfere with delivery" drops from a property of the API to a rule
-    /// the implementation has to keep remembering.
+    /// This value *is* the promise that nothing here delays or swallows a
+    /// keystroke. A listen-only tap cannot alter or drop an event — the return
+    /// value of its callback is ignored by the system. Change it to
+    /// `.defaultTap` and "does not interfere with delivery" drops from a
+    /// property of the API to a rule the implementation has to keep
+    /// remembering.
     private static let options = CGEventTapOptions.listenOnly
 
-    /// This value *is* the guarantee FR-012 asks for. Characters are not
-    /// delivered to this tap at all, because nothing but `.flagsChanged` is
-    /// subscribed. Widen the mask and "never reads what is typed" drops from
-    /// a property of the API to a rule the implementation has to keep
-    /// remembering.
+    /// This value *is* the promise that nothing typed is ever read. Characters
+    /// are not delivered to this tap at all, because nothing but
+    /// `.flagsChanged` is subscribed. Widen the mask and "never reads what is
+    /// typed" drops from a property of the API to a rule the implementation
+    /// has to keep remembering.
     private static let eventsOfInterest: CGEventMask = 1 << CGEventType.flagsChanged.rawValue
 
     private var tap: CFMachPort?
@@ -110,7 +111,7 @@ final class SystemEventTap: EventTapControlling {
     ///
     /// The falling edge, not the state: a `.flagsChanged` without
     /// `.maskCommand` is either Command coming up or Shift moving with
-    /// Command already up, and only the first is a commit [FR-002]. Reading
+    /// Command already up, and only the first is a commit. Reading
     /// `current` alone conflates them, which shows up while a panel is
     /// stranded with Command not held — the state a stopped monitor leaves
     /// behind. There, one tap of Shift would commit a selection the user
@@ -175,7 +176,7 @@ final class SystemEventTap: EventTapControlling {
         // Sown again, not carried over. Nothing was delivered while the tap
         // was off, so the held value describes a keyboard that has since
         // moved on; carrying it over would either miss the next release or
-        // invent one [FR-010].
+        // invent one.
         seedPreviousFlags()
         return CGEvent.tapIsEnabled(tap: tap)
     }
@@ -213,7 +214,7 @@ final class SystemEventTap: EventTapControlling {
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             // These arrive whatever the mask says. Acting on them is what
-            // makes the zero-delay half of the recovery work [FR-009].
+            // makes the zero-delay half of the recovery work.
             onDisabledBySystem?()
         case .flagsChanged:
             let released = Self.shouldReportRelease(previous: previousFlags, current: flags)
@@ -250,7 +251,7 @@ private func handleModifierEvent(
         // The tap is on the main run loop, so this should not happen; it was
         // measured not happening, 48 events out of 48. Say so rather than
         // dropping it in silence: a disable notice lost here would look
-        // exactly like a tap that never went down [FR-009].
+        // exactly like a tap that never went down.
         Diagnostics.writeLine("modifier monitor callback ran off the main thread; event ignored")
         return Unmanaged.passUnretained(event)
     }

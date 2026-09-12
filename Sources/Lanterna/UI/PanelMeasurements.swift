@@ -49,8 +49,8 @@ struct CommandReleaseMeasurement: Sendable {
     enum Outcome: Sendable, Equatable {
         /// The panel was up and showing a row. `displayTitle` rather than
         /// `windowTitle`: the latter may be empty or hold nothing but
-        /// whitespace, and a line trailing off after an em dash is not the
-        /// steady wording the quickstart greps for.
+        /// whitespace, and a line trailing off after an em dash is not steady
+        /// enough wording to match on.
         case committed(appName: String, displayTitle: String)
         /// The panel was up with nothing in it.
         case nothingToCommit
@@ -91,8 +91,8 @@ struct CommandReleaseMeasurement: Sendable {
     /// Flattens a name or title into something that can sit on one line.
     ///
     /// Window titles may contain newlines, and one event printing as two lines
-    /// breaks both the one-line-per-event promise and the counting the
-    /// quickstart does with grep. Control characters that are not whitespace
+    /// breaks the one-line-per-event promise, and with it any count taken by
+    /// matching these lines. Control characters that are not whitespace
     /// go the same way: a bell or an escape in a title would otherwise reach a
     /// terminal reading the log.
     ///

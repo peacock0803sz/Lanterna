@@ -78,10 +78,11 @@ final class PanelPresenter {
     /// down again if the press found it already up.
     ///
     /// That second job is a fallback now rather than the design. One key doing
-    /// both was what let 004 dismiss the panel without learning or claiming a
-    /// second key; with a monitor running, letting go of Command does the
-    /// dismissing and a further press does nothing at all, because that
-    /// keystroke is spoken for a step from now [FR-005].
+    /// both was what dismissed the panel without a second key having to be
+    /// learned or claimed from the system; with a monitor running, letting go
+    /// of Command does the dismissing and a further press does nothing at all,
+    /// because that keystroke is spoken for by the step that lets the
+    /// selection move.
     ///
     /// Nothing here turns a press away for arriving too soon after the last
     /// one. Holding the key down does not produce a stream of presses: three
@@ -97,11 +98,11 @@ final class PanelPresenter {
     /// reason about.
     func handleHotkey(_ combination: HotkeyCombination, deliveryDelay: Duration?) {
         if surface.isPresented {
-            // This is where 004 closed it, and where a run without a monitor
-            // still does. With one running, Command's release closes the panel
-            // and this keystroke is the one that will move the selection on a
-            // step from now — so it does nothing rather than something that
-            // would have to be taken back [FR-005].
+            // This is where the panel used to close, and where a run without a
+            // monitor still does. With one running, Command's release closes
+            // the panel and this keystroke is the one that will move the
+            // selection along — so it does nothing rather than something that
+            // would have to be taken back.
             guard !closesOnCommandRelease else { return }
             takeDown(because: combination.name)
             return
@@ -171,7 +172,7 @@ final class PanelPresenter {
         surface.present(windows: windows)
         // Read here rather than off the panel at commit time, so what the
         // commit names is the list this appearance was given. The selection
-        // stays on the first row for the whole of this step [FR-017].
+        // stays on the first row for as long as nothing can move it.
         selectedWindow = windows.first.map {
             (appName: $0.appName, displayTitle: $0.displayTitle)
         }
@@ -222,11 +223,11 @@ final class PanelPresenter {
     /// weight. A press still waiting for its first list means the panel is not
     /// up, so asking whether it is up first would send that case down the
     /// quiet path and leave the press to arrive as a panel over whatever the
-    /// user had turned to. Letting the slot go is what stops it [FR-006].
+    /// user had turned to. Letting the slot go is what stops it.
     ///
     /// With no panel and nothing pending, the release is somebody finishing a
     /// Cmd+C, and nothing is said. A log with a line per keystroke is a log
-    /// nobody reads [FR-004].
+    /// nobody reads.
     func handleCommandRelease() {
         let startedAt = now()
         if pendingPress != nil {
@@ -247,12 +248,13 @@ final class PanelPresenter {
 
     /// The one place the panel comes off the screen.
     ///
-    /// 004 could say more than this: `takeDown(because:)` was the only way the
-    /// panel went away, so every disappearance wore the same wording. A commit
-    /// is a second way out, and it words its own line, so what holds now is
-    /// the weaker invariant: every time the panel goes, exactly one line says
-    /// why. Saying it twice would be no better than not at all — the counting
-    /// the quickstart does would see two events where the user saw one.
+    /// This used to be able to say more: `takeDown(because:)` was the only way
+    /// the panel went away, so every disappearance wore the same wording. A
+    /// commit is a second way out, and it words its own line, so what holds
+    /// now is the weaker invariant: every time the panel goes, exactly one
+    /// line says why. Saying it twice would be no better than not at all —
+    /// counting the lines afterwards would find two events where the user saw
+    /// one.
     ///
     /// The selection goes with the panel. Nothing reads it while the panel is
     /// down, so no sequence of calls can tell whether this line is here —

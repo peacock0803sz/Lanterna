@@ -109,7 +109,7 @@ final class ModifierKeyMonitor {
     /// call can claim the combinations again; this has nothing to claim again.
     /// What it is holding is the answer to a question asked once a launch —
     /// whether this run has a monitor — and a `stop()` on the way out is not
-    /// the run changing its mind [FR-005].
+    /// the run changing its mind.
     func stop() {
         tap.invalidate()
     }
