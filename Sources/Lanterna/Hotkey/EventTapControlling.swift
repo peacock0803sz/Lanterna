@@ -22,8 +22,9 @@ protocol EventTapControlling {
     var isEnabled: Bool { get }
 
     /// Creates the tap, puts it on the current run loop and enables it.
-    /// `false` means the system would not hand one over, and is the only
-    /// thing the fallback is decided on.
+    /// `false` means there is no tap that will deliver events — none was
+    /// made, or the one that was made is not enabled — and is the only thing
+    /// the fallback is decided on.
     func start(
         onCommandRelease: @escaping @MainActor () -> Void,
         onDisabledBySystem: @escaping @MainActor () -> Void
@@ -167,7 +168,11 @@ final class SystemEventTap: EventTapControlling {
         CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
         seedPreviousFlags()
         CGEvent.tapEnable(tap: tap, enable: true)
-        return true
+        // Read back rather than assumed. The fallback is decided on this one
+        // Bool, so it has to mean "this tap will deliver events" and not "a
+        // tap object exists" — enabling is a request, and a request can be
+        // turned down. `enable()` answers the same question the same way.
+        return CGEvent.tapIsEnabled(tap: tap)
     }
 
     func enable() -> Bool {
