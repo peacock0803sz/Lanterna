@@ -83,6 +83,20 @@ struct ModifierKeyMonitorTests {
         #expect(!fixture.tap.isEnabled)
     }
 
+    /// Nothing recovers from the notice, so this line is the only trace a run
+    /// leaves of it. Without it, a panel that started closing on a second press
+    /// partway through a run would look like the monitor never started at all.
+    @Test func theSystemSwitchingTheTapOffIsWrittenDown() {
+        let fixture = MonitorFixture()
+        _ = fixture.monitor.start()
+        fixture.tap.reportDisabledBySystem()
+        #expect(
+            fixture.log.lines.last
+                == "the system switched the modifier monitor off; the panel now closes on a "
+                + "second Cmd+Tab instead of when Command is released"
+        )
+    }
+
     @Test func startedSaysThePanelWillCloseOnTheRelease() {
         #expect(ModifierKeyMonitor.StartOutcome.started.closesOnCommandRelease)
         #expect(

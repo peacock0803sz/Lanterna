@@ -65,6 +65,21 @@ func settle() async {
     }
 }
 
+/// Whether a monitor is running, as the presenter asks it.
+///
+/// A box rather than a flag passed once, because the whole point of asking
+/// per press is that the answer can change between two of them. A test that
+/// could only set it at construction could not stage a tap dying while the
+/// panel is up.
+@MainActor
+final class MonitorLiveness {
+    var isRunning: Bool
+
+    init(isRunning: Bool) {
+        self.isRunning = isRunning
+    }
+}
+
 /// A presenter and the fakes behind it, so a test can drive the one and then
 /// read the others.
 ///
@@ -81,33 +96,49 @@ struct Fixture {
     /// The very clock the presenter reads, so a test can charge one operation
     /// a tick and then ask whether the figure counted it.
     let clock: SteppingClock
+    /// The very box the presenter asks, so a test can switch the monitor off
+    /// between one press and the next.
+    let monitorLiveness: MonitorLiveness
 
     /// A store that already holds a list, which is every press but the first
     /// one after launch.
-    init(entryCount: Int = 12, step: Duration = .microseconds(4800)) {
+    init(
+        entryCount: Int = 12,
+        step: Duration = .microseconds(4800),
+        closesOnCommandRelease: Bool = false
+    ) {
         let windows = SampleWindows.make(count: entryCount)
-        self.init(store: WindowListStore(fixed: windows), windows: windows, step: step)
+        self.init(
+            store: WindowListStore(fixed: windows),
+            windows: windows,
+            step: step,
+            closesOnCommandRelease: closesOnCommandRelease
+        )
     }
 
     init(
         store: WindowListStore,
         windows: [WindowItem] = [],
-        step: Duration = .microseconds(4800)
+        step: Duration = .microseconds(4800),
+        closesOnCommandRelease: Bool = false
     ) {
         let surface = FakeSurface()
         let log = DiagnosticsLog()
         let clock = SteppingClock(step: step)
+        let monitorLiveness = MonitorLiveness(isRunning: closesOnCommandRelease)
         presenter = PanelPresenter(
             surface: surface,
             store: store,
             ownProcessIdentifier: ownProcess,
             now: clock.read,
-            writeLine: log.write
+            writeLine: log.write,
+            closesOnCommandRelease: { [monitorLiveness] in monitorLiveness.isRunning }
         )
         self.surface = surface
         self.log = log
         self.windows = windows
         self.clock = clock
+        self.monitorLiveness = monitorLiveness
     }
 }
 

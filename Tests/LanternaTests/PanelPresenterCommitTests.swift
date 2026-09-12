@@ -15,9 +15,7 @@ import Testing
 struct PanelPresenterCommitTests {
     /// A presenter wired the way a run with a working monitor wires it.
     private func runningWithAMonitor(entryCount: Int = 12) -> Fixture {
-        let fixture = Fixture(entryCount: entryCount)
-        fixture.presenter.closesOnCommandRelease = true
-        return fixture
+        Fixture(entryCount: entryCount, closesOnCommandRelease: true)
     }
 
     @Test func lettingGoWhileThePanelIsUpTakesItDownAndNamesTheRow() {
@@ -194,6 +192,23 @@ struct PanelPresenterCommitTests {
         #expect(!fixture.surface.isPresented)
         #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
     }
+
+    /// A monitor that stops running partway through has to hand the closing
+    /// back to the press. The release it was going to close on can no longer
+    /// arrive, and the panel takes no keys of its own, so a press still turned
+    /// away here would leave a panel nothing on the keyboard could close.
+    @Test func aMonitorThatStopsRunningHandsTheClosingBackToThePress() {
+        let fixture = runningWithAMonitor()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+        // The system has switched the tap off.
+        fixture.monitorLiveness.isRunning = false
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+        #expect(fixture.surface.dismissCount == 1)
+        #expect(!fixture.surface.isPresented)
+        #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
+    }
 }
 
 /// Letting go before the panel ever arrived.
@@ -204,11 +219,10 @@ struct PanelPresenterCommitTests {
 @MainActor
 struct PanelPresenterCallOffTests {
     private func waitingForItsFirstList(_ fake: HeldGather) -> Fixture {
-        let fixture = Fixture(
-            store: WindowListStore(gather: fake.gather, writeLine: { _ in })
+        Fixture(
+            store: WindowListStore(gather: fake.gather, writeLine: { _ in }),
+            closesOnCommandRelease: true
         )
-        fixture.presenter.closesOnCommandRelease = true
-        return fixture
     }
 
     @Test func aPressLetGoOfBeforeItsPanelIsCalledOff() async {
@@ -291,8 +305,7 @@ struct PanelPresenterCallOffTests {
         await fake.waitUntilCalled()
         calledOff.presenter.handleCommandRelease()
 
-        let nothingToDo = Fixture()
-        nothingToDo.presenter.closesOnCommandRelease = true
+        let nothingToDo = Fixture(closesOnCommandRelease: true)
         nothingToDo.presenter.handleCommandRelease()
 
         #expect(calledOff.log.lines.count == 1)

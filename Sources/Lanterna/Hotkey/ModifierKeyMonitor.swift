@@ -68,6 +68,17 @@ final class ModifierKeyMonitor {
         self.writeLine = writeLine
     }
 
+    /// Whether the tap is delivering events at this moment.
+    ///
+    /// Asked rather than remembered. What `start()` returned is about the one
+    /// attempt it made and cannot go stale, but whether the tap is still
+    /// delivering can change under the app at any moment — the system is free
+    /// to switch a tap off long after it handed one over. Something deciding
+    /// behaviour per keystroke has to ask, not recall.
+    var isMonitoring: Bool {
+        tap.isEnabled
+    }
+
     /// Attempts the tap once and remembers the answer.
     ///
     /// The answer is remembered for the same reason `HotkeyManager.register()`
@@ -86,11 +97,21 @@ final class ModifierKeyMonitor {
         }
         let outcome: StartOutcome = tap.start(
             onCommandRelease: onCommandRelease,
-            // Notices are taken and dropped until the recovery lands. The
-            // periodic check is the path that has to work on its own, since
-            // whether a listen-only tap is ever sent one of these is folklore
-            // rather than documented; this end of it is the optimisation.
-            onDisabledBySystem: {}
+            // The notice is reported but not recovered from. Whether a
+            // listen-only tap is ever sent one of these is folklore rather
+            // than documented, so writing it down is the cheap half; what
+            // would make recovery reliable is a check that does not depend on
+            // being told.
+            //
+            // `writeLine` is captured rather than `self`: the tap holds this
+            // closure and this object holds the tap, so naming `self` here
+            // would close that loop and neither end would ever be released.
+            onDisabledBySystem: { [writeLine] in
+                writeLine(
+                    "the system switched the modifier monitor off; the panel now closes on a "
+                        + "second Cmd+Tab instead of when Command is released"
+                )
+            }
         )
             ? .started
             : .refused(hadPermission: tap.hasPermission)

@@ -42,7 +42,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // The panel is held by the presenter, the presenter by the manager's
         // press handler, and the manager by this delegate.
-        let presenter = PanelPresenter(surface: panel, store: windowList)
+        let presenter = PanelPresenter(
+            surface: panel,
+            store: windowList,
+            closesOnCommandRelease: { [weak self] in self?.monitor?.isMonitoring ?? false }
+        )
         let hotkeys = HotkeyManager { combination, deliveryDelay in
             presenter.handleHotkey(combination, deliveryDelay: deliveryDelay)
         }
@@ -72,7 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         observeFrontmostApplication(presenter)
     }
 
-    /// Puts the modifier tap up and tells the presenter what that achieved.
+    /// Puts the modifier tap up and writes down what that achieved.
     ///
     /// Attempted here rather than alongside the panel, because a run that
     /// could claim no hotkey at all exits above, and a tap asked for on the
@@ -80,10 +84,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ///
     /// The presenter needs to know whether a monitor is running, and the
     /// monitor needs a presenter to tell about a release; that ring is cut by
-    /// building the presenter first and handing it the answer afterwards. It
-    /// starts out behaving as a run with no monitor, which is where a refusal
-    /// leaves it anyway, so the window before this line is not a state the app
-    /// has to be able to be in.
+    /// building the presenter first and handing it a way to ask rather than an
+    /// answer. What it asks reaches this monitor the moment there is one, so
+    /// there is no window in which the presenter holds a yes that has stopped
+    /// being true.
     private func startMonitoringModifiers(for presenter: PanelPresenter) {
         let monitor = ModifierKeyMonitor {
             presenter.handleCommandRelease()
@@ -91,7 +95,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.monitor = monitor
         let outcome = monitor.start()
         Diagnostics.writeLine(outcome.summaryLine)
-        presenter.closesOnCommandRelease = outcome.closesOnCommandRelease
     }
 
     /// Tells the presenter whenever an application comes to the front, so that

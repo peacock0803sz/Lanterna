@@ -36,12 +36,12 @@ final class PanelPresenter {
 
     /// Whether letting go of Command is what closes the panel.
     ///
-    /// Settled once, from the monitor's single start attempt, and never
-    /// revisited. False until then and false for good on a run that could not
-    /// have a monitor, which leaves the behaviour of the release exactly where
-    /// it was: the intercepted key closes the panel and nothing watches the
-    /// modifiers.
-    var closesOnCommandRelease = false
+    /// Asked on every press rather than settled at launch: the answer can stop
+    /// being true under the app, because the system is free to switch a tap off
+    /// whenever it likes. A remembered yes would go on turning away the very
+    /// press that is the way out, leaving a panel nothing on the keyboard can
+    /// close. A run with no monitor answers no throughout.
+    private let closesOnCommandRelease: @MainActor () -> Bool
 
     /// The row the panel is showing as selected, kept so a commit can name it.
     ///
@@ -65,13 +65,15 @@ final class PanelPresenter {
         store: WindowListStore,
         ownProcessIdentifier: pid_t = getpid(),
         now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
-        writeLine: @escaping @MainActor (String) -> Void = Diagnostics.writeLine
+        writeLine: @escaping @MainActor (String) -> Void = Diagnostics.writeLine,
+        closesOnCommandRelease: @escaping @MainActor () -> Bool = { false }
     ) {
         self.surface = surface
         self.store = store
         self.ownProcessIdentifier = ownProcessIdentifier
         self.now = now
         self.writeLine = writeLine
+        self.closesOnCommandRelease = closesOnCommandRelease
     }
 
     /// Puts the panel up for a press, and on a run with no monitor takes it
@@ -98,12 +100,12 @@ final class PanelPresenter {
     /// reason about.
     func handleHotkey(_ combination: HotkeyCombination, deliveryDelay: Duration?) {
         if surface.isPresented {
-            // This is where the panel used to close, and where a run without a
-            // monitor still does. With one running, Command's release closes
-            // the panel and this keystroke is the one that will move the
-            // selection along — so it does nothing rather than something that
-            // would have to be taken back.
-            guard !closesOnCommandRelease else { return }
+            // This is where the panel closes whenever no monitor is running
+            // just then — one never started, or one has stopped. With one
+            // running, Command's release closes the panel and this keystroke
+            // is the one that will move the selection along — so it does
+            // nothing rather than something that would have to be taken back.
+            guard !closesOnCommandRelease() else { return }
             takeDown(because: combination.name)
             return
         }
