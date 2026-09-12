@@ -50,13 +50,37 @@ struct ModifierKeyMonitorTests {
         #expect(fixture.tap.isEnabled)
     }
 
+    /// A tap the system hands over is a start whatever the preflight said.
+    ///
+    /// This is the combination that tells the two readings apart: a machine
+    /// where a tap can be made without the input monitoring grant. Asking the
+    /// preflight as well as the return value would report such a run as
+    /// refused while it sat there monitoring, and the panel would then be
+    /// waiting on a release the presenter had been told would never come.
+    @Test func aTapHandedOverWithoutTheGrantIsStillAStart() {
+        let fixture = MonitorFixture(startSucceeds: true, hasPermission: false)
+        let outcome = fixture.monitor.start()
+        #expect(outcome == .started)
+        #expect(outcome.closesOnCommandRelease)
+        #expect(
+            outcome.summaryLine
+                == "modifier monitor started; the panel closes when Command is released"
+        )
+    }
+
     /// A second attempt would leave two live taps on the run loop and report
     /// every release twice, so the first answer is the only one.
+    ///
+    /// The tap is made to fail between the two calls so that returning the
+    /// remembered answer is the only way to answer `.started` twice. Left
+    /// succeeding, a monitor that had forgotten and attempted again would
+    /// answer `.started` as well and the comparison would pass regardless.
     @Test func startingAgainAttemptsNothingAndSaysWhatTheFirstAttemptDid() {
         let fixture = MonitorFixture()
         let first = fixture.monitor.start()
-        let second = fixture.monitor.start()
-        #expect(first == second)
+        fixture.tap.startSucceeds = false
+        #expect(first == .started)
+        #expect(fixture.monitor.start() == first)
         #expect(fixture.tap.startCount == 1)
     }
 
@@ -81,6 +105,20 @@ struct ModifierKeyMonitorTests {
         fixture.monitor.stop()
         #expect(fixture.tap.invalidateCount == 1)
         #expect(!fixture.tap.isEnabled)
+    }
+
+    /// Taking the tap down keeps the outcome rather than forgetting it. What
+    /// the monitor is holding is the answer to a question asked once a launch
+    /// — whether this run has a monitor — and a `stop()` on the way out is not
+    /// the run changing its mind. Clearing it there would let a later `start()`
+    /// put a second tap on the run loop, which is the thing remembering exists
+    /// to prevent.
+    @Test func stoppingDoesNotMakeTheRunForgetHowItWent() {
+        let fixture = MonitorFixture()
+        let first = fixture.monitor.start()
+        fixture.monitor.stop()
+        #expect(fixture.monitor.start() == first)
+        #expect(fixture.tap.startCount == 1)
     }
 
     /// Nothing recovers from the notice, so this line is the only trace a run
@@ -113,21 +151,40 @@ struct ModifierKeyMonitorTests {
 /// System Settings would help.
 @MainActor
 struct ModifierKeyMonitorFallbackTests {
+    /// Pinned whole rather than by the part naming the setting. This line is
+    /// the only thing a user in this state is handed, and the two pieces most
+    /// easily lost are ones no fragment was watching: the instruction to
+    /// restart, without which granting the permission does nothing for the run
+    /// they are in, and the spaces where the literal is joined, which a
+    /// fragment sitting inside one piece can never cross.
     @Test func aRefusalWithoutPermissionSaysWhereToGrantIt() {
         let fixture = MonitorFixture(startSucceeds: false, hasPermission: false)
         let outcome = fixture.monitor.start()
         #expect(outcome == .refused(hadPermission: false))
-        #expect(outcome.summaryLine.contains("Privacy & Security > Input Monitoring"))
+        #expect(
+            outcome.summaryLine
+                == "modifier monitor could not start; input monitoring is not granted, "
+                + "so the panel closes on a second Cmd+Tab instead; grant it in "
+                + "System Settings > Privacy & Security > Input Monitoring and restart the app"
+        )
     }
 
     /// Sending someone to a setting that is already on would waste their time
     /// on the one failure the setting cannot fix.
+    ///
+    /// The absence of the settings path is asserted on its own as well as by
+    /// the whole-line pin, so that anyone rewording this line has to delete
+    /// that claim deliberately rather than paste a new string over it.
     @Test func aRefusalWithPermissionDoesNotSendTheUserToSettings() {
         let fixture = MonitorFixture(startSucceeds: false, hasPermission: true)
         let outcome = fixture.monitor.start()
         #expect(outcome == .refused(hadPermission: true))
         #expect(!outcome.summaryLine.contains("System Settings"))
-        #expect(outcome.summaryLine.contains("even though input monitoring is granted"))
+        #expect(
+            outcome.summaryLine
+                == "modifier monitor could not start even though input monitoring is "
+                + "granted; the panel closes on a second Cmd+Tab instead"
+        )
     }
 
     /// Whichever refusal it was, the panel must still be closable, and the
