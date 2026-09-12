@@ -1,4 +1,101 @@
+import Darwin
 @testable import Lanterna
+
+/// Arbitrary and distinct. Nothing depends on the values, only on whether the
+/// process that came forward is the one the presenter was told to ignore.
+let ownProcess: pid_t = 1234
+let otherProcess: pid_t = 5678
+
+/// Stands in for the panel. A real one needs a window server. A screen would
+/// show that a panel appeared, but not which list it was given, nor that it
+/// appeared once rather than twice, and those are what this records.
+@MainActor
+final class FakeSurface: SwitcherSurface {
+    private(set) var presentedLists: [[WindowItem]] = []
+    private(set) var dismissCount = 0
+    var isPresented = false
+
+    func present(windows: [WindowItem]) {
+        presentedLists.append(windows)
+        isPresented = true
+    }
+
+    func dismiss() {
+        dismissCount += 1
+        isPresented = false
+    }
+}
+
+/// Reads a fixed amount later each time it is asked, so the figure in the
+/// measurement line is decided by the test and not by how busy the machine is.
+@MainActor
+final class SteppingClock {
+    private let step: Duration
+    private var current = ContinuousClock.now
+
+    init(step: Duration) {
+        self.step = step
+    }
+
+    func read() -> ContinuousClock.Instant {
+        defer { current = current.advanced(by: step) }
+        return current
+    }
+}
+
+/// Lets the hand-offs between tasks on the main actor run out.
+///
+/// Not a timeout: nothing here waits on the clock or on I/O. Once the gather
+/// is released, a fixed and small number of continuations have to resume in
+/// turn before the presenter has either shown the panel or decided not to,
+/// and this is how many turns that takes with room to spare.
+func settle() async {
+    for _ in 0 ..< 10 {
+        await Task.yield()
+    }
+}
+
+/// A presenter and the fakes behind it, so a test can drive the one and then
+/// read the others.
+///
+/// Here rather than in the presenter's own suite for the reason
+/// `DiagnosticsLog` and `HeldGather` are: more than one suite looks at the
+/// presenter, each from its own side. Two copies would be two fakes growing
+/// apart, and a change to `SwitcherSurface` would then be made in one of them.
+@MainActor
+struct Fixture {
+    let surface: FakeSurface
+    let log: DiagnosticsLog
+    let windows: [WindowItem]
+    let presenter: PanelPresenter
+
+    /// A store that already holds a list, which is every press but the first
+    /// one after launch.
+    init(entryCount: Int = 12, step: Duration = .microseconds(4800)) {
+        let windows = SampleWindows.make(count: entryCount)
+        self.init(store: WindowListStore(fixed: windows), windows: windows, step: step)
+    }
+
+    init(
+        store: WindowListStore,
+        windows: [WindowItem] = [],
+        step: Duration = .microseconds(4800)
+    ) {
+        let surface = FakeSurface()
+        let log = DiagnosticsLog()
+        let clock = SteppingClock(step: step)
+        presenter = PanelPresenter(
+            surface: surface,
+            store: store,
+            ownProcessIdentifier: ownProcess,
+            now: clock.read,
+            writeLine: log.write
+        )
+        self.surface = surface
+        self.log = log
+        self.windows = windows
+    }
+}
 
 /// Keeps the lines written to it, so a test can read them back — including
 /// reading that there were none.

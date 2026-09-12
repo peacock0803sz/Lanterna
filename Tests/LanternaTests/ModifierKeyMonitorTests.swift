@@ -3,8 +3,13 @@ import Testing
 
 /// A monitor and the fake tap behind it, so a test can drive the one and read
 /// the other.
+///
+/// Named for what it holds rather than just `Fixture`: the presenter's own
+/// fixture is shared across suites from `TestSupport`, and two things called
+/// the same in one module, one of them shadowing the other only inside this
+/// file, would read as the same thing.
 @MainActor
-private struct Fixture {
+private struct MonitorFixture {
     let tap: FakeEventTap
     let log: DiagnosticsLog
     let monitor: ModifierKeyMonitor
@@ -39,7 +44,7 @@ private struct Fixture {
 @MainActor
 struct ModifierKeyMonitorTests {
     @Test func aTapTheSystemHandsOverIsAStart() {
-        let fixture = Fixture()
+        let fixture = MonitorFixture()
         #expect(fixture.monitor.start() == .started)
         #expect(fixture.tap.startCount == 1)
         #expect(fixture.tap.isEnabled)
@@ -48,7 +53,7 @@ struct ModifierKeyMonitorTests {
     /// A second attempt would leave two live taps on the run loop and report
     /// every release twice, so the first answer is the only one.
     @Test func startingAgainAttemptsNothingAndSaysWhatTheFirstAttemptDid() {
-        let fixture = Fixture()
+        let fixture = MonitorFixture()
         let first = fixture.monitor.start()
         let second = fixture.monitor.start()
         #expect(first == second)
@@ -58,20 +63,20 @@ struct ModifierKeyMonitorTests {
     /// The whole point of the class from the app's side: a release the tap
     /// saw becomes a call on whoever owns the panel.
     @Test func aReleaseTheTapSawReachesTheOwner() {
-        let fixture = Fixture()
+        let fixture = MonitorFixture()
         _ = fixture.monitor.start()
         fixture.tap.reportCommandRelease()
         #expect(fixture.releases.count == 1)
     }
 
     @Test func nothingReachesTheOwnerBeforeTheTapIsStarted() {
-        let fixture = Fixture()
+        let fixture = MonitorFixture()
         fixture.tap.reportCommandRelease()
         #expect(fixture.releases.count == 0)
     }
 
     @Test func stoppingTakesTheTapDown() {
-        let fixture = Fixture()
+        let fixture = MonitorFixture()
         _ = fixture.monitor.start()
         fixture.monitor.stop()
         #expect(fixture.tap.invalidateCount == 1)
@@ -95,7 +100,7 @@ struct ModifierKeyMonitorTests {
 @MainActor
 struct ModifierKeyMonitorFallbackTests {
     @Test func aRefusalWithoutPermissionSaysWhereToGrantIt() {
-        let fixture = Fixture(startSucceeds: false, hasPermission: false)
+        let fixture = MonitorFixture(startSucceeds: false, hasPermission: false)
         let outcome = fixture.monitor.start()
         #expect(outcome == .refused(hadPermission: false))
         #expect(outcome.summaryLine.contains("Privacy & Security > Input Monitoring"))
@@ -104,7 +109,7 @@ struct ModifierKeyMonitorFallbackTests {
     /// Sending someone to a setting that is already on would waste their time
     /// on the one failure the setting cannot fix.
     @Test func aRefusalWithPermissionDoesNotSendTheUserToSettings() {
-        let fixture = Fixture(startSucceeds: false, hasPermission: true)
+        let fixture = MonitorFixture(startSucceeds: false, hasPermission: true)
         let outcome = fixture.monitor.start()
         #expect(outcome == .refused(hadPermission: true))
         #expect(!outcome.summaryLine.contains("System Settings"))
@@ -139,7 +144,7 @@ struct ModifierKeyMonitorFallbackTests {
     /// A refusal leaves nothing behind, but shutdown does not know that and
     /// calls `stop()` on every run.
     @Test func stoppingAfterARefusalIsSafe() {
-        let fixture = Fixture(startSucceeds: false, hasPermission: false)
+        let fixture = MonitorFixture(startSucceeds: false, hasPermission: false)
         _ = fixture.monitor.start()
         fixture.monitor.stop()
         #expect(fixture.tap.invalidateCount == 1)
@@ -150,7 +155,7 @@ struct ModifierKeyMonitorFallbackTests {
     /// ask, which is what makes the permission decision a once-per-launch
     /// one.
     @Test func aRefusalIsNotRetried() {
-        let fixture = Fixture(startSucceeds: false, hasPermission: false)
+        let fixture = MonitorFixture(startSucceeds: false, hasPermission: false)
         _ = fixture.monitor.start()
         fixture.tap.startSucceeds = true
         #expect(fixture.monitor.start() == .refused(hadPermission: false))
