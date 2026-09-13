@@ -1,5 +1,13 @@
-/// Owns the modifier tap: starts it once, says what that achieved, and takes
-/// it down on the way out.
+/// Owns the modifier tap: starts it once, says what that achieved, keeps it
+/// delivering for as long as the app runs, and takes it down on the way out.
+///
+/// Keeping it delivering takes two routes, because one of them cannot be
+/// relied on alone. The system may announce that it has switched the tap off,
+/// and that announcement is acted on the instant it lands; but whether a
+/// listen-only tap is ever sent one is folklore rather than anything written
+/// down. So the tap is also simply asked, on a loop, and every stop is caught
+/// there — the announced ones and the silent ones alike. The loop is what
+/// meets the promise; being told only makes some of them quicker.
 ///
 /// The tap arrives through the initialiser rather than being made here, so
 /// every decision this class makes can be put to a test without a login
@@ -44,21 +52,64 @@ final class ModifierKeyMonitor {
         }
     }
 
+    /// How long the loop waits between asking the tap whether it is still
+    /// delivering.
+    ///
+    /// Shorter than the five seconds a stranded panel is allowed to last, and
+    /// with room to spare: at an interval of five the worst case would be over
+    /// the limit rather than under it. Asking is cheap — one `tapIsEnabled`
+    /// against a whole pass over every application's windows — so the extra
+    /// wake-ups do not show up in an idle process's share of the processor,
+    /// and at two seconds they fall close enough to the list's own 1.5-second
+    /// pass that the machine is rarely woken for this alone.
+    ///
+    /// A loop of its own rather than a ride on the list's. A pass over the
+    /// windows stretches towards two seconds whenever one application has
+    /// stopped answering, and sharing the timer would turn that stretch into a
+    /// late check — making how long a stranded panel lasts depend on how
+    /// quickly other applications reply.
+    static let defaultHealthCheckInterval: Duration = .seconds(2)
+
     private let tap: any EventTapControlling
+    private let healthCheckInterval: Duration
     private let onCommandRelease: @MainActor () -> Void
+    private let now: @MainActor () -> ContinuousClock.Instant
     private let writeLine: @MainActor (String) -> Void
 
     /// What the first `start()` achieved. Present from that call onwards, and
     /// the reason a repeat call need attempt nothing.
     private var startOutcome: StartOutcome?
 
+    /// The loop that asks. Exists only after a `start()` that produced a tap.
+    private var healthCheckTask: Task<Void, Never>?
+
+    /// When the tap was last seen delivering, which is where the figure in the
+    /// re-enabled line is measured from.
+    ///
+    /// Moved at three points and nowhere else: a successful `start()`, a check
+    /// that finds the tap still enabled, and every successful `enable()`
+    /// whichever route asked for it. Pinning it to those three is what makes
+    /// the figure mean the same thing from one run to the next — left to taste
+    /// it could as easily be measured from the launch, from the previous
+    /// wake-up, or from the last time the tap came back, and three readings of
+    /// three different spans cannot be compared with each other.
+    ///
+    /// The moment the tap actually went down is not knowable, so this is an
+    /// over-estimate of how long it was out. That is the safe way to be wrong
+    /// about a figure judged against an upper limit.
+    private var lastKnownEnabledAt: ContinuousClock.Instant?
+
     init(
         tap: any EventTapControlling = SystemEventTap(),
+        healthCheckInterval: Duration = defaultHealthCheckInterval,
         onCommandRelease: @escaping @MainActor () -> Void,
+        now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
         writeLine: @escaping @MainActor (String) -> Void = Diagnostics.writeLine
     ) {
         self.tap = tap
+        self.healthCheckInterval = healthCheckInterval
         self.onCommandRelease = onCommandRelease
+        self.now = now
         self.writeLine = writeLine
     }
 
@@ -89,28 +140,112 @@ final class ModifierKeyMonitor {
         if let startOutcome {
             return startOutcome
         }
-        let outcome: StartOutcome = tap.start(
+        let started = tap.start(
             onCommandRelease: onCommandRelease,
-            // The notice is reported but not recovered from. Whether a
-            // listen-only tap is ever sent one of these is folklore rather
-            // than documented, so writing it down is the cheap half; what
-            // would make recovery reliable is a check that does not depend on
-            // being told.
-            //
-            // `writeLine` is captured rather than `self`: the tap holds this
-            // closure and this object holds the tap, so naming `self` here
-            // would close that loop and neither end would ever be released.
-            onDisabledBySystem: { [writeLine] in
-                writeLine(
-                    "the system switched the modifier monitor off; the panel now closes on a "
-                        + "second Cmd+Tab instead of when Command is released"
-                )
-            }
+            // Weakly held. The tap keeps this closure and this object keeps
+            // the tap, so a strong `self` here would close that ring and
+            // neither end would ever be let go.
+            onDisabledBySystem: { [weak self] in self?.putBackAfterBeingTold() }
         )
+        let outcome: StartOutcome = started
             ? .started
             : .refused(hadPermission: tap.hasPermission)
         startOutcome = outcome
+        if started {
+            lastKnownEnabledAt = now()
+            startHealthChecks()
+        }
         return outcome
+    }
+
+    /// Asks the tap whether it is still delivering, and puts it back if it is
+    /// not.
+    ///
+    /// The route that does not depend on being told, and on its own enough to
+    /// keep a panel from being stranded: every stop passes through here, the
+    /// ones that announce themselves and the ones that do not. Being told is
+    /// only what makes some of them quicker.
+    ///
+    /// Called by the loop, and directly by tests, which is why it is not
+    /// private — waiting out real seconds to reach it would put the length of
+    /// the interval into the time the suite takes.
+    ///
+    /// A tap found still enabled is passed over in silence. A line every two
+    /// seconds saying nothing had happened would, alongside the list's own
+    /// pass, leave a log in which the things that did happen could not be
+    /// found.
+    func checkHealth() {
+        let checkedAt = now()
+        guard !tap.isEnabled else {
+            lastKnownEnabledAt = checkedAt
+            return
+        }
+        // Read before the putting-back moves it. `checkedAt` is the fallback
+        // for a check made before anything was ever seen enabled, which is a
+        // span of nothing and reads as zero.
+        let downFor = checkedAt - (lastKnownEnabledAt ?? checkedAt)
+        guard enableTap() else {
+            writeLine("modifier monitor was found disabled; could not re-enable it")
+            return
+        }
+        writeLine(
+            "modifier monitor was found disabled; re-enabled "
+                + "\(Diagnostics.millisecondsText(downFor)) ms after it went down"
+        )
+    }
+
+    /// The route that depends on being told: the system says it has switched
+    /// the tap off, and it goes straight back on.
+    ///
+    /// No figure. Being told is the moment it happened, so there is no span
+    /// between the two to measure.
+    private func putBackAfterBeingTold() {
+        guard enableTap() else {
+            writeLine("modifier monitor was disabled by the system; could not re-enable it")
+            return
+        }
+        writeLine("modifier monitor was disabled by the system; re-enabled")
+    }
+
+    /// `enable()` and the one thing every successful enabling owes: moving the
+    /// instant the figure above is measured from. Both routes come through
+    /// here so neither can forget.
+    private func enableTap() -> Bool {
+        guard tap.enable() else { return false }
+        lastKnownEnabledAt = now()
+        return true
+    }
+
+    /// Starts the asking. Reached only from a `start()` that produced a tap.
+    ///
+    /// A refused run gets no loop. There would be nothing for it to ask about,
+    /// and the wake-up every couple of seconds would be charged to an idle
+    /// process for the rest of its life.
+    ///
+    /// Sleeps before the first ask rather than after. The tap was enabled a
+    /// moment ago by the call that led here, so an immediate check could only
+    /// confirm what was just read.
+    private func startHealthChecks() {
+        // `weak` because this object holds the task: a strong capture would be
+        // the monitor kept alive by its own loop. The interval is taken by
+        // value alongside it, so the wait between asks does not itself depend
+        // on the monitor still being there.
+        healthCheckTask = Task { [weak self, healthCheckInterval] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: healthCheckInterval)
+                } catch {
+                    // Cancellation is the only way the sleep fails, and it is
+                    // how the loop is meant to end.
+                    return
+                }
+                // Ends rather than idles on when the owner has gone. Left as
+                // an optional call the loop would wake every two seconds to do
+                // nothing, for as long as the process lived.
+                guard let self else { return }
+                checkHealth()
+            }
+        }
     }
 
     /// Takes the tap down.
@@ -125,7 +260,14 @@ final class ModifierKeyMonitor {
     /// What it is holding is the answer to a question asked once a launch —
     /// whether this run has a monitor — and a `stop()` on the way out is not
     /// the run changing its mind.
+    /// The tap goes first and the loop second, which leaves a check already in
+    /// flight able to run once against a tap that is no longer there. That is
+    /// why every operation on `EventTapControlling` is defined to be safe with
+    /// no tap in hand; ordering the teardown to avoid it would only move the
+    /// requirement somewhere it could be forgotten.
     func stop() {
         tap.invalidate()
+        healthCheckTask?.cancel()
+        healthCheckTask = nil
     }
 }

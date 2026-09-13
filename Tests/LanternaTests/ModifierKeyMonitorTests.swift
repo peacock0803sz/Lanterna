@@ -121,17 +121,23 @@ struct ModifierKeyMonitorTests {
         #expect(fixture.tap.startCount == 1)
     }
 
-    /// Nothing recovers from the notice, so this line is the only trace a run
-    /// leaves of it. Without it, a panel that started closing on a second press
-    /// partway through a run would look like the monitor never started at all.
-    @Test func theSystemSwitchingTheTapOffIsWrittenDown() {
+    /// Being told is the quick route back: the tap goes on again in the same
+    /// turn the notice arrives, with no wait for the loop to come round.
+    ///
+    /// The line carries no figure, and that is the point of its wording. Being
+    /// told is the moment it happened, so there is no span between going down
+    /// and being noticed for a figure to cover.
+    @Test func aNoticeFromTheSystemPutsTheTapStraightBack() {
         let fixture = MonitorFixture()
         _ = fixture.monitor.start()
+        fixture.tap.isEnabled = false
+
         fixture.tap.reportDisabledBySystem()
+
+        #expect(fixture.tap.enableCount == 1)
+        #expect(fixture.tap.isEnabled)
         #expect(
-            fixture.log.lines.last
-                == "the system switched the modifier monitor off; the panel now closes on a "
-                + "second Cmd+Tab instead of when Command is released"
+            fixture.log.lines.last == "modifier monitor was disabled by the system; re-enabled"
         )
     }
 
