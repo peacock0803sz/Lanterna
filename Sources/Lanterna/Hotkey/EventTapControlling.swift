@@ -7,11 +7,12 @@ import Foundation
 /// needs a login session and a permission grant, which a test process has no
 /// business asking for.
 ///
-/// Every operation has to be safe with no tap in hand. The recovery that will
-/// poll `isEnabled` is not written yet, and when it is, it will be stopped
-/// after `invalidate()` rather than before — leaving one poll able to run
-/// against a tap that is already gone. Answering that safely is cheaper than
-/// ordering the teardown around it.
+/// Every operation has to be safe with no tap in hand. The recovery that asks
+/// `isEnabled` on a loop is stopped after `invalidate()` rather than before,
+/// so one ask can run against a tap that is already gone. Answering that
+/// safely is cheaper than ordering the teardown around it, and it keeps the
+/// requirement here, where an implementation can be held to it, rather than in
+/// a caller that could forget.
 @MainActor
 protocol EventTapControlling {
     /// Whether the system says this process may listen to events. Advisory
@@ -33,10 +34,11 @@ protocol EventTapControlling {
     /// Turns a disabled tap back on. `false` when it could not be.
     func enable() -> Bool
 
-    /// Turns the tap off without destroying it. Silent: nothing is delivered
-    /// to say it happened, which is the point of it — it is how a stop that
-    /// announces itself to nobody will be staged, once there is something
-    /// polling for one.
+    /// Turns the tap off without destroying it. Silent: a stop asked for here
+    /// sends no notice, not even to the process that asked. That is the point
+    /// of it — it stages the kind of stop only the loop asking `isEnabled` can
+    /// find, so the route that does not depend on being told can be watched
+    /// working.
     func disable()
 
     /// Takes the tap down for good.
