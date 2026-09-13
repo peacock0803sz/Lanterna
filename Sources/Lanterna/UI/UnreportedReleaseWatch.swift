@@ -67,6 +67,21 @@ final class UnreportedReleaseWatch {
 
     private var task: Task<Void, Never>?
 
+    /// Whether a look is under way, which is to say whether the panel now on
+    /// screen has anything watching over it.
+    ///
+    /// The presenter asks because the two can come apart. A panel put up while
+    /// no monitor was running is given no watch — there was no reported
+    /// release for one to stand in for — and a monitor that comes back while
+    /// that panel is still up does not go back and start one: it takes its
+    /// idea of the modifiers from the keyboard as it finds it, so a Command
+    /// let go in the meantime leaves no release for it to report. A press is
+    /// that panel's only way off the screen, and a monitor answering yes after
+    /// the fact must not be enough on its own to take that press away.
+    var isLooking: Bool {
+        task != nil
+    }
+
     init(
         interval: Duration = defaultInterval,
         isPanelUp: @escaping @MainActor () -> Bool,

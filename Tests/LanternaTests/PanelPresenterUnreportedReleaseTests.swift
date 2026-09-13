@@ -114,6 +114,35 @@ struct PanelPresenterUnreportedReleaseTests {
         #expect(!fixture.surface.isPresented)
         #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
     }
+
+    /// The other direction of the same answer changing, and the dangerous one.
+    /// A monitor can come back while a panel is already up, and the panel it
+    /// finds there is one it was never watching: that panel went up on a run
+    /// with nothing running, so no watch was started for it, and the monitor
+    /// has no release left to report either — it takes its idea of the
+    /// modifiers from the keyboard as it finds it, so a Command let go while
+    /// it was down leaves no edge behind. The press is the whole of that
+    /// panel's way out, and an answer that turned true afterwards must not
+    /// take it away.
+    ///
+    /// Nothing looking is the premise here rather than the finding, which is
+    /// what the untouched ask count says: a panel shown with no monitor is
+    /// given no watch, and that is exactly what leaves the press carrying the
+    /// closing on its own.
+    @Test func aMonitorComingBackLeavesTheClosingWithThePress() {
+        let fixture = Fixture()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(fixture.surface.isPresented)
+        #expect(fixture.commandHold.askCount == 0)
+
+        // The tap is back on underneath a panel that is already up.
+        fixture.monitorLiveness.isRunning = true
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+        #expect(fixture.surface.dismissCount == 1)
+        #expect(!fixture.surface.isPresented)
+        #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
+    }
 }
 
 /// The looking on its own, away from anything it might be looking at.
