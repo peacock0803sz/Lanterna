@@ -54,6 +54,14 @@ final class FakeEventTap: EventTapControlling {
     /// What `enable` will answer, so a tap that cannot be brought back can be
     /// held that way.
     var enableSucceeds = true
+    /// What `disable` will answer, so a stop that does not take can be staged.
+    ///
+    /// The state this reaches is the quietest kind of wrong: the tap goes on
+    /// delivering, so the check that follows finds nothing to say, and the
+    /// only evidence left is whatever the asking for the stop decided to
+    /// write. Without a way to stage it here there was no way to hold that
+    /// writing to anything.
+    var disableSucceeds = true
 
     private(set) var startCount = 0
     private(set) var enableCount = 0
@@ -154,10 +162,11 @@ final class FakeEventTap: EventTapControlling {
         }
     }
 
-    func disable() {
+    func disable() -> Bool {
         disableCount += 1
-        guard hasTap else { return }
+        guard hasTap, disableSucceeds else { return false }
         isEnabled = false
+        return true
     }
 
     func invalidate() {

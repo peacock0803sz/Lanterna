@@ -172,6 +172,32 @@ struct ModifierKeyMonitorRecoveryTests {
         #expect(fixture.log.lines.last == Self.foundDisabled("4.8"))
     }
 
+    /// A stop that did not take has to say so, because the log it would
+    /// otherwise leave cannot be told from a recovery that has stopped
+    /// working. The tap goes on delivering, so the check that follows finds
+    /// nothing wrong and says nothing by design, and the page then shows a
+    /// stop announced every period with never an answer to it — which is what
+    /// a broken recovery looks like. The fault would be read as its own
+    /// opposite.
+    ///
+    /// The tap being left up is asserted alongside the wording, because that
+    /// is the thing the line is about: a case that only read the log would
+    /// pass just as well against a stop that worked and lied in the other
+    /// direction.
+    @Test func aStopThatDidNotTakeSaysSoRatherThanClaimingItStopped() {
+        let fixture = MonitorFixture()
+        _ = fixture.monitor.start()
+        fixture.tap.disableSucceeds = false
+
+        fixture.monitor.stopOnPurpose()
+
+        #expect(fixture.tap.isEnabled)
+        #expect(
+            fixture.log.lines.last
+                == "modifier monitor could not be stopped on purpose (--stop-monitor-every)"
+        )
+    }
+
     /// The loop, driven for real rather than by hand — one of the two cases
     /// here that do. Without it, a `start()` that made no timer at all would
     /// pass every other case in this file.

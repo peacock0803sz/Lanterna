@@ -101,6 +101,22 @@ struct ModifierKeyMonitorTests {
         )
     }
 
+    /// The line the periodic stops write at launch, and the one monitor line
+    /// whose only caller a test cannot reach: it is written from a private
+    /// method of `AppDelegate`, inside a launch that claims hotkeys and can
+    /// end the process. Pinning it where the words are made is what keeps it
+    /// inside the net every other line here is held in.
+    ///
+    /// The figure as well as the wording. Whole seconds and no decimal point
+    /// is what a reader greps for, and a period put through a locale-aware
+    /// formatter would read differently on a machine set to another language.
+    @Test func theAnnouncementOfThePeriodicStopsIsPinned() {
+        #expect(
+            ModifierKeyMonitor.periodicStopAnnouncement(every: .seconds(3))
+                == "stopping the modifier monitor every 3 s (--stop-monitor-every)"
+        )
+    }
+
     @Test func startedSaysThePanelWillCloseOnTheRelease() {
         #expect(ModifierKeyMonitor.StartOutcome.started.producedATap)
         #expect(

@@ -34,12 +34,22 @@ protocol EventTapControlling {
     /// Turns a disabled tap back on. `false` when it could not be.
     func enable() -> Bool
 
-    /// Turns the tap off without destroying it. Silent: a stop asked for here
-    /// sends no notice, not even to the process that asked. That is the point
-    /// of it — it stages the kind of stop only the loop asking `isEnabled` can
-    /// find, so the route that does not depend on being told can be watched
-    /// working.
-    func disable()
+    /// Turns the tap off without destroying it. `false` when it did not go
+    /// down — there was no tap to switch off, or the request was not honoured.
+    ///
+    /// Silent towards the system: a stop asked for here sends no notice, not
+    /// even to the process that asked. That is the point of it — it stages the
+    /// kind of stop only the loop asking `isEnabled` can find, so the route
+    /// that does not depend on being told can be watched working.
+    ///
+    /// Reporting back is no contradiction of that silence. What comes back is
+    /// this call's own account to the caller that made it, which travels
+    /// through no notification and reaches nothing else. Switching a tap off
+    /// is a request exactly as starting and enabling are, and the one request
+    /// here that said nothing about how it went was the odd one out: a caller
+    /// that announced a stop it had not been told had happened would be
+    /// describing its intention rather than the machine.
+    func disable() -> Bool
 
     /// Takes the tap down for good.
     func invalidate()
@@ -204,9 +214,15 @@ final class SystemEventTap: EventTapControlling {
         return CGEvent.tapIsEnabled(tap: tap)
     }
 
-    func disable() {
-        guard let tap else { return }
+    func disable() -> Bool {
+        guard let tap else { return false }
         CGEvent.tapEnable(tap: tap, enable: false)
+        // Read back rather than assumed, for the reason `enable()` reads back
+        // and `start()` before it: switching a tap off is a request too, and
+        // `tapEnable` reports nothing about whether this one was granted. A
+        // caller told it had stopped a tap that is still delivering would go
+        // on to describe a stop that never happened.
+        return !CGEvent.tapIsEnabled(tap: tap)
     }
 
     func invalidate() {

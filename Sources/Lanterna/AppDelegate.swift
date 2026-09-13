@@ -125,10 +125,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         startedWith outcome: ModifierKeyMonitor.StartOutcome
     ) {
         guard let period = options.stopMonitorEvery, outcome.producedATap else { return }
-        Diagnostics.writeLine(
-            "stopping the modifier monitor every \(period.components.seconds) s "
-                + "(\(LaunchArguments.stopMonitorEveryFlag.name))"
-        )
+        Diagnostics.writeLine(ModifierKeyMonitor.periodicStopAnnouncement(every: period))
         // `weak` for the same reason the monitor's own loop is: this holds the
         // task, so a strong capture would be the pair keeping each other alive
         // through it.

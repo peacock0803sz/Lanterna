@@ -292,6 +292,26 @@ final class ModifierKeyMonitor {
         }
     }
 
+    /// The line announcing that the deliberate stops are switched on, written
+    /// once at launch by whatever arranges them.
+    ///
+    /// Made here rather than where it is written, so that the wording is
+    /// somewhere a test can reach. The place it is written from is a private
+    /// method of `AppDelegate`, inside a launch that claims hotkeys, talks to
+    /// the workspace and can end the process, and none of that can be got at
+    /// to read one string back. Lifting the words out costs a call, and is the
+    /// difference between a line that is held to and a line that is merely
+    /// present.
+    ///
+    /// Whole seconds, because the flag takes whole seconds, and read off the
+    /// `Duration` rather than put through a formatter — a figure rendered by a
+    /// locale-aware one would read differently on a machine set to another
+    /// language, and a reader matching on the wording would find nothing.
+    static func periodicStopAnnouncement(every period: Duration) -> String {
+        "stopping the modifier monitor every \(period.components.seconds) s "
+            + "(\(LaunchArguments.stopMonitorEveryFlag.name))"
+    }
+
     /// Switches the tap off deliberately, so the loop can be watched putting
     /// it back.
     ///
@@ -304,8 +324,23 @@ final class ModifierKeyMonitor {
     /// The tap is reached through this rather than handed out, because the tap
     /// is this object's and a caller that could switch it off could as easily
     /// switch it off without anything saying so.
+    ///
+    /// Says which way it went rather than announcing a stop either way, and
+    /// the silence this feature is built on is exactly why. A disable that did
+    /// not take leaves the tap delivering; the check that follows then finds
+    /// nothing wrong and passes over without a word, by design. What is left
+    /// on the page is a stop announced every period and never a recovery
+    /// answering it — character for character what a recovery that had
+    /// stopped working writes. A developer reading that would go looking at
+    /// the recovery, which is the one place the fault would not be.
     func stopOnPurpose() {
-        tap.disable()
+        guard tap.disable() else {
+            writeLine(
+                "modifier monitor could not be stopped on purpose "
+                    + "(\(LaunchArguments.stopMonitorEveryFlag.name))"
+            )
+            return
+        }
         writeLine(
             "modifier monitor stopped on purpose "
                 + "(\(LaunchArguments.stopMonitorEveryFlag.name))"
