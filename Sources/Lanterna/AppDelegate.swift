@@ -8,7 +8,7 @@ import Darwin
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let sampleCount: Int?
+    private let options: LaunchArguments.Options
     private var hotkeys: HotkeyManager?
     /// Held so the refresh loop can be stopped on the way out. The presenter
     /// holds it too, for reading.
@@ -20,12 +20,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// to keep the tap at that address for as long as it is installed, and
     /// this property is the far end of that chain.
     private var monitor: ModifierKeyMonitor?
+    /// Held so the deliberate stops can be called off on the way out. Absent
+    /// in an ordinary run.
+    private var monitorStopTask: Task<Void, Never>?
     private var appNapActivity: NSObjectProtocol?
 
-    /// `sampleCount` draws that many fixture entries instead of the windows
-    /// that are really open; `nil` lists the live windows.
-    init(sampleCount: Int?) {
-        self.sampleCount = sampleCount
+    /// Takes the options whole rather than one parameter per flag, so a flag
+    /// added later reaches here without every caller in between being changed
+    /// to carry it.
+    init(options: LaunchArguments.Options) {
+        self.options = options
         super.init()
     }
 
@@ -104,6 +108,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.monitor = monitor
         let outcome = monitor.start()
         Diagnostics.writeLine(outcome.summaryLine)
+        stopPeriodically(monitor, startedWith: outcome)
+    }
+
+    /// Switches the monitor off over and over, on the period the command line
+    /// asked for, so that it can be watched putting itself back.
+    ///
+    /// Nothing happens without the argument, and nothing happens without a
+    /// monitor. Those are two different questions and only the first is about
+    /// the command line: whether a tap could be made is not known until it is
+    /// tried, so an argument given to a run that ends up with none is not a
+    /// usage error. It simply has nothing to act on, and says nothing rather
+    /// than announcing stops that will never come.
+    private func stopPeriodically(
+        _ monitor: ModifierKeyMonitor,
+        startedWith outcome: ModifierKeyMonitor.StartOutcome
+    ) {
+        guard let period = options.stopMonitorEvery, outcome == .started else { return }
+        Diagnostics.writeLine(
+            "stopping the modifier monitor every \(period.components.seconds) s "
+                + "(\(LaunchArguments.stopMonitorEveryFlag.name))"
+        )
+        // `weak` for the same reason the monitor's own loop is: this holds the
+        // task, so a strong capture would be the pair keeping each other alive
+        // through it.
+        monitorStopTask = Task { [weak monitor] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: period)
+                } catch {
+                    // Cancellation is the only way the sleep fails, and it is
+                    // how this ends.
+                    return
+                }
+                guard let monitor else { return }
+                monitor.stopOnPurpose()
+            }
+        }
     }
 
     /// Puts the input-monitoring dialog in front of the user, once, before a
@@ -184,6 +225,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         hotkeys?.unregister()
         windowList?.stop()
+        // Before the monitor goes, so the last thing done to the tap is taking
+        // it down rather than switching it off once more.
+        monitorStopTask?.cancel()
+        monitorStopTask = nil
         // After the restore above, never before it. The two are not equally
         // recoverable: this tap goes away with the process whatever happens
         // here, while a system shortcut left switched off outlives the process
@@ -221,7 +266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// would be a worse thing to explain than an empty panel with a reason in
     /// the log.
     private func makeWindowList() -> WindowListStore {
-        if let sampleCount {
+        if let sampleCount = options.sampleCount {
             // The fixture needs no permission, so the check is skipped with
             // it, and it never changes, so nothing refreshes it.
             Diagnostics.writeLine("showing \(sampleCount) sample entries (--sample-count)")

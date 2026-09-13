@@ -260,6 +260,26 @@ final class ModifierKeyMonitor {
     /// What it is holding is the answer to a question asked once a launch —
     /// whether this run has a monitor — and a `stop()` on the way out is not
     /// the run changing its mind.
+    /// Switches the tap off deliberately, so the loop can be watched putting
+    /// it back.
+    ///
+    /// Silent by nature, and that is the whole reason it is useful: a stop
+    /// asked for here sends no notice, not even to the process that asked, so
+    /// the quick route cannot see it and the asking is the only thing that
+    /// can. It therefore stages the one kind of stop the promise actually
+    /// rests on, rather than the kind that announces itself.
+    ///
+    /// The tap is reached through this rather than handed out, because the tap
+    /// is this object's and a caller that could switch it off could as easily
+    /// switch it off without anything saying so.
+    func stopOnPurpose() {
+        tap.disable()
+        writeLine(
+            "modifier monitor stopped on purpose "
+                + "(\(LaunchArguments.stopMonitorEveryFlag.name))"
+        )
+    }
+
     /// The tap goes first and the loop second, which leaves a check already in
     /// flight able to run once against a tap that is no longer there. That is
     /// why every operation on `EventTapControlling` is defined to be safe with

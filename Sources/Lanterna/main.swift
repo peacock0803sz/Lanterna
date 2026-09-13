@@ -14,6 +14,6 @@ let application = NSApplication.shared
 // `.regular` policy is what puts an icon in the Dock.
 application.setActivationPolicy(.accessory)
 
-let delegate = AppDelegate(sampleCount: options.sampleCount)
+let delegate = AppDelegate(options: options)
 application.delegate = delegate
 application.run()

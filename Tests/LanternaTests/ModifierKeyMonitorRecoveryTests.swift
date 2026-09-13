@@ -147,6 +147,31 @@ struct ModifierKeyMonitorRecoveryTests {
         #expect(fixture.log.lines.last == Self.foundDisabled("1234.0"))
     }
 
+    /// The stop a developer asks for, and the whole reason it is worth having:
+    /// it announces itself to nobody, so the told route cannot see it and the
+    /// asking is left to find it. That is the route the promise rests on, and
+    /// this is the only way to put a real tap into the state that exercises
+    /// it.
+    @Test func aStopAskedForAnnouncesItselfToNobodyAndIsFoundByAsking() {
+        let fixture = MonitorFixture()
+        _ = fixture.monitor.start()
+
+        fixture.monitor.stopOnPurpose()
+
+        #expect(!fixture.tap.isEnabled)
+        #expect(fixture.tap.enableCount == 0)
+        #expect(
+            fixture.log.lines.last
+                == "modifier monitor stopped on purpose (--stop-monitor-every)"
+        )
+
+        fixture.monitor.checkHealth()
+
+        #expect(fixture.tap.enableCount == 1)
+        #expect(fixture.tap.isEnabled)
+        #expect(fixture.log.lines.last == Self.foundDisabled("4.8"))
+    }
+
     /// The loop, driven for real rather than by hand — the only case here that
     /// does. Without it, a `start()` that made no timer at all would pass
     /// every other case in this file.
