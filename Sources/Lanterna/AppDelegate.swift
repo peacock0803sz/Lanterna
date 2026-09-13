@@ -124,7 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ monitor: ModifierKeyMonitor,
         startedWith outcome: ModifierKeyMonitor.StartOutcome
     ) {
-        guard let period = options.stopMonitorEvery, outcome == .started else { return }
+        guard let period = options.stopMonitorEvery, outcome.producedATap else { return }
         Diagnostics.writeLine(
             "stopping the modifier monitor every \(period.components.seconds) s "
                 + "(\(LaunchArguments.stopMonitorEveryFlag.name))"

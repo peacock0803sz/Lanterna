@@ -28,9 +28,20 @@ final class ModifierKeyMonitor {
         /// "something else is wrong".
         case refused(hadPermission: Bool)
 
-        /// Whether Command's release is going to be what closes the panel.
-        /// The presenter's only question.
-        var closesOnCommandRelease: Bool {
+        /// Whether the attempt left a tap behind.
+        ///
+        /// Asked by whatever only makes sense with one — the deliberate stops
+        /// in `AppDelegate.stopPeriodically`, which have nothing to stop
+        /// otherwise. Named for that question rather than for the panel's,
+        /// because the two only look alike while there are two cases: this is
+        /// about what the one attempt achieved, and it cannot go stale.
+        ///
+        /// Not the question the presenter asks. Whether a release is going to
+        /// close the panel can stop being true under the app at any moment, so
+        /// that one is put to the tap itself through
+        /// `ModifierKeyMonitor.isMonitoring` rather than to an outcome settled
+        /// once at launch.
+        var producedATap: Bool {
             self == .started
         }
 
@@ -108,10 +119,18 @@ final class ModifierKeyMonitor {
     /// wake-up, or from the last time the tap came back, and three readings of
     /// three different spans cannot be compared with each other.
     ///
+    /// Seeded here rather than left absent until the first of those, so that
+    /// there is always a span to measure and never a figure standing for the
+    /// absence of one. Nothing reads the seeded value: the only route to the
+    /// figure runs through the loop, which exists solely after a `start()`
+    /// that has already moved it. An optional would have bought a case that
+    /// cannot arise, at the price of a fallback reading zero — and zero
+    /// under-states, which is the wrong direction to be wrong in.
+    ///
     /// The moment the tap actually went down is not knowable, so this is an
     /// over-estimate of how long it was out. That is the safe way to be wrong
     /// about a figure judged against an upper limit.
-    private var lastKnownEnabledAt: ContinuousClock.Instant?
+    private var lastKnownEnabledAt: ContinuousClock.Instant
 
     init(
         tap: any EventTapControlling = SystemEventTap(),
@@ -125,6 +144,9 @@ final class ModifierKeyMonitor {
         self.onCommandRelease = onCommandRelease
         self.now = now
         self.writeLine = writeLine
+        // Through the injected clock rather than from the system's, so that a
+        // test's reading of time is the only one this object ever has.
+        lastKnownEnabledAt = now()
     }
 
     /// Whether the tap is delivering events at this moment.
@@ -198,10 +220,8 @@ final class ModifierKeyMonitor {
             lastKnownEnabledAt = checkedAt
             return
         }
-        // Read before the putting-back moves it. `checkedAt` is the fallback
-        // for a check made before anything was ever seen enabled, which is a
-        // span of nothing and reads as zero.
-        let downFor = checkedAt - (lastKnownEnabledAt ?? checkedAt)
+        // Read before the putting-back moves it.
+        let downFor = checkedAt - lastKnownEnabledAt
         guard enableTap() else {
             writeLine("modifier monitor was found disabled; could not re-enable it")
             return

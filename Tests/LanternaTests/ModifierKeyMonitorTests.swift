@@ -21,7 +21,7 @@ struct ModifierKeyMonitorTests {
         let fixture = MonitorFixture(startSucceeds: true, hasPermission: false)
         let outcome = fixture.monitor.start()
         #expect(outcome == .started)
-        #expect(outcome.closesOnCommandRelease)
+        #expect(outcome.producedATap)
         #expect(
             outcome.summaryLine
                 == "modifier monitor started; the panel closes when Command is released"
@@ -102,7 +102,7 @@ struct ModifierKeyMonitorTests {
     }
 
     @Test func startedSaysThePanelWillCloseOnTheRelease() {
-        #expect(ModifierKeyMonitor.StartOutcome.started.closesOnCommandRelease)
+        #expect(ModifierKeyMonitor.StartOutcome.started.producedATap)
         #expect(
             ModifierKeyMonitor.StartOutcome.started.summaryLine
                 == "modifier monitor started; the panel closes when Command is released"
@@ -158,7 +158,7 @@ struct ModifierKeyMonitorFallbackTests {
     @Test(arguments: [true, false])
     func neitherRefusalClosesOnTheRelease(hadPermission: Bool) {
         let outcome = ModifierKeyMonitor.StartOutcome.refused(hadPermission: hadPermission)
-        #expect(!outcome.closesOnCommandRelease)
+        #expect(!outcome.producedATap)
         #expect(outcome.summaryLine.contains("closes on a second Cmd+Tab instead"))
     }
 
