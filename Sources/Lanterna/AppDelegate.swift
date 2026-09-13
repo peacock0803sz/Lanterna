@@ -1,4 +1,9 @@
 import AppKit
+
+// Named rather than left to AppKit's re-export: the two input-monitoring
+// calls below live in `CGEvent.h`, not in the Application Services umbrella
+// the rest of the permission code in this file reaches through.
+import CoreGraphics
 import Darwin
 
 @MainActor
@@ -92,12 +97,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// there is no window in which the presenter holds a yes that has stopped
     /// being true.
     private func startMonitoringModifiers(for presenter: PanelPresenter) {
+        requestInputMonitoringIfNeeded()
         let monitor = ModifierKeyMonitor {
             presenter.handleCommandRelease()
         }
         self.monitor = monitor
         let outcome = monitor.start()
         Diagnostics.writeLine(outcome.summaryLine)
+    }
+
+    /// Puts the input-monitoring dialog in front of the user, once, before a
+    /// tap is attempted.
+    ///
+    /// Asked at launch rather than off the first key press, and for the same
+    /// reason `makeWindowList()` settles Accessibility at launch: a system
+    /// dialog arriving in answer to a keystroke is a worse thing to explain
+    /// than a line in the log saying which way this run went. That also makes
+    /// the answer a once-a-launch one — a grant given while the app is running
+    /// changes nothing until the next launch.
+    ///
+    /// Neither answer is branched on. The preflight only says whether a dialog
+    /// is worth putting up, and the request comes back as soon as that dialog
+    /// is on screen rather than when the user has finished with it — so the
+    /// `tapCreate` that follows is asked while the grant is still absent, and
+    /// **a first launch without the permission always falls back to closing on
+    /// a second press.** Nothing here waits for the grant or re-attempts the
+    /// tap when it arrives: a run that changed its mind halfway would close
+    /// the panel one way before the grant and another way after it, with
+    /// nothing in the log to say when it switched.
+    private func requestInputMonitoringIfNeeded() {
+        guard !CGPreflightListenEventAccess() else { return }
+        // The return value answers the question the line above has already
+        // answered. This is called for the dialog it raises, nothing else.
+        _ = CGRequestListenEventAccess()
     }
 
     /// Tells the presenter whenever an application comes to the front, so that
