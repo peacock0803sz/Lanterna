@@ -1,9 +1,9 @@
 import AppKit
 import Darwin
 
-let sampleCount: Int?
+let options: LaunchArguments.Options
 do {
-    sampleCount = try LaunchArguments.sampleCount(from: ProcessInfo.processInfo.arguments)
+    options = try LaunchArguments.parse(ProcessInfo.processInfo.arguments)
 } catch {
     Diagnostics.writeLine("\(error)\n\(LaunchArguments.usage)")
     exit(EX_USAGE)
@@ -14,6 +14,6 @@ let application = NSApplication.shared
 // `.regular` policy is what puts an icon in the Dock.
 application.setActivationPolicy(.accessory)
 
-let delegate = AppDelegate(sampleCount: sampleCount)
+let delegate = AppDelegate(options: options)
 application.delegate = delegate
 application.run()

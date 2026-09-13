@@ -1,46 +1,6 @@
 @testable import Lanterna
 import Testing
 
-/// A monitor and the fake tap behind it, so a test can drive the one and read
-/// the other.
-///
-/// Named for what it holds rather than just `Fixture`: the presenter's own
-/// fixture is shared across suites from `TestSupport`, and two things called
-/// the same in one module, one of them shadowing the other only inside this
-/// file, would read as the same thing.
-@MainActor
-private struct MonitorFixture {
-    let tap: FakeEventTap
-    let log: DiagnosticsLog
-    let monitor: ModifierKeyMonitor
-    /// How many times the monitor passed a release on to its owner.
-    let releases: Counter
-
-    @MainActor
-    final class Counter {
-        private(set) var count = 0
-        func increment() {
-            count += 1
-        }
-    }
-
-    init(startSucceeds: Bool = true, hasPermission: Bool = true) {
-        let tap = FakeEventTap()
-        tap.startSucceeds = startSucceeds
-        tap.hasPermission = hasPermission
-        let log = DiagnosticsLog()
-        let releases = Counter()
-        monitor = ModifierKeyMonitor(
-            tap: tap,
-            onCommandRelease: { releases.increment() },
-            writeLine: log.write
-        )
-        self.tap = tap
-        self.log = log
-        self.releases = releases
-    }
-}
-
 @MainActor
 struct ModifierKeyMonitorTests {
     @Test func aTapTheSystemHandsOverIsAStart() {
@@ -61,7 +21,7 @@ struct ModifierKeyMonitorTests {
         let fixture = MonitorFixture(startSucceeds: true, hasPermission: false)
         let outcome = fixture.monitor.start()
         #expect(outcome == .started)
-        #expect(outcome.closesOnCommandRelease)
+        #expect(outcome.producedATap)
         #expect(
             outcome.summaryLine
                 == "modifier monitor started; the panel closes when Command is released"
@@ -121,22 +81,62 @@ struct ModifierKeyMonitorTests {
         #expect(fixture.tap.startCount == 1)
     }
 
-    /// Nothing recovers from the notice, so this line is the only trace a run
-    /// leaves of it. Without it, a panel that started closing on a second press
-    /// partway through a run would look like the monitor never started at all.
-    @Test func theSystemSwitchingTheTapOffIsWrittenDown() {
+    /// Being told is the quick route back: the tap goes on again in the same
+    /// turn the notice arrives, with no wait for the loop to come round.
+    ///
+    /// The line carries no figure, and that is the point of its wording. Being
+    /// told is the moment it happened, so there is no span between going down
+    /// and being noticed for a figure to cover.
+    @Test func aNoticeFromTheSystemPutsTheTapStraightBack() {
         let fixture = MonitorFixture()
         _ = fixture.monitor.start()
+        fixture.tap.isEnabled = false
+
         fixture.tap.reportDisabledBySystem()
+
+        #expect(fixture.tap.enableCount == 1)
+        #expect(fixture.tap.isEnabled)
         #expect(
-            fixture.log.lines.last
-                == "the system switched the modifier monitor off; the panel now closes on a "
-                + "second Cmd+Tab instead of when Command is released"
+            fixture.log.lines.last == "modifier monitor was disabled by the system; re-enabled"
+        )
+    }
+
+    /// The two numbers are chosen against each other and set apart, and this
+    /// is the only thing holding them together. Lengthening the interval past
+    /// the limit breaks no behaviour and fails nothing else in the suite: the
+    /// checks still run, the recoveries still work, and the only casualty is
+    /// how long a panel can sit there with nothing able to close it — which no
+    /// other case measures.
+    ///
+    /// Under rather than under by some margin. How much room to leave is a
+    /// judgement the interval's own doc makes and argues for; what must never
+    /// be true is that a check comes round only after the panel has already
+    /// outstayed the limit.
+    @Test func theHealthCheckIntervalLeavesRoomUnderTheLimit() {
+        #expect(
+            ModifierKeyMonitor.defaultHealthCheckInterval
+                < ModifierKeyMonitor.strandedPanelLimit
+        )
+    }
+
+    /// The line the periodic stops write at launch, and the one monitor line
+    /// whose only caller a test cannot reach: it is written from a private
+    /// method of `AppDelegate`, inside a launch that claims hotkeys and can
+    /// end the process. Pinning it where the words are made is what keeps it
+    /// inside the net every other line here is held in.
+    ///
+    /// The figure as well as the wording. Whole seconds and no decimal point
+    /// is what a reader greps for, and a period put through a locale-aware
+    /// formatter would read differently on a machine set to another language.
+    @Test func theAnnouncementOfThePeriodicStopsIsPinned() {
+        #expect(
+            ModifierKeyMonitor.periodicStopAnnouncement(every: .seconds(3))
+                == "stopping the modifier monitor every 3 s (--stop-monitor-every)"
         )
     }
 
     @Test func startedSaysThePanelWillCloseOnTheRelease() {
-        #expect(ModifierKeyMonitor.StartOutcome.started.closesOnCommandRelease)
+        #expect(ModifierKeyMonitor.StartOutcome.started.producedATap)
         #expect(
             ModifierKeyMonitor.StartOutcome.started.summaryLine
                 == "modifier monitor started; the panel closes when Command is released"
@@ -192,7 +192,7 @@ struct ModifierKeyMonitorFallbackTests {
     @Test(arguments: [true, false])
     func neitherRefusalClosesOnTheRelease(hadPermission: Bool) {
         let outcome = ModifierKeyMonitor.StartOutcome.refused(hadPermission: hadPermission)
-        #expect(!outcome.closesOnCommandRelease)
+        #expect(!outcome.producedATap)
         #expect(outcome.summaryLine.contains("closes on a second Cmd+Tab instead"))
     }
 

@@ -264,3 +264,62 @@ final class HeldGather {
         release = nil
     }
 }
+
+/// A monitor and the fake tap behind it, so a test can drive the one and read
+/// the other.
+///
+/// Named for what it holds rather than just `Fixture`: the presenter's own
+/// fixture is shared from this file too, and two things called the same in one
+/// module would read as the same thing.
+@MainActor
+struct MonitorFixture {
+    let tap: FakeEventTap
+    let log: DiagnosticsLog
+    let monitor: ModifierKeyMonitor
+    /// How many times the monitor passed a release on to its owner.
+    let releases: Counter
+
+    @MainActor
+    final class Counter {
+        private(set) var count = 0
+        func increment() {
+            count += 1
+        }
+    }
+
+    /// The default interval is long enough that no loop started here ever
+    /// comes round during a test: every case that wants a check drives it by
+    /// hand. The cases about the loop itself shorten it and wait out a turn or
+    /// several, which is the only way to tell a timer that exists from one
+    /// that does not — four of them in `ModifierKeyMonitorRecoveryTests`, plus
+    /// the yardstick loop that file's `waitOutATurn()` starts to measure a
+    /// turn against.
+    init(
+        startSucceeds: Bool = true,
+        hasPermission: Bool = true,
+        healthCheckInterval: Duration = .seconds(60),
+        step: Duration = .microseconds(4800)
+    ) {
+        let tap = FakeEventTap()
+        tap.startSucceeds = startSucceeds
+        tap.hasPermission = hasPermission
+        let log = DiagnosticsLog()
+        let releases = Counter()
+        // Built here and not kept. What a monitor test wants of the clock is
+        // that it tick by a known amount, which `step` settles at the call —
+        // unlike the presenter's fixture, nothing here reads the clock back,
+        // and a property nobody asks anything of is one more thing to keep
+        // true.
+        let clock = SteppingClock(step: step)
+        monitor = ModifierKeyMonitor(
+            tap: tap,
+            healthCheckInterval: healthCheckInterval,
+            onCommandRelease: { releases.increment() },
+            now: clock.read,
+            writeLine: log.write
+        )
+        self.tap = tap
+        self.log = log
+        self.releases = releases
+    }
+}

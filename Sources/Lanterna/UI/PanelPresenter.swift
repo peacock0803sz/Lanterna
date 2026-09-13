@@ -142,12 +142,15 @@ final class PanelPresenter {
         // nothing.
         let startedAt = now()
         if surface.isPresented {
-            // This is where the panel closes whenever no monitor is running
-            // just then — one never started, or one has stopped. With one
-            // running, Command's release closes the panel and this keystroke
-            // is the one that will move the selection along — so it does
-            // nothing rather than something that would have to be taken back.
-            guard !closesOnCommandRelease() else { return }
+            // The press is what closes the panel whenever nothing else will.
+            // A running monitor alone does not settle that: one that came
+            // back while this panel was already up takes its idea of the
+            // modifiers from the keyboard as it finds it, so a Command let go
+            // meanwhile leaves it no release to report, and the panel was
+            // shown with nothing running and so was given no watch. Where a
+            // release will close it, this keystroke moves the selection along.
+            let releaseWillCloseIt = closesOnCommandRelease() && commandWatch.isLooking
+            guard !releaseWillCloseIt else { return }
             takeDown(because: combination.name)
             return
         }

@@ -1,9 +1,15 @@
 import AppKit
+
+// Named rather than left to AppKit's re-export: the two input-monitoring
+// calls below live in `CGEvent.h`, not in the Application Services umbrella
+// that `AccessibilityPermission` imports for the other permission this
+// project asks about.
+import CoreGraphics
 import Darwin
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let sampleCount: Int?
+    private let options: LaunchArguments.Options
     private var hotkeys: HotkeyManager?
     /// Held so the refresh loop can be stopped on the way out. The presenter
     /// holds it too, for reading.
@@ -15,12 +21,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// to keep the tap at that address for as long as it is installed, and
     /// this property is the far end of that chain.
     private var monitor: ModifierKeyMonitor?
+    /// Held so the deliberate stops can be called off on the way out. Absent
+    /// in an ordinary run.
+    private var monitorStopTask: Task<Void, Never>?
     private var appNapActivity: NSObjectProtocol?
 
-    /// `sampleCount` draws that many fixture entries instead of the windows
-    /// that are really open; `nil` lists the live windows.
-    init(sampleCount: Int?) {
-        self.sampleCount = sampleCount
+    /// Takes the options whole rather than one parameter per flag, so a flag
+    /// added later reaches here without every caller in between being changed
+    /// to carry it.
+    init(options: LaunchArguments.Options) {
+        self.options = options
         super.init()
     }
 
@@ -92,12 +102,85 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// there is no window in which the presenter holds a yes that has stopped
     /// being true.
     private func startMonitoringModifiers(for presenter: PanelPresenter) {
+        requestInputMonitoringIfNeeded()
         let monitor = ModifierKeyMonitor {
             presenter.handleCommandRelease()
         }
         self.monitor = monitor
         let outcome = monitor.start()
         Diagnostics.writeLine(outcome.summaryLine)
+        stopPeriodically(monitor, startedWith: outcome)
+    }
+
+    /// Switches the monitor off over and over, on the period the command line
+    /// asked for, so that it can be watched putting itself back.
+    ///
+    /// Nothing happens without the argument, and nothing happens without a
+    /// monitor. Those are two different questions and only the first is about
+    /// the command line: whether a tap could be made is not known until it is
+    /// tried, so an argument given to a run that ends up with none is not a
+    /// usage error. It simply has nothing to act on, and says nothing rather
+    /// than announcing stops that will never come.
+    private func stopPeriodically(
+        _ monitor: ModifierKeyMonitor,
+        startedWith outcome: ModifierKeyMonitor.StartOutcome
+    ) {
+        guard let period = options.stopMonitorEvery, outcome.producedATap else { return }
+        Diagnostics.writeLine(ModifierKeyMonitor.periodicStopAnnouncement(every: period))
+        // `weak` for the same reason the monitor's own loop is: this holds the
+        // task, so a strong capture would be the pair keeping each other alive
+        // through it.
+        monitorStopTask = Task { [weak monitor] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: period)
+                } catch {
+                    // Cancellation is the only way the sleep fails, and it is
+                    // how this ends.
+                    return
+                }
+                // Asked again after the wait for the reason the monitor's own
+                // loop asks again: a cancellation landing while this turn was
+                // already queued does not call it back, and the stop would
+                // then be announced after the monitor had been taken down.
+                guard !Task.isCancelled else { return }
+                guard let monitor else { return }
+                monitor.stopOnPurpose()
+            }
+        }
+    }
+
+    /// Puts the input-monitoring dialog in front of the user, once, before a
+    /// tap is attempted.
+    ///
+    /// Asked at launch rather than off the first key press, and for the same
+    /// reason `makeWindowList()` settles Accessibility at launch: a system
+    /// dialog arriving in answer to a keystroke is a worse thing to explain
+    /// than a line in the log saying which way this run went. That also makes
+    /// the answer a once-a-launch one — a grant given while the app is running
+    /// changes nothing until the next launch.
+    ///
+    /// Neither answer is branched on. The preflight only says whether a dialog
+    /// is worth putting up, and the request is taken to come back as soon as
+    /// that dialog is on screen rather than when the user has finished with
+    /// it — which is what the ordering here assumes, not something the call
+    /// documents. On that assumption the `tapCreate` that follows is asked
+    /// while the grant is still absent, so a first launch without the
+    /// permission falls back to closing on a second press unless some other
+    /// grant already in place is enough to make a tap: there are reports that
+    /// Accessibility alone suffices, and nothing official either way, which is
+    /// the same open question `ModifierKeyMonitor.start()` is written not to
+    /// depend on.
+    ///
+    /// Nothing here waits for the grant or re-attempts the tap when it
+    /// arrives, whichever way that question falls: a run that changed its mind
+    /// halfway would close the panel one way before the grant and another way
+    /// after it, with nothing in the log to say when it switched.
+    private func requestInputMonitoringIfNeeded() {
+        guard !CGPreflightListenEventAccess() else { return }
+        // The return value answers the question the line above has already
+        // answered. This is called for the dialog it raises, nothing else.
+        _ = CGRequestListenEventAccess()
     }
 
     /// Tells the presenter whenever an application comes to the front, so that
@@ -152,6 +235,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         hotkeys?.unregister()
         windowList?.stop()
+        // Before the monitor goes, so the last thing done to the tap is taking
+        // it down rather than switching it off once more. The order is not on
+        // its own enough to promise that: cancelling raises a flag rather than
+        // calling back a stop the actor has already been handed, so what makes
+        // it hold is the loop asking again after it wakes and giving up there.
+        monitorStopTask?.cancel()
+        monitorStopTask = nil
         // After the restore above, never before it. The two are not equally
         // recoverable: this tap goes away with the process whatever happens
         // here, while a system shortcut left switched off outlives the process
@@ -189,7 +279,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// would be a worse thing to explain than an empty panel with a reason in
     /// the log.
     private func makeWindowList() -> WindowListStore {
-        if let sampleCount {
+        if let sampleCount = options.sampleCount {
             // The fixture needs no permission, so the check is skipped with
             // it, and it never changes, so nothing refreshes it.
             Diagnostics.writeLine("showing \(sampleCount) sample entries (--sample-count)")

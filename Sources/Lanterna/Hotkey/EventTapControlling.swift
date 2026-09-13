@@ -7,11 +7,12 @@ import Foundation
 /// needs a login session and a permission grant, which a test process has no
 /// business asking for.
 ///
-/// Every operation has to be safe with no tap in hand. The recovery that will
-/// poll `isEnabled` is not written yet, and when it is, it will be stopped
-/// after `invalidate()` rather than before — leaving one poll able to run
-/// against a tap that is already gone. Answering that safely is cheaper than
-/// ordering the teardown around it.
+/// Every operation has to be safe with no tap in hand. The recovery that asks
+/// `isEnabled` on a loop is stopped after `invalidate()` rather than before,
+/// so one ask can run against a tap that is already gone. Answering that
+/// safely is cheaper than ordering the teardown around it, and it keeps the
+/// requirement here, where an implementation can be held to it, rather than in
+/// a caller that could forget.
 @MainActor
 protocol EventTapControlling {
     /// Whether the system says this process may listen to events. Advisory
@@ -33,11 +34,26 @@ protocol EventTapControlling {
     /// Turns a disabled tap back on. `false` when it could not be.
     func enable() -> Bool
 
-    /// Turns the tap off without destroying it. Silent: nothing is delivered
-    /// to say it happened, which is the point of it — it is how a stop that
-    /// announces itself to nobody will be staged, once there is something
-    /// polling for one.
-    func disable()
+    /// Turns the tap off without destroying it. `false` when it did not go
+    /// down — there was no tap to switch off, or the request was not honoured.
+    ///
+    /// Taken to be silent towards the system: a stop asked for here is assumed
+    /// to send no notice, not even to the process that asked. That is the
+    /// point of it — it stages the kind of stop only the loop asking
+    /// `isEnabled` can find, so the route that does not depend on being told
+    /// can be watched working. Nothing in this repository establishes the
+    /// assumption, and no implementation here could: a fake can only report
+    /// what it was written to report. It is stated rather than proved, the way
+    /// the question of which grant a tap needs is.
+    ///
+    /// Reporting back is no contradiction of that silence. What comes back is
+    /// this call's own account to the caller that made it, which travels
+    /// through no notification and reaches nothing else. Switching a tap off
+    /// is a request exactly as starting and enabling are, and the one request
+    /// here that said nothing about how it went was the odd one out: a caller
+    /// that announced a stop it had not been told had happened would be
+    /// describing its intention rather than the machine.
+    func disable() -> Bool
 
     /// Takes the tap down for good.
     func invalidate()
@@ -202,9 +218,15 @@ final class SystemEventTap: EventTapControlling {
         return CGEvent.tapIsEnabled(tap: tap)
     }
 
-    func disable() {
-        guard let tap else { return }
+    func disable() -> Bool {
+        guard let tap else { return false }
         CGEvent.tapEnable(tap: tap, enable: false)
+        // Read back rather than assumed, for the reason `enable()` reads back
+        // and `start()` before it: switching a tap off is a request too, and
+        // `tapEnable` reports nothing about whether this one was granted. A
+        // caller told it had stopped a tap that is still delivering would go
+        // on to describe a stop that never happened.
+        return !CGEvent.tapIsEnabled(tap: tap)
     }
 
     func invalidate() {
