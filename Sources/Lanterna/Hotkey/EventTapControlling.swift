@@ -23,8 +23,8 @@ protocol EventTapControlling {
 
     /// Creates the tap, puts it on the current run loop and enables it.
     /// `false` means there is no tap that will deliver events — none was
-    /// made, or the one that was made is not enabled — and is the only thing
-    /// the fallback is decided on.
+    /// made, none could be put on a run loop, or the one that was made is not
+    /// enabled — and is the only thing the fallback is decided on.
     func start(
         onCommandRelease: @escaping @MainActor () -> Void,
         onDisabledBySystem: @escaping @MainActor () -> Void
@@ -163,7 +163,23 @@ final class SystemEventTap: EventTapControlling {
         self.onCommandRelease = onCommandRelease
         self.onDisabledBySystem = onDisabledBySystem
 
-        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        guard let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0) else {
+            // Read like the enabling below, and for the same reason: making a
+            // source is a request too, and a request can be turned down. It is
+            // imported as returning an implicitly unwrapped optional, so a
+            // refusal would otherwise travel on as a NULL nobody stopped,
+            // leaving a tap on no run loop at all — enabled, answering yes to
+            // every question asked of it, and delivering nothing for as long as
+            // the app runs.
+            //
+            // Everything already put on `self` comes back off before the
+            // answer, rather than being left for the caller to notice. `false`
+            // has to mean there is no monitor: a tap left behind here would be
+            // found by `enable()` and switched back on, still attached to
+            // nothing, and `isEnabled` would agree with it.
+            invalidate()
+            return false
+        }
         runLoopSource = source
         CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
         seedPreviousFlags()
