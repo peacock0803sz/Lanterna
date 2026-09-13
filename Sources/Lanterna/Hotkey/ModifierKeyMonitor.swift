@@ -7,7 +7,8 @@
 /// listen-only tap is ever sent one is folklore rather than anything written
 /// down. So the tap is also simply asked, on a loop, and every stop is caught
 /// there — the announced ones and the silent ones alike. The loop is what
-/// meets the promise; being told only makes some of them quicker.
+/// keeps a stop from outlasting `strandedPanelLimit`; being told merely makes
+/// some of them quicker.
 ///
 /// The tap arrives through the initialiser rather than being made here, so
 /// every decision this class makes can be put to a test without a login
@@ -63,16 +64,27 @@ final class ModifierKeyMonitor {
         }
     }
 
+    /// How long a panel may be left up with nothing able to close it.
+    ///
+    /// Named so the figure lives in the code it governs rather than in prose
+    /// only some readers will have met. Nothing imposes it and nothing
+    /// enforces it at run time: a panel outliving its gesture by a moment
+    /// reads as slow and by ten seconds as broken, five is where this app
+    /// draws that line, and it is the budget the numbers below are picked to
+    /// fit.
+    static let strandedPanelLimit: Duration = .seconds(5)
+
     /// How long the loop waits between asking the tap whether it is still
     /// delivering.
     ///
-    /// Shorter than the five seconds a stranded panel is allowed to last, and
-    /// with room to spare: at an interval of five the worst case would be over
-    /// the limit rather than under it. Asking is cheap — one `tapIsEnabled`
-    /// against a whole pass over every application's windows — so the extra
-    /// wake-ups do not show up in an idle process's share of the processor,
-    /// and at two seconds they fall close enough to the list's own 1.5-second
-    /// pass that the machine is rarely woken for this alone.
+    /// Shorter than `strandedPanelLimit`, with room to spare: at an interval
+    /// of five the worst case would land over that limit rather than under it.
+    /// Asking is cheap — one `tapIsEnabled` against a whole pass over every
+    /// application's windows — so the extra wake-ups do not show up in an idle
+    /// process's share of the processor. They are its own wake-ups, though:
+    /// two seconds and the 1.5 the list waits between passes coincide only
+    /// every six, so three checks in four wake the machine on their own
+    /// account. Cheap rather than free.
     ///
     /// A loop of its own rather than a ride on the list's. A pass over the
     /// windows stretches towards two seconds whenever one application has
@@ -295,18 +307,12 @@ final class ModifierKeyMonitor {
     /// The line announcing that the deliberate stops are switched on, written
     /// once at launch by whatever arranges them.
     ///
-    /// Made here rather than where it is written, so that the wording is
-    /// somewhere a test can reach. The place it is written from is a private
-    /// method of `AppDelegate`, inside a launch that claims hotkeys, talks to
-    /// the workspace and can end the process, and none of that can be got at
-    /// to read one string back. Lifting the words out costs a call, and is the
-    /// difference between a line that is held to and a line that is merely
-    /// present.
-    ///
-    /// Whole seconds, because the flag takes whole seconds, and read off the
-    /// `Duration` rather than put through a formatter — a figure rendered by a
-    /// locale-aware one would read differently on a machine set to another
-    /// language, and a reader matching on the wording would find nothing.
+    /// Made here rather than where it is written, so the wording is somewhere
+    /// a test can reach: the one place it is written from is a private method
+    /// of `AppDelegate`, inside a launch that cannot be got at to read a
+    /// string back. Whole seconds, because the flag takes whole seconds, and
+    /// read off the `Duration` rather than put through a formatter, so the
+    /// figure reads the same whatever the machine is set to.
     static func periodicStopAnnouncement(every period: Duration) -> String {
         "stopping the modifier monitor every \(period.components.seconds) s "
             + "(\(LaunchArguments.stopMonitorEveryFlag.name))"
@@ -316,10 +322,18 @@ final class ModifierKeyMonitor {
     /// it back.
     ///
     /// Silent by nature, and that is the whole reason it is useful: a stop
-    /// asked for here sends no notice, not even to the process that asked, so
-    /// the quick route cannot see it and the asking is the only thing that
-    /// can. It therefore stages the one kind of stop the promise actually
-    /// rests on, rather than the kind that announces itself.
+    /// asked for here is taken to send no notice, not even to the process that
+    /// asked, so the quick route cannot see it and the asking is the only
+    /// thing that can. It therefore stages the one kind of stop that staying
+    /// inside `strandedPanelLimit` actually depends on, rather than the kind
+    /// that announces itself.
+    ///
+    /// That silence is an assumption, and nothing here establishes it: the
+    /// case that appears to check it runs against `FakeEventTap`, written not
+    /// to call the notice back, so it agrees with the belief it was built
+    /// from. The design does rest on it — were a self-requested disable to
+    /// announce itself after all, this would stage the told route while
+    /// appearing to stage the other.
     ///
     /// The tap is reached through this rather than handed out, because the tap
     /// is this object's and a caller that could switch it off could as easily

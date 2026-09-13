@@ -37,10 +37,14 @@ protocol EventTapControlling {
     /// Turns the tap off without destroying it. `false` when it did not go
     /// down — there was no tap to switch off, or the request was not honoured.
     ///
-    /// Silent towards the system: a stop asked for here sends no notice, not
-    /// even to the process that asked. That is the point of it — it stages the
-    /// kind of stop only the loop asking `isEnabled` can find, so the route
-    /// that does not depend on being told can be watched working.
+    /// Taken to be silent towards the system: a stop asked for here is assumed
+    /// to send no notice, not even to the process that asked. That is the
+    /// point of it — it stages the kind of stop only the loop asking
+    /// `isEnabled` can find, so the route that does not depend on being told
+    /// can be watched working. Nothing in this repository establishes the
+    /// assumption, and no implementation here could: a fake can only report
+    /// what it was written to report. It is stated rather than proved, the way
+    /// the question of which grant a tap needs is.
     ///
     /// Reporting back is no contradiction of that silence. What comes back is
     /// this call's own account to the caller that made it, which travels

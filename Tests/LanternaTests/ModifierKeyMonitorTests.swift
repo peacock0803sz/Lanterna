@@ -101,6 +101,24 @@ struct ModifierKeyMonitorTests {
         )
     }
 
+    /// The two numbers are chosen against each other and set apart, and this
+    /// is the only thing holding them together. Lengthening the interval past
+    /// the limit breaks no behaviour and fails nothing else in the suite: the
+    /// checks still run, the recoveries still work, and the only casualty is
+    /// how long a panel can sit there with nothing able to close it — which no
+    /// other case measures.
+    ///
+    /// Under rather than under by some margin. How much room to leave is a
+    /// judgement the interval's own doc makes and argues for; what must never
+    /// be true is that a check comes round only after the panel has already
+    /// outstayed the limit.
+    @Test func theHealthCheckIntervalLeavesRoomUnderTheLimit() {
+        #expect(
+            ModifierKeyMonitor.defaultHealthCheckInterval
+                < ModifierKeyMonitor.strandedPanelLimit
+        )
+    }
+
     /// The line the periodic stops write at launch, and the one monitor line
     /// whose only caller a test cannot reach: it is written from a private
     /// method of `AppDelegate`, inside a launch that claims hotkeys and can

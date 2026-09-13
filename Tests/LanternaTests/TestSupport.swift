@@ -278,9 +278,6 @@ struct MonitorFixture {
     let monitor: ModifierKeyMonitor
     /// How many times the monitor passed a release on to its owner.
     let releases: Counter
-    /// The very clock the monitor reads, so the figure in the re-enabled line
-    /// is decided by the test and not by how busy the machine is.
-    let clock: SteppingClock
 
     @MainActor
     final class Counter {
@@ -292,10 +289,11 @@ struct MonitorFixture {
 
     /// The default interval is long enough that no loop started here ever
     /// comes round during a test: every case that wants a check drives it by
-    /// hand. The two that are about the loop itself — that a started run has
-    /// one and a refused run has none — shorten it and wait out a few turns,
-    /// which is the only way to tell a timer that exists from one that does
-    /// not.
+    /// hand. The cases about the loop itself shorten it and wait out a turn or
+    /// several, which is the only way to tell a timer that exists from one
+    /// that does not — four of them in `ModifierKeyMonitorRecoveryTests`, plus
+    /// the yardstick loop that file's `waitOutATurn()` starts to measure a
+    /// turn against.
     init(
         startSucceeds: Bool = true,
         hasPermission: Bool = true,
@@ -307,6 +305,11 @@ struct MonitorFixture {
         tap.hasPermission = hasPermission
         let log = DiagnosticsLog()
         let releases = Counter()
+        // Built here and not kept. What a monitor test wants of the clock is
+        // that it tick by a known amount, which `step` settles at the call —
+        // unlike the presenter's fixture, nothing here reads the clock back,
+        // and a property nobody asks anything of is one more thing to keep
+        // true.
         let clock = SteppingClock(step: step)
         monitor = ModifierKeyMonitor(
             tap: tap,
@@ -318,6 +321,5 @@ struct MonitorFixture {
         self.tap = tap
         self.log = log
         self.releases = releases
-        self.clock = clock
     }
 }

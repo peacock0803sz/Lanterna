@@ -11,8 +11,9 @@ import Testing
 /// The checks are called by hand almost everywhere. Waiting out a real
 /// interval would put the length of that interval into what the suite costs,
 /// and would make every figure below depend on how busy the machine was. The
-/// two cases about the loop itself are the exception, and they are written to
-/// need only a few milliseconds.
+/// four cases about the loop itself are the exception — that a started run
+/// asks, that it goes on asking, that a refused run never does, and that a
+/// shutdown ends it — and each is written to need only a few milliseconds.
 @MainActor
 struct ModifierKeyMonitorRecoveryTests {
     /// A tap found still delivering is left alone, and passed over without a
@@ -97,7 +98,8 @@ struct ModifierKeyMonitorRecoveryTests {
         }
     }
 
-    /// Whether the tap is out for five seconds or not is judged on this figure
+    /// Whether the tap was out longer than `ModifierKeyMonitor`'s
+    /// `strandedPanelLimit` is judged on this figure
     /// alone, so what it is measured from has to be one thing and not three.
     /// Left to taste it could as easily run from the launch, from the last
     /// wake-up, or from the last time the tap came back, and three readings of
@@ -148,10 +150,16 @@ struct ModifierKeyMonitorRecoveryTests {
     }
 
     /// The stop a developer asks for, and the whole reason it is worth having:
-    /// it announces itself to nobody, so the told route cannot see it and the
-    /// asking is left to find it. That is the route the promise rests on, and
-    /// this is the only way to put a real tap into the state that exercises
-    /// it.
+    /// it is taken to announce itself to nobody, so the told route cannot see
+    /// it and the asking is left to find it. That is the route staying inside
+    /// `ModifierKeyMonitor.strandedPanelLimit` depends on, and this is the
+    /// only way to put a real tap into the state that exercises it.
+    ///
+    /// What this case does not establish is that silence. The fake was written
+    /// not to call the notice back, so the quiet below is the fake's own and
+    /// not the system's, and a real tap that announced its own disable would
+    /// pass here unchanged while exercising the other route entirely. The
+    /// assumption is set out where it is relied on, in `stopOnPurpose()`.
     @Test func aStopAskedForAnnouncesItselfToNobodyAndIsFoundByAsking() {
         let fixture = MonitorFixture()
         _ = fixture.monitor.start()
@@ -198,9 +206,9 @@ struct ModifierKeyMonitorRecoveryTests {
         )
     }
 
-    /// The loop, driven for real rather than by hand — one of the two cases
-    /// here that do. Without it, a `start()` that made no timer at all would
-    /// pass every other case in this file.
+    /// The loop, driven for real rather than by hand — the first of the four
+    /// cases here that do. Without it, a `start()` that made no timer at all
+    /// would pass every other case in this file.
     ///
     /// The time limit is not about slowness: what is awaited here is an ask
     /// the monitor is free to stop making, so a run that made no timer would

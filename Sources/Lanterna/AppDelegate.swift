@@ -2,7 +2,8 @@ import AppKit
 
 // Named rather than left to AppKit's re-export: the two input-monitoring
 // calls below live in `CGEvent.h`, not in the Application Services umbrella
-// the rest of the permission code in this file reaches through.
+// that `AccessibilityPermission` imports for the other permission this
+// project asks about.
 import CoreGraphics
 import Darwin
 
@@ -160,14 +161,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// changes nothing until the next launch.
     ///
     /// Neither answer is branched on. The preflight only says whether a dialog
-    /// is worth putting up, and the request comes back as soon as that dialog
-    /// is on screen rather than when the user has finished with it — so the
-    /// `tapCreate` that follows is asked while the grant is still absent, and
-    /// **a first launch without the permission always falls back to closing on
-    /// a second press.** Nothing here waits for the grant or re-attempts the
-    /// tap when it arrives: a run that changed its mind halfway would close
-    /// the panel one way before the grant and another way after it, with
-    /// nothing in the log to say when it switched.
+    /// is worth putting up, and the request is taken to come back as soon as
+    /// that dialog is on screen rather than when the user has finished with
+    /// it — which is what the ordering here assumes, not something the call
+    /// documents. On that assumption the `tapCreate` that follows is asked
+    /// while the grant is still absent, so a first launch without the
+    /// permission falls back to closing on a second press unless some other
+    /// grant already in place is enough to make a tap: there are reports that
+    /// Accessibility alone suffices, and nothing official either way, which is
+    /// the same open question `ModifierKeyMonitor.start()` is written not to
+    /// depend on.
+    ///
+    /// Nothing here waits for the grant or re-attempts the tap when it
+    /// arrives, whichever way that question falls: a run that changed its mind
+    /// halfway would close the panel one way before the grant and another way
+    /// after it, with nothing in the log to say when it switched.
     private func requestInputMonitoringIfNeeded() {
         guard !CGPreflightListenEventAccess() else { return }
         // The return value answers the question the line above has already
