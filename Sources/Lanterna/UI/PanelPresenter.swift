@@ -53,6 +53,24 @@ final class PanelPresenter {
     /// is a decision nothing checks.
     private let commandIsHeld: @MainActor () -> Bool
 
+    /// How long the watch waits between looks. Injected only so a test need
+    /// not wait a real one out; the number is `UnreportedReleaseWatch`'s.
+    private let commandWatchInterval: Duration
+
+    /// The looking that catches a release the tap never reported.
+    ///
+    /// `lazy` because every question it puts and the answer it gives back are
+    /// this object's, and a closure over `self` cannot be written until the
+    /// stored properties are in place. One watch for the presenter's life,
+    /// started and stopped the way the window list's loop is rather than made
+    /// again for each panel.
+    private lazy var commandWatch = UnreportedReleaseWatch(
+        interval: commandWatchInterval,
+        isPanelUp: { [weak self] in self?.surface.isPresented ?? false },
+        commandIsHeld: { [weak self] in self?.commandIsHeld() ?? false },
+        onUnreportedRelease: { [weak self] in self?.closeForAnUnreportedRelease() }
+    )
+
     /// The row the panel is showing as selected, kept so a commit can name it.
     ///
     /// `displayTitle` and not `windowTitle`: the latter may be empty or hold
@@ -79,7 +97,8 @@ final class PanelPresenter {
         closesOnCommandRelease: @escaping @MainActor () -> Bool = { false },
         commandIsHeld: @escaping @MainActor () -> Bool = {
             CGEventSource.flagsState(.combinedSessionState).contains(.maskCommand)
-        }
+        },
+        commandWatchInterval: Duration = UnreportedReleaseWatch.defaultInterval
     ) {
         self.surface = surface
         self.store = store
@@ -88,6 +107,7 @@ final class PanelPresenter {
         self.writeLine = writeLine
         self.closesOnCommandRelease = closesOnCommandRelease
         self.commandIsHeld = commandIsHeld
+        self.commandWatchInterval = commandWatchInterval
     }
 
     /// Puts the panel up for a press, and on a run with no monitor takes it
@@ -228,6 +248,12 @@ final class PanelPresenter {
             gatheredOnDemand: gatheredOnDemand
         )
         writeLine(measurement.summaryLine)
+
+        // Only with a monitor is a release expected at all, and starting below
+        // the reading is what keeps the task out of the figure.
+        if closesOnCommandRelease() {
+            commandWatch.start()
+        }
     }
 
     /// Takes the panel down when an application other than this one comes to
@@ -298,6 +324,31 @@ final class PanelPresenter {
         record(outcome, since: startedAt)
     }
 
+    /// Takes the panel down for a release that came by no route at all.
+    ///
+    /// Plainly worded rather than measured, and deliberately not put through
+    /// `handleCommandRelease`: every figure in those lines spans from Command
+    /// being released to the panel being hidden, and this release was found by
+    /// looking rather than reported, so it happened up to one interval before
+    /// anything here knew of it and a figure begun at the noticing would read
+    /// low. This project takes those figures for measurements, and one that
+    /// quietly understates is worse than an event of its own.
+    ///
+    /// The row is read before the panel goes, for the reason a commit reads it
+    /// there: taking the panel down is what clears the selection. Flattened by
+    /// the same code a commit's is, so one row cannot be named two ways and a
+    /// window titled across two lines cannot print this event as two.
+    private func closeForAnUnreportedRelease() {
+        let row = selectedWindow.map {
+            CommandReleaseMeasurement.rowDescription(appName: $0.appName, displayTitle: $0.displayTitle)
+        }
+        dismissPanel()
+        writeLine(
+            "closed the panel showing \(row ?? "nothing"); "
+                + "Command was let go and the tap never said so"
+        )
+    }
+
     /// The one place the panel comes off the screen.
     ///
     /// This used to be able to say more: `takeDown(because:)` was the only way
@@ -315,6 +366,9 @@ final class PanelPresenter {
     private func dismissPanel() {
         surface.dismiss()
         selectedWindow = nil
+        // Stopped here rather than at each way out, so the looking covers the
+        // panel's time on screen exactly — the watch's own way out included.
+        commandWatch.stop()
     }
 
     /// The wording for the two disappearances that are the app tidying up

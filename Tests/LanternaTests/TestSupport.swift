@@ -85,12 +85,36 @@ final class MonitorLiveness {
 /// A box for the same reason `MonitorLiveness` is one, and here it is the only
 /// way at all: a test process cannot put a real Command key down, so staging a
 /// press that arrives after its own release means saying so between presses.
+///
+/// It counts the asking as well, and lets a test wait for a given number of
+/// asks. The presenter looks again on a timer for as long as the panel is up,
+/// and what a test needs to know is that a look has happened — sleeping a
+/// fixed span instead would be waiting on how busy the machine is rather than
+/// on the thing that was meant to occur.
 @MainActor
 final class CommandHold {
     var isHeld: Bool
+    private(set) var askCount = 0
+    private var reached: CheckedContinuation<Void, Never>?
+    private var awaitedCount = 0
 
     init(isHeld: Bool) {
         self.isHeld = isHeld
+    }
+
+    func read() -> Bool {
+        askCount += 1
+        if askCount >= awaitedCount {
+            reached?.resume()
+            reached = nil
+        }
+        return isHeld
+    }
+
+    func waitUntilAsked(times: Int) async {
+        guard askCount < times else { return }
+        awaitedCount = times
+        await withCheckedContinuation { reached = $0 }
     }
 }
 
@@ -123,7 +147,8 @@ struct Fixture {
         entryCount: Int = 12,
         step: Duration = .microseconds(4800),
         closesOnCommandRelease: Bool = false,
-        commandIsHeld: Bool = true
+        commandIsHeld: Bool = true,
+        commandWatchInterval: Duration = .milliseconds(1)
     ) {
         let windows = SampleWindows.make(count: entryCount)
         self.init(
@@ -131,7 +156,8 @@ struct Fixture {
             windows: windows,
             step: step,
             closesOnCommandRelease: closesOnCommandRelease,
-            commandIsHeld: commandIsHeld
+            commandIsHeld: commandIsHeld,
+            commandWatchInterval: commandWatchInterval
         )
     }
 
@@ -140,7 +166,8 @@ struct Fixture {
         windows: [WindowItem] = [],
         step: Duration = .microseconds(4800),
         closesOnCommandRelease: Bool = false,
-        commandIsHeld: Bool = true
+        commandIsHeld: Bool = true,
+        commandWatchInterval: Duration = .milliseconds(1)
     ) {
         let surface = FakeSurface()
         let log = DiagnosticsLog()
@@ -157,7 +184,11 @@ struct Fixture {
             now: clock.read,
             writeLine: log.write,
             closesOnCommandRelease: { [monitorLiveness] in monitorLiveness.isRunning },
-            commandIsHeld: { [commandHold] in commandHold.isHeld }
+            commandIsHeld: { [commandHold] in commandHold.read() },
+            // A real fiftieth of a second per look would be paid over again by
+            // every test that waits for one. The store's loop tests shorten
+            // their interval for the same reason.
+            commandWatchInterval: commandWatchInterval
         )
         self.surface = surface
         self.log = log

@@ -79,14 +79,32 @@ struct CommandReleaseMeasurement: Sendable {
         let timing = "\(Diagnostics.millisecondsText(elapsed)) ms after Command was released"
         switch outcome {
         case let .committed(appName, displayTitle):
-            let name = Self.oneLine(appName, fallback: Self.unnamedApplication)
-            let title = Self.oneLine(displayTitle, fallback: name)
-            return "committed \(name) — \(title) \(timing)"
+            let row = Self.rowDescription(appName: appName, displayTitle: displayTitle)
+            return "committed \(row) \(timing)"
         case .nothingToCommit:
             return "committed nothing \(timing) (the list was empty)"
         case .pressCalledOff:
             return "press called off \(timing), before the panel appeared"
         }
+    }
+
+    /// Names a row the way a line naming one has to: application, an em dash,
+    /// window.
+    ///
+    /// Shared rather than copied, because the commit line above is no longer
+    /// the only line that names a row — the panel closing for a release
+    /// nothing reported names one too, into the same log. Two spellings of
+    /// this would let one line flatten what it names and the other not, and
+    /// the flattening below is the whole of what keeps a window title with a
+    /// newline in it from printing as two lines of log.
+    ///
+    /// The window falls back to the application rather than to the unnamed
+    /// application: a row whose title flattened away to nothing is still that
+    /// application's row, and saying its name twice is truer than saying
+    /// nobody's.
+    static func rowDescription(appName: String, displayTitle: String) -> String {
+        let name = oneLine(appName, fallback: unnamedApplication)
+        return "\(name) — \(oneLine(displayTitle, fallback: name))"
     }
 
     /// Flattens a name or title into something that can sit on one line.
@@ -114,6 +132,11 @@ struct CommandReleaseMeasurement: Sendable {
     ///
     /// Falling back when nothing is left is also what keeps a line from
     /// trailing off after a bare em dash.
+    ///
+    /// Two lines are counted on this now rather than one. The commit above and
+    /// the panel closing for a release nothing reported both reach it through
+    /// `rowDescription`, so neither can come to flatten what the other leaves
+    /// alone — which is the whole reason that one goes through here.
     private static func oneLine(_ text: String, fallback: String) -> String {
         let flattened = text
             .map { character -> String in
