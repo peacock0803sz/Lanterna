@@ -141,6 +141,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     // how this ends.
                     return
                 }
+                // Asked again after the wait for the reason the monitor's own
+                // loop asks again: a cancellation landing while this turn was
+                // already queued does not call it back, and the stop would
+                // then be announced after the monitor had been taken down.
+                guard !Task.isCancelled else { return }
                 guard let monitor else { return }
                 monitor.stopOnPurpose()
             }
@@ -226,7 +231,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeys?.unregister()
         windowList?.stop()
         // Before the monitor goes, so the last thing done to the tap is taking
-        // it down rather than switching it off once more.
+        // it down rather than switching it off once more. The order is not on
+        // its own enough to promise that: cancelling raises a flag rather than
+        // calling back a stop the actor has already been handed, so what makes
+        // it hold is the loop asking again after it wakes and giving up there.
         monitorStopTask?.cancel()
         monitorStopTask = nil
         // After the restore above, never before it. The two are not equally

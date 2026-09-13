@@ -261,6 +261,51 @@ struct ModifierKeyMonitorRecoveryTests {
         #expect(fixture.tap.enableCount == 0)
     }
 
+    /// A shutdown must leave no alarm behind. The tap goes down first and the
+    /// loop is cancelled second, so a turn already past its sleep arrives
+    /// after the tap has gone — cancelling raises a flag rather than calling
+    /// back a turn the actor has already been handed. A check running then
+    /// would find no tap, fail to put one back, and write the line that says a
+    /// panel is stuck with nothing able to close it: the one line a clean exit
+    /// must never produce, because nothing in the log would tell it apart from
+    /// the real thing.
+    ///
+    /// Driven by hand rather than by racing a timer, and the stronger test for
+    /// it: what has to hold is that a check arriving after a stop writes
+    /// nothing, whichever road it came by, and the road the race takes is only
+    /// one of the two.
+    ///
+    /// Nothing written is the whole of the assertion, rather than some
+    /// particular line going unwritten. The fake's `invalidate()` leaves
+    /// `enable()` able to succeed where a real tap answers false once its tap
+    /// is gone, so the two would fail this differently — one claiming a
+    /// recovery, one crying the alarm. Silence is what both of them owe.
+    @Test func aCheckArrivingAfterAStopWritesNothing() {
+        let fixture = MonitorFixture()
+        _ = fixture.monitor.start()
+
+        fixture.monitor.stop()
+        fixture.monitor.checkHealth()
+
+        #expect(fixture.log.lines.isEmpty)
+        #expect(fixture.tap.enableCount == 0)
+    }
+
+    /// The asking is closed by a shutdown and not by the stop a developer asks
+    /// for, which are opposite cases that would be easy to conflate in one
+    /// flag. A deliberate stop is exactly what the asking exists to find and
+    /// undo, so the check after it must still do its work.
+    @Test func aStopAskedForLeavesTheAskingOpen() {
+        let fixture = MonitorFixture()
+        _ = fixture.monitor.start()
+
+        fixture.monitor.stopOnPurpose()
+        fixture.monitor.checkHealth()
+
+        #expect(fixture.tap.enableCount == 1)
+        #expect(fixture.tap.isEnabled)
+    }
+
     /// Long enough that a loop on the same interval would have come round, and
     /// no longer.
     ///

@@ -83,6 +83,20 @@ final class ModifierKeyMonitor {
     /// The loop that asks. Exists only after a `start()` that produced a tap.
     private var healthCheckTask: Task<Void, Never>?
 
+    /// Whether the run has been taken down, which is the one state in which a
+    /// check is refused rather than answered.
+    ///
+    /// Kept rather than left to the loop's own cancellation, because the loop
+    /// is not the only way in: `checkHealth()` is reachable by anyone holding
+    /// the monitor, and a cancelled turn and a call made by hand arrive at the
+    /// writing by different roads. The refusal belongs where the line would be
+    /// written, so that neither road can reach it.
+    ///
+    /// `stopOnPurpose()` deliberately leaves this alone. That stop is one the
+    /// asking is meant to find and undo, and an asking that gave up on it
+    /// would defeat the only thing it is for.
+    private var hasStopped = false
+
     /// When the tap was last seen delivering, which is where the figure in the
     /// re-enabled line is measured from.
     ///
@@ -175,6 +189,10 @@ final class ModifierKeyMonitor {
     /// pass, leave a log in which the things that did happen could not be
     /// found.
     func checkHealth() {
+        // Refused after a shutdown rather than answered, for the reason
+        // `stop()` sets out: the tap is gone by then, so the only thing this
+        // could write is an alarm about a panel nothing can close.
+        guard !hasStopped else { return }
         let checkedAt = now()
         guard !tap.isEnabled else {
             lastKnownEnabledAt = checkedAt
@@ -239,6 +257,12 @@ final class ModifierKeyMonitor {
                     // how the loop is meant to end.
                     return
                 }
+                // Asked again after the wait, because a cancellation landing
+                // while this turn was already queued on the actor does not
+                // call it back: the sleep had finished, so it threw nothing,
+                // and without this the turn would run against a tap that the
+                // same shutdown had just taken down.
+                guard !Task.isCancelled else { return }
                 // Ends rather than idles on when the owner has gone. Left as
                 // an optional call the loop would wake every two seconds to do
                 // nothing, for as long as the process lived.
@@ -281,12 +305,22 @@ final class ModifierKeyMonitor {
     /// whether this run has a monitor — and a `stop()` on the way out is not
     /// the run changing its mind.
     ///
-    /// The tap goes first and the loop second, which leaves a check already in
-    /// flight able to run once against a tap that is no longer there. That is
-    /// why every operation on `EventTapControlling` is defined to be safe with
-    /// no tap in hand; ordering the teardown to avoid it would only move the
-    /// requirement somewhere it could be forgotten.
+    /// The tap goes first and the loop second, which leaves a check already
+    /// past its sleep still to come: cancelling a task raises a flag, and does
+    /// not call back a turn the actor has already been handed. Such a turn is
+    /// refused rather than run — the loop asks again when it wakes, and the
+    /// asking is closed here for anyone else holding the monitor — because a
+    /// check made after this would find the tap gone, fail to put one back,
+    /// and write the line that says a panel is stuck with nothing able to
+    /// close it. A shutdown that left that behind could not be told apart from
+    /// the trouble it names.
+    ///
+    /// Every operation on `EventTapControlling` is defined to be safe with no
+    /// tap in hand regardless, and that is still worth having. But it is about
+    /// not crashing rather than about what gets written, which is why it was
+    /// never on its own an answer to this.
     func stop() {
+        hasStopped = true
         tap.invalidate()
         healthCheckTask?.cancel()
         healthCheckTask = nil
