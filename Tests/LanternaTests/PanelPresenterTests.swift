@@ -2,97 +2,6 @@ import Darwin
 @testable import Lanterna
 import Testing
 
-/// Arbitrary and distinct. Nothing depends on the values, only on whether the
-/// process that came forward is the one the presenter was told to ignore.
-private let ownProcess: pid_t = 1234
-private let otherProcess: pid_t = 5678
-
-/// Stands in for the panel. A real one needs a window server. A screen would
-/// show that a panel appeared, but not which list it was given, nor that it
-/// appeared once rather than twice, and those are what this records.
-@MainActor
-private final class FakeSurface: SwitcherSurface {
-    private(set) var presentedLists: [[WindowItem]] = []
-    private(set) var dismissCount = 0
-    var isPresented = false
-
-    func present(windows: [WindowItem]) {
-        presentedLists.append(windows)
-        isPresented = true
-    }
-
-    func dismiss() {
-        dismissCount += 1
-        isPresented = false
-    }
-}
-
-/// Reads a fixed amount later each time it is asked, so the figure in the
-/// measurement line is decided by the test and not by how busy the machine is.
-@MainActor
-private final class SteppingClock {
-    private let step: Duration
-    private var current = ContinuousClock.now
-
-    init(step: Duration) {
-        self.step = step
-    }
-
-    func read() -> ContinuousClock.Instant {
-        defer { current = current.advanced(by: step) }
-        return current
-    }
-}
-
-/// Lets the hand-offs between tasks on the main actor run out.
-///
-/// Not a timeout: nothing here waits on the clock or on I/O. Once the gather
-/// is released, a fixed and small number of continuations have to resume in
-/// turn before the presenter has either shown the panel or decided not to,
-/// and this is how many turns that takes with room to spare.
-private func settle() async {
-    for _ in 0 ..< 10 {
-        await Task.yield()
-    }
-}
-
-/// A presenter and the fakes behind it, so a test can drive the one and then
-/// read the others.
-@MainActor
-private struct Fixture {
-    let surface: FakeSurface
-    let log: DiagnosticsLog
-    let windows: [WindowItem]
-    let presenter: PanelPresenter
-
-    /// A store that already holds a list, which is every press but the first
-    /// one after launch.
-    init(entryCount: Int = 12, step: Duration = .microseconds(4800)) {
-        let windows = SampleWindows.make(count: entryCount)
-        self.init(store: WindowListStore(fixed: windows), windows: windows, step: step)
-    }
-
-    init(
-        store: WindowListStore,
-        windows: [WindowItem] = [],
-        step: Duration = .microseconds(4800)
-    ) {
-        let surface = FakeSurface()
-        let log = DiagnosticsLog()
-        let clock = SteppingClock(step: step)
-        presenter = PanelPresenter(
-            surface: surface,
-            store: store,
-            ownProcessIdentifier: ownProcess,
-            now: clock.read,
-            writeLine: log.write
-        )
-        self.surface = surface
-        self.log = log
-        self.windows = windows
-    }
-}
-
 @MainActor
 struct PanelPresenterTests {
     @Test func aPressPutsThePanelUpOnceWithTheListItWasGiven() {
@@ -260,6 +169,10 @@ struct PanelPresenterWaitingForAListTests {
     /// separates "turned away" from "quietly took over": either way one panel
     /// appears and one line is written, and only the name in that line says
     /// which press it belongs to.
+    ///
+    /// Two ticks rather than the one every other figure here carries. Every
+    /// press reads the clock as it arrives, so the second one's reading falls
+    /// inside the span the first is still measuring.
     @Test func aPressDuringTheWaitChangesNothing() async {
         let fake = HeldGather(entryCount: 4)
         let fixture = Fixture(store: storeHoldingNothing(fake))
@@ -276,7 +189,7 @@ struct PanelPresenterWaitingForAListTests {
         #expect(fixture.surface.dismissCount == 0)
         #expect(
             fixture.log.lines == [
-                "panel shown 4.8 ms after Cmd+Tab (4 entries)"
+                "panel shown 9.6 ms after Cmd+Tab (4 entries)"
                     + "; gathered on the spot (no list held yet)",
             ]
         )
@@ -285,6 +198,11 @@ struct PanelPresenterWaitingForAListTests {
     /// Turning to another application while the list is still coming means the
     /// panel is no longer wanted. Arriving late, it would land on top of
     /// whatever the user had moved to.
+    ///
+    /// The press is written down as it goes. A release calls one off in just
+    /// the same way and says so, and an activation that stayed quiet would
+    /// leave someone counting keystrokes against the log a press short, with
+    /// no way to tell whether it ever arrived.
     @Test func anActivationDuringTheWaitCallsThePanelOff() async {
         let fake = HeldGather(entryCount: 4)
         let fixture = Fixture(store: storeHoldingNothing(fake))
@@ -299,7 +217,12 @@ struct PanelPresenterWaitingForAListTests {
         #expect(fixture.surface.presentedLists.isEmpty)
         // Nothing was on screen, so nothing was taken off it either.
         #expect(fixture.surface.dismissCount == 0)
-        #expect(fixture.log.lines.isEmpty)
+        #expect(
+            fixture.log.lines == [
+                "called off the press waiting for its first list; "
+                    + "the frontmost application changed",
+            ]
+        )
     }
 
     /// A notification naming this process touches neither the clock nor the
@@ -311,7 +234,8 @@ struct PanelPresenterWaitingForAListTests {
     /// and `anActivationDuringTheWaitCallsThePanelOff` have to come out
     /// opposite, and only asserting both says so: with the guard dropped, or
     /// with the pending-press block moved above it, the panel the user asked
-    /// for here would be thrown away and no line written to say why.
+    /// for here would be thrown away and a call-off written down for a press
+    /// nobody abandoned.
     @Test func thisProcessComingForwardDoesNotCallOffAPendingPress() async {
         let fake = HeldGather(entryCount: 4)
         let fixture = Fixture(store: storeHoldingNothing(fake))
@@ -349,7 +273,13 @@ struct PanelPresenterWaitingForAListTests {
         await settle()
 
         #expect(fixture.surface.presentedLists.count == 1)
-        #expect(fixture.log.lines.count == 1)
+        #expect(
+            fixture.log.lines == [
+                "called off the press waiting for its first list; "
+                    + "the frontmost application changed",
+                "panel shown 4.8 ms after Cmd+Tab (4 entries)",
+            ]
+        )
     }
 
     /// A press landing between the call-off and the list still has to be
@@ -373,6 +303,8 @@ struct PanelPresenterWaitingForAListTests {
         #expect(fixture.surface.presentedLists.first?.count == 4)
         #expect(
             fixture.log.lines == [
+                "called off the press waiting for its first list; "
+                    + "the frontmost application changed",
                 "panel shown 4.8 ms after Shift+Cmd+Tab (4 entries)"
                     + "; gathered on the spot (no list held yet)",
             ]

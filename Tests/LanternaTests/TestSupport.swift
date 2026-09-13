@@ -1,4 +1,203 @@
+import Darwin
 @testable import Lanterna
+
+/// Arbitrary and distinct. Nothing depends on the values, only on whether the
+/// process that came forward is the one the presenter was told to ignore.
+let ownProcess: pid_t = 1234
+let otherProcess: pid_t = 5678
+
+/// Stands in for the panel. A real one needs a window server. A screen would
+/// show that a panel appeared, but not which list it was given, nor that it
+/// appeared once rather than twice, and those are what this records.
+@MainActor
+final class FakeSurface: SwitcherSurface {
+    private(set) var presentedLists: [[WindowItem]] = []
+    private(set) var dismissCount = 0
+    var isPresented = false
+
+    /// Run inside `dismiss()`, before it returns.
+    ///
+    /// Lets a test make the panel's disappearance cost something it can see.
+    /// A stepping clock gives every reading the same weight, so a figure that
+    /// is meant to span the dismissal and one that stops just short of it come
+    /// out identical — one tick either way. Charging the dismissal its own tick
+    /// is what separates them.
+    var onDismiss: (@MainActor () -> Void)?
+
+    func present(windows: [WindowItem]) {
+        presentedLists.append(windows)
+        isPresented = true
+    }
+
+    func dismiss() {
+        dismissCount += 1
+        isPresented = false
+        onDismiss?()
+    }
+}
+
+/// Reads a fixed amount later each time it is asked, so the figure in the
+/// measurement line is decided by the test and not by how busy the machine is.
+@MainActor
+final class SteppingClock {
+    private let step: Duration
+    private var current = ContinuousClock.now
+
+    init(step: Duration) {
+        self.step = step
+    }
+
+    func read() -> ContinuousClock.Instant {
+        defer { current = current.advanced(by: step) }
+        return current
+    }
+}
+
+/// Lets the hand-offs between tasks on the main actor run out.
+///
+/// Not a timeout: nothing here waits on the clock or on I/O. Once the gather
+/// is released, a fixed and small number of continuations have to resume in
+/// turn before the presenter has either shown the panel or decided not to,
+/// and this is how many turns that takes with room to spare.
+func settle() async {
+    for _ in 0 ..< 10 {
+        await Task.yield()
+    }
+}
+
+/// Whether a monitor is running, as the presenter asks it.
+///
+/// A box rather than a flag passed once, because the whole point of asking
+/// per press is that the answer can change between two of them. A test that
+/// could only set it at construction could not stage a tap dying while the
+/// panel is up.
+@MainActor
+final class MonitorLiveness {
+    var isRunning: Bool
+
+    init(isRunning: Bool) {
+        self.isRunning = isRunning
+    }
+}
+
+/// Whether Command is down, as the presenter asks it.
+///
+/// A box for the same reason `MonitorLiveness` is one, and here it is the only
+/// way at all: a test process cannot put a real Command key down, so staging a
+/// press that arrives after its own release means saying so between presses.
+///
+/// It counts the asking as well, and lets a test wait for a given number of
+/// asks. The presenter looks again on a timer for as long as the panel is up,
+/// and what a test needs to know is that a look has happened — sleeping a
+/// fixed span instead would be waiting on how busy the machine is rather than
+/// on the thing that was meant to occur.
+@MainActor
+final class CommandHold {
+    var isHeld: Bool
+    private(set) var askCount = 0
+    private var reached: CheckedContinuation<Void, Never>?
+    private var awaitedCount = 0
+
+    init(isHeld: Bool) {
+        self.isHeld = isHeld
+    }
+
+    func read() -> Bool {
+        askCount += 1
+        if askCount >= awaitedCount {
+            reached?.resume()
+            reached = nil
+        }
+        return isHeld
+    }
+
+    func waitUntilAsked(times: Int) async {
+        guard askCount < times else { return }
+        awaitedCount = times
+        await withCheckedContinuation { reached = $0 }
+    }
+}
+
+/// A presenter and the fakes behind it, so a test can drive the one and then
+/// read the others.
+///
+/// Here rather than in the presenter's own suite for the reason
+/// `DiagnosticsLog` and `HeldGather` are: more than one suite looks at the
+/// presenter, each from its own side. Two copies would be two fakes growing
+/// apart, and a change to `SwitcherSurface` would then be made in one of them.
+@MainActor
+struct Fixture {
+    let surface: FakeSurface
+    let log: DiagnosticsLog
+    let windows: [WindowItem]
+    let presenter: PanelPresenter
+    /// The very clock the presenter reads, so a test can charge one operation
+    /// a tick and then ask whether the figure counted it.
+    let clock: SteppingClock
+    /// The very box the presenter asks, so a test can switch the monitor off
+    /// between one press and the next.
+    let monitorLiveness: MonitorLiveness
+    /// The very box the presenter asks, so a test can let Command go before
+    /// the press that was made with it arrives.
+    let commandHold: CommandHold
+
+    /// A store that already holds a list, which is every press but the first
+    /// one after launch.
+    init(
+        entryCount: Int = 12,
+        step: Duration = .microseconds(4800),
+        closesOnCommandRelease: Bool = false,
+        commandIsHeld: Bool = true,
+        commandWatchInterval: Duration = .milliseconds(1)
+    ) {
+        let windows = SampleWindows.make(count: entryCount)
+        self.init(
+            store: WindowListStore(fixed: windows),
+            windows: windows,
+            step: step,
+            closesOnCommandRelease: closesOnCommandRelease,
+            commandIsHeld: commandIsHeld,
+            commandWatchInterval: commandWatchInterval
+        )
+    }
+
+    init(
+        store: WindowListStore,
+        windows: [WindowItem] = [],
+        step: Duration = .microseconds(4800),
+        closesOnCommandRelease: Bool = false,
+        commandIsHeld: Bool = true,
+        commandWatchInterval: Duration = .milliseconds(1)
+    ) {
+        let surface = FakeSurface()
+        let log = DiagnosticsLog()
+        let clock = SteppingClock(step: step)
+        let monitorLiveness = MonitorLiveness(isRunning: closesOnCommandRelease)
+        // Held by default, because that is what a press made with the key
+        // down means, and every test written before the presenter could ask
+        // was written for that press.
+        let commandHold = CommandHold(isHeld: commandIsHeld)
+        presenter = PanelPresenter(
+            surface: surface,
+            store: store,
+            ownProcessIdentifier: ownProcess,
+            now: clock.read,
+            writeLine: log.write,
+            closesOnCommandRelease: { [monitorLiveness] in monitorLiveness.isRunning },
+            commandIsHeld: { [commandHold] in commandHold.read() },
+            // A real fiftieth of a second per look would be paid over again by
+            // every test that waits for one. The store's loop tests shorten
+            // their interval for the same reason.
+            commandWatchInterval: commandWatchInterval
+        )
+        self.surface = surface
+        self.log = log
+        self.windows = windows
+        self.clock = clock
+        self.monitorLiveness = monitorLiveness
+        self.commandHold = commandHold
+    }
+}
 
 /// Keeps the lines written to it, so a test can read them back — including
 /// reading that there were none.
