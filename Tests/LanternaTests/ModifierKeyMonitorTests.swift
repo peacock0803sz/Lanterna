@@ -1,46 +1,6 @@
 @testable import Lanterna
 import Testing
 
-/// A monitor and the fake tap behind it, so a test can drive the one and read
-/// the other.
-///
-/// Named for what it holds rather than just `Fixture`: the presenter's own
-/// fixture is shared across suites from `TestSupport`, and two things called
-/// the same in one module, one of them shadowing the other only inside this
-/// file, would read as the same thing.
-@MainActor
-private struct MonitorFixture {
-    let tap: FakeEventTap
-    let log: DiagnosticsLog
-    let monitor: ModifierKeyMonitor
-    /// How many times the monitor passed a release on to its owner.
-    let releases: Counter
-
-    @MainActor
-    final class Counter {
-        private(set) var count = 0
-        func increment() {
-            count += 1
-        }
-    }
-
-    init(startSucceeds: Bool = true, hasPermission: Bool = true) {
-        let tap = FakeEventTap()
-        tap.startSucceeds = startSucceeds
-        tap.hasPermission = hasPermission
-        let log = DiagnosticsLog()
-        let releases = Counter()
-        monitor = ModifierKeyMonitor(
-            tap: tap,
-            onCommandRelease: { releases.increment() },
-            writeLine: log.write
-        )
-        self.tap = tap
-        self.log = log
-        self.releases = releases
-    }
-}
-
 @MainActor
 struct ModifierKeyMonitorTests {
     @Test func aTapTheSystemHandsOverIsAStart() {
