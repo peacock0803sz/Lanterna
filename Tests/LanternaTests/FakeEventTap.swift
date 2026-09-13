@@ -30,6 +30,7 @@ final class FakeEventTap: EventTapControlling {
     private var onCommandRelease: (@MainActor () -> Void)?
     private var onDisabledBySystem: (@MainActor () -> Void)?
     private var asked: CheckedContinuation<Void, Never>?
+    private var awaitedCount = 0
 
     func start(
         onCommandRelease: @escaping @MainActor () -> Void,
@@ -45,23 +46,71 @@ final class FakeEventTap: EventTapControlling {
 
     func enable() -> Bool {
         enableCount += 1
-        asked?.resume()
-        asked = nil
+        if enableCount >= awaitedCount {
+            asked?.resume()
+            asked = nil
+        }
         guard enableSucceeds else { return false }
         isEnabled = true
         return true
     }
 
-    /// Parks until something has asked for the tap back.
+    /// Parks until the tap has been asked for back `times` times over.
     ///
     /// For the cases that drive the monitor's loop rather than calling its
     /// check by hand. A fixed sleep would have to guess how long a turn takes,
     /// and the guess is wrong in both directions: too short and a suite busy
     /// enough to keep every other test on the main actor makes it fail, too
     /// long and every run pays for the worst machine it might meet.
-    func waitUntilAsked() async {
-        guard enableCount == 0 else { return }
-        await withCheckedContinuation { asked = $0 }
+    ///
+    /// Counted rather than waited for once, the way `CountingGather` counts
+    /// the store's passes. One ask says a timer fired; only a run of them says
+    /// there is a loop behind it, and a monitor whose asking stopped after the
+    /// first turn is exactly the failure that would otherwise go unnoticed.
+    /// The count waited on is the one the test reads afterwards, so what was
+    /// waited for and what is asserted cannot come apart.
+    ///
+    /// One waiter at a time, said loudly rather than quietly. A second would
+    /// overwrite the first's continuation, and the first would then never be
+    /// resumed: the runtime calls that a leaked continuation and names the
+    /// continuation, not the test that stranded it, which leaves whoever meets
+    /// it looking for the wrong thing. A queue would make two waiters legal,
+    /// but nothing here wants two, so this traps instead — the cheaper of the
+    /// two ways to make sure the mistake cannot be made in silence.
+    ///
+    /// Gives the wait up when the task is cancelled, which is what lets a time
+    /// limit on the caller mean anything. A plain `withCheckedContinuation`
+    /// cannot be cancelled: the trait duly cancels the test, the wait carries
+    /// on regardless, and a run whose loop stopped being made hangs for as
+    /// long as anyone lets it rather than going red. Giving up returns to the
+    /// caller with the count short, so the assertion after the wait is what
+    /// reports the failure — a test that hangs says nothing about why.
+    func waitUntilAsked(times: Int) async {
+        guard enableCount < times else { return }
+        precondition(asked == nil, "FakeEventTap supports one waiter at a time")
+        awaitedCount = times
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                // Cancellation can arrive before there is anything to resume.
+                // Both orders end the wait, because whichever of the two runs
+                // second finds what the first left: this sees the flag, or
+                // the handler below sees the continuation.
+                if Task.isCancelled {
+                    continuation.resume()
+                } else {
+                    asked = continuation
+                }
+            }
+        } onCancel: {
+            // Hops back because cancellation is delivered wherever it happens
+            // and everything here belongs to the main actor. The actor being
+            // serial is what makes the pair of them safe: one resume runs to
+            // completion before the other can look.
+            Task { @MainActor in
+                asked?.resume()
+                asked = nil
+            }
+        }
     }
 
     func disable() {

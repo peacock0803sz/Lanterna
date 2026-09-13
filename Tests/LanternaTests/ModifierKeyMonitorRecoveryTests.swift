@@ -172,24 +172,67 @@ struct ModifierKeyMonitorRecoveryTests {
         #expect(fixture.log.lines.last == Self.foundDisabled("4.8"))
     }
 
-    /// The loop, driven for real rather than by hand — the only case here that
-    /// does. Without it, a `start()` that made no timer at all would pass
-    /// every other case in this file.
-    @Test func aStartedRunAsksWithoutWaitingToBeAsked() async {
+    /// The loop, driven for real rather than by hand — one of the two cases
+    /// here that do. Without it, a `start()` that made no timer at all would
+    /// pass every other case in this file.
+    ///
+    /// The time limit is not about slowness: what is awaited here is an ask
+    /// the monitor is free to stop making, so a run that made no timer would
+    /// park on it for ever and hang the suite rather than fail it.
+    @Test(.timeLimit(.minutes(1))) func aStartedRunAsksWithoutWaitingToBeAsked() async {
         let fixture = MonitorFixture(healthCheckInterval: .milliseconds(1))
         _ = fixture.monitor.start()
         fixture.tap.isEnabled = false
 
-        await fixture.tap.waitUntilAsked()
+        await fixture.tap.waitUntilAsked(times: 1)
 
         #expect(fixture.tap.enableCount == 1)
         #expect(fixture.tap.isEnabled)
     }
 
+    /// The case above proves a timer fired once. This one proves there is a
+    /// loop behind it, which is what the class promises: a
+    /// `startHealthChecks()` cut down to one sleep and one check passes every
+    /// other case in this file, and would leave a run asking after its tap
+    /// once and then never again.
+    ///
+    /// The tap is held so that it cannot come back, because that is what
+    /// leaves every turn something to do — one that came back would be found
+    /// delivering on the next turn and asked about no further, and the count
+    /// would stop at one for a reason that has nothing to do with the loop.
+    /// It is also the state the repetition matters most in: a tap that will
+    /// not return is the one a panel can be stranded by, and the line each
+    /// turn writes is the only evidence that the trouble is still going on.
+    ///
+    /// Three turns for the reason the store's loop asks for three: a check
+    /// that fired on its second turn, or on a count it had let slip, would
+    /// pass a single turn and fail a run of them. At or above rather than
+    /// exactly, because the loop is not stopped until after the wait and a
+    /// further turn may land in between.
+    ///
+    /// The time limit is not about slowness: a loop reduced to a single pass
+    /// would wait here for ever rather than fail.
+    @Test(.timeLimit(.minutes(1))) func theAskingKeepsGoingRatherThanHappeningOnce() async {
+        let fixture = MonitorFixture(healthCheckInterval: .milliseconds(1))
+        _ = fixture.monitor.start()
+        fixture.tap.enableSucceeds = false
+        fixture.tap.isEnabled = false
+
+        await fixture.tap.waitUntilAsked(times: 3)
+        fixture.monitor.stop()
+
+        #expect(fixture.tap.enableCount >= 3)
+    }
+
     /// A refused run has no tap to ask about, so it must make no timer. One
     /// that did would wake an otherwise idle process every couple of seconds
     /// for the rest of its life, to ask a question with no subject.
-    @Test func aRefusedRunNeverAsksAboutATapItNeverGot() async {
+    ///
+    /// The time limit is not about slowness: the wait below is measured
+    /// against a second monitor's loop rather than against the clock, so a
+    /// `start()` that made no timer for either of them would leave this parked
+    /// on an ask that never comes, hanging the suite instead of failing it.
+    @Test(.timeLimit(.minutes(1))) func aRefusedRunNeverAsksAboutATapItNeverGot() async {
         let fixture = MonitorFixture(startSucceeds: false, healthCheckInterval: .milliseconds(1))
         #expect(fixture.monitor.start() == .refused(hadPermission: true))
         fixture.tap.isEnabled = false
@@ -202,7 +245,12 @@ struct ModifierKeyMonitorRecoveryTests {
 
     /// Shutting down ends the asking. A loop left running would go on putting
     /// a tap back that the same call had just thrown away.
-    @Test func stoppingEndsTheAsking() async {
+    ///
+    /// The time limit is for the yardstick rather than for the subject: this
+    /// waits on a loop belonging to another monitor, and a run in which no
+    /// loop starts at all would strand the wait rather than reach the reading
+    /// below.
+    @Test(.timeLimit(.minutes(1))) func stoppingEndsTheAsking() async {
         let fixture = MonitorFixture(healthCheckInterval: .milliseconds(1))
         _ = fixture.monitor.start()
         fixture.monitor.stop()
@@ -224,11 +272,16 @@ struct ModifierKeyMonitorRecoveryTests {
     /// and would guess wrong on a machine busy enough — which is exactly the
     /// machine these cases run on, since the whole suite competes for this one
     /// actor.
+    ///
+    /// The time limits belong to the two callers rather than here, because a
+    /// trait on a helper binds nothing: what has to be bounded is the test
+    /// that ends up waiting, and the yardstick can only be as reliable as the
+    /// loop it is measuring — if that stops being made, this waits for ever.
     private static func waitOutATurn() async {
         let yardstick = MonitorFixture(healthCheckInterval: .milliseconds(1))
         _ = yardstick.monitor.start()
         yardstick.tap.isEnabled = false
-        await yardstick.tap.waitUntilAsked()
+        await yardstick.tap.waitUntilAsked(times: 1)
         yardstick.monitor.stop()
     }
 
