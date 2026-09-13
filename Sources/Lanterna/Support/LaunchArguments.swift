@@ -19,18 +19,48 @@ enum LaunchArguments {
         var stopMonitorEvery: Duration?
     }
 
+    /// What a flag will take, as one closed choice.
+    ///
+    /// A case per range rather than a number and a phrase side by side. Two
+    /// fields can disagree — a flag refusing zero while its refusal tells the
+    /// reader zero was fine — and that disagreement would show up only in the
+    /// text of a rejection, which is the one place nothing looks. Here the two
+    /// halves are one thing: the bound and the words for it are read off the
+    /// same case, so neither can drift from the other.
+    ///
+    /// Closed on purpose. A range added later leaves both switches below short
+    /// of a case, and the flag wanting it cannot be written down until its
+    /// bound and its wording have both been supplied.
+    enum AcceptedValues: Equatable, Sendable {
+        case zeroOrMore
+        case oneOrMore
+
+        /// The smallest value accepted.
+        var minimum: Int {
+            switch self {
+            case .zeroOrMore: 0
+            case .oneOrMore: 1
+            }
+        }
+
+        /// That bound, in the words a refusal uses.
+        var described: String {
+            switch self {
+            case .zeroOrMore: "zero or more"
+            case .oneOrMore: "one or more"
+            }
+        }
+    }
+
     /// One flag, and what it will take.
     ///
-    /// The bound and the words for it sit together because a refusal has to
+    /// The bound and the words for it travel together because a refusal has to
     /// say which range was missed. Naming the flag but not its range would
     /// leave a reader knowing which value was rejected and not what would have
     /// been accepted instead.
     struct Flag: Equatable, Sendable {
         let name: String
-        /// The smallest value accepted.
-        let minimum: Int
-        /// That bound, in the words a refusal uses.
-        let acceptedRange: String
+        let accepts: AcceptedValues
 
         /// What the `--flag=value` form starts with.
         var inlinePrefix: String {
@@ -40,8 +70,7 @@ enum LaunchArguments {
 
     static let sampleCountFlag = Flag(
         name: "--sample-count",
-        minimum: 0,
-        acceptedRange: "zero or more"
+        accepts: .zeroOrMore
     )
 
     /// Whole seconds, and at least one of them. A period of zero would be a
@@ -49,8 +78,7 @@ enum LaunchArguments {
     /// is a way of turning it off rather than a way of watching it recover.
     static let stopMonitorEveryFlag = Flag(
         name: "--stop-monitor-every",
-        minimum: 1,
-        acceptedRange: "one or more"
+        accepts: .oneOrMore
     )
 
     /// Every flag there is. Anything beginning with two dashes and absent from
@@ -74,7 +102,7 @@ enum LaunchArguments {
             case let .missingValue(flag):
                 "\(flag.name) needs a value"
             case let .invalidValue(flag, value):
-                "\"\(value)\" is not a whole number of \(flag.acceptedRange) (\(flag.name))"
+                "\"\(value)\" is not a whole number of \(flag.accepts.described) (\(flag.name))"
             case let .unknownOption(option):
                 "unknown option \"\(option)\""
             case let .duplicateFlag(flag):
@@ -138,7 +166,7 @@ enum LaunchArguments {
         _ rawValue: String,
         of flag: Flag
     ) throws(ParseError) -> Int {
-        guard let value = Int(rawValue), value >= flag.minimum else {
+        guard let value = Int(rawValue), value >= flag.accepts.minimum else {
             throw .invalidValue(flag: flag, value: rawValue)
         }
         return value
