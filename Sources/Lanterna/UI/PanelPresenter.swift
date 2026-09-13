@@ -113,6 +113,14 @@ final class PanelPresenter {
     /// press does and there is no ordering between a press and its panel to
     /// reason about.
     func handleHotkey(_ combination: HotkeyCombination, deliveryDelay: Duration?) {
+        // Read before anything else, because both questions below are put to
+        // the window server rather than answered in this process. A span begun
+        // after them would leave out work this process is answerable for, and
+        // would quietly shrink as anything further moved ahead of the read
+        // while the figure went on reading the same. A press that is turned
+        // away writes no line at all, so charging it a clock read costs
+        // nothing.
+        let startedAt = now()
         if surface.isPresented {
             // This is where the panel closes whenever no monitor is running
             // just then — one never started, or one has stopped. With one
@@ -149,8 +157,6 @@ final class PanelPresenter {
         // will put the panel up. The panel is not up yet, so without this a
         // second press would take the same path again and two would arrive.
         guard pendingPress == nil else { return }
-
-        let startedAt = now()
         guard let held = store.snapshot else {
             waitForTheFirstList(combination, deliveryDelay: deliveryDelay, startedAt: startedAt)
             return

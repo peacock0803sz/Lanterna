@@ -169,6 +169,10 @@ struct PanelPresenterWaitingForAListTests {
     /// separates "turned away" from "quietly took over": either way one panel
     /// appears and one line is written, and only the name in that line says
     /// which press it belongs to.
+    ///
+    /// Two ticks rather than the one every other figure here carries. Every
+    /// press reads the clock as it arrives, so the second one's reading falls
+    /// inside the span the first is still measuring.
     @Test func aPressDuringTheWaitChangesNothing() async {
         let fake = HeldGather(entryCount: 4)
         let fixture = Fixture(store: storeHoldingNothing(fake))
@@ -185,7 +189,7 @@ struct PanelPresenterWaitingForAListTests {
         #expect(fixture.surface.dismissCount == 0)
         #expect(
             fixture.log.lines == [
-                "panel shown 4.8 ms after Cmd+Tab (4 entries)"
+                "panel shown 9.6 ms after Cmd+Tab (4 entries)"
                     + "; gathered on the spot (no list held yet)",
             ]
         )
