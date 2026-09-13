@@ -193,6 +193,33 @@ struct PanelPresenterCommitTests {
         #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
     }
 
+    /// The monitor is the only thing that reports a release, so a run without
+    /// one never makes this call. Pinned all the same: whether it is made is a
+    /// property of how the delegate wires the two together, not of anything
+    /// here, and the presenter is handed a way to ask whether a monitor is
+    /// running precisely because that answer can change under it.
+    ///
+    /// All that is asked is that nothing be left wedged — the panel goes,
+    /// one line says so, and the next press is answered as usual. Doing
+    /// nothing instead is not asked for: this method can read no more of the
+    /// situation than its caller already could, and a branch with no caller is
+    /// a branch nothing keeps honest.
+    @Test func withoutAMonitorAReleaseArrivingAnywayLeavesNothingWedged() {
+        let fixture = Fixture()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        let linesBefore = fixture.log.lines.count
+
+        fixture.presenter.handleCommandRelease()
+
+        #expect(fixture.surface.dismissCount == 1)
+        #expect(!fixture.surface.isPresented)
+        #expect(fixture.log.lines.count == linesBefore + 1)
+
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(fixture.surface.presentedLists.count == 2)
+        #expect(fixture.surface.isPresented)
+    }
+
     /// A monitor that stops running partway through has to hand the closing
     /// back to the press. The release it was going to close on can no longer
     /// arrive, and the panel takes no keys of its own, so a press still turned
