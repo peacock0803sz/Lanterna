@@ -275,11 +275,13 @@ struct ModifierKeyMonitorRecoveryTests {
     /// nothing, whichever road it came by, and the road the race takes is only
     /// one of the two.
     ///
-    /// Nothing written is the whole of the assertion, rather than some
-    /// particular line going unwritten. The fake's `invalidate()` leaves
-    /// `enable()` able to succeed where a real tap answers false once its tap
-    /// is gone, so the two would fail this differently — one claiming a
-    /// recovery, one crying the alarm. Silence is what both of them owe.
+    /// Nothing written is the whole of the assertion, and the line that would
+    /// otherwise appear is the alarm rather than anything milder: the tap is
+    /// gone by this point, so the putting-back fails and the wording that
+    /// follows is the one reserved for a tap that will not come back. The
+    /// fake answers that the way the real one does, which is what lets this
+    /// case stand for the real shutdown rather than for a friendlier
+    /// rehearsal of it.
     @Test func aCheckArrivingAfterAStopWritesNothing() {
         let fixture = MonitorFixture()
         _ = fixture.monitor.start()

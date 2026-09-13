@@ -10,10 +10,43 @@
 /// only by something that asks. `enableSucceeds` holds a tap that will not
 /// come back, which is the one state a panel can be stranded in and is
 /// reachable no other way.
+///
+/// `invalidate()` stages the third state, the one with no tap at all, and
+/// everything answers from then on the way the real tap does: `isEnabled`
+/// false whatever it was last set to, `enable()` false without putting
+/// anything back up, and `disable()` doing nothing. `EventTapControlling`
+/// requires that of every implementation and `ModifierKeyMonitor.stop()`
+/// leans on it, so a double that forgave itself there would leave the
+/// requirement resting on nothing anybody could check.
 @MainActor
 final class FakeEventTap: EventTapControlling {
     var hasPermission = true
-    var isEnabled = false
+
+    /// Whether the tap exists and is currently enabled.
+    ///
+    /// Settable, because a stop nothing announced is staged by putting it
+    /// down. Read back through `hasTap`, so a tap that has been taken down
+    /// answers false however it was last set — which is what the real one
+    /// does, and the whole of what makes the state after an `invalidate()`
+    /// worth anything to a test.
+    var isEnabled: Bool {
+        get { hasTap && isSwitchedOn }
+        set { isSwitchedOn = newValue }
+    }
+
+    /// Whether there is a tap to work on at all.
+    ///
+    /// The real tap keeps a `CFMachPort?` and answers every operation against
+    /// it: once that is gone `isEnabled` and `enable()` are both false and
+    /// `disable()` does nothing. `EventTapControlling` states that as a
+    /// requirement and `ModifierKeyMonitor.stop()` leans on it, so a double
+    /// that went on answering as though the tap were still there would leave
+    /// the one claim the requirement is about untestable.
+    private var hasTap = false
+
+    /// Whether the tap has been switched on, which only means anything while
+    /// there is a tap for it to be true of.
+    private var isSwitchedOn = false
 
     /// What `start` will answer. False is a system that would not hand a tap
     /// over, which is the one thing the fallback is decided on.
@@ -40,6 +73,11 @@ final class FakeEventTap: EventTapControlling {
         guard startSucceeds else { return false }
         self.onCommandRelease = onCommandRelease
         self.onDisabledBySystem = onDisabledBySystem
+        // A start after an `invalidate()` produces a fresh tap, as the real
+        // one does: nothing there refuses a second start, and the rule that
+        // only one is attempted a launch belongs to the monitor rather than to
+        // the tap.
+        hasTap = true
         isEnabled = true
         return true
     }
@@ -50,7 +88,10 @@ final class FakeEventTap: EventTapControlling {
             asked?.resume()
             asked = nil
         }
-        guard enableSucceeds else { return false }
+        // Counted and answered above whether or not there is anything to
+        // answer with: the asking is what a waiter is waiting for, and an ask
+        // that found no tap is still an ask that happened.
+        guard hasTap, enableSucceeds else { return false }
         isEnabled = true
         return true
     }
@@ -115,12 +156,14 @@ final class FakeEventTap: EventTapControlling {
 
     func disable() {
         disableCount += 1
+        guard hasTap else { return }
         isEnabled = false
     }
 
     func invalidate() {
         invalidateCount += 1
-        isEnabled = false
+        hasTap = false
+        isSwitchedOn = false
         onCommandRelease = nil
         onDisabledBySystem = nil
     }
