@@ -102,6 +102,28 @@ struct PanelExitTests {
         #expect(empty.log.lines.last == full.log.lines.last)
     }
 
+    /// The figure has to cover the call that takes the panel off the screen,
+    /// which is where the time goes on a real machine and what the hundred
+    /// milliseconds are budgeted for.
+    ///
+    /// Nothing else in this file can tell the difference. Every reading of
+    /// this clock costs one tick, so a figure taken after the dismissal and
+    /// one taken before it both come out at a single tick. Charging the
+    /// dismissal a tick of its own is what splits them: two ticks if the call
+    /// is inside the span, one if it is not. The commit path is held to the
+    /// same property the same way.
+    @Test func theCancelFigureCoversTheCallThatHidesThePanel() {
+        let fixture = runningWithAMonitor()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.surface.onDismiss = { [clock = fixture.clock] in
+            _ = clock.read()
+        }
+
+        _ = fixture.presenter.handleKeyStroke(press(kVK_ANSI_Period))
+
+        #expect(fixture.log.lines.last == "cancelled 9.6 ms after Cmd+Period")
+    }
+
     /// The gesture ends with Command coming up, and by then the panel is
     /// already gone. That release must write nothing: the user declined this
     /// appearance, and a line arriving afterwards would record a commit they
