@@ -238,10 +238,10 @@ final class PanelPresenter {
     /// Every activation is announced, so most calls arrive with no panel up
     /// and must do nothing at all.
     ///
-    /// This process is ruled out rather than assumed absent. The panel takes
-    /// key status now, which is the part of this that changed, and taking it
-    /// was measured not to bring the application forward: over twenty
-    /// appearances no notification named this process, the frontmost
+    /// This process is ruled out rather than assumed absent. The panel can
+    /// take key status now, which is the part of this that changed, and
+    /// taking it was measured not to bring the application forward: over
+    /// twenty appearances no notification named this process, the frontmost
     /// application never changed, and the application never reported itself
     /// active. The reading is not an instrument that failed to fire, because
     /// a control that brought another application forward on purpose was
