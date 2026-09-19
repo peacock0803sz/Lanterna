@@ -232,12 +232,20 @@ final class PanelPresenter {
     /// Every activation is announced, so most calls arrive with no panel up
     /// and must do nothing at all.
     ///
-    /// This process is ruled out rather than assumed absent. The panel is
-    /// built not to activate it — non-activating, neither key nor main,
-    /// ordered front regardless — so a notification naming this process is not
-    /// expected; acting on one that did arrive would take a panel down the
-    /// moment it appeared, or throw away a press still on its way to becoming
-    /// one, and one comparison is a cheap way never to find out the hard way.
+    /// This process is ruled out rather than assumed absent. The panel takes
+    /// key status now, which is the part of this that changed, and taking it
+    /// was measured not to bring the application forward: over twenty
+    /// appearances no notification named this process, the frontmost
+    /// application never changed, and the application never reported itself
+    /// active. The reading is not an instrument that failed to fire, because
+    /// a control that brought another application forward on purpose was
+    /// announced both times.
+    ///
+    /// So a notification naming this process is not expected — and it is
+    /// still compared for, because acting on one that did arrive would take a
+    /// panel down the moment it appeared, or throw away a press still on its
+    /// way to becoming one. One comparison is a cheap way never to find out
+    /// the hard way.
     func handleActivation(of processIdentifier: pid_t) {
         guard processIdentifier != ownProcessIdentifier else { return }
         if pendingPress.isWaiting {
