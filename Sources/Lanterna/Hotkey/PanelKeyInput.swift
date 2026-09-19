@@ -88,10 +88,8 @@ protocol PanelKeyChannel {
     ///
     /// Every implementation has to take off whatever it started before, and to
     /// do it before anything new is put in place. Two monitors over one
-    /// keyboard would ask the same question twice and act on both answers, and
-    /// what that costs is not theoretical: one press of an arrow would move the
-    /// selection two rows, and one Return would commit against a panel the
-    /// first answer had already taken down.
+    /// keyboard would ask the same question twice and act on both answers —
+    /// one press arriving as two, for as long as both are up.
     ///
     /// The requirement is set out here, where every implementation can be held
     /// to it, rather than in the body of the one that happens to keep it — the
