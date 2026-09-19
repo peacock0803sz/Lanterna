@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import IOKit.hidsystem
 @testable import Lanterna
 import Testing
 
@@ -11,6 +12,14 @@ private func press(
 ) -> PanelKeystroke {
     PanelKeystroke(keyCode: UInt16(keyCode), modifiers: modifiers, isARepeat: repeating)
 }
+
+/// The bit a real keyboard sets to say Command was held down on the left-hand
+/// key rather than the right. It sits outside
+/// `NSEvent.ModifierFlags.deviceIndependentFlagsMask`, which is what makes it
+/// the thing to press a keystroke with when the narrowing is the claim.
+private let leftCommandKey = NSEvent.ModifierFlags(
+    rawValue: UInt(NX_DEVICELCMDKEYMASK)
+)
 
 struct PanelKeyInputTests {
     /// Every row but the full stop ignores the modifiers, and both ways round
@@ -45,6 +54,24 @@ struct PanelKeyInputTests {
                 == .cancel(.commandPeriod)
         )
         #expect(PanelKeyInput.action(for: press(kVK_ANSI_Period)) == .absorb)
+    }
+
+    /// Two presses that mean the same thing compare equal, whichever
+    /// Command key was under the hand.
+    ///
+    /// Every other case here hands in flags that are already narrowed, so
+    /// each of them would go on passing with the narrowing taken out of
+    /// `PanelKeystroke.init` — the table asks whether Command is among the
+    /// modifiers, and an extra bit beside it does not change that answer.
+    /// What would break is quieter and lives one layer up: `PanelKeystroke`
+    /// is `Equatable`, so the same Cmd+. made with the left Command and with
+    /// the right would stop being the same keystroke. That is said here, in
+    /// the form the promise takes, rather than only as a count of bits.
+    @Test func theCommandKeyUsedDoesNotMakeItADifferentKeystroke() {
+        let onTheLeftHandKey = press(kVK_ANSI_Period, [.command, leftCommandKey])
+        #expect(onTheLeftHandKey == press(kVK_ANSI_Period, .command))
+        #expect(onTheLeftHandKey.modifiers == .command)
+        #expect(PanelKeyInput.action(for: onTheLeftHandKey) == .cancel(.commandPeriod))
     }
 
     /// Keys nobody gave a meaning to still arrive, and are still swallowed.
