@@ -65,6 +65,55 @@ struct SwitcherPanelTests {
         #expect(panel.contentView === before)
     }
 
+    /// The row an appearance is given is the row it draws. Nothing else about
+    /// the panel would say otherwise: `present` sizes itself from the list and
+    /// puts the window up whether or not the choice ever reached the view, so
+    /// an appearance that dropped it would leave a panel with every row
+    /// looking unchosen and a caller certain one was highlighted.
+    @Test func presentingDrawsTheRowItWasGiven() {
+        let panel = panel()
+        let windows = SampleWindows.make(count: 3)
+        panel.present(windows: windows, selecting: windows[1].id)
+        #expect(panel.shownSelection == windows[1].id)
+        panel.dismiss()
+    }
+
+    /// A swapped-in list leaves the choice where it was. Assigning a new root
+    /// view replaces every field of it, so the selection survives only by
+    /// being carried across by hand — and this is the one case that says so:
+    /// the row asked for here is neither the first of the new list nor
+    /// nothing, so a swap that dropped the choice and one that recomputed it
+    /// from the list both come out wrong.
+    @Test func updatingKeepsTheRowThatWasAlreadyChosen() {
+        let panel = panel()
+        let windows = SampleWindows.make(count: 3)
+        panel.present(windows: windows, selecting: windows[1].id)
+
+        panel.update(windows: SampleWindows.make(count: 5))
+
+        #expect(panel.shownSelection == windows[1].id)
+        panel.dismiss()
+    }
+
+    /// A second appearance draws what it was given and not what the first one
+    /// left behind. It needs its own case because the carrying-over above is
+    /// exactly what puts it at risk: `present` swaps the list in first, which
+    /// hands the old choice forward, and only writing the new one afterwards
+    /// undoes that. Without the write the panel would go back up highlighting
+    /// a row from the list that is gone, while whatever moves the selection
+    /// believed it was back at the top.
+    @Test func aSecondAppearanceDoesNotKeepTheLastOnesHighlight() {
+        let panel = panel()
+        let windows = SampleWindows.make(count: 4)
+        panel.present(windows: windows, selecting: windows[2].id)
+        panel.dismiss()
+
+        panel.present(windows: windows, selecting: windows.first?.id)
+
+        #expect(panel.shownSelection == windows.first?.id)
+        panel.dismiss()
+    }
+
     /// Nothing moves the panel between appearances, so a display change leaves
     /// a panel that is up wherever the old arrangement put it. Only the
     /// putting back is pinned here; what was seen when a panel was left where

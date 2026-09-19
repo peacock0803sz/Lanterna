@@ -151,6 +151,23 @@ final class SwitcherPanel: NSPanel {
         hostingView.rootView.selectedID = id
     }
 
+    /// Which row the panel is drawing as chosen at this instant.
+    ///
+    /// The way in to a promise that is otherwise out of reach. Both the swap
+    /// in `update(windows:)` and the write in `present(windows:selecting:)`
+    /// land inside the hosting view, and what a hosting view draws shows on a
+    /// screen and nowhere else: a swap that dropped the choice, or an
+    /// appearance that kept the last one, would leave the panel highlighting
+    /// a row nobody chose while every caller went on believing otherwise.
+    ///
+    /// Read back off the view rather than remembered beside it, for the
+    /// reason `isPresented` is read off the window: two records of one thing
+    /// are two things that can disagree, and the one that disagrees silently
+    /// here is the one the user is looking at.
+    var shownSelection: WindowItem.Identifier? {
+        hostingView.rootView.selectedID
+    }
+
     func dismiss() {
         orderOut(nil)
     }
