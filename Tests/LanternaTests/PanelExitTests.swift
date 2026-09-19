@@ -130,6 +130,26 @@ struct PanelExitTests {
         #expect(fixture.log.lines.last == "cancelled 9.6 ms after Cmd+Period")
     }
 
+    /// The Escape that reaches a panel on a stock machine is the bare one:
+    /// the system takes Cmd+Escape for itself. Every key this feature reads
+    /// but the full stop ignores its modifiers for this kind of reason — the
+    /// same finger movement has to work whether or not Command is still down,
+    /// and on the run where the monitor never started it is not.
+    @Test func aBareEscapeCancelsTheWayOneHeldWithCommandDoes() {
+        let fixture = runningWithAMonitor()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+        let bareEscape = PanelKeystroke(
+            keyCode: UInt16(kVK_Escape),
+            modifiers: [],
+            isARepeat: false
+        )
+        #expect(fixture.presenter.handleKeyStroke(bareEscape) == .absorbed)
+
+        #expect(!fixture.surface.isPresented)
+        #expect(fixture.log.lines.last == "cancelled 4.8 ms after Escape")
+    }
+
     /// The gesture ends with Command coming up, and by then the panel is
     /// already gone. That release must write nothing: the user declined this
     /// appearance, and a line arriving afterwards would record a commit they
