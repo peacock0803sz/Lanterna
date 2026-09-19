@@ -62,10 +62,28 @@ final class PanelPresenter {
         interval: commandWatchInterval,
         isPanelUp: { [weak self] in self?.surface.isPresented ?? false },
         commandIsHeld: { [weak self] in self?.commandIsHeld() ?? false },
-        onUnreportedRelease: { [weak self] in self?.wayOut.closeForAnUnreportedRelease() }
+        // The chosen row is read here and not inside the call, because the
+        // call is what clears it. Swift settles the argument before the
+        // method runs, so the order is the language's rather than a habit.
+        onUnreportedRelease: { [weak self] in
+            self?.wayOut.closeForAnUnreportedRelease(naming: self?.selection?.selectedID)
+        }
     )
 
-    /// Every way the panel comes off the screen, and the row it was showing
+    /// Which row of the list on screen is chosen, for as long as one is.
+    ///
+    /// Held here rather than on the panel, because moving the choice is this
+    /// object's answer to a keystroke and the panel is only told the result.
+    /// Held here rather than beside the list it indexes, for the same reason
+    /// the other way round: `PanelExit` names rows, and naming is not
+    /// choosing.
+    ///
+    /// `nil` exactly when no panel is up. Cleared where the panel comes off
+    /// the screen rather than at each way out, so no way out can be the one
+    /// that forgets.
+    private var selection: SelectionCursor?
+
+    /// Every way the panel comes off the screen, and the list it was showing
     /// while it was up.
     ///
     /// `lazy` for the reason the watch above is: what it does when the panel
@@ -108,7 +126,10 @@ final class PanelPresenter {
             surface: surface,
             now: now,
             writeLine: writeLine,
-            stopWatching: { [weak self] in self?.commandWatch.stop() }
+            onPanelGone: { [weak self] in
+                self?.commandWatch.stop()
+                self?.selection = nil
+            }
         )
     }
 
@@ -204,11 +225,9 @@ final class PanelPresenter {
         startedAt: ContinuousClock.Instant,
         gatheredOnDemand: Bool
     ) {
-        // The first row, stated rather than worked out, and only until
-        // `SelectionCursor` is wired to this — it already knows how to move
-        // the choice, and nothing here reaches for it yet. It says out loud
-        // what the panel used to arrive at on its own, so that the one place
-        // deciding it is here from the start.
+        // The choice opens on the first row, which is what the panel used to
+        // arrive at on its own.
+        selection = SelectionCursor(ids: windows.map(\.id))
         surface.present(windows: windows, selecting: windows.first?.id)
         wayOut.nowShowing(windows)
         let measurement = HotkeyMeasurement(
@@ -317,6 +336,6 @@ final class PanelPresenter {
             wayOut.recordPressCalledOff(since: startedAt)
             return
         }
-        wayOut.commitOnCommandRelease(since: startedAt)
+        wayOut.commitOnCommandRelease(naming: selection?.selectedID, since: startedAt)
     }
 }
