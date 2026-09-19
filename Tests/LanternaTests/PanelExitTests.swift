@@ -98,6 +98,12 @@ struct PanelExitTests {
         full.presenter.handleHotkey(.forward, deliveryDelay: nil)
         _ = full.presenter.handleKeyStroke(press(kVK_ANSI_Period))
 
+        // Anchored on something positive before the two are compared.
+        // Equality on its own is satisfied by a pair of runs in which nothing
+        // was cancelled at all — including two that never put a panel up and
+        // ended on the same refusal, which is a single edit away.
+        #expect(empty.log.lines.last?.hasPrefix("cancelled ") == true)
+        #expect(empty.surface.dismissCount == 1)
         #expect(!empty.surface.isPresented)
         #expect(empty.log.lines.last == full.log.lines.last)
     }
