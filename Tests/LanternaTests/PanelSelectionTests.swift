@@ -128,6 +128,51 @@ struct PanelSelectionTests {
         #expect(fixture.log.lines.last?.contains("(window \(first.id.windowID))") == false)
     }
 
+    /// A key given no meaning is swallowed and moves nothing. `PanelKeyInput`
+    /// says of itself that "a key that means nothing does nothing" has to be
+    /// shown rather than assumed; its own suite shows the mapping, and this
+    /// shows the half the mapping cannot reach — that the presenter, holding
+    /// the only cursor there is, leaves it alone.
+    @Test func aKeyWithNoMeaningIsSwallowedAndMovesNothing() {
+        let fixture = runningWithAMonitor()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        let afterTheAppearance = fixture.log.lines
+
+        #expect(fixture.presenter.handleKeyStroke(press(kVK_ANSI_A)) == .absorbed)
+
+        #expect(fixture.surface.shownSelections.isEmpty)
+        #expect(fixture.surface.isPresented)
+        #expect(fixture.log.lines == afterTheAppearance)
+    }
+
+    /// Tab is the one key two routes could both claim. It is registered with
+    /// the system, so a press arrives as a hotkey and moves the choice one
+    /// row; were it also acted on here, the one press would move two. The
+    /// mapping refuses it unconditionally, and this is that refusal seen
+    /// where it would do the damage — with a cursor in place to be moved.
+    @Test func tabReachingTheKeyChannelMovesNothingBecauseTheHotkeyRouteOwnsIt() {
+        let fixture = runningWithAMonitor()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+        #expect(fixture.presenter.handleKeyStroke(press(kVK_Tab)) == .absorbed)
+
+        #expect(fixture.surface.shownSelections.isEmpty)
+        #expect(fixture.surface.isPresented)
+    }
+
+    /// With no panel up the press belongs to whatever is in front, and this
+    /// is the only place that is decided. A presenter that swallowed it would
+    /// take the keyboard away from the frontmost application for the whole
+    /// run, and nothing on screen would say why.
+    @Test func aPressArrivingWithNoPanelUpIsHandedBackUntouched() {
+        let fixture = runningWithAMonitor()
+
+        #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .passedThrough)
+
+        #expect(fixture.surface.shownSelections.isEmpty)
+        #expect(fixture.log.lines.isEmpty)
+    }
+
     /// A list with nothing to choose from and a list with nothing to choose
     /// between are the two shapes where the arithmetic has no move to make.
     /// The cursor's own suite says it leaves the choice alone; what it cannot
