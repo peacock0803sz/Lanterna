@@ -15,13 +15,22 @@ struct SwitcherView: View {
     /// nothing could move the choice. Two derivations of one thing are two
     /// things that can disagree, and a keyboard that moves the selection is
     /// exactly what makes them.
-    ///
-    /// No default value on purpose. An optional gets none in the memberwise
-    /// initialiser unless one is written, so every place that builds this
-    /// view has to say what is chosen — including the one that swaps a new
-    /// list in, which would otherwise take `nil` and clear the highlight
-    /// without a word.
     var selectedID: WindowItem.Identifier?
+
+    /// Written out rather than left to the compiler, so that the choice
+    /// cannot be omitted.
+    ///
+    /// The synthesised memberwise initialiser would give this one a default:
+    /// an optional `var` carries an implicit `nil`, and that implicit value
+    /// becomes a default argument, so `SwitcherView(windows:)` would compile
+    /// and quietly draw no row as chosen. That is exactly what the one place
+    /// swapping a new list in must never do. Spelling the initialiser out
+    /// removes the synthesised one, so a call site that says nothing about
+    /// the choice fails to build instead.
+    init(windows: [WindowItem], selectedID: WindowItem.Identifier?) {
+        self.windows = windows
+        self.selectedID = selectedID
+    }
 
     var body: some View {
         List {
