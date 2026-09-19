@@ -162,10 +162,13 @@ struct PanelExitMeasurement: Sendable {
     /// saying so, which is the reasoning behind that fallback's `pid N` too.
     private static let unnamedApplication = "an unnamed application"
 
-    /// Switched on the pair and not on the outcome alone, because the trigger
-    /// is not a suffix that can be appended to a stem. Two of the wordings
-    /// carry a clause of their own *after* the trigger, so only a commit and a
-    /// cancellation end on it.
+    /// Switched on the pair and not on the outcome alone, because the pair is
+    /// what has to be rejected. Every wording below can be reached from the
+    /// outcome by itself — the trigger's words are already inside `timing` —
+    /// so switching on the outcome would compile, read the same, and quietly
+    /// print `cancelled ... after Command was released` for a combination no
+    /// run produces. Naming both is what gives the six that cannot happen
+    /// somewhere to be turned away.
     var summaryLine: String {
         let timing = "\(Diagnostics.millisecondsText(elapsed)) ms after \(trigger.phrase)"
         switch (outcome, trigger) {
