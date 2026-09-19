@@ -5,12 +5,12 @@
 /// here, which is the moment just after launch.
 ///
 /// Kept in a file of its own. This is already its own piece of work — it has
-/// state nothing else reads, a task nothing else starts, and tests of its own
-/// — and the step that lets the selection move does not touch it. Something of
-/// that size had to come out of the presenter's file for its length to leave
-/// room for what that step adds, and this is the one piece that comes out
-/// without widening what anything can see: the press stays private to the
-/// presenter, which is now the only thing holding one of these.
+/// state nothing else reads and a task nothing else starts — and the step that
+/// lets the selection move does not touch it. Something of that size had to
+/// come out of the presenter's file for its length to leave room for what that
+/// step adds, and this is the one piece that comes out without widening what
+/// anything can see: the press stays private to the presenter, which is now
+/// the only thing holding one of these.
 @MainActor
 final class PendingPressHold {
     /// A press waiting for a list.
