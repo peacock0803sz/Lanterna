@@ -1,22 +1,6 @@
 import CoreGraphics
 import Darwin
 
-/// The panel as the code deciding when to show it sees it: something that can
-/// be put up with a list, taken down, and asked whether it is up.
-///
-/// It is behind a protocol because a real panel needs a window server, which
-/// a test process has no business asking for. Whether it is up is asked of the
-/// panel rather than tracked alongside it: two records of one thing are two
-/// things that can disagree.
-@MainActor
-protocol SwitcherSurface {
-    var isPresented: Bool { get }
-    func present(windows: [WindowItem])
-    func dismiss()
-}
-
-extension SwitcherPanel: SwitcherSurface {}
-
 /// Decides when the panel goes up, and writes down what each press cost.
 @MainActor
 final class PanelPresenter {
