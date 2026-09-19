@@ -3,8 +3,12 @@ import Carbon.HIToolbox
 @testable import Lanterna
 import Testing
 
-/// Spelled as a press is made, with Command still down, which is how these
-/// keys arrive during the ordinary gesture.
+/// Spelled as a press is made, with Command still down.
+///
+/// That is the ordinary gesture for the full stop and the arrows, and it is
+/// not available for Escape on a stock machine — the system takes that
+/// combination. The cases that care spell their keystroke out rather than
+/// coming through here.
 private func press(_ keyCode: Int) -> PanelKeystroke {
     PanelKeystroke(keyCode: UInt16(keyCode), modifiers: .command, isARepeat: false)
 }
