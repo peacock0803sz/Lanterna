@@ -26,8 +26,14 @@ struct PanelExitTests {
         Fixture(entryCount: entryCount, closesOnCommandRelease: true)
     }
 
-    /// The whole of the story: the panel goes, one line says it was called
-    /// off, and nothing says anything was taken.
+    /// The whole of the story: the panel goes, one line says it was
+    /// cancelled, and nothing says anything was taken.
+    ///
+    /// Worded as the line is. "Called off" is taken in this project — it is
+    /// what a press given up on before its panel arrived says, and what an
+    /// appearance abandoned for another application coming forward says — and
+    /// a case further down exists to hold both of those absent from a
+    /// cancellation.
     @Test func cancellingClosesThePanelAndCommitsNothing() {
         let fixture = runningWithAMonitor()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
