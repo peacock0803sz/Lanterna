@@ -204,7 +204,11 @@ final class PanelPresenter {
         startedAt: ContinuousClock.Instant,
         gatheredOnDemand: Bool
     ) {
-        surface.present(windows: windows)
+        // The first row, stated rather than worked out, and only until there
+        // is something that knows how to move the choice. It says out loud
+        // what the panel used to arrive at on its own, so that the one place
+        // deciding it is here from the start.
+        surface.present(windows: windows, selecting: windows.first?.id)
         wayOut.nowShowing(windows)
         let measurement = HotkeyMeasurement(
             combination: combination,

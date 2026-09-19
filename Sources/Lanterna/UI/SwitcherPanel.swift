@@ -98,8 +98,21 @@ final class SwitcherPanel: NSPanel {
         centerOnMainDisplay()
     }
 
-    func present(windows: [WindowItem]) {
+    /// Ordered front regardless rather than made key and ordered front.
+    /// Apple says of the ordinary order-front that a window cannot be moved
+    /// in front of the key window unless the two belong to the same
+    /// application, and that proviso describes this panel's situation
+    /// exactly: it floats above whatever the user is working in.
+    ///
+    /// The chosen row is written after the list is swapped in, and never
+    /// left out. The swap carries over whichever row was chosen last time,
+    /// so a panel put up a second time without this would keep the old
+    /// highlight while the code that moves the selection believed it was back
+    /// on the first row. Nothing in a test process would catch that: a stand-
+    /// in panel records the row it was given and draws nothing.
+    func present(windows: [WindowItem], selecting: WindowItem.Identifier?) {
         update(windows: windows)
+        showSelection(selecting)
         orderFrontRegardless()
     }
 

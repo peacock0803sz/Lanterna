@@ -177,7 +177,7 @@ struct UnreportedReleaseWatchTests {
 
     @Test(.timeLimit(.minutes(1))) func aPanelUpWithCommandOffIsReportedOnce() async {
         let surface = FakeSurface()
-        surface.present(windows: [])
+        surface.present(windows: [], selecting: nil)
         let hold = CommandHold(isHeld: false)
         let log = DiagnosticsLog()
 
@@ -206,7 +206,7 @@ struct UnreportedReleaseWatchTests {
     /// proves nothing when it has not happened yet.
     @Test(.timeLimit(.minutes(1))) func startingAgainReplacesTheLookingRatherThanAddingToIt() async {
         let surface = FakeSurface()
-        surface.present(windows: [])
+        surface.present(windows: [], selecting: nil)
         let hold = CommandHold(isHeld: false)
         let log = DiagnosticsLog()
 
@@ -226,7 +226,7 @@ struct UnreportedReleaseWatchTests {
     /// first look rather than after it.
     @Test func stoppingEndsTheLookingBeforeItAsksAnything() async {
         let surface = FakeSurface()
-        surface.present(windows: [])
+        surface.present(windows: [], selecting: nil)
         let hold = CommandHold(isHeld: false)
         let log = DiagnosticsLog()
 
@@ -251,7 +251,7 @@ struct UnreportedReleaseWatchTests {
     /// panel question can account for the silence.
     @Test(.timeLimit(.minutes(1))) func aPanelThatWentDownWhileItSleptIsNotReportedOn() async {
         let surface = FakeSurface()
-        surface.present(windows: [])
+        surface.present(windows: [], selecting: nil)
         let hold = CommandHold(isHeld: true)
         let log = DiagnosticsLog()
 

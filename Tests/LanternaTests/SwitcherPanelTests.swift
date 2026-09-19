@@ -72,7 +72,7 @@ struct SwitcherPanelTests {
     /// can arrange.
     @Test func aPanelThatIsUpIsPutBackWhenTheScreensChange() {
         let panel = panel()
-        panel.present(windows: SampleWindows.make(count: 3))
+        panel.present(windows: SampleWindows.make(count: 3), selecting: nil)
         let belongs = panel.frame.origin
         panel.setFrameOrigin(NSPoint(x: belongs.x + 400, y: belongs.y + 200))
 
@@ -105,7 +105,7 @@ struct SwitcherPanelTests {
     /// clock; the count is slack, not a measurement.
     @Test func aDisplayChangeNotificationPutsThePanelBack() async {
         let panel = panel()
-        panel.present(windows: SampleWindows.make(count: 3))
+        panel.present(windows: SampleWindows.make(count: 3), selecting: nil)
         let belongs = panel.frame.origin
         panel.setFrameOrigin(NSPoint(x: belongs.x + 400, y: belongs.y + 200))
 
