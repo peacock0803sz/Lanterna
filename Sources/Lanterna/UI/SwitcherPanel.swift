@@ -76,8 +76,16 @@ final class SwitcherPanel: NSPanel {
     /// `SwitcherView` holds nothing but its array and the package has no
     /// observable state anywhere, so assigning a new root view is a complete
     /// swap; SwiftUI diffs the rows by their identity from there.
+    /// Carries the chosen row across the swap. Assigning a new root view
+    /// replaces every field of it, so a list arriving without the selection
+    /// beside it would leave the panel drawing no row as chosen while the
+    /// presenter went on believing one was — the sort of failure that shows
+    /// on screen and nowhere else.
     func update(windows: [WindowItem]) {
-        hostingView.rootView = SwitcherView(windows: windows)
+        hostingView.rootView = SwitcherView(
+            windows: windows,
+            selectedID: hostingView.rootView.selectedID
+        )
         // The height is pushed down from the window, because the hosting view
         // has no sizing options and so cannot push one up.
         setContentSize(

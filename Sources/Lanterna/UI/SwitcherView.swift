@@ -8,11 +8,20 @@ import SwiftUI
 struct SwitcherView: View {
     let windows: [WindowItem]
 
-    /// The first entry is selected and the selection never moves: this view has
-    /// no navigation. An empty list has no selection at all.
-    var selectedID: WindowItem.ID? {
-        windows.first?.id
-    }
+    /// Which row to draw as chosen, decided elsewhere and handed in.
+    ///
+    /// It used to be worked out here, as the first row of whatever list
+    /// arrived, and that agreed with what the presenter thought only because
+    /// nothing could move the choice. Two derivations of one thing are two
+    /// things that can disagree, and a keyboard that moves the selection is
+    /// exactly what makes them.
+    ///
+    /// No default value on purpose. An optional gets none in the memberwise
+    /// initialiser unless one is written, so every place that builds this
+    /// view has to say what is chosen — including the one that swaps a new
+    /// list in, which would otherwise take `nil` and clear the highlight
+    /// without a word.
+    var selectedID: WindowItem.Identifier?
 
     var body: some View {
         List {

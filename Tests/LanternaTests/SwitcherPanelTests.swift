@@ -8,7 +8,9 @@ import Testing
 @MainActor
 struct SwitcherPanelTests {
     private func panel(rowCount: Int = 3) -> SwitcherPanel {
-        SwitcherPanel(content: SwitcherView(windows: SampleWindows.make(count: rowCount)))
+        SwitcherPanel(
+            content: SwitcherView(windows: SampleWindows.make(count: rowCount), selectedID: nil)
+        )
     }
 
     @Test func panelIsANonActivatingFloatingOverlay() {
