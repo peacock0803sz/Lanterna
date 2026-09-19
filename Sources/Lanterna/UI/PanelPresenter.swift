@@ -319,15 +319,46 @@ final class PanelPresenter {
     /// passed on would type into whatever is in front, so a panel that is up
     /// would be filling somebody's document while it stood there.
     ///
-    /// What the press means is not read yet. The mapping from a key to a
-    /// meaning is already here, in `PanelKeyInput`; the step that acts on it
-    /// — moving, committing and cancelling — is where a meaning starts to
-    /// matter. Until then every press has the same answer, and classifying
-    /// one only to throw the answer away would be work no run could tell had
-    /// happened.
-    func handleKeyStroke(_: PanelKeystroke) -> PanelKeyDisposition {
+    /// What the press meant does not change that answer. It decides what
+    /// happens here, and every case leaves by the same door.
+    ///
+    /// The cases with nothing under them are written out rather than swept up
+    /// by a `default`, so that the step which gives one of them a body is
+    /// made to come here and find it.
+    func handleKeyStroke(_ keystroke: PanelKeystroke) -> PanelKeyDisposition {
         guard surface.isPresented else { return .passedThrough }
+        switch PanelKeyInput.action(for: keystroke) {
+        case .selectNext:
+            moveSelection { $0.moveToNext() }
+        case .selectPrevious:
+            moveSelection { $0.moveToPrevious() }
+        case .commit, .cancel, .absorb:
+            break
+        }
         return .absorbed
+    }
+
+    /// Moves the choice and tells the panel, and does nothing else.
+    ///
+    /// Nothing is written down. Moving the selection is the one thing a user
+    /// does many times over in a single appearance, and a line for each would
+    /// bury the lines that say what became of the panel under the lines that
+    /// say somebody was still looking.
+    ///
+    /// The panel is told through the entry that only redraws. The entry that
+    /// takes a list resizes the window and puts it back in the centre of the
+    /// display, and a panel that jumped as the choice moved would be one the
+    /// eye has to find again on every keystroke.
+    ///
+    /// A list with no rows and a list with one row are not cases here. The
+    /// cursor answers both by leaving the choice where it is, so the panel is
+    /// told the same row it was already drawing — which is the honest report
+    /// that the press arrived and moved nothing.
+    private func moveSelection(_ step: (inout SelectionCursor) -> Void) {
+        guard var moved = selection else { return }
+        step(&moved)
+        selection = moved
+        surface.showSelection(moved.selectedID)
     }
 
     /// Acts on Command having been let go.
