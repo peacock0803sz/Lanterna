@@ -14,10 +14,20 @@ final class PanelPresenter {
     /// A press that arrived before any list had been gathered and is waiting
     /// for one.
     ///
-    /// Kept here rather than read back off the store. The task that does the
-    /// waiting does not begin the instant it is made, and a second press
-    /// landing in that gap would find the store idle and start a second wait.
-    private var pendingPress: PendingPress?
+    /// `lazy` for the reason the watch below is: what it waits on and what it
+    /// does when the waiting is over are both this object's.
+    private lazy var pendingPress = PendingPressHold(
+        listWhenGathered: { [store] in await store.listWhenGathered() },
+        show: { [weak self] items, combination, deliveryDelay, startedAt in
+            self?.show(
+                items,
+                for: combination,
+                deliveryDelay: deliveryDelay,
+                startedAt: startedAt,
+                gatheredOnDemand: true
+            )
+        }
+    )
 
     /// Whether letting go of Command is what closes the panel.
     ///
@@ -63,14 +73,6 @@ final class PanelPresenter {
     /// line. The selection does not move yet, so this is the first row of
     /// whatever was presented.
     private var selectedWindow: (appName: String, displayTitle: String)?
-
-    private struct PendingPress {
-        let combination: HotkeyCombination
-        let deliveryDelay: Duration?
-        /// When the press arrived. The reading spans the gathering too, which
-        /// is why the line it produces says the gathering happened.
-        let startedAt: ContinuousClock.Instant
-    }
 
     init(
         surface: any SwitcherSurface,
@@ -163,9 +165,9 @@ final class PanelPresenter {
         // A press is already waiting for the first list and is the one that
         // will put the panel up. The panel is not up yet, so without this a
         // second press would take the same path again and two would arrive.
-        guard pendingPress == nil else { return }
+        guard !pendingPress.isWaiting else { return }
         guard let held = store.snapshot else {
-            waitForTheFirstList(combination, deliveryDelay: deliveryDelay, startedAt: startedAt)
+            pendingPress.begin(combination, deliveryDelay: deliveryDelay, startedAt: startedAt)
             return
         }
         show(
@@ -175,40 +177,6 @@ final class PanelPresenter {
             startedAt: startedAt,
             gatheredOnDemand: false
         )
-    }
-
-    /// Holds the press until there is a list, then puts the panel up for it.
-    ///
-    /// Only a press arriving before the loop's first pass completes can get
-    /// here. The task below carries none of the press with it; it is a
-    /// standing "wake me once a list exists", and every field it shows the
-    /// panel with is read out of `pendingPress` at the moment it resumes.
-    /// That is what makes two such tasks interchangeable: when a press is
-    /// called off and another takes its place, whichever task wakes first
-    /// finds the press that is really waiting and puts the panel up for it,
-    /// and the other finds the slot empty and does nothing.
-    private func waitForTheFirstList(
-        _ combination: HotkeyCombination,
-        deliveryDelay: Duration?,
-        startedAt: ContinuousClock.Instant
-    ) {
-        pendingPress = PendingPress(
-            combination: combination,
-            deliveryDelay: deliveryDelay,
-            startedAt: startedAt
-        )
-        Task { [self] in
-            let items = await store.listWhenGathered()
-            guard let pending = pendingPress else { return }
-            pendingPress = nil
-            show(
-                items,
-                for: pending.combination,
-                deliveryDelay: pending.deliveryDelay,
-                startedAt: pending.startedAt,
-                gatheredOnDemand: true
-            )
-        }
     }
 
     /// The one place the panel goes up, so every appearance is measured and
@@ -257,21 +225,16 @@ final class PanelPresenter {
     /// one, and one comparison is a cheap way never to find out the hard way.
     func handleActivation(of processIdentifier: pid_t) {
         guard processIdentifier != ownProcessIdentifier else { return }
-        if pendingPress != nil {
+        if pendingPress.isWaiting {
             // Nothing is on screen to take down. What has to stop is the
             // panel still on its way, which would otherwise appear over
-            // whatever the user has just turned to, and letting the slot go
-            // is what stops it. It also leaves the way clear for whatever
-            // comes next: while the slot is occupied every press is turned
-            // away as the duplicate of one already being answered, so a press
-            // arriving before the list does would be dropped rather than
-            // shown. The line is for the press and not for the panel: the
-            // press is what the user did, and one that disappeared without a
-            // word could not be told from one that never arrived at all.
-            // Written plainly rather than measured, because every figure in
-            // these lines is a span since Command was released, and no
-            // release happened here.
-            pendingPress = nil
+            // whatever the user has just turned to. The line is for the press
+            // and not for the panel: the press is what the user did, and one
+            // that disappeared without a word could not be told from one that
+            // never arrived at all. Written plainly rather than measured,
+            // because every figure in these lines is a span since Command was
+            // released, and no release happened here.
+            pendingPress.callOff()
             writeLine(
                 "called off the press waiting for its first list; "
                     + "the frontmost application changed"
@@ -295,8 +258,8 @@ final class PanelPresenter {
     /// nobody reads.
     func handleCommandRelease() {
         let startedAt = now()
-        if pendingPress != nil {
-            pendingPress = nil
+        if pendingPress.isWaiting {
+            pendingPress.callOff()
             record(.pressCalledOff, since: startedAt)
             return
         }
