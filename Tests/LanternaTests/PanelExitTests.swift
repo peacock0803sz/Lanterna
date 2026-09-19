@@ -158,10 +158,18 @@ struct PanelExitTests {
         #expect(!committedLine.hasPrefix(cancelledLine))
     }
 
-    /// Cancelling gives the choice up with the panel. Without that, a second
-    /// appearance would open on the row the declined one was left showing,
-    /// and the first press of the next gesture would land somewhere the user
-    /// never put it.
+    /// A declined appearance leaves the next one able to start over. The
+    /// whole path is walked — open, move off the first row, decline, open
+    /// again — because each step has somewhere it could leave the next one
+    /// stuck, and only walking it end to end puts them in that order.
+    ///
+    /// This does not hold the giving up of the choice, and no case can. Every
+    /// appearance rebuilds the cursor from the list it is handed before the
+    /// panel is told anything, so a second one opens on its first row whether
+    /// or not the first gave its choice up. That line is kept for the reason
+    /// the one beside it in `dismissPanel` is kept, and its own comment says
+    /// so: nothing reads the choice while the panel is down, so no sequence
+    /// of calls can tell whether it was cleared.
     @Test func thePanelAfterACancellationOpensOnItsOwnFirstRowAgain() {
         let fixture = runningWithAMonitor()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
