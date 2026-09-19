@@ -104,12 +104,17 @@ struct HotkeyMeasurementTests {
 /// the panel is up or on its way. They are pinned here rather than where the
 /// decision is made, so a reword shows up as a failure in the file that owns
 /// the wording.
-struct CommandReleaseMeasurementTests {
+struct PanelExitMeasurementTests {
+    /// Letting go of Command by default, so that the cases pinning the three
+    /// wordings it has always written say nothing about a trigger and go on
+    /// reading as they did. Those three are wording no later feature may
+    /// disturb.
     private static func measurement(
-        _ outcome: CommandReleaseMeasurement.Outcome,
+        _ outcome: PanelExitMeasurement.Outcome,
+        by trigger: PanelExitMeasurement.Trigger = .commandRelease,
         elapsed: Duration = .microseconds(4800)
-    ) -> CommandReleaseMeasurement {
-        CommandReleaseMeasurement(outcome: outcome, elapsed: elapsed)
+    ) -> PanelExitMeasurement {
+        PanelExitMeasurement(outcome: outcome, trigger: trigger, elapsed: elapsed)
     }
 
     /// Stands in for whichever window was taken. Every case below but the two
@@ -120,7 +125,7 @@ struct CommandReleaseMeasurementTests {
     private static func committed(
         appName: String,
         displayTitle: String
-    ) -> CommandReleaseMeasurement.Outcome {
+    ) -> PanelExitMeasurement.Outcome {
         .committed(appName: appName, displayTitle: displayTitle, id: someWindow)
     }
 
@@ -323,17 +328,60 @@ struct CommandReleaseMeasurementTests {
     /// Committing nothing and never getting as far as a panel are different
     /// events with different answers, so no reading of the log may conflate
     /// them — including a grep that anchors on one and matches the other.
-    @Test func theThreeOutcomesAreTellableApartFromTheLineAlone() {
-        let outcomes: [CommandReleaseMeasurement.Outcome] = [
-            Self.committed(appName: "Safari", displayTitle: "Release notes"),
-            .nothingToCommit,
-            .pressCalledOff,
-        ]
-        let lines = outcomes.map { Self.measurement($0).summaryLine }
+    ///
+    /// Every pair that can happen is here, not a sample of them. Telling
+    /// events apart is a property of the whole set of wordings, so a subset
+    /// can only fail to find a clash, never say there is none.
+    @Test func everyEndingIsTellableApartFromTheLineAlone() {
+        let row = Self.committed(appName: "Safari", displayTitle: "Release notes")
+        let lines = [
+            Self.measurement(row),
+            Self.measurement(row, by: .commitKey(.returnKey)),
+            Self.measurement(row, by: .commitKey(.keypadEnter)),
+            Self.measurement(.nothingToCommit),
+            Self.measurement(.nothingToCommit, by: .commitKey(.returnKey)),
+            Self.measurement(.nothingToCommit, by: .commitKey(.keypadEnter)),
+            Self.measurement(.pressCalledOff),
+            Self.measurement(.cancelled, by: .cancelKey(.commandPeriod)),
+            Self.measurement(.cancelled, by: .cancelKey(.escape)),
+        ].map(\.summaryLine)
 
-        #expect(Set(lines).count == 3)
+        #expect(Set(lines).count == lines.count)
         for line in lines {
             #expect(lines.filter { $0.hasPrefix(line) }.count == 1)
         }
+    }
+
+    /// The two exits a key can bring about, worded so that counting one can
+    /// never pick up the other. `cancelled` shares no word with any commit
+    /// line, which is what lets `^committed ` and `^cancelled ` be counted
+    /// with one pattern each.
+    @Test func cancellingSaysNothingAboutARowAndSharesNoStemWithACommit() {
+        let byPeriod = Self.measurement(.cancelled, by: .cancelKey(.commandPeriod)).summaryLine
+        let byEscape = Self.measurement(.cancelled, by: .cancelKey(.escape)).summaryLine
+
+        #expect(byPeriod == "cancelled 4.8 ms after Cmd+Period")
+        #expect(byEscape == "cancelled 4.8 ms after Escape")
+        #expect(!byPeriod.hasPrefix("committed"))
+        #expect(!byEscape.hasPrefix("committed"))
+    }
+
+    /// A commit says which key did it, and the two keys are worded apart.
+    /// Which physical key arrived is the evidence for going by key code at
+    /// all, and a log that flattened them would throw that evidence away.
+    @Test func aCommitByKeyNamesTheKeyAndKeepsTheRow() {
+        let row = Self.committed(appName: "Safari", displayTitle: "Release notes")
+        #expect(
+            Self.measurement(row, by: .commitKey(.returnKey)).summaryLine
+                == "committed Safari — Release notes (window 42) 4.8 ms after Return"
+        )
+        #expect(
+            Self.measurement(row, by: .commitKey(.keypadEnter)).summaryLine
+                == "committed Safari — Release notes (window 42) 4.8 ms after keypad Enter"
+        )
+        #expect(
+            Self.measurement(.nothingToCommit, by: .commitKey(.returnKey)).summaryLine
+                == "committed nothing 4.8 ms after Return (the list was empty)"
+        )
     }
 }

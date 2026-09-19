@@ -76,11 +76,11 @@ final class PanelExit {
     ) {
         guard surface.isPresented else { return }
 
-        let outcome: CommandReleaseMeasurement.Outcome = row(for: id).map {
+        let outcome: PanelExitMeasurement.Outcome = row(for: id).map {
             .committed(appName: $0.appName, displayTitle: $0.displayTitle, id: $0.id)
         } ?? .nothingToCommit
         dismissPanel()
-        record(outcome, since: startedAt)
+        record(outcome, by: .commandRelease, since: startedAt)
     }
 
     /// Writes down a press given up on before it ever became a panel.
@@ -89,7 +89,7 @@ final class PanelExit {
     /// different causes and different answers: one means the list was
     /// gathered and held nothing, the other that there was no list yet.
     func recordPressCalledOff(since startedAt: ContinuousClock.Instant) {
-        record(.pressCalledOff, since: startedAt)
+        record(.pressCalledOff, by: .commandRelease, since: startedAt)
     }
 
     /// Takes the panel down for a release that came by no route at all.
@@ -109,7 +109,7 @@ final class PanelExit {
     /// as two.
     func closeForAnUnreportedRelease(naming id: WindowItem.Identifier?) {
         let named = row(for: id).map {
-            CommandReleaseMeasurement.rowDescription(
+            PanelExitMeasurement.rowDescription(
                 appName: $0.appName,
                 displayTitle: $0.displayTitle,
                 id: $0.id
@@ -161,11 +161,13 @@ final class PanelExit {
     /// Reads the clock after the work, so the figure spans exactly the part
     /// this process is answerable for.
     private func record(
-        _ outcome: CommandReleaseMeasurement.Outcome,
+        _ outcome: PanelExitMeasurement.Outcome,
+        by trigger: PanelExitMeasurement.Trigger,
         since startedAt: ContinuousClock.Instant
     ) {
-        let measurement = CommandReleaseMeasurement(
+        let measurement = PanelExitMeasurement(
             outcome: outcome,
+            trigger: trigger,
             elapsed: now() - startedAt
         )
         writeLine(measurement.summaryLine)
