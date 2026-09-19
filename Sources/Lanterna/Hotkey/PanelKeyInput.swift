@@ -250,9 +250,9 @@ enum PanelKeyInput {
     /// gets added next, and this codebase suppresses no lint rule.
     private static func meaning(of keystroke: PanelKeystroke) -> PanelKeyAction {
         // Tab first, and whatever is held with it. Carbon has claimed Cmd+Tab
-        // and Shift+Cmd+Tab and moves the selection through that route, so a
-        // Tab acted on here as well would move the selection two rows for one
-        // press. Whether Carbon lets a Tab through to this process's key
+        // and Shift+Cmd+Tab, and the selection will move through that route,
+        // so a Tab acted on here as well would move the selection two rows for
+        // one press. Whether Carbon lets a Tab through to this process's key
         // window at all is not the point: if it does not, this row costs a
         // comparison and nothing else.
         guard Int(keystroke.keyCode) != kVK_Tab else { return .absorb }

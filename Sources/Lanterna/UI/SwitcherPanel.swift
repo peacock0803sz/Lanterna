@@ -194,14 +194,16 @@ final class SwitcherPanel: NSPanel {
         centerOnMainDisplay()
     }
 
-    /// The panel takes key status, and the process must never become the
-    /// active application. Those are two different things, and this is the
-    /// line between them: key presses come here, while the application the
-    /// user is working in stays the active one, keeps its menu bar and keeps
-    /// its main window.
+    /// The panel is allowed to take key status, and the process must never
+    /// become the active application. Those are two different things, and
+    /// this is the line between them: key presses can come here, while the
+    /// application the user is working in stays the active one, keeps its
+    /// menu bar and keeps its main window.
     ///
-    /// A window that answers no here has its key requests dropped without a
-    /// word, so this is what `takeKeys()` rests on.
+    /// What is settled here is the permission, not the asking. A window that
+    /// answers no has its key requests dropped without a word, so this is
+    /// what `takeKeys()` rests on — and whether anything calls that is
+    /// decided elsewhere.
     override var canBecomeKey: Bool {
         true
     }
