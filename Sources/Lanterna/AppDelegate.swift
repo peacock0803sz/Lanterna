@@ -107,7 +107,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// place that knows which case it is in.
     private func startWatchingPanelKeys(for presenter: PanelPresenter) {
         let channel = LocalKeyEventChannel()
-        channel.start(handler: presenter.handleKeyStroke)
+        let started = channel.start(handler: presenter.handleKeyStroke)
+        // Written down, the way the hotkey registration and the modifier tap
+        // are. Those are the other two claims this launch makes on the
+        // keyboard, and each of them writes a line saying how it went. A third
+        // that went about its business in silence would be the one claim whose
+        // failure left no trace at all: a run whose monitor never went up puts
+        // the panel on screen, answers every question about the panel
+        // correctly, and types the user's keystrokes into whatever is behind
+        // it.
+        //
+        // Said both ways round rather than only when it failed, for the reason
+        // `HotkeyMeasurement.becameKey` is said both ways round: a phrase that
+        // turns up only on the bad run cannot be told from a binary too old to
+        // know the phrase at all, and reading a log from the wrong build has
+        // misled this project before. The line that is always there doubles as
+        // the mark of which build wrote it.
+        Diagnostics.writeLine(
+            started
+                ? "panel key monitor started; a panel that is up can take the whole keyboard"
+                : "panel key monitor could not start; keys reach the frontmost application "
+                + "even while a panel is up"
+        )
         panelKeys = channel
     }
 

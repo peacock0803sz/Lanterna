@@ -83,9 +83,34 @@ enum PanelKeyDisposition {
 /// process wants to hand a keystroke over without one.
 @MainActor
 protocol PanelKeyChannel {
-    /// Begins delivering presses. The answer decides what becomes of each
-    /// event.
-    func start(handler: @escaping @MainActor (PanelKeystroke) -> PanelKeyDisposition)
+    /// Begins delivering presses, and answers whether they will arrive. What
+    /// the handler answers decides what becomes of each event.
+    ///
+    /// Every implementation has to take off whatever it started before, and to
+    /// do it before anything new is put in place. Two monitors over one
+    /// keyboard would ask the same question twice and act on both answers, and
+    /// what that costs is not theoretical: one press of an arrow would move the
+    /// selection two rows, and one Return would commit against a panel the
+    /// first answer had already taken down.
+    ///
+    /// The requirement is set out here, where every implementation can be held
+    /// to it, rather than in the body of the one that happens to keep it — the
+    /// same reason `EventTapControlling` states what it needs of every tap
+    /// instead of leaving it to the callers. A stand-in that merely swapped its
+    /// handler over would be looser than the thing it stands in for, and a rule
+    /// living only inside the real one gives nobody a place to notice that.
+    ///
+    /// `false` means no monitor was installed, and nothing else in the process
+    /// says so. A run without one looks exactly like a working one from the
+    /// outside until a key is pressed: the panel still appears, the presenter
+    /// still holds an opinion about every keystroke, and not one of them is
+    /// ever put to it — the presses reach the frontmost application and type
+    /// into whatever is there. So this is the only notice there is, and it is
+    /// not one a caller may drop by accident. No `@discardableResult`, for
+    /// that reason: a caller that means to throw the answer away spells it out
+    /// with `_ =` and says why, the way the two other deliberate discards in
+    /// this project do.
+    func start(handler: @escaping @MainActor (PanelKeystroke) -> PanelKeyDisposition) -> Bool
 
     /// Stops delivering.
     func stop()
@@ -100,9 +125,48 @@ protocol PanelKeyChannel {
 /// makes it free of any permission and free of any reach beyond the panel.
 @MainActor
 final class LocalKeyEventChannel: PanelKeyChannel {
+    /// Putting a monitor on this process's event stream: a mask, a block, and
+    /// back either a token or nothing.
+    ///
+    /// The nothing is the whole reason this is a parameter. AppKit's call is
+    /// documented to hand back `nil` when it declines, and there is no way to
+    /// make it decline on demand — nor any way, with the real call wired
+    /// straight in, to see that a second start takes the first monitor off
+    /// before installing the next. Both are claims this class makes, and
+    /// neither could be put to a test.
+    ///
+    /// Closures rather than a protocol, which is where this parts company with
+    /// `EventTapControlling`. That one stands for a thing with a life of its
+    /// own — five operations, all answering against a tap it keeps — so a type
+    /// is what it takes to stand in for it. This is two free functions, and
+    /// the shape the rest of this project uses for those is a closure with the
+    /// real call as its default, as `ModifierKeyMonitor` does for the clock
+    /// and for the writing of lines.
+    typealias InstallMonitor =
+        @MainActor (NSEvent.EventTypeMask, @escaping (NSEvent) -> NSEvent?) -> Any?
+
+    /// Taking one back off, which AppKit will do given the token and nothing
+    /// else.
+    typealias RemoveMonitor = @MainActor (Any) -> Void
+
+    private let installMonitor: InstallMonitor
+    private let removeMonitor: RemoveMonitor
+
     /// AppKit hands back an opaque token, and it is the only way to take the
     /// monitor off again.
     private var monitor: Any?
+
+    /// The real calls are the defaults, so the app builds one of these with no
+    /// arguments and nothing outside a test ever learns there is a seam here.
+    init(
+        installMonitor: @escaping InstallMonitor = { mask, handler in
+            NSEvent.addLocalMonitorForEvents(matching: mask, handler: handler)
+        },
+        removeMonitor: @escaping RemoveMonitor = { NSEvent.removeMonitor($0) }
+    ) {
+        self.installMonitor = installMonitor
+        self.removeMonitor = removeMonitor
+    }
 
     /// Subscribes to presses only.
     ///
@@ -111,12 +175,20 @@ final class LocalKeyEventChannel: PanelKeyChannel {
     /// watched a layer below, and a wider subscription would widen what this
     /// layer reads of somebody's typing for no answer it needs.
     ///
-    /// Replaces whatever it started before, the way the window list's loop
-    /// does. Two monitors over one keyboard would ask the same question twice
-    /// and act on both answers.
-    func start(handler: @escaping @MainActor (PanelKeystroke) -> PanelKeyDisposition) {
+    /// Keeps the replacement `PanelKeyChannel` requires by stopping first, in
+    /// the shape the window list's loop uses. Why it is required is set out
+    /// with the requirement rather than said again here: two spellings of one
+    /// rule are two things that can drift apart.
+    ///
+    /// The answer is read back from what AppKit handed over rather than
+    /// assumed from the asking, the way `SystemEventTap.start()` reads its tap
+    /// back. Installing a monitor is a request, and this one is documented to
+    /// come back empty-handed; the caller has no second way of finding that
+    /// out, because a process with no monitor goes on behaving exactly like one
+    /// with a monitor right up until somebody presses a key.
+    func start(handler: @escaping @MainActor (PanelKeystroke) -> PanelKeyDisposition) -> Bool {
         stop()
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        monitor = installMonitor(.keyDown) { event in
             let keystroke = PanelKeystroke(
                 keyCode: event.keyCode,
                 modifiers: event.modifierFlags,
@@ -143,12 +215,17 @@ final class LocalKeyEventChannel: PanelKeyChannel {
                 return event
             }
         }
+        return monitor != nil
     }
 
     func stop() {
         if let monitor {
-            NSEvent.removeMonitor(monitor)
+            removeMonitor(monitor)
         }
+        // Let go whether or not there was one, so a second stop has nothing to
+        // hand back. AppKit has already taken this token, and handing it the
+        // same one twice is asking it to remove a monitor it no longer knows
+        // about.
         monitor = nil
     }
 }
