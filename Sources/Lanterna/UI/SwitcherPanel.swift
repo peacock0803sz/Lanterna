@@ -76,6 +76,7 @@ final class SwitcherPanel: NSPanel {
     /// `SwitcherView` holds nothing but its array and the package has no
     /// observable state anywhere, so assigning a new root view is a complete
     /// swap; SwiftUI diffs the rows by their identity from there.
+    ///
     /// Carries the chosen row across the swap. Assigning a new root view
     /// replaces every field of it, so a list arriving without the selection
     /// beside it would leave the panel drawing no row as chosen while the
@@ -100,6 +101,42 @@ final class SwitcherPanel: NSPanel {
     func present(windows: [WindowItem]) {
         update(windows: windows)
         orderFrontRegardless()
+    }
+
+    /// Asks the window server to send key presses here, and answers whether
+    /// it did.
+    ///
+    /// Kept out of `present` on purpose. The tests of this class put a real
+    /// panel up twice, and taking the keyboard inside `present` would mean
+    /// every run of the suite pulled the developer's typing into a panel that
+    /// nothing on screen has shown them. A separate entry those tests do not
+    /// call makes that a matter of structure rather than of remembering; an
+    /// argument controlling it would only move the remembering to the call.
+    ///
+    /// The answer is read back from the window rather than assumed from the
+    /// asking. A window that cannot become key drops the request silently,
+    /// and so does one asked while the application is in a state that does
+    /// not allow it.
+    @discardableResult
+    func takeKeys() -> Bool {
+        makeKey()
+        return isKeyWindow
+    }
+
+    /// Whether key presses are reaching this panel at this instant.
+    var isTakingKeys: Bool {
+        isKeyWindow
+    }
+
+    /// Redraws with a different row chosen, and changes nothing else.
+    ///
+    /// One assignment, and deliberately not a trip through `update(windows:)`
+    /// — that path resizes the window and puts it back in the centre of the
+    /// display, neither of which may happen because somebody pressed an
+    /// arrow. A panel that resized or jumped as the selection moved would be
+    /// a panel the eye has to find again on every keystroke.
+    func showSelection(_ id: WindowItem.Identifier?) {
+        hostingView.rootView.selectedID = id
     }
 
     func dismiss() {
@@ -128,16 +165,27 @@ final class SwitcherPanel: NSPanel {
         centerOnMainDisplay()
     }
 
-    /// No keyboard input is routed to the panel, and the process must never
-    /// become the active application, so key and main status stay with the
-    /// application the user is working in.
+    /// The panel takes key status, and the process must never become the
+    /// active application. Those are two different things, and this is the
+    /// line between them: key presses come here, while the application the
+    /// user is working in stays the active one, keeps its menu bar and keeps
+    /// its main window.
+    ///
+    /// A window that answers no here has its key requests dropped without a
+    /// word, so this is what `takeKeys()` rests on.
     override var canBecomeKey: Bool {
-        false
+        true
     }
 
     override var canBecomeMain: Bool {
         false
     }
+
+    // `becomesKeyOnlyIfNeeded` is deliberately left alone. Its default is
+    // false, and an early sketch of this feature set it to true in the
+    // belief that this was what let a panel take keys without activating.
+    // It is not: the flag governs only whether clicking a panel makes it
+    // key, and has no say over `makeKey()` at all.
 
     /// `NSWindow.center()` centres on whichever screen the window already sits
     /// on, so the display is picked explicitly. `NSScreen.screens.first` is the

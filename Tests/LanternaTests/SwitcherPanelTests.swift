@@ -17,9 +17,18 @@ struct SwitcherPanelTests {
         let panel = panel()
         #expect(panel.styleMask.contains(.nonactivatingPanel))
         #expect(panel.level == .floating)
-        #expect(panel.canBecomeKey == false)
+        #expect(panel.canBecomeKey == true)
         #expect(panel.canBecomeMain == false)
         #expect(panel.hidesOnDeactivate == false)
+    }
+
+    /// Said because the opposite was once written down as the way to let a
+    /// panel take keys without activating, and a sketch that says so is still
+    /// there to be copied from. The flag decides only whether a click makes
+    /// the panel key; it has no say over asking for key status outright. If
+    /// it is ever set to true, this is what says so.
+    @Test func thePanelDoesNotWaitToBeNeededBeforeItCanTakeKeys() {
+        #expect(panel().becomesKeyOnlyIfNeeded == false)
     }
 
     @Test func panelJoinsEverySpaceAndStaysOutOfTheWindowCycle() {
