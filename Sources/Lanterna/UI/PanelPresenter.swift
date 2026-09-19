@@ -62,17 +62,24 @@ final class PanelPresenter {
         interval: commandWatchInterval,
         isPanelUp: { [weak self] in self?.surface.isPresented ?? false },
         commandIsHeld: { [weak self] in self?.commandIsHeld() ?? false },
-        onUnreportedRelease: { [weak self] in self?.closeForAnUnreportedRelease() }
+        onUnreportedRelease: { [weak self] in self?.wayOut.closeForAnUnreportedRelease() }
     )
 
-    /// The row the panel is showing as selected, kept so a commit can name it.
+    /// Every way the panel comes off the screen, and the row it was showing
+    /// while it was up.
     ///
-    /// `displayTitle` and not `windowTitle`: the latter may be empty or hold
-    /// nothing but whitespace, and the panel shows the application's name in
-    /// that case. A line disagreeing with the panel would be worse than no
-    /// line. The selection does not move yet, so this is the first row of
-    /// whatever was presented.
-    private var selectedWindow: (appName: String, displayTitle: String)?
+    /// `lazy` for the reason the watch above is: what it does when the panel
+    /// goes reaches back into this object.
+    ///
+    /// Built by a function rather than written out here, because these two
+    /// name each other — the watch reports a release to the way out, and the
+    /// way out stops the watch — and two `lazy` properties whose types are
+    /// both left to be worked out from expressions naming the other cannot
+    /// be worked out at all. A declared return type settles one of them, and
+    /// the other follows. Spelling the type on the property instead would say
+    /// the same thing, and the formatter would take it straight back off
+    /// again as a repetition of the initialiser beside it.
+    private lazy var wayOut = makeWayOut()
 
     init(
         surface: any SwitcherSurface,
@@ -94,6 +101,15 @@ final class PanelPresenter {
         self.closesOnCommandRelease = closesOnCommandRelease
         self.commandIsHeld = commandIsHeld
         self.commandWatchInterval = commandWatchInterval
+    }
+
+    private func makeWayOut() -> PanelExit {
+        PanelExit(
+            surface: surface,
+            now: now,
+            writeLine: writeLine,
+            stopWatching: { [weak self] in self?.commandWatch.stop() }
+        )
     }
 
     /// Puts the panel up for a press, and on a run with no monitor takes it
@@ -137,7 +153,7 @@ final class PanelPresenter {
             // release will close it, this keystroke moves the selection along.
             let releaseWillCloseIt = closesOnCommandRelease() && commandWatch.isLooking
             guard !releaseWillCloseIt else { return }
-            takeDown(because: combination.name)
+            wayOut.takeDown(because: combination.name)
             return
         }
         // The press comes in through Carbon and the release through the tap,
@@ -189,12 +205,7 @@ final class PanelPresenter {
         gatheredOnDemand: Bool
     ) {
         surface.present(windows: windows)
-        // Read here rather than off the panel at commit time, so what the
-        // commit names is the list this appearance was given. The selection
-        // stays on the first row for as long as nothing can move it.
-        selectedWindow = windows.first.map {
-            (appName: $0.appName, displayTitle: $0.displayTitle)
-        }
+        wayOut.nowShowing(windows)
         let measurement = HotkeyMeasurement(
             combination: combination,
             elapsed: now() - startedAt,
@@ -242,102 +253,23 @@ final class PanelPresenter {
             return
         }
         guard surface.isPresented else { return }
-        takeDown(because: "frontmost application changed")
+        wayOut.takeDown(because: "frontmost application changed")
     }
 
     /// Acts on Command having been let go.
     ///
-    /// The three questions are asked in this order, and the order carries
-    /// weight. A press still waiting for its first list means the panel is not
-    /// up, so asking whether it is up first would send that case down the
-    /// quiet path and leave the press to arrive as a panel over whatever the
-    /// user had turned to. Letting the slot go is what stops it.
-    ///
-    /// With no panel and nothing pending, the release is somebody finishing a
-    /// Cmd+C, and nothing is said. A log with a line per keystroke is a log
-    /// nobody reads.
+    /// The press waiting for its first list is asked about first, and the
+    /// order carries weight. Such a press means the panel is not up, so
+    /// asking whether it is up first would send that case down the quiet path
+    /// and leave the press to arrive as a panel over whatever the user had
+    /// turned to. Letting the slot go is what stops it.
     func handleCommandRelease() {
         let startedAt = now()
         if pendingPress.isWaiting {
             pendingPress.callOff()
-            record(.pressCalledOff, since: startedAt)
+            wayOut.recordPressCalledOff(since: startedAt)
             return
         }
-        guard surface.isPresented else { return }
-
-        // Read before the panel goes, because taking it down is what clears
-        // the selection.
-        let outcome: CommandReleaseMeasurement.Outcome = selectedWindow.map {
-            .committed(appName: $0.appName, displayTitle: $0.displayTitle)
-        } ?? .nothingToCommit
-        dismissPanel()
-        record(outcome, since: startedAt)
-    }
-
-    /// Takes the panel down for a release that came by no route at all.
-    ///
-    /// Plainly worded rather than measured, and deliberately not put through
-    /// `handleCommandRelease`: every figure in those lines spans from Command
-    /// being released to the panel being hidden, and this release was found by
-    /// looking rather than reported, so it happened up to one interval before
-    /// anything here knew of it and a figure begun at the noticing would read
-    /// low. This project takes those figures for measurements, and one that
-    /// quietly understates is worse than an event of its own.
-    ///
-    /// The row is read before the panel goes, for the reason a commit reads it
-    /// there: taking the panel down is what clears the selection. Flattened by
-    /// the same code a commit's is, so one row cannot be named two ways and a
-    /// window titled across two lines cannot print this event as two.
-    private func closeForAnUnreportedRelease() {
-        let row = selectedWindow.map {
-            CommandReleaseMeasurement.rowDescription(appName: $0.appName, displayTitle: $0.displayTitle)
-        }
-        dismissPanel()
-        writeLine(
-            "closed the panel showing \(row ?? "nothing"); "
-                + "Command was let go and the tap never said so"
-        )
-    }
-
-    /// The one place the panel comes off the screen.
-    ///
-    /// This used to be able to say more: `takeDown(because:)` was the only way
-    /// the panel went away, so every disappearance wore the same wording. A
-    /// commit is a second way out, and it words its own line, so what holds
-    /// now is the weaker invariant: every time the panel goes, exactly one
-    /// line says why. Saying it twice would be no better than not at all —
-    /// counting the lines afterwards would find two events where the user saw
-    /// one.
-    ///
-    /// The selection goes with the panel. Nothing reads it while the panel is
-    /// down, so no sequence of calls can tell whether this line is here —
-    /// it is kept because a row outliving the panel it was on is the kind of
-    /// thing that would already be wrong the moment the selection can move.
-    private func dismissPanel() {
-        surface.dismiss()
-        selectedWindow = nil
-        // Stopped here rather than at each way out, so the looking covers the
-        // panel's time on screen exactly — the watch's own way out included.
-        commandWatch.stop()
-    }
-
-    /// The wording for the two disappearances that are the app tidying up
-    /// after itself rather than the user deciding anything.
-    private func takeDown(because reason: String) {
-        dismissPanel()
-        writeLine("panel hidden (\(reason))")
-    }
-
-    /// Reads the clock after the work, so the figure spans exactly the part
-    /// this process is answerable for.
-    private func record(
-        _ outcome: CommandReleaseMeasurement.Outcome,
-        since startedAt: ContinuousClock.Instant
-    ) {
-        let measurement = CommandReleaseMeasurement(
-            outcome: outcome,
-            elapsed: now() - startedAt
-        )
-        writeLine(measurement.summaryLine)
+        wayOut.commitOnCommandRelease(since: startedAt)
     }
 }
