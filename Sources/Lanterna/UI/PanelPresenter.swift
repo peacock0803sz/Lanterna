@@ -225,10 +225,23 @@ final class PanelPresenter {
         startedAt: ContinuousClock.Instant,
         gatheredOnDemand: Bool
     ) {
-        // The choice opens on the first row, which is what the panel used to
-        // arrive at on its own.
+        // Four steps, and the order of all four is the point.
+        //
+        // The cursor is made first, so that what the panel is told to draw is
+        // read off it. The first row was worked out twice over until now —
+        // once here and once inside the panel — and two derivations of one
+        // thing agreed only because nothing could move the choice. Passing
+        // `windows.first?.id` here instead would leave the second derivation
+        // standing beside the cursor, agreeing with it, until the day it did
+        // not.
+        //
+        // Keys are asked for after the panel is up, because a window that is
+        // not on screen cannot become the key window, and before the reading
+        // is taken, because a press that put a panel up the keyboard never
+        // reached is a press that did not finish its work.
         selection = SelectionCursor(ids: windows.map(\.id))
-        surface.present(windows: windows, selecting: windows.first?.id)
+        surface.present(windows: windows, selecting: selection?.selectedID)
+        let becameKey = surface.takeKeys()
         wayOut.nowShowing(windows)
         let measurement = HotkeyMeasurement(
             combination: combination,
@@ -236,12 +249,7 @@ final class PanelPresenter {
             entryCount: windows.count,
             deliveryDelay: deliveryDelay,
             gatheredOnDemand: gatheredOnDemand,
-            // Nothing asks the panel for the keyboard yet, so no appearance
-            // is taking it. Stated rather than left out, so that the phrase
-            // is already on every line before there is a true to tell from a
-            // false: put in afterwards, "no phrase" and "the phrase says no"
-            // could not be told apart.
-            becameKey: false
+            becameKey: becameKey
         )
         writeLine(measurement.summaryLine)
 

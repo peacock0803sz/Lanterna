@@ -2,10 +2,11 @@ import Darwin
 @testable import Lanterna
 import Testing
 
-/// The tail every appearance line carries while nothing asks the panel for
-/// the keyboard. Named rather than repeated, so that the cases below stay
-/// about what each of them is for.
-private let notTakingKeys = "; not taking keys (they reach the frontmost application)"
+/// The tail every appearance line carries when the panel got the keyboard,
+/// which is what the stand-in answers unless a case says otherwise. Named
+/// rather than repeated, so that the cases below stay about what each of them
+/// is for.
+private let takingKeys = "; taking keys"
 
 @MainActor
 struct PanelPresenterTests {
@@ -40,23 +41,40 @@ struct PanelPresenterTests {
         #expect(fixture.surface.presentedSelections == [nil])
     }
 
-    /// Nothing asks the panel for the keyboard yet, and that is a decision
-    /// rather than an oversight — so it is written down here as one.
+    /// Every appearance asks for the keyboard, and asks once.
     ///
-    /// Meant to be turned over rather than deleted. The step that lets the
-    /// selection move is the step that has to ask, and until it does, a
-    /// presenter wired to ask and a presenter that forgot to would read
-    /// identically from every other case in the suite: the stand-in starts
-    /// out not taking keys, so the line's `becameKey: false` is a constant
-    /// with nothing to be compared against.
-    ///
-    /// The appearance is asserted alongside the count, because a zero from a
-    /// panel that never went up would say nothing at all.
-    @Test func anAppearanceDoesNotAskThePanelForTheKeyboardYet() {
+    /// The order is the assertion, not the count on its own. A window that is
+    /// not on screen cannot become the key window, so asking before the panel
+    /// is up would fail and the line would report a panel not taking keys
+    /// while one sat there taking them — the count alone reads the same
+    /// either way round.
+    @Test func anAppearanceAsksThePanelForTheKeyboardOnceItIsUp() {
         let fixture = Fixture()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        #expect(fixture.surface.isPresented)
-        #expect(fixture.surface.takeKeysCount == 0)
+        #expect(fixture.surface.takeKeysCount == 1)
+        #expect(
+            fixture.surface.calls == [
+                .present(selecting: fixture.windows.first?.id),
+                .takeKeys,
+            ]
+        )
+    }
+
+    /// A panel that was refused the keyboard says so on its own line.
+    ///
+    /// Without this the phrase is a constant: the stand-in answers yes to
+    /// every ask, so a presenter that reported the answer and one that wrote
+    /// a hard-coded yes would read identically everywhere else in the suite.
+    @Test func anAppearanceRefusedTheKeyboardSaysSoOnItsLine() {
+        let fixture = Fixture(entryCount: 3)
+        fixture.surface.takeKeysSucceeds = false
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(
+            fixture.log.lines == [
+                "panel shown 4.8 ms after Cmd+Tab (3 entries)"
+                    + "; not taking keys (they reach the frontmost application)",
+            ]
+        )
     }
 
     /// The reading spans the press, so a clock that steps once per read gives
@@ -69,7 +87,7 @@ struct PanelPresenterTests {
         #expect(
             fixture.log.lines == [
                 "panel shown 4.8 ms after Cmd+Tab (12 entries); delivery 1.9 ms"
-                    + notTakingKeys,
+                    + takingKeys,
             ]
         )
     }
@@ -81,7 +99,7 @@ struct PanelPresenterTests {
         #expect(fixture.surface.presentedLists.first?.count == 3)
         #expect(
             fixture.log.lines == [
-                "panel shown 4.8 ms after Shift+Cmd+Tab (3 entries)" + notTakingKeys,
+                "panel shown 4.8 ms after Shift+Cmd+Tab (3 entries)" + takingKeys,
             ]
         )
     }
@@ -192,7 +210,7 @@ struct PanelPresenterWaitingForAListTests {
         #expect(fixture.surface.presentedLists.first?.count == 4)
         #expect(
             fixture.log.lines == [
-                "panel shown 4.8 ms after Cmd+Tab (4 entries)" + notTakingKeys,
+                "panel shown 4.8 ms after Cmd+Tab (4 entries)" + takingKeys,
             ]
         )
     }
@@ -215,7 +233,7 @@ struct PanelPresenterWaitingForAListTests {
         #expect(
             fixture.log.lines == [
                 "panel shown 4.8 ms after Cmd+Tab (4 entries)"
-                    + "; gathered on the spot (no list held yet)" + notTakingKeys,
+                    + "; gathered on the spot (no list held yet)" + takingKeys,
             ]
         )
     }
@@ -248,7 +266,7 @@ struct PanelPresenterWaitingForAListTests {
         #expect(
             fixture.log.lines == [
                 "panel shown 9.6 ms after Cmd+Tab (4 entries)"
-                    + "; gathered on the spot (no list held yet)" + notTakingKeys,
+                    + "; gathered on the spot (no list held yet)" + takingKeys,
             ]
         )
     }
@@ -310,7 +328,7 @@ struct PanelPresenterWaitingForAListTests {
         #expect(
             fixture.log.lines == [
                 "panel shown 4.8 ms after Cmd+Tab (4 entries)"
-                    + "; gathered on the spot (no list held yet)" + notTakingKeys,
+                    + "; gathered on the spot (no list held yet)" + takingKeys,
             ]
         )
     }
@@ -335,7 +353,7 @@ struct PanelPresenterWaitingForAListTests {
             fixture.log.lines == [
                 "called off the press waiting for its first list; "
                     + "the frontmost application changed",
-                "panel shown 4.8 ms after Cmd+Tab (4 entries)" + notTakingKeys,
+                "panel shown 4.8 ms after Cmd+Tab (4 entries)" + takingKeys,
             ]
         )
     }
@@ -364,7 +382,7 @@ struct PanelPresenterWaitingForAListTests {
                 "called off the press waiting for its first list; "
                     + "the frontmost application changed",
                 "panel shown 4.8 ms after Shift+Cmd+Tab (4 entries)"
-                    + "; gathered on the spot (no list held yet)" + notTakingKeys,
+                    + "; gathered on the spot (no list held yet)" + takingKeys,
             ]
         )
     }
