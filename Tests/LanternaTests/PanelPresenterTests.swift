@@ -17,6 +17,48 @@ struct PanelPresenterTests {
         #expect(fixture.surface.isPresented)
     }
 
+    /// Which row is chosen is the presenter's to say, and this is the only
+    /// place it is said. The list used to arrive on its own and the view
+    /// worked the row out from it; now the two travel together, and nothing
+    /// downstream of `present` would notice an appearance that named no row
+    /// or named the wrong one — the panel goes up either way, the same size,
+    /// with the same rows, and the line written about it says the same thing.
+    @Test func theFirstRowIsTheOneThePanelIsToldToDrawAsChosen() {
+        let fixture = Fixture()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(fixture.surface.presentedSelections == [fixture.windows.first?.id])
+    }
+
+    /// An empty list is the one input for which no row is the right answer,
+    /// so it is the one case that cannot be folded into the above. Naming a
+    /// row that is not there, or reaching for a stand-in id, would leave a
+    /// highlight nothing could ever move off.
+    @Test func anEmptyListLeavesThePanelWithNoRowChosen() {
+        let fixture = Fixture(entryCount: 0)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(fixture.surface.presentedLists.count == 1)
+        #expect(fixture.surface.presentedSelections == [nil])
+    }
+
+    /// Nothing asks the panel for the keyboard yet, and that is a decision
+    /// rather than an oversight — so it is written down here as one.
+    ///
+    /// Meant to be turned over rather than deleted. The step that lets the
+    /// selection move is the step that has to ask, and until it does, a
+    /// presenter wired to ask and a presenter that forgot to would read
+    /// identically from every other case in the suite: the stand-in starts
+    /// out not taking keys, so the line's `becameKey: false` is a constant
+    /// with nothing to be compared against.
+    ///
+    /// The appearance is asserted alongside the count, because a zero from a
+    /// panel that never went up would say nothing at all.
+    @Test func anAppearanceDoesNotAskThePanelForTheKeyboardYet() {
+        let fixture = Fixture()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(fixture.surface.isPresented)
+        #expect(fixture.surface.takeKeysCount == 0)
+    }
+
     /// The reading spans the press, so a clock that steps once per read gives
     /// the whole line a value the test chose.
     /// No note about gathering: the list was already held, which is what the
