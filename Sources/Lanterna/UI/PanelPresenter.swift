@@ -134,10 +134,10 @@ final class PanelPresenter {
     ///
     /// That second job is a fallback now rather than the design. One key doing
     /// both was what dismissed the panel without a second key having to be
-    /// learned or claimed from the system; with a monitor running, letting go
-    /// of Command does the dismissing and a further press does nothing at all,
-    /// because that keystroke is spoken for by the step that lets the
-    /// selection move.
+    /// learned or claimed from the system; where letting go of Command does
+    /// the dismissing, a further press moves the selection along instead,
+    /// which is the keystroke the user reaches for anyway while the key is
+    /// still down.
     ///
     /// Nothing here turns a press away for arriving too soon after the last
     /// one. Holding the key down does not produce a stream of presses: three
@@ -161,16 +161,38 @@ final class PanelPresenter {
         // nothing.
         let startedAt = now()
         if surface.isPresented {
-            // The press is what closes the panel whenever nothing else will.
-            // A running monitor alone does not settle that: one that came
-            // back while this panel was already up takes its idea of the
-            // modifiers from the keyboard as it finds it, so a Command let go
-            // meanwhile leaves it no release to report, and the panel was
-            // shown with nothing running and so was given no watch. Where a
-            // release will close it, this keystroke moves the selection along.
-            let releaseWillCloseIt = closesOnCommandRelease() && commandWatch.isLooking
-            guard !releaseWillCloseIt else { return }
-            wayOut.takeDown(because: combination.name)
+            // Two questions, and the four states they make between them. Is
+            // a monitor running, and was this appearance given a watch.
+            //
+            // Both yes, and the press moves the selection: letting go of
+            // Command is what will close the panel, so this keystroke is
+            // free to mean something else.
+            //
+            // Any other pair, and the press is what closes the panel,
+            // because nothing else will. No monitor ever started, and there
+            // is no release being listened for at all. A monitor that was
+            // stopped when the panel went up left this appearance without a
+            // watch, and one that has come back since takes its idea of the
+            // modifiers from the keyboard as it finds it — a Command let go
+            // meanwhile leaves it no release to report. A monitor that has
+            // stopped since the panel went up leaves a watch still looking
+            // with nothing left to report to it.
+            //
+            // So the split is neither question on its own. The middle two
+            // states differ from the first in one of them each, and both are
+            // read again on every press because either can have changed
+            // since the last.
+            let pressMovesTheSelection = closesOnCommandRelease() && commandWatch.isLooking
+            guard pressMovesTheSelection else {
+                wayOut.takeDown(because: combination.name)
+                return
+            }
+            switch combination {
+            case .forward:
+                selection.moveToNext()
+            case .reverse:
+                selection.moveToPrevious()
+            }
             return
         }
         // The press comes in through Carbon and the release through the tap,
