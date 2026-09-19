@@ -351,10 +351,11 @@ final class PanelPresenter {
         // read while the figure went on reading the same — the reason the
         // press that puts a panel up is charged its clock read first too.
         //
-        // Every press pays for the read, including the ones that write no
-        // line. A press with no panel up costs the same and is the reason the
-        // read sits above the guard rather than below it: a keystroke this
-        // app decided not to answer took time to decide that.
+        // Above the guard costs a read on presses that go no further and buys
+        // nothing, since those write no line. It sits there to be one
+        // statement away from the entry rather than one condition inside it,
+        // the way the press that puts a panel up reads its clock before
+        // asking anything.
         let startedAt = now()
         guard surface.isPresented else { return .passedThrough }
         switch PanelKeyInput.action(for: keystroke) {
