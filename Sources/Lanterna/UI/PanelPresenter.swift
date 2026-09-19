@@ -274,6 +274,32 @@ final class PanelPresenter {
         wayOut.takeDown(because: "frontmost application changed")
     }
 
+    /// Decides what becomes of a key press.
+    ///
+    /// With no panel up the press is nothing to do with this app, and it goes
+    /// on to whatever would have had it. This is the only place that question
+    /// is asked: the channel delivering the press keeps no idea of whether a
+    /// panel is up, because two records of that are two things that can
+    /// disagree.
+    ///
+    /// With a panel up, everything is swallowed — the keys that mean
+    /// something here and equally the ones that mean nothing. The middle
+    /// course of handing back only the keys with no meaning was considered
+    /// and is wrong twice over. An event handed back travels the responder
+    /// chain, and the SDK says plainly what waits at the end of it: a key
+    /// press nothing handles rings the system alert. And a character key
+    /// passed on would type into whatever is in front, so a panel that is up
+    /// would be filling somebody's document while it stood there.
+    ///
+    /// What the press means is not read yet. The step that adds moving,
+    /// committing and cancelling is where a meaning starts to matter; until
+    /// then every press has the same answer, and classifying one only to
+    /// throw the answer away would be work no run could tell had happened.
+    func handleKeyStroke(_: PanelKeystroke) -> PanelKeyDisposition {
+        guard surface.isPresented else { return .passedThrough }
+        return .absorbed
+    }
+
     /// Acts on Command having been let go.
     ///
     /// The press waiting for its first list is asked about first, and the
