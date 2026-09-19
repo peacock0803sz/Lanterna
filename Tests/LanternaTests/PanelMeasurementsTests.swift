@@ -10,16 +10,22 @@ struct HotkeyMeasurementTests {
         elapsed: Duration = .microseconds(4800),
         entryCount: Int = 12,
         deliveryDelay: Duration? = nil,
-        gatheredOnDemand: Bool = false
+        gatheredOnDemand: Bool = false,
+        becameKey: Bool = false
     ) -> HotkeyMeasurement {
         HotkeyMeasurement(
             combination: combination,
             elapsed: elapsed,
             entryCount: entryCount,
             deliveryDelay: deliveryDelay,
-            gatheredOnDemand: gatheredOnDemand
+            gatheredOnDemand: gatheredOnDemand,
+            becameKey: becameKey
         )
     }
+
+    /// The tail every line carries, whichever way it went. Spelled out here
+    /// once so the cases below stay about the segment each of them is for.
+    private static let notTakingKeys = "; not taking keys (they reach the frontmost application)"
 
     /// No run produces this shape today: the delivery reading comes from two
     /// readings of one clock, neither of which can fail, so it is always
@@ -28,7 +34,18 @@ struct HotkeyMeasurementTests {
     @Test func withNothingOptionalTheLineIsTheTimingAlone() {
         #expect(
             Self.measurement().summaryLine
-                == "panel shown 4.8 ms after Cmd+Tab (12 entries)"
+                == "panel shown 4.8 ms after Cmd+Tab (12 entries)" + Self.notTakingKeys
+        )
+    }
+
+    /// Whether the panel is taking keys is said on every line and never left
+    /// out, both because a reader cannot tell a missing phrase from a build
+    /// that never wrote one, and because a phrase that is always there says
+    /// which build wrote the line.
+    @Test func whetherTheKeyboardArrivedIsAlwaysSaid() {
+        #expect(
+            Self.measurement(becameKey: true).summaryLine
+                == "panel shown 4.8 ms after Cmd+Tab (12 entries); taking keys"
         )
     }
 
@@ -36,6 +53,7 @@ struct HotkeyMeasurementTests {
         #expect(
             Self.measurement(deliveryDelay: .microseconds(1900)).summaryLine
                 == "panel shown 4.8 ms after Cmd+Tab (12 entries); delivery 1.9 ms"
+                + Self.notTakingKeys
         )
     }
 
@@ -46,7 +64,7 @@ struct HotkeyMeasurementTests {
         #expect(
             Self.measurement(gatheredOnDemand: true).summaryLine
                 == "panel shown 4.8 ms after Cmd+Tab (12 entries)"
-                + "; gathered on the spot (no list held yet)"
+                + "; gathered on the spot (no list held yet)" + Self.notTakingKeys
         )
     }
 
@@ -55,14 +73,14 @@ struct HotkeyMeasurementTests {
             Self.measurement(deliveryDelay: .microseconds(1900), gatheredOnDemand: true)
                 .summaryLine
                 == "panel shown 4.8 ms after Cmd+Tab (12 entries); delivery 1.9 ms"
-                + "; gathered on the spot (no list held yet)"
+                + "; gathered on the spot (no list held yet)" + Self.notTakingKeys
         )
     }
 
     @Test func theReverseCombinationNamesItself() {
         #expect(
             Self.measurement(combination: .reverse).summaryLine
-                == "panel shown 4.8 ms after Shift+Cmd+Tab (12 entries)"
+                == "panel shown 4.8 ms after Shift+Cmd+Tab (12 entries)" + Self.notTakingKeys
         )
     }
 
@@ -73,7 +91,10 @@ struct HotkeyMeasurementTests {
             elapsed: .microseconds(71251),
             deliveryDelay: .zero
         ).summaryLine
-        #expect(line == "panel shown 71.3 ms after Cmd+Tab (12 entries); delivery 0.0 ms")
+        #expect(
+            line == "panel shown 71.3 ms after Cmd+Tab (12 entries); delivery 0.0 ms"
+                + Self.notTakingKeys
+        )
     }
 }
 

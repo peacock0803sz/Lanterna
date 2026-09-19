@@ -215,7 +215,13 @@ final class PanelPresenter {
             elapsed: now() - startedAt,
             entryCount: windows.count,
             deliveryDelay: deliveryDelay,
-            gatheredOnDemand: gatheredOnDemand
+            gatheredOnDemand: gatheredOnDemand,
+            // Nothing asks the panel for the keyboard yet, so no appearance
+            // is taking it. Stated rather than left out, so that the phrase
+            // is already on every line before there is a true to tell from a
+            // false: put in afterwards, "no phrase" and "the phrase says no"
+            // could not be told apart.
+            becameKey: false
         )
         writeLine(measurement.summaryLine)
 

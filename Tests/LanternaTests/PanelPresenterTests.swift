@@ -2,6 +2,11 @@ import Darwin
 @testable import Lanterna
 import Testing
 
+/// The tail every appearance line carries while nothing asks the panel for
+/// the keyboard. Named rather than repeated, so that the cases below stay
+/// about what each of them is for.
+private let notTakingKeys = "; not taking keys (they reach the frontmost application)"
+
 @MainActor
 struct PanelPresenterTests {
     @Test func aPressPutsThePanelUpOnceWithTheListItWasGiven() {
@@ -20,7 +25,10 @@ struct PanelPresenterTests {
         let fixture = Fixture(step: .microseconds(4800))
         fixture.presenter.handleHotkey(.forward, deliveryDelay: .microseconds(1900))
         #expect(
-            fixture.log.lines == ["panel shown 4.8 ms after Cmd+Tab (12 entries); delivery 1.9 ms"]
+            fixture.log.lines == [
+                "panel shown 4.8 ms after Cmd+Tab (12 entries); delivery 1.9 ms"
+                    + notTakingKeys,
+            ]
         )
     }
 
@@ -29,7 +37,11 @@ struct PanelPresenterTests {
         fixture.presenter.handleHotkey(.reverse, deliveryDelay: nil)
         #expect(fixture.surface.presentedLists.count == 1)
         #expect(fixture.surface.presentedLists.first?.count == 3)
-        #expect(fixture.log.lines == ["panel shown 4.8 ms after Shift+Cmd+Tab (3 entries)"])
+        #expect(
+            fixture.log.lines == [
+                "panel shown 4.8 ms after Shift+Cmd+Tab (3 entries)" + notTakingKeys,
+            ]
+        )
     }
 
     @Test func aPressWhileThePanelIsUpTakesItDown() {
@@ -136,7 +148,11 @@ struct PanelPresenterWaitingForAListTests {
 
         #expect(fake.callCount == 1)
         #expect(fixture.surface.presentedLists.first?.count == 4)
-        #expect(fixture.log.lines == ["panel shown 4.8 ms after Cmd+Tab (4 entries)"])
+        #expect(
+            fixture.log.lines == [
+                "panel shown 4.8 ms after Cmd+Tab (4 entries)" + notTakingKeys,
+            ]
+        )
     }
 
     /// With nothing held the press has to wait, and the line says so: the
@@ -157,7 +173,7 @@ struct PanelPresenterWaitingForAListTests {
         #expect(
             fixture.log.lines == [
                 "panel shown 4.8 ms after Cmd+Tab (4 entries)"
-                    + "; gathered on the spot (no list held yet)",
+                    + "; gathered on the spot (no list held yet)" + notTakingKeys,
             ]
         )
     }
@@ -190,7 +206,7 @@ struct PanelPresenterWaitingForAListTests {
         #expect(
             fixture.log.lines == [
                 "panel shown 9.6 ms after Cmd+Tab (4 entries)"
-                    + "; gathered on the spot (no list held yet)",
+                    + "; gathered on the spot (no list held yet)" + notTakingKeys,
             ]
         )
     }
@@ -252,7 +268,7 @@ struct PanelPresenterWaitingForAListTests {
         #expect(
             fixture.log.lines == [
                 "panel shown 4.8 ms after Cmd+Tab (4 entries)"
-                    + "; gathered on the spot (no list held yet)",
+                    + "; gathered on the spot (no list held yet)" + notTakingKeys,
             ]
         )
     }
@@ -277,7 +293,7 @@ struct PanelPresenterWaitingForAListTests {
             fixture.log.lines == [
                 "called off the press waiting for its first list; "
                     + "the frontmost application changed",
-                "panel shown 4.8 ms after Cmd+Tab (4 entries)",
+                "panel shown 4.8 ms after Cmd+Tab (4 entries)" + notTakingKeys,
             ]
         )
     }
@@ -306,7 +322,7 @@ struct PanelPresenterWaitingForAListTests {
                 "called off the press waiting for its first list; "
                     + "the frontmost application changed",
                 "panel shown 4.8 ms after Shift+Cmd+Tab (4 entries)"
-                    + "; gathered on the spot (no list held yet)",
+                    + "; gathered on the spot (no list held yet)" + notTakingKeys,
             ]
         )
     }
