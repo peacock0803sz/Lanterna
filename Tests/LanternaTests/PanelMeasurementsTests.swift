@@ -98,12 +98,17 @@ struct HotkeyMeasurementTests {
     }
 }
 
-/// What a Command release says it did.
+/// What the end of an appearance says it was.
 ///
-/// Three wordings, one of which is written every time the key is let go while
-/// the panel is up or on its way. They are pinned here rather than where the
-/// decision is made, so a reword shows up as a failure in the file that owns
-/// the wording.
+/// One wording is written every time a panel leaves the screen by a route the
+/// user took, and one every time a press is let go of before its panel ever
+/// arrived. They are pinned here rather than where the decision is made, so a
+/// reword shows up as a failure in the file that owns the wording.
+///
+/// The ones Command's release has always written predate the trigger being
+/// recorded at all, and are the ones no later feature may disturb; the helper
+/// below defaults to that trigger so the cases pinning them go on saying
+/// nothing about one.
 struct PanelExitMeasurementTests {
     /// Letting go of Command by default, so that the cases pinning the three
     /// wordings it has always written say nothing about a trigger and go on
