@@ -106,8 +106,8 @@ protocol PanelKeyChannel {
     /// into whatever is there. So this is the only notice there is, and it is
     /// not one a caller may drop by accident. No `@discardableResult`, for
     /// that reason: a caller that means to throw the answer away spells it out
-    /// with `_ =` and says why, the way the two other deliberate discards in
-    /// this project do.
+    /// with `_ =` and says why, the way the deliberate discards in
+    /// `AppDelegate` do.
     func start(handler: @escaping @MainActor (PanelKeystroke) -> PanelKeyDisposition) -> Bool
 
     /// Stops delivering.
@@ -135,11 +135,12 @@ final class LocalKeyEventChannel: PanelKeyChannel {
     ///
     /// Closures rather than a protocol, which is where this parts company with
     /// `EventTapControlling`. That one stands for a thing with a life of its
-    /// own — five operations, all answering against a tap it keeps — so a type
-    /// is what it takes to stand in for it. This is two free functions, and
-    /// the shape the rest of this project uses for those is a closure with the
-    /// real call as its default, as `ModifierKeyMonitor` does for the clock
-    /// and for the writing of lines.
+    /// own: it keeps a tap between calls, and a call can leave the next one
+    /// with a different answer to give — so a type is what it takes to stand
+    /// in for it. This is two free functions, and the shape the rest of this
+    /// project uses for those is a closure with the real call as its default,
+    /// as `ModifierKeyMonitor` does for the clock and for the writing of
+    /// lines.
     typealias InstallMonitor =
         @MainActor (NSEvent.EventTypeMask, @escaping (NSEvent) -> NSEvent?) -> Any?
 

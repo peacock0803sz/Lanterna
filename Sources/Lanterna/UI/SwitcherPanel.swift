@@ -108,8 +108,9 @@ final class SwitcherPanel: NSPanel {
     /// left out. The swap carries over whichever row was chosen last time,
     /// so a panel put up a second time without this would keep the old
     /// highlight while the code that moves the selection believed it was back
-    /// on the first row. Nothing in a test process would catch that: a stand-
-    /// in panel records the row it was given and draws nothing.
+    /// on the first row. `shownSelection` reads the drawn choice back off the
+    /// view, which is what lets the tests of this class put a real panel up
+    /// twice and hold the second appearance to the row it was given.
     func present(windows: [WindowItem], selecting: WindowItem.Identifier?) {
         update(windows: windows)
         showSelection(selecting)
