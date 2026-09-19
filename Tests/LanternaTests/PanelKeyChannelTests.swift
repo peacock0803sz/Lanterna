@@ -118,6 +118,29 @@ struct PanelKeyChannelTests {
         #expect(fixture.log.lines == linesAfterThePanelWentUp)
     }
 
+    /// The keyboard goes back to whatever the user was working in once the
+    /// panel has gone. Only a press on the far side of a dismissal says so:
+    /// every case above stands in one state and stays there, so a presenter
+    /// that latched — swallowing everything from the first appearance onward
+    /// rather than asking each time whether a panel is up — would satisfy all
+    /// of them, while on a real machine one Cmd+Tab would be the last
+    /// keystroke any application ever received.
+    ///
+    /// The panel is taken down by a second press, which is what closes it on
+    /// a run with no modifier monitor; the default fixture is such a run.
+    @Test func aPressAfterThePanelHasGoneReachesTheApplicationAgain() {
+        let fixture = Fixture()
+        let channel = wired(fixture)
+
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(channel.send(aPress(kVK_ANSI_A)) == .absorbed)
+
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(fixture.surface.isPresented == false)
+
+        #expect(channel.send(aPress(kVK_ANSI_A)) == .passedThrough)
+    }
+
     /// A monitor that has been taken off delivers nothing at all, which is a
     /// different thing from delivering a press and swallowing it.
     @Test func aStoppedChannelDeliversNothing() {
