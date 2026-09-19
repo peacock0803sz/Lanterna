@@ -91,6 +91,68 @@ protocol PanelKeyChannel {
     func stop()
 }
 
+/// The real channel: AppKit's own monitor over the presses this process is
+/// handed.
+///
+/// Local and not global. A global monitor watches the whole machine's
+/// keyboard and needs the grant that goes with that; this one sees only what
+/// the system has already decided belongs to this process, which is what
+/// makes it free of any permission and free of any reach beyond the panel.
+@MainActor
+final class LocalKeyEventChannel: PanelKeyChannel {
+    /// AppKit hands back an opaque token, and it is the only way to take the
+    /// monitor off again.
+    private var monitor: Any?
+
+    /// Subscribes to presses only.
+    ///
+    /// Not releases, and not the modifier keys. The one thing this layer
+    /// needs to know is that a key went down; the modifiers are already
+    /// watched a layer below, and a wider subscription would widen what this
+    /// layer reads of somebody's typing for no answer it needs.
+    ///
+    /// Replaces whatever it started before, the way the window list's loop
+    /// does. Two monitors over one keyboard would ask the same question twice
+    /// and act on both answers.
+    func start(handler: @escaping @MainActor (PanelKeystroke) -> PanelKeyDisposition) {
+        stop()
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let keystroke = PanelKeystroke(
+                keyCode: event.keyCode,
+                modifiers: event.modifierFlags,
+                isARepeat: event.isARepeat
+            )
+            // AppKit delivers these on the main thread, so this is the main
+            // actor's executor; nothing weaker than a trap is wanted if that
+            // ever stops being true.
+            //
+            // Only the answer comes back out, and it has to be that way
+            // round: an event is not something the language will let cross
+            // between them, so handing the event in and taking it back would
+            // not compile. Nothing is lost by it — the event is still here to
+            // hand back, and what the decision needs of it was read above.
+            //
+            // Nothing is decided in here either. Whether a panel is up is
+            // known in one place, and this is not it; a second record of that
+            // here would be a second thing to keep true.
+            let disposition = MainActor.assumeIsolated { handler(keystroke) }
+            switch disposition {
+            case .absorbed:
+                return nil
+            case .passedThrough:
+                return event
+            }
+        }
+    }
+
+    func stop() {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        monitor = nil
+    }
+}
+
 /// Turning a key press into what it means, and nothing else.
 ///
 /// A namespace rather than a type with state: there is nothing to remember
