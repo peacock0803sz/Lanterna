@@ -20,6 +20,12 @@ struct HotkeyMeasurement: Sendable {
     /// where the reading above says more about the list than about the panel.
     let gatheredOnDemand: Bool
 
+    /// Whether key presses were reaching the panel once it was up.
+    ///
+    /// Carried with no default value, so that every appearance has to answer
+    /// it. An answer that could be left out would be left out.
+    let becameKey: Bool
+
     var summaryLine: String {
         var line = "panel shown \(Diagnostics.millisecondsText(elapsed)) ms "
             + "after \(combination.name) (\(entryCount) entries)"
@@ -29,6 +35,20 @@ struct HotkeyMeasurement: Sendable {
         if gatheredOnDemand {
             line += "; gathered on the spot (no list held yet)"
         }
+        // Said every time, both ways round, rather than only when something
+        // went wrong. A phrase that appears only on the bad run cannot be
+        // told from a binary too old to know the phrase at all, and reading
+        // a log from the wrong build is a way this project has been misled
+        // before. One that is always there doubles as the mark of which
+        // build wrote the line.
+        //
+        // Appended at the end, where nothing is counting from. The existing
+        // check on how long the panel took reads the third whitespace-
+        // separated field and is not anchored to the end of the line, so
+        // everything already being counted goes on reading the same.
+        line += becameKey
+            ? "; taking keys"
+            : "; not taking keys (they reach the frontmost application)"
         return line
     }
 }

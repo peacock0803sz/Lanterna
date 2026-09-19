@@ -1,22 +1,6 @@
 import CoreGraphics
 import Darwin
 
-/// The panel as the code deciding when to show it sees it: something that can
-/// be put up with a list, taken down, and asked whether it is up.
-///
-/// It is behind a protocol because a real panel needs a window server, which
-/// a test process has no business asking for. Whether it is up is asked of the
-/// panel rather than tracked alongside it: two records of one thing are two
-/// things that can disagree.
-@MainActor
-protocol SwitcherSurface {
-    var isPresented: Bool { get }
-    func present(windows: [WindowItem])
-    func dismiss()
-}
-
-extension SwitcherPanel: SwitcherSurface {}
-
 /// Decides when the panel goes up, and writes down what each press cost.
 @MainActor
 final class PanelPresenter {
@@ -30,10 +14,20 @@ final class PanelPresenter {
     /// A press that arrived before any list had been gathered and is waiting
     /// for one.
     ///
-    /// Kept here rather than read back off the store. The task that does the
-    /// waiting does not begin the instant it is made, and a second press
-    /// landing in that gap would find the store idle and start a second wait.
-    private var pendingPress: PendingPress?
+    /// `lazy` for the reason the watch below is: what it waits on and what it
+    /// does when the waiting is over are both this object's.
+    private lazy var pendingPress = PendingPressHold(
+        listWhenGathered: { [store] in await store.listWhenGathered() },
+        show: { [weak self] items, combination, deliveryDelay, startedAt in
+            self?.show(
+                items,
+                for: combination,
+                deliveryDelay: deliveryDelay,
+                startedAt: startedAt,
+                gatheredOnDemand: true
+            )
+        }
+    )
 
     /// Whether letting go of Command is what closes the panel.
     ///
@@ -68,25 +62,24 @@ final class PanelPresenter {
         interval: commandWatchInterval,
         isPanelUp: { [weak self] in self?.surface.isPresented ?? false },
         commandIsHeld: { [weak self] in self?.commandIsHeld() ?? false },
-        onUnreportedRelease: { [weak self] in self?.closeForAnUnreportedRelease() }
+        onUnreportedRelease: { [weak self] in self?.wayOut.closeForAnUnreportedRelease() }
     )
 
-    /// The row the panel is showing as selected, kept so a commit can name it.
+    /// Every way the panel comes off the screen, and the row it was showing
+    /// while it was up.
     ///
-    /// `displayTitle` and not `windowTitle`: the latter may be empty or hold
-    /// nothing but whitespace, and the panel shows the application's name in
-    /// that case. A line disagreeing with the panel would be worse than no
-    /// line. The selection does not move yet, so this is the first row of
-    /// whatever was presented.
-    private var selectedWindow: (appName: String, displayTitle: String)?
-
-    private struct PendingPress {
-        let combination: HotkeyCombination
-        let deliveryDelay: Duration?
-        /// When the press arrived. The reading spans the gathering too, which
-        /// is why the line it produces says the gathering happened.
-        let startedAt: ContinuousClock.Instant
-    }
+    /// `lazy` for the reason the watch above is: what it does when the panel
+    /// goes reaches back into this object.
+    ///
+    /// Built by a function rather than written out here, because these two
+    /// name each other — the watch reports a release to the way out, and the
+    /// way out stops the watch — and two `lazy` properties whose types are
+    /// both left to be worked out from expressions naming the other cannot
+    /// be worked out at all. A declared return type settles one of them, and
+    /// the other follows. Spelling the type on the property instead would say
+    /// the same thing, and the formatter would take it straight back off
+    /// again as a repetition of the initialiser beside it.
+    private lazy var wayOut = makeWayOut()
 
     init(
         surface: any SwitcherSurface,
@@ -108,6 +101,15 @@ final class PanelPresenter {
         self.closesOnCommandRelease = closesOnCommandRelease
         self.commandIsHeld = commandIsHeld
         self.commandWatchInterval = commandWatchInterval
+    }
+
+    private func makeWayOut() -> PanelExit {
+        PanelExit(
+            surface: surface,
+            now: now,
+            writeLine: writeLine,
+            stopWatching: { [weak self] in self?.commandWatch.stop() }
+        )
     }
 
     /// Puts the panel up for a press, and on a run with no monitor takes it
@@ -151,7 +153,7 @@ final class PanelPresenter {
             // release will close it, this keystroke moves the selection along.
             let releaseWillCloseIt = closesOnCommandRelease() && commandWatch.isLooking
             guard !releaseWillCloseIt else { return }
-            takeDown(because: combination.name)
+            wayOut.takeDown(because: combination.name)
             return
         }
         // The press comes in through Carbon and the release through the tap,
@@ -179,9 +181,9 @@ final class PanelPresenter {
         // A press is already waiting for the first list and is the one that
         // will put the panel up. The panel is not up yet, so without this a
         // second press would take the same path again and two would arrive.
-        guard pendingPress == nil else { return }
+        guard !pendingPress.isWaiting else { return }
         guard let held = store.snapshot else {
-            waitForTheFirstList(combination, deliveryDelay: deliveryDelay, startedAt: startedAt)
+            pendingPress.begin(combination, deliveryDelay: deliveryDelay, startedAt: startedAt)
             return
         }
         show(
@@ -193,40 +195,6 @@ final class PanelPresenter {
         )
     }
 
-    /// Holds the press until there is a list, then puts the panel up for it.
-    ///
-    /// Only a press arriving before the loop's first pass completes can get
-    /// here. The task below carries none of the press with it; it is a
-    /// standing "wake me once a list exists", and every field it shows the
-    /// panel with is read out of `pendingPress` at the moment it resumes.
-    /// That is what makes two such tasks interchangeable: when a press is
-    /// called off and another takes its place, whichever task wakes first
-    /// finds the press that is really waiting and puts the panel up for it,
-    /// and the other finds the slot empty and does nothing.
-    private func waitForTheFirstList(
-        _ combination: HotkeyCombination,
-        deliveryDelay: Duration?,
-        startedAt: ContinuousClock.Instant
-    ) {
-        pendingPress = PendingPress(
-            combination: combination,
-            deliveryDelay: deliveryDelay,
-            startedAt: startedAt
-        )
-        Task { [self] in
-            let items = await store.listWhenGathered()
-            guard let pending = pendingPress else { return }
-            pendingPress = nil
-            show(
-                items,
-                for: pending.combination,
-                deliveryDelay: pending.deliveryDelay,
-                startedAt: pending.startedAt,
-                gatheredOnDemand: true
-            )
-        }
-    }
-
     /// The one place the panel goes up, so every appearance is measured and
     /// every measurement describes an appearance.
     private func show(
@@ -236,19 +204,25 @@ final class PanelPresenter {
         startedAt: ContinuousClock.Instant,
         gatheredOnDemand: Bool
     ) {
-        surface.present(windows: windows)
-        // Read here rather than off the panel at commit time, so what the
-        // commit names is the list this appearance was given. The selection
-        // stays on the first row for as long as nothing can move it.
-        selectedWindow = windows.first.map {
-            (appName: $0.appName, displayTitle: $0.displayTitle)
-        }
+        // The first row, stated rather than worked out, and only until
+        // `SelectionCursor` is wired to this — it already knows how to move
+        // the choice, and nothing here reaches for it yet. It says out loud
+        // what the panel used to arrive at on its own, so that the one place
+        // deciding it is here from the start.
+        surface.present(windows: windows, selecting: windows.first?.id)
+        wayOut.nowShowing(windows)
         let measurement = HotkeyMeasurement(
             combination: combination,
             elapsed: now() - startedAt,
             entryCount: windows.count,
             deliveryDelay: deliveryDelay,
-            gatheredOnDemand: gatheredOnDemand
+            gatheredOnDemand: gatheredOnDemand,
+            // Nothing asks the panel for the keyboard yet, so no appearance
+            // is taking it. Stated rather than left out, so that the phrase
+            // is already on every line before there is a true to tell from a
+            // false: put in afterwards, "no phrase" and "the phrase says no"
+            // could not be told apart.
+            becameKey: false
         )
         writeLine(measurement.summaryLine)
 
@@ -265,29 +239,32 @@ final class PanelPresenter {
     /// Every activation is announced, so most calls arrive with no panel up
     /// and must do nothing at all.
     ///
-    /// This process is ruled out rather than assumed absent. The panel is
-    /// built not to activate it — non-activating, neither key nor main,
-    /// ordered front regardless — so a notification naming this process is not
-    /// expected; acting on one that did arrive would take a panel down the
-    /// moment it appeared, or throw away a press still on its way to becoming
-    /// one, and one comparison is a cheap way never to find out the hard way.
+    /// This process is ruled out rather than assumed absent. The panel can
+    /// take key status now, which is the part of this that changed, and
+    /// taking it was measured not to bring the application forward: over
+    /// twenty appearances no notification named this process, the frontmost
+    /// application never changed, and the application never reported itself
+    /// active. The reading is not an instrument that failed to fire, because
+    /// a control that brought another application forward on purpose was
+    /// announced both times.
+    ///
+    /// So a notification naming this process is not expected — and it is
+    /// still compared for, because acting on one that did arrive would take a
+    /// panel down the moment it appeared, or throw away a press still on its
+    /// way to becoming one. One comparison is a cheap way never to find out
+    /// the hard way.
     func handleActivation(of processIdentifier: pid_t) {
         guard processIdentifier != ownProcessIdentifier else { return }
-        if pendingPress != nil {
+        if pendingPress.isWaiting {
             // Nothing is on screen to take down. What has to stop is the
             // panel still on its way, which would otherwise appear over
-            // whatever the user has just turned to, and letting the slot go
-            // is what stops it. It also leaves the way clear for whatever
-            // comes next: while the slot is occupied every press is turned
-            // away as the duplicate of one already being answered, so a press
-            // arriving before the list does would be dropped rather than
-            // shown. The line is for the press and not for the panel: the
-            // press is what the user did, and one that disappeared without a
-            // word could not be told from one that never arrived at all.
-            // Written plainly rather than measured, because every figure in
-            // these lines is a span since Command was released, and no
-            // release happened here.
-            pendingPress = nil
+            // whatever the user has just turned to. The line is for the press
+            // and not for the panel: the press is what the user did, and one
+            // that disappeared without a word could not be told from one that
+            // never arrived at all. Written plainly rather than measured,
+            // because every figure in these lines is a span since Command was
+            // released, and no release happened here.
+            pendingPress.callOff()
             writeLine(
                 "called off the press waiting for its first list; "
                     + "the frontmost application changed"
@@ -295,102 +272,51 @@ final class PanelPresenter {
             return
         }
         guard surface.isPresented else { return }
-        takeDown(because: "frontmost application changed")
+        wayOut.takeDown(because: "frontmost application changed")
+    }
+
+    /// Decides what becomes of a key press.
+    ///
+    /// With no panel up the press is nothing to do with this app, and it goes
+    /// on to whatever would have had it. This is the only place that question
+    /// is asked: the channel delivering the press keeps no idea of whether a
+    /// panel is up, because two records of that are two things that can
+    /// disagree.
+    ///
+    /// With a panel up, everything is swallowed — the keys that mean
+    /// something here and equally the ones that mean nothing. The middle
+    /// course of handing back only the keys with no meaning was considered
+    /// and is wrong twice over. An event handed back travels the responder
+    /// chain, and the SDK says plainly what waits at the end of it: a key
+    /// press nothing handles rings the system alert. And a character key
+    /// passed on would type into whatever is in front, so a panel that is up
+    /// would be filling somebody's document while it stood there.
+    ///
+    /// What the press means is not read yet. The mapping from a key to a
+    /// meaning is already here, in `PanelKeyInput`; the step that acts on it
+    /// — moving, committing and cancelling — is where a meaning starts to
+    /// matter. Until then every press has the same answer, and classifying
+    /// one only to throw the answer away would be work no run could tell had
+    /// happened.
+    func handleKeyStroke(_: PanelKeystroke) -> PanelKeyDisposition {
+        guard surface.isPresented else { return .passedThrough }
+        return .absorbed
     }
 
     /// Acts on Command having been let go.
     ///
-    /// The three questions are asked in this order, and the order carries
-    /// weight. A press still waiting for its first list means the panel is not
-    /// up, so asking whether it is up first would send that case down the
-    /// quiet path and leave the press to arrive as a panel over whatever the
-    /// user had turned to. Letting the slot go is what stops it.
-    ///
-    /// With no panel and nothing pending, the release is somebody finishing a
-    /// Cmd+C, and nothing is said. A log with a line per keystroke is a log
-    /// nobody reads.
+    /// The press waiting for its first list is asked about first, and the
+    /// order carries weight. Such a press means the panel is not up, so
+    /// asking whether it is up first would send that case down the quiet path
+    /// and leave the press to arrive as a panel over whatever the user had
+    /// turned to. Letting the slot go is what stops it.
     func handleCommandRelease() {
         let startedAt = now()
-        if pendingPress != nil {
-            pendingPress = nil
-            record(.pressCalledOff, since: startedAt)
+        if pendingPress.isWaiting {
+            pendingPress.callOff()
+            wayOut.recordPressCalledOff(since: startedAt)
             return
         }
-        guard surface.isPresented else { return }
-
-        // Read before the panel goes, because taking it down is what clears
-        // the selection.
-        let outcome: CommandReleaseMeasurement.Outcome = selectedWindow.map {
-            .committed(appName: $0.appName, displayTitle: $0.displayTitle)
-        } ?? .nothingToCommit
-        dismissPanel()
-        record(outcome, since: startedAt)
-    }
-
-    /// Takes the panel down for a release that came by no route at all.
-    ///
-    /// Plainly worded rather than measured, and deliberately not put through
-    /// `handleCommandRelease`: every figure in those lines spans from Command
-    /// being released to the panel being hidden, and this release was found by
-    /// looking rather than reported, so it happened up to one interval before
-    /// anything here knew of it and a figure begun at the noticing would read
-    /// low. This project takes those figures for measurements, and one that
-    /// quietly understates is worse than an event of its own.
-    ///
-    /// The row is read before the panel goes, for the reason a commit reads it
-    /// there: taking the panel down is what clears the selection. Flattened by
-    /// the same code a commit's is, so one row cannot be named two ways and a
-    /// window titled across two lines cannot print this event as two.
-    private func closeForAnUnreportedRelease() {
-        let row = selectedWindow.map {
-            CommandReleaseMeasurement.rowDescription(appName: $0.appName, displayTitle: $0.displayTitle)
-        }
-        dismissPanel()
-        writeLine(
-            "closed the panel showing \(row ?? "nothing"); "
-                + "Command was let go and the tap never said so"
-        )
-    }
-
-    /// The one place the panel comes off the screen.
-    ///
-    /// This used to be able to say more: `takeDown(because:)` was the only way
-    /// the panel went away, so every disappearance wore the same wording. A
-    /// commit is a second way out, and it words its own line, so what holds
-    /// now is the weaker invariant: every time the panel goes, exactly one
-    /// line says why. Saying it twice would be no better than not at all —
-    /// counting the lines afterwards would find two events where the user saw
-    /// one.
-    ///
-    /// The selection goes with the panel. Nothing reads it while the panel is
-    /// down, so no sequence of calls can tell whether this line is here —
-    /// it is kept because a row outliving the panel it was on is the kind of
-    /// thing that would already be wrong the moment the selection can move.
-    private func dismissPanel() {
-        surface.dismiss()
-        selectedWindow = nil
-        // Stopped here rather than at each way out, so the looking covers the
-        // panel's time on screen exactly — the watch's own way out included.
-        commandWatch.stop()
-    }
-
-    /// The wording for the two disappearances that are the app tidying up
-    /// after itself rather than the user deciding anything.
-    private func takeDown(because reason: String) {
-        dismissPanel()
-        writeLine("panel hidden (\(reason))")
-    }
-
-    /// Reads the clock after the work, so the figure spans exactly the part
-    /// this process is answerable for.
-    private func record(
-        _ outcome: CommandReleaseMeasurement.Outcome,
-        since startedAt: ContinuousClock.Instant
-    ) {
-        let measurement = CommandReleaseMeasurement(
-            outcome: outcome,
-            elapsed: now() - startedAt
-        )
-        writeLine(measurement.summaryLine)
+        wayOut.commitOnCommandRelease(since: startedAt)
     }
 }

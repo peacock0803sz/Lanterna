@@ -24,6 +24,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Held so the deliberate stops can be called off on the way out. Absent
     /// in an ordinary run.
     private var monitorStopTask: Task<Void, Never>?
+    /// Held so the monitor over this process's key presses can be taken off
+    /// on the way out, and so that it lasts until then.
+    private var panelKeys: LocalKeyEventChannel?
     private var appNapActivity: NSObjectProtocol?
 
     /// Takes the options whole rather than one parameter per flag, so a flag
@@ -45,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Built now and left off screen. Nothing shows until a key is pressed,
         // and building the window ahead of time keeps its cost off the path
         // between that press and the panel.
-        let panel = SwitcherPanel(content: SwitcherView(windows: []))
+        let panel = SwitcherPanel(content: SwitcherView(windows: [], selectedID: nil))
 
         // Before the hotkeys are claimed, so that the first pass has a head
         // start on the first press and that press is unlikely to find nothing
@@ -86,7 +89,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         startMonitoringModifiers(for: presenter)
+        startWatchingPanelKeys(for: presenter)
         observeFrontmostApplication(presenter)
+    }
+
+    /// Puts the monitor over this process's key presses up, for the rest of
+    /// the run.
+    ///
+    /// Installed once here rather than each time a panel appears. Both would
+    /// deliver the same presses; only this one keeps the cost of installing
+    /// it off the path between the press and the panel, which is the one path
+    /// with a time budget, and the one the asking for key status will join
+    /// once anything asks.
+    ///
+    /// It is running while no panel is up, and that is not a cost: a press
+    /// arriving then is handed straight back, and the presenter is the one
+    /// place that knows which case it is in.
+    private func startWatchingPanelKeys(for presenter: PanelPresenter) {
+        let channel = LocalKeyEventChannel()
+        let started = channel.start(handler: presenter.handleKeyStroke)
+        // Written down, the way the hotkey registration and the modifier tap
+        // are. Those are the other two claims this launch makes on the
+        // keyboard, and each of them writes a line saying how it went. A third
+        // that went about its business in silence would be the one claim whose
+        // failure left no trace at all: a run whose monitor never went up puts
+        // the panel on screen, answers every question about the panel
+        // correctly, and types the user's keystrokes into whatever is behind
+        // it.
+        //
+        // Said both ways round rather than only when it failed, for the reason
+        // `HotkeyMeasurement.becameKey` is said both ways round: a phrase that
+        // turns up only on the bad run cannot be told from a binary too old to
+        // know the phrase at all, and reading a log from the wrong build has
+        // misled this project before. The line that is always there doubles as
+        // the mark of which build wrote it.
+        Diagnostics.writeLine(
+            started
+                ? "panel key monitor started; a panel that is up can take the whole keyboard"
+                : "panel key monitor could not start; keys reach the frontmost application "
+                + "even while a panel is up"
+        )
+        panelKeys = channel
     }
 
     /// Puts the modifier tap up and writes down what that achieved.
@@ -248,6 +291,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // that switched it off. So nothing that could fail is allowed to stand
         // between a launch and that shortcut coming back.
         monitor?.stop()
+        // Last of the three claims this process makes on the keyboard — the
+        // Carbon registration, the tap, and this monitor — and it can be: it
+        // is handed events the system had already decided were this
+        // process's, so it holds nothing back from anything else and leaves
+        // nothing behind if the process goes without it. It is taken off all
+        // the same, because a monitor outliving the presenter it answers is
+        // the kind of thing that stops being harmless the moment anything
+        // else is added to this teardown.
+        panelKeys?.stop()
+        panelKeys = nil
         if let appNapActivity {
             ProcessInfo.processInfo.endActivity(appNapActivity)
             self.appNapActivity = nil

@@ -8,16 +8,27 @@ import Testing
 @MainActor
 struct SwitcherPanelTests {
     private func panel(rowCount: Int = 3) -> SwitcherPanel {
-        SwitcherPanel(content: SwitcherView(windows: SampleWindows.make(count: rowCount)))
+        SwitcherPanel(
+            content: SwitcherView(windows: SampleWindows.make(count: rowCount), selectedID: nil)
+        )
     }
 
     @Test func panelIsANonActivatingFloatingOverlay() {
         let panel = panel()
         #expect(panel.styleMask.contains(.nonactivatingPanel))
         #expect(panel.level == .floating)
-        #expect(panel.canBecomeKey == false)
+        #expect(panel.canBecomeKey == true)
         #expect(panel.canBecomeMain == false)
         #expect(panel.hidesOnDeactivate == false)
+    }
+
+    /// Said because the opposite was once written down as the way to let a
+    /// panel take keys without activating, and a sketch that says so is still
+    /// there to be copied from. The flag decides only whether a click makes
+    /// the panel key; it has no say over asking for key status outright. If
+    /// it is ever set to true, this is what says so.
+    @Test func thePanelDoesNotWaitToBeNeededBeforeItCanTakeKeys() {
+        #expect(panel().becomesKeyOnlyIfNeeded == false)
     }
 
     @Test func panelJoinsEverySpaceAndStaysOutOfTheWindowCycle() {
@@ -54,6 +65,55 @@ struct SwitcherPanelTests {
         #expect(panel.contentView === before)
     }
 
+    /// The row an appearance is given is the row it draws. Nothing else about
+    /// the panel would say otherwise: `present` sizes itself from the list and
+    /// puts the window up whether or not the choice ever reached the view, so
+    /// an appearance that dropped it would leave a panel with every row
+    /// looking unchosen and a caller certain one was highlighted.
+    @Test func presentingDrawsTheRowItWasGiven() {
+        let panel = panel()
+        let windows = SampleWindows.make(count: 3)
+        panel.present(windows: windows, selecting: windows[1].id)
+        #expect(panel.shownSelection == windows[1].id)
+        panel.dismiss()
+    }
+
+    /// A swapped-in list leaves the choice where it was. Assigning a new root
+    /// view replaces every field of it, so the selection survives only by
+    /// being carried across by hand — and this is the one case that says so:
+    /// the row asked for here is neither the first of the new list nor
+    /// nothing, so a swap that dropped the choice and one that recomputed it
+    /// from the list both come out wrong.
+    @Test func updatingKeepsTheRowThatWasAlreadyChosen() {
+        let panel = panel()
+        let windows = SampleWindows.make(count: 3)
+        panel.present(windows: windows, selecting: windows[1].id)
+
+        panel.update(windows: SampleWindows.make(count: 5))
+
+        #expect(panel.shownSelection == windows[1].id)
+        panel.dismiss()
+    }
+
+    /// A second appearance draws what it was given and not what the first one
+    /// left behind. It needs its own case because the carrying-over above is
+    /// exactly what puts it at risk: `present` swaps the list in first, which
+    /// hands the old choice forward, and only writing the new one afterwards
+    /// undoes that. Without the write the panel would go back up highlighting
+    /// a row from the list that is gone, while whatever moves the selection
+    /// believed it was back at the top.
+    @Test func aSecondAppearanceDoesNotKeepTheLastOnesHighlight() {
+        let panel = panel()
+        let windows = SampleWindows.make(count: 4)
+        panel.present(windows: windows, selecting: windows[2].id)
+        panel.dismiss()
+
+        panel.present(windows: windows, selecting: windows.first?.id)
+
+        #expect(panel.shownSelection == windows.first?.id)
+        panel.dismiss()
+    }
+
     /// Nothing moves the panel between appearances, so a display change leaves
     /// a panel that is up wherever the old arrangement put it. Only the
     /// putting back is pinned here; what was seen when a panel was left where
@@ -61,7 +121,7 @@ struct SwitcherPanelTests {
     /// can arrange.
     @Test func aPanelThatIsUpIsPutBackWhenTheScreensChange() {
         let panel = panel()
-        panel.present(windows: SampleWindows.make(count: 3))
+        panel.present(windows: SampleWindows.make(count: 3), selecting: nil)
         let belongs = panel.frame.origin
         panel.setFrameOrigin(NSPoint(x: belongs.x + 400, y: belongs.y + 200))
 
@@ -94,7 +154,7 @@ struct SwitcherPanelTests {
     /// clock; the count is slack, not a measurement.
     @Test func aDisplayChangeNotificationPutsThePanelBack() async {
         let panel = panel()
-        panel.present(windows: SampleWindows.make(count: 3))
+        panel.present(windows: SampleWindows.make(count: 3), selecting: nil)
         let belongs = panel.frame.origin
         panel.setFrameOrigin(NSPoint(x: belongs.x + 400, y: belongs.y + 200))
 

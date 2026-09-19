@@ -11,9 +11,44 @@ let otherProcess: pid_t = 5678
 /// appeared once rather than twice, and those are what this records.
 @MainActor
 final class FakeSurface: SwitcherSurface {
+    /// Every call in the order it came, so a test can say that keys were
+    /// asked for after the panel went up and not before.
+    enum Call: Equatable {
+        case present(selecting: WindowItem.Identifier?)
+        case takeKeys
+        case showSelection(WindowItem.Identifier?)
+        case dismiss
+    }
+
+    private(set) var calls: [Call] = []
     private(set) var presentedLists: [[WindowItem]] = []
+    /// The row each appearance was told to draw as chosen.
+    private(set) var presentedSelections: [WindowItem.Identifier?] = []
+    /// Every row the panel was told to redraw as chosen, in order. The count
+    /// matters as much as the values: redrawing a selection must not go
+    /// through `present`, and a test can only tell those apart by which
+    /// record grew.
+    private(set) var shownSelections: [WindowItem.Identifier?] = []
+    private(set) var takeKeysCount = 0
     private(set) var dismissCount = 0
     var isPresented = false
+
+    /// Whether presses are reaching the panel.
+    ///
+    /// Settable, because this is the one seam through which a test stages
+    /// key status being lost while a panel is up. There is no second way in:
+    /// a lost-and-regained answer that could be injected somewhere else
+    /// would be a second record of one thing.
+    var isTakingKeys = false
+
+    /// What `takeKeys()` answers.
+    ///
+    /// Separate from the flag above, and it has to be. Implementing the ask
+    /// as a read of `isTakingKeys` would answer no for ever once a test had
+    /// staged a loss, so no test could stage a recovery; answering yes always
+    /// would make three failures in a row impossible to stage. Both are cases
+    /// the panel has to be held to.
+    var takeKeysSucceeds = true
 
     /// Run inside `dismiss()`, before it returns.
     ///
@@ -24,14 +59,33 @@ final class FakeSurface: SwitcherSurface {
     /// is what separates them.
     var onDismiss: (@MainActor () -> Void)?
 
-    func present(windows: [WindowItem]) {
+    func present(windows: [WindowItem], selecting: WindowItem.Identifier?) {
         presentedLists.append(windows)
+        presentedSelections.append(selecting)
+        calls.append(.present(selecting: selecting))
         isPresented = true
+    }
+
+    func takeKeys() -> Bool {
+        takeKeysCount += 1
+        calls.append(.takeKeys)
+        isTakingKeys = takeKeysSucceeds
+        return takeKeysSucceeds
+    }
+
+    func showSelection(_ id: WindowItem.Identifier?) {
+        shownSelections.append(id)
+        calls.append(.showSelection(id))
     }
 
     func dismiss() {
         dismissCount += 1
+        calls.append(.dismiss)
         isPresented = false
+        // A panel ordered off the screen is no longer taking anything, and a
+        // stand-in that went on saying it was would let a test pass that the
+        // real one could not.
+        isTakingKeys = false
         onDismiss?()
     }
 }
