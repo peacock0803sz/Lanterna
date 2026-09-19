@@ -7,10 +7,10 @@
 /// things that can disagree.
 ///
 /// Kept in a file of its own rather than beside the presenter that uses it.
-/// This is the boundary the step that lets the selection move widens — keys,
-/// a chosen row, and the panel being asked to redraw one — and a boundary
-/// that grows belongs somewhere its growth is not charged to a file that is
-/// already close to the length the linter allows.
+/// This is the boundary letting the selection move has widened — keys, a
+/// chosen row, and the panel being asked to redraw one are all here now —
+/// and a boundary that grows belongs somewhere its growth is not charged to
+/// a file that was already close to the length the linter allows.
 @MainActor
 protocol SwitcherSurface {
     var isPresented: Bool { get }

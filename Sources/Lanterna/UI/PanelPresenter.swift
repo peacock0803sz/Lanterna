@@ -204,8 +204,9 @@ final class PanelPresenter {
         startedAt: ContinuousClock.Instant,
         gatheredOnDemand: Bool
     ) {
-        // The first row, stated rather than worked out, and only until there
-        // is something that knows how to move the choice. It says out loud
+        // The first row, stated rather than worked out, and only until
+        // `SelectionCursor` is wired to this — it already knows how to move
+        // the choice, and nothing here reaches for it yet. It says out loud
         // what the panel used to arrive at on its own, so that the one place
         // deciding it is here from the start.
         surface.present(windows: windows, selecting: windows.first?.id)
@@ -291,10 +292,12 @@ final class PanelPresenter {
     /// passed on would type into whatever is in front, so a panel that is up
     /// would be filling somebody's document while it stood there.
     ///
-    /// What the press means is not read yet. The step that adds moving,
-    /// committing and cancelling is where a meaning starts to matter; until
-    /// then every press has the same answer, and classifying one only to
-    /// throw the answer away would be work no run could tell had happened.
+    /// What the press means is not read yet. The mapping from a key to a
+    /// meaning is already here, in `PanelKeyInput`; the step that acts on it
+    /// — moving, committing and cancelling — is where a meaning starts to
+    /// matter. Until then every press has the same answer, and classifying
+    /// one only to throw the answer away would be work no run could tell had
+    /// happened.
     func handleKeyStroke(_: PanelKeystroke) -> PanelKeyDisposition {
         guard surface.isPresented else { return .passedThrough }
         return .absorbed
