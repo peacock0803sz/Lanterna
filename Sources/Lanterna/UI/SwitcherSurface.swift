@@ -32,7 +32,14 @@ protocol SwitcherSurface {
     func present(windows: [WindowItem], selecting: WindowItem.Identifier?)
 
     /// Asks for key presses, and answers whether they will arrive.
-    @discardableResult func takeKeys() -> Bool
+    ///
+    /// The answer is the only notice a refusal gives, so it is not one a
+    /// caller may drop by accident: a window that cannot become key says
+    /// nothing, raises nothing, and goes on looking exactly like one that
+    /// did. No `@discardableResult`, for that reason — a caller meaning to
+    /// throw it away spells that out with `_ =` and says why, the way the
+    /// deliberate discards in `AppDelegate` do.
+    func takeKeys() -> Bool
 
     /// Redraws with a different row chosen, changing nothing else about the
     /// panel — not its size, not its position, and writing no line.

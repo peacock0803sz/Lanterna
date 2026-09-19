@@ -130,7 +130,6 @@ final class SwitcherPanel: NSPanel {
     /// asking. A window that cannot become key drops the request silently,
     /// and so does one asked while the application is in a state that does
     /// not allow it.
-    @discardableResult
     func takeKeys() -> Bool {
         makeKey()
         return isKeyWindow

@@ -66,7 +66,6 @@ final class FakeSurface: SwitcherSurface {
         isPresented = true
     }
 
-    @discardableResult
     func takeKeys() -> Bool {
         takeKeysCount += 1
         calls.append(.takeKeys)
