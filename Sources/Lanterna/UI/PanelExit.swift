@@ -101,9 +101,15 @@ final class PanelExit {
     /// there was nothing to take either way, so there is nothing to tell the
     /// two apart with.
     ///
-    /// Asked of nothing before acting. Whether a panel is up is settled by the
-    /// caller, which is the only place that question is asked, the way the
-    /// other exits called from there have it settled for them.
+    /// Asks nothing before acting, because the one caller has already asked:
+    /// a keystroke is only given a meaning while a panel is up. The commit
+    /// beside this one does ask, and for a reason this does not share — a
+    /// release arrives whether or not a panel is on screen, so it has to turn
+    /// away the ones that are somebody finishing a Cmd+C.
+    ///
+    /// Dismisses before recording, and that order is the measurement. The
+    /// figure is meant to cover the call that takes the panel off the screen,
+    /// which on a real machine is where the time goes.
     func cancel(by key: CancelKey, since startedAt: ContinuousClock.Instant) {
         dismissPanel()
         record(.cancelled, by: .cancelKey(key), since: startedAt)
