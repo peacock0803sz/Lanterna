@@ -152,11 +152,18 @@ struct PanelPresenterCommitTests {
         #expect(fixture.surface.dismissCount == 1)
     }
 
-    /// The press is the one that would have moved the selection on, so with a
-    /// monitor running it has to do nothing at all — not close the panel, and
-    /// not put a second one up.
+    /// The press moves the selection along now, and what this case holds is
+    /// everything it must leave alone while doing so: the panel stays, no
+    /// second one goes up, and nothing is written. Which row it lands on is
+    /// held elsewhere, by the suite about the choice.
+    ///
+    /// Both combinations, because they walk opposite ways and a path that
+    /// closed the panel for one of them would pass every case that only ever
+    /// pressed the other.
     @Test(arguments: [HotkeyCombination.forward, .reverse])
-    func withAMonitorRunningAFurtherPressDoesNothing(combination: HotkeyCombination) {
+    func withAMonitorRunningAFurtherPressDisturbsNothingButTheChoice(
+        combination: HotkeyCombination
+    ) {
         let fixture = runningWithAMonitor()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
         let linesSoFar = fixture.log.lines
