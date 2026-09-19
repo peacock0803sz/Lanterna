@@ -4,9 +4,11 @@
 /// Split from the presenter, which decides when a panel goes up. When one
 /// comes down is a different question, and it is the one with state of its
 /// own: the row being shown exists only while the panel does, and every way
-/// out reads it or clears it. Keeping the row here, with the ways out, is
-/// what lets all of them stay private to one file — an extension elsewhere
-/// could only reach them by making them visible to the whole module.
+/// out reads it or clears it. The ways out are called from the presenter and
+/// so are visible to the module; keeping the row here, beside them, is what
+/// lets the row itself and the one step that takes the panel down stay
+/// private to this file — an extension elsewhere could only reach those two
+/// by making them visible to the whole module.
 ///
 /// The weaker of the two invariants this used to hold is the one that still
 /// holds: every time the panel goes, exactly one line says why. Saying it
