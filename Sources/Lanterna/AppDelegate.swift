@@ -291,12 +291,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // that switched it off. So nothing that could fail is allowed to stand
         // between a launch and that shortcut coming back.
         monitor?.stop()
-        // Last of the three, and it can be: this monitor is handed events the
-        // system had already decided were this process's, so it holds nothing
-        // back from anything else and leaves nothing behind if the process
-        // goes without it. It is taken off all the same, because a monitor
-        // outliving the presenter it answers is the kind of thing that stops
-        // being harmless the moment anything else is added to this teardown.
+        // Last of the three claims this process makes on the keyboard — the
+        // Carbon registration, the tap, and this monitor — and it can be: it
+        // is handed events the system had already decided were this
+        // process's, so it holds nothing back from anything else and leaves
+        // nothing behind if the process goes without it. It is taken off all
+        // the same, because a monitor outliving the presenter it answers is
+        // the kind of thing that stops being harmless the moment anything
+        // else is added to this teardown.
         panelKeys?.stop()
         panelKeys = nil
         if let appNapActivity {

@@ -4,7 +4,7 @@
 /// hand one over without a keyboard.
 ///
 /// In a file of its own rather than with the other doubles. The shared file
-/// is within seventy-odd lines of the length the linter allows and the panel's
+/// is within twenty-odd lines of the length the linter allows and the panel's
 /// stand-in has just grown inside it; a double that needs nothing from the
 /// others has no reason to be charged to that budget. The tap's and the
 /// application's stand-ins are kept this way for the same reason.
