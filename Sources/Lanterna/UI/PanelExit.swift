@@ -92,6 +92,23 @@ final class PanelExit {
         record(.pressCalledOff, by: .commandRelease, since: startedAt)
     }
 
+    /// Takes the panel down for a key that means not this one.
+    ///
+    /// Names no row, and the omission is the point. The panel was highlighting
+    /// one when the key arrived, and putting its name on this line would read
+    /// as that window having been taken — on the one line whose meaning is
+    /// that none was. An empty list cancels identically for the same reason:
+    /// there was nothing to take either way, so there is nothing to tell the
+    /// two apart with.
+    ///
+    /// Asked of nothing before acting. Whether a panel is up is settled by the
+    /// caller, which is the only place that question is asked, the way the
+    /// other exits called from there have it settled for them.
+    func cancel(by key: CancelKey, since startedAt: ContinuousClock.Instant) {
+        dismissPanel()
+        record(.cancelled, by: .cancelKey(key), since: startedAt)
+    }
+
     /// Takes the panel down for a release that came by no route at all.
     ///
     /// Plainly worded rather than measured, and deliberately not put through

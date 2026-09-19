@@ -344,13 +344,27 @@ final class PanelPresenter {
     /// by a `default`, so that the step which gives one of them a body is
     /// made to come here and find it.
     func handleKeyStroke(_ keystroke: PanelKeystroke) -> PanelKeyDisposition {
+        // Read before the key is even given a meaning, because giving it one
+        // is work done in answer to the press and the span is meant to cover
+        // everything this process does about it. A span begun after the
+        // mapping would quietly shrink as anything further moved ahead of the
+        // read while the figure went on reading the same — the reason the
+        // press that puts a panel up is charged its clock read first too.
+        //
+        // Every press pays for the read, including the ones that write no
+        // line. A press with no panel up costs the same and is the reason the
+        // read sits above the guard rather than below it: a keystroke this
+        // app decided not to answer took time to decide that.
+        let startedAt = now()
         guard surface.isPresented else { return .passedThrough }
         switch PanelKeyInput.action(for: keystroke) {
         case .selectNext:
             selection.moveToNext()
         case .selectPrevious:
             selection.moveToPrevious()
-        case .commit, .cancel, .absorb:
+        case let .cancel(key):
+            wayOut.cancel(by: key, since: startedAt)
+        case .commit, .absorb:
             break
         }
         return .absorbed
