@@ -45,7 +45,8 @@ struct PanelPresenterUnreportedReleaseTests {
         #expect(!fixture.surface.isPresented)
         #expect(
             fixture.log.lines.last
-                == "closed the panel showing \(first.appName) — \(first.displayTitle); "
+                == "closed the panel showing \(first.appName) — \(first.displayTitle) "
+                + "(window \(first.id.windowID)); "
                 + "Command was let go and the tap never said so"
         )
     }

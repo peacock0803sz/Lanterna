@@ -77,7 +77,7 @@ final class PanelExit {
         guard surface.isPresented else { return }
 
         let outcome: CommandReleaseMeasurement.Outcome = row(for: id).map {
-            .committed(appName: $0.appName, displayTitle: $0.displayTitle)
+            .committed(appName: $0.appName, displayTitle: $0.displayTitle, id: $0.id)
         } ?? .nothingToCommit
         dismissPanel()
         record(outcome, since: startedAt)
@@ -109,7 +109,11 @@ final class PanelExit {
     /// as two.
     func closeForAnUnreportedRelease(naming id: WindowItem.Identifier?) {
         let named = row(for: id).map {
-            CommandReleaseMeasurement.rowDescription(appName: $0.appName, displayTitle: $0.displayTitle)
+            CommandReleaseMeasurement.rowDescription(
+                appName: $0.appName,
+                displayTitle: $0.displayTitle,
+                id: $0.id
+            )
         }
         dismissPanel()
         writeLine(
@@ -146,17 +150,12 @@ final class PanelExit {
     /// would be two derivations of one thing, and one row named two ways is
     /// what the log is not allowed to show.
     ///
-    /// `displayTitle` and not `windowTitle`: the latter may be empty or hold
-    /// nothing but whitespace, and the panel draws the application's name in
-    /// that case. A line disagreeing with the panel would be worse than no
-    /// line.
-    private func row(
-        for id: WindowItem.Identifier?
-    ) -> (appName: String, displayTitle: String)? {
-        guard let id, let window = presentedWindows.first(where: { $0.id == id }) else {
-            return nil
-        }
-        return (appName: window.appName, displayTitle: window.displayTitle)
+    /// The whole row and not the three fields a line reads off it. Narrowing
+    /// here would put the choice of which fields name a row in two places —
+    /// here and in the wording — and the wording is where it belongs.
+    private func row(for id: WindowItem.Identifier?) -> WindowItem? {
+        guard let id else { return nil }
+        return presentedWindows.first { $0.id == id }
     }
 
     /// Reads the clock after the work, so the figure spans exactly the part

@@ -72,7 +72,12 @@ struct CommandReleaseMeasurement: Sendable {
         /// `windowTitle`: the latter may be empty or hold nothing but
         /// whitespace, and a line trailing off after an em dash is not steady
         /// enough wording to match on.
-        case committed(appName: String, displayTitle: String)
+        ///
+        /// The identity travels alongside the names because the names are
+        /// not unique. Two windows of one application with nothing in their
+        /// title bars give the same pair, and a log meant to show that the
+        /// right row was taken cannot show it from a pair that two rows share.
+        case committed(appName: String, displayTitle: String, id: WindowItem.Identifier)
         /// The panel was up with nothing in it.
         case nothingToCommit
         /// The panel had not appeared yet, so the press waiting for a list was
@@ -98,8 +103,8 @@ struct CommandReleaseMeasurement: Sendable {
     var summaryLine: String {
         let timing = "\(Diagnostics.millisecondsText(elapsed)) ms after Command was released"
         switch outcome {
-        case let .committed(appName, displayTitle):
-            let row = Self.rowDescription(appName: appName, displayTitle: displayTitle)
+        case let .committed(appName, displayTitle, id):
+            let row = Self.rowDescription(appName: appName, displayTitle: displayTitle, id: id)
             return "committed \(row) \(timing)"
         case .nothingToCommit:
             return "committed nothing \(timing) (the list was empty)"
@@ -122,9 +127,30 @@ struct CommandReleaseMeasurement: Sendable {
     /// application: a row whose title flattened away to nothing is still that
     /// application's row, and saying its name twice is truer than saying
     /// nobody's.
-    static func rowDescription(appName: String, displayTitle: String) -> String {
+    ///
+    /// The identity follows the names rather than replacing them, because a
+    /// line is read by a person first. It is there because names are not
+    /// unique: two untitled windows of one application read alike, and a
+    /// reader checking that the highlighted row is the row that was taken
+    /// would have nothing to check.
+    ///
+    /// The bare number and not the identity as Swift prints it. This type has
+    /// no description of its own, so interpolating it would give
+    /// `(window Identifier(windowID: 42))` — which reads as a spelling
+    /// mistake and, worse, matches nothing a reader would search for, so a
+    /// count of rows taken by mistake would come back zero either way.
+    ///
+    /// Placed before the timing and not after it. The existing check on how
+    /// quickly a release was answered anchors on the end of the line, so
+    /// anything appended there would take that anchor off and a check written
+    /// against the last release would start failing against this one.
+    static func rowDescription(
+        appName: String,
+        displayTitle: String,
+        id: WindowItem.Identifier
+    ) -> String {
         let name = oneLine(appName, fallback: unnamedApplication)
-        return "\(name) — \(oneLine(displayTitle, fallback: name))"
+        return "\(name) — \(oneLine(displayTitle, fallback: name)) (window \(id.windowID))"
     }
 
     /// Flattens a name or title into something that can sit on one line.
