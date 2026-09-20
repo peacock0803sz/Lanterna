@@ -33,9 +33,11 @@ final class PanelPresenter {
     ///
     /// Asked on every press rather than settled at launch: the answer can stop
     /// being true under the app, because the system is free to switch a tap off
-    /// whenever it likes. A remembered yes would go on turning away the very
-    /// press that is the way out, leaving a panel nothing on the keyboard can
-    /// close. A run with no monitor answers no throughout.
+    /// whenever it likes. A remembered yes would go on spending the very press
+    /// that is the way out on moving the selection, leaving a panel whose only
+    /// remaining keyboard exits are the cancel keys — which reach it only
+    /// where it was granted key status, and not at all under secure input. A
+    /// run with no monitor answers no throughout.
     private let closesOnCommandRelease: @MainActor () -> Bool
 
     /// Whether Command is down on the keyboard at this instant.

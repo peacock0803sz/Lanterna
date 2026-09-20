@@ -18,9 +18,10 @@ private func press(_ keyCode: Int) -> PanelKeystroke {
 ///
 /// The hole being closed: a tap can stay enabled and stop being handed events,
 /// and nothing about it then looks stopped. The release never arrives, so the
-/// panel stays up, and a further press is turned away because a monitor still
-/// reports itself as running — leaving a panel that nothing on the keyboard
-/// can close, since it is non-activating and takes no keys of its own.
+/// panel stays up, and a further press is spent on moving the selection
+/// because a monitor still reports itself as running. The panel asks for the
+/// keyboard now, so where that ask succeeded a cancel key still closes it;
+/// where it was refused, nothing on the keyboard reaches the panel at all.
 @MainActor
 struct PanelPresenterUnreportedReleaseTests {
     /// A presenter wired the way a run with a working monitor wires it. The

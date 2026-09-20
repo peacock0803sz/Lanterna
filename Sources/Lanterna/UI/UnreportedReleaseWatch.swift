@@ -1,11 +1,16 @@
 /// Looks for Command having been let go when nothing said so.
 ///
 /// The panel closes on the tap reporting Command going up. A tap that is
-/// enabled but is not being handed events reports nothing, and then nothing
-/// closes the panel at all: it is non-activating and takes no keys of its own,
-/// and a further press is turned away for as long as a monitor is running. So
-/// the keyboard is asked directly instead, on a short interval, for as long as
-/// the panel is up.
+/// enabled but is not being handed events reports nothing, and a further
+/// press does not close the panel either, because for as long as a monitor
+/// reports itself as running that press means the next row instead.
+///
+/// The panel does ask for the keyboard now, so where that ask succeeded a
+/// cancel key closes it. What is left uncovered is the appearance whose ask
+/// was refused: nothing reaches it from the keyboard, no release is going to
+/// be reported, and the press that would once have closed it has been spoken
+/// for. So the keyboard is asked directly instead, on a short interval, for
+/// as long as the panel is up.
 ///
 /// Asking does not travel the tap's delivery path, and that independence is
 /// the whole point. The answer comes from the session's own record of the

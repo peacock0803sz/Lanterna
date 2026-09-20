@@ -229,8 +229,9 @@ struct PanelPresenterCommitTests {
 
     /// A monitor that stops running partway through has to hand the closing
     /// back to the press. The release it was going to close on can no longer
-    /// arrive, and the panel takes no keys of its own, so a press still turned
-    /// away here would leave a panel nothing on the keyboard could close.
+    /// arrive, so a press still spent on the selection here would leave the
+    /// panel's way out resting on the cancel keys alone — and those reach it
+    /// only where it was granted key status.
     @Test func aMonitorThatStopsRunningHandsTheClosingBackToThePress() {
         let fixture = runningWithAMonitor()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
