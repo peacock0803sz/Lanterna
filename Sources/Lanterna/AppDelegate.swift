@@ -99,8 +99,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Installed once here rather than each time a panel appears. Both would
     /// deliver the same presses; only this one keeps the cost of installing
     /// it off the path between the press and the panel, which is the one path
-    /// with a time budget, and the one the asking for key status will join
-    /// once anything asks.
+    /// with a time budget — and that path already carries one window-server
+    /// call of its own, the ask for key status, taken between the panel going
+    /// up and the reading.
     ///
     /// It is running while no panel is up, and that is not a cost: a press
     /// arriving then is handed straight back, and the presenter is the one
