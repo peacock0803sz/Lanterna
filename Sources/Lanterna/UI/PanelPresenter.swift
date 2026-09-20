@@ -245,7 +245,8 @@ final class PanelPresenter {
         startedAt: ContinuousClock.Instant,
         gatheredOnDemand: Bool
     ) {
-        // Four steps, and the order of all four is the point.
+        // Three orderings below are load-bearing, and the statements they
+        // hold apart are named one pair at a time rather than counted.
         //
         // The cursor is made first, so that what the panel is told to draw is
         // read off it. The first row was worked out twice over until now —
@@ -259,6 +260,10 @@ final class PanelPresenter {
         // not on screen cannot become the key window, and before the reading
         // is taken, because a press that put a panel up the keyboard never
         // reached is a press that did not finish its work.
+        //
+        // Handing the list to the way out is the one statement here whose
+        // position is free. It has to happen before the panel can go, and
+        // every route to that runs through a later turn.
         selection.begin(windows.map(\.id))
         surface.present(windows: windows, selecting: selection.chosenID)
         let becameKey = surface.takeKeys()
