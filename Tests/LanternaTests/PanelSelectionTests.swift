@@ -179,6 +179,29 @@ struct PanelSelectionTests {
         #expect(fixture.log.lines.isEmpty)
     }
 
+    /// The arrows move the choice on a run with no monitor too, and that is
+    /// not the same claim as the cases above.
+    ///
+    /// Every other keystroke in these suites is injected into a presenter
+    /// wired as a run with a working monitor. The requirement is that the
+    /// arrows move in all four states, and the run without the input
+    /// monitoring permission is the one where they are the only thing that
+    /// does — Tab arrives through the route that closes the panel there, and
+    /// Command has already been let go by the time a key is pressed.
+    ///
+    /// It holds today because nothing in the keystroke path asks about the
+    /// monitor at all, which is a property no case asserted until this one.
+    @Test func theArrowsMoveOnARunWithNoMonitor() {
+        let fixture = Fixture()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+        #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .absorbed)
+
+        #expect(fixture.surface.shownSelections.last == fixture.windows[1].id)
+        #expect(fixture.surface.presentedLists.count == 1)
+        #expect(fixture.surface.isPresented)
+    }
+
     /// A list with nothing to choose from and a list with nothing to choose
     /// between are the two shapes where the arithmetic has no move to make.
     /// The cursor's own suite says it leaves the choice alone; what it cannot
