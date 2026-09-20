@@ -244,6 +244,31 @@ struct RepeatedPressStateTests {
         #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
     }
 
+    /// The same state reached the long way round, over an appearance that did
+    /// have a watch.
+    ///
+    /// This is the one case that holds the watch being stopped when the panel
+    /// goes. Whether a watch is looking is what tells this state from the one
+    /// where the press moves the choice, and the looking is only ever turned
+    /// off where the panel comes off the screen — the loop itself just
+    /// returns, leaving what it was told to do behind it. Every other case
+    /// here begins with no monitor, so nothing was ever started and there is
+    /// nothing a missing stop could leave behind.
+    @Test func aWatchFromAnEarlierAppearanceDoesNotCountForThisOne() {
+        let fixture = Fixture(closesOnCommandRelease: true)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.presenter.handleCommandRelease()
+
+        fixture.monitorLiveness.isRunning = false
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.monitorLiveness.isRunning = true
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+        #expect(!fixture.surface.isPresented)
+        #expect(fixture.surface.shownSelections.isEmpty)
+        #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
+    }
+
     /// The monitor was down when the panel went up, so this appearance was
     /// given no watch, and it has come back since. A monitor that comes back
     /// takes its idea of the modifiers from the keyboard as it finds it, so a
