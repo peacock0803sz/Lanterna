@@ -100,10 +100,15 @@ struct HotkeyMeasurementTests {
 
 /// What the end of an appearance says it was.
 ///
-/// One wording is written every time a panel leaves the screen by a route the
-/// user took, and one every time a press is let go of before its panel ever
+/// The exits that carry a measured span are worded by this type: a release, a
+/// commit key, a cancel key, and a press let go of before its panel ever
 /// arrived. They are pinned here rather than where the decision is made, so a
 /// reword shows up as a failure in the file that owns the wording.
+///
+/// Not every way the panel goes comes through here. A further hotkey press
+/// and the release the tap never reported are worded in `PanelExit` itself,
+/// and are pinned where they are driven from — so this file is the inventory
+/// of one kind of ending, not of all of them.
 ///
 /// The ones Command's release has always written predate the trigger being
 /// recorded at all, and are the ones no later feature may disturb; the helper
