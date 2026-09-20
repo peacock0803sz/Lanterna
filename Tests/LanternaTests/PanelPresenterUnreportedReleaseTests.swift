@@ -1,5 +1,13 @@
+import AppKit
+import Carbon.HIToolbox
 @testable import Lanterna
 import Testing
+
+/// Spelled as a press is made, with Command still down: this whole file is
+/// about the gesture that is still under way when the tap stops reporting.
+private func press(_ keyCode: Int) -> PanelKeystroke {
+    PanelKeystroke(keyCode: UInt16(keyCode), modifiers: .command, isARepeat: false)
+}
 
 /// The panel outliving a release that nothing reported.
 ///
@@ -49,6 +57,41 @@ struct PanelPresenterUnreportedReleaseTests {
                 + "(window \(first.id.windowID)); "
                 + "Command was let go and the tap never said so"
         )
+    }
+
+    /// The line names the row the panel was left highlighting, not the row it
+    /// opened on. This is the fourth way a panel can go, and the only one of
+    /// the four whose line is written outside the measurement type — so it is
+    /// the one where the choice and the wording could drift apart unnoticed.
+    ///
+    /// The case above cannot catch that. It moves nothing, so the row it
+    /// opened on and the row it was left showing are the same row, and an
+    /// implementation that reached for either would write the same line.
+    ///
+    /// Both halves are asserted. That the moved-to row is named, and that the
+    /// row it opened on is not — because the two share an application name
+    /// and differ only in the identity, and it is the identity that the
+    /// acceptance procedure counts to find rows taken by mistake.
+    @Test(.timeLimit(.minutes(1)))
+    func theLineNamesTheRowTheChoiceWasMovedTo() async {
+        let fixture = runningWithAMonitor()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .absorbed)
+        #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .absorbed)
+
+        fixture.commandHold.isHeld = false
+        await fixture.commandHold.waitUntilAsked(times: 2)
+        await settle()
+
+        let third = fixture.windows[2]
+        let first = fixture.windows[0]
+        #expect(
+            fixture.log.lines.last
+                == "closed the panel showing \(third.appName) — \(third.displayTitle) "
+                + "(window \(third.id.windowID)); "
+                + "Command was let go and the tap never said so"
+        )
+        #expect(fixture.log.lines.last?.contains("(window \(first.id.windowID))") == false)
     }
 
     /// Holding Command and tapping along the list is the ordinary gesture, and
