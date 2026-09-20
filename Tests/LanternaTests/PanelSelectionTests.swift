@@ -40,12 +40,18 @@ struct PanelSelectionTests {
     /// path that moved twice for one press would land on the right row for
     /// N = 1 and be wrong from there on, and one that moved not at all would
     /// pass every case where the answer happens to be the first row.
+    /// The arrow is swallowed as well as acted on. A panel that is up holds
+    /// the whole keyboard, and an arrow handed back would travel the
+    /// responder chain of the panel it just moved — moving the choice here
+    /// and then being handled again there, or ringing the system alert at the
+    /// end of it. The keys with no meaning are asserted on elsewhere; these
+    /// are the ones this feature is about, and they answer the same way.
     @Test(arguments: [1, 2, 5, 9])
     func eachPressMovesTheChoiceExactlyOneRow(presses: Int) {
         let fixture = runningWithAMonitor()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
         for _ in 0 ..< presses {
-            _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
+            #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .absorbed)
         }
         #expect(fixture.surface.shownSelections.last == fixture.windows[presses].id)
         #expect(fixture.surface.shownSelections.count == presses)
@@ -70,7 +76,7 @@ struct PanelSelectionTests {
     @Test func theUpArrowGoesBackAndWrapsOntoTheLastRow() {
         let fixture = runningWithAMonitor(entryCount: 5)
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = fixture.presenter.handleKeyStroke(press(kVK_UpArrow))
+        #expect(fixture.presenter.handleKeyStroke(press(kVK_UpArrow)) == .absorbed)
         #expect(fixture.surface.shownSelections.last == fixture.windows[4].id)
     }
 
