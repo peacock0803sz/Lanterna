@@ -309,8 +309,10 @@ final class PanelPresenter {
             // and not for the panel: the press is what the user did, and one
             // that disappeared without a word could not be told from one that
             // never arrived at all. Written plainly rather than measured,
-            // because every figure in these lines is a span since Command was
-            // released, and no release happened here.
+            // because every figure in these lines runs from something the
+            // user did to this process answering it — a release, or one of
+            // the keys that end an appearance — and nothing of the kind
+            // happened here. The frontmost application changed on its own.
             pendingPress.callOff()
             writeLine(
                 "called off the press waiting for its first list; "
