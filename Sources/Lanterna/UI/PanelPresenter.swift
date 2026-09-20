@@ -96,6 +96,19 @@ final class PanelPresenter {
     /// again as a repetition of the initialiser beside it.
     private lazy var wayOut = makeWayOut()
 
+    /// What a press means to a panel that is up.
+    ///
+    /// `lazy` because it is handed the way out, which is itself `lazy`. It
+    /// holds nothing of its own — the panel, the chosen row and the ways out
+    /// are all this object's — so the two can share them rather than keep
+    /// second copies.
+    private lazy var keyCommands = PanelKeyCommands(
+        surface: surface,
+        selection: selection,
+        wayOut: wayOut,
+        now: now
+    )
+
     init(
         surface: any SwitcherSurface,
         store: WindowListStore,
@@ -329,55 +342,12 @@ final class PanelPresenter {
         wayOut.takeDown(because: "frontmost application changed")
     }
 
-    /// Decides what becomes of a key press.
+    /// Hands a key press to the one place that decides what becomes of it.
     ///
-    /// With no panel up the press is nothing to do with this app, and it goes
-    /// on to whatever would have had it. This is the only place that question
-    /// is asked: the channel delivering the press keeps no idea of whether a
-    /// panel is up, because two records of that are two things that can
-    /// disagree.
-    ///
-    /// With a panel up, everything is swallowed — the keys that mean
-    /// something here and equally the ones that mean nothing. The middle
-    /// course of handing back only the keys with no meaning was considered
-    /// and is wrong twice over. An event handed back travels the responder
-    /// chain, and the SDK says plainly what waits at the end of it: a key
-    /// press nothing handles rings the system alert. And a character key
-    /// passed on would type into whatever is in front, so a panel that is up
-    /// would be filling somebody's document while it stood there.
-    ///
-    /// What the press meant does not change that answer. It decides what
-    /// happens here, and every case leaves by the same door.
-    ///
-    /// The cases with nothing under them are written out rather than swept up
-    /// by a `default`, so that the step which gives one of them a body is
-    /// made to come here and find it.
+    /// Kept as an entry here because the channel delivering presses is wired
+    /// to the presenter, which is what the application knows about.
     func handleKeyStroke(_ keystroke: PanelKeystroke) -> PanelKeyDisposition {
-        // Read before the key is even given a meaning, because giving it one
-        // is work done in answer to the press and the span is meant to cover
-        // everything this process does about it. A span begun after the
-        // mapping would quietly shrink as anything further moved ahead of the
-        // read while the figure went on reading the same — the reason the
-        // press that puts a panel up is charged its clock read first too.
-        //
-        // Above the guard costs a read on presses that go no further and buys
-        // nothing, since those write no line. It sits there to be one
-        // statement away from the entry rather than one condition inside it,
-        // the way the press that puts a panel up reads its clock before
-        // asking anything.
-        let startedAt = now()
-        guard surface.isPresented else { return .passedThrough }
-        switch PanelKeyInput.action(for: keystroke) {
-        case .selectNext:
-            selection.moveToNext()
-        case .selectPrevious:
-            selection.moveToPrevious()
-        case let .cancel(key):
-            wayOut.cancel(by: key, since: startedAt)
-        case .commit, .absorb:
-            break
-        }
-        return .absorbed
+        keyCommands.handle(keystroke)
     }
 
     /// Acts on Command having been let go.
