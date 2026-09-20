@@ -144,8 +144,10 @@ final class PanelPresenter {
         )
     }
 
-    /// Puts the panel up for a press, and on a run with no monitor takes it
-    /// down again if the press found it already up.
+    /// Puts the panel up for a press, and takes it down again if the press
+    /// found one already up and letting go of Command is not what will close
+    /// it. That is three of the four states enumerated below, not only the
+    /// run with no monitor.
     ///
     /// That second job is a fallback now rather than the design. One key doing
     /// both was what dismissed the panel without a second key having to be
