@@ -11,9 +11,11 @@
 /// reach those two by making them visible to the whole module.
 ///
 /// Which row of that list is chosen is not kept here, and the line is drawn
-/// where it is on purpose. Moving the choice is an answer to a keystroke, and
-/// answering keystrokes is the presenter's. What is left here is the only way
-/// back from the identity it hands over to the words that name it.
+/// where it is on purpose: naming a row is what an exit does, and choosing
+/// one is not. The choice belongs to `PanelSelection`, which the two things
+/// that move it — a keystroke and a further press of the combination — both
+/// reach. What is left here is the only way back from the identity they hand
+/// over to the words that name it.
 ///
 /// The weaker of the two invariants this used to hold is the one that still
 /// holds: every time the panel goes, exactly one line says why. Saying it
