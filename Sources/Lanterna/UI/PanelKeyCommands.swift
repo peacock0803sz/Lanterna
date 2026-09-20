@@ -2,8 +2,15 @@
 ///
 /// Split from the presenter, which decides when a panel goes up. What becomes
 /// of a press once one is there is a different question, and it is the one
-/// that grows: every key this feature gives a meaning to lands here, and the
-/// ones still to be given a meaning land here too. The presenter's file has
+/// that grows: every key that reaches the panel through the key channel lands
+/// here, and the ones still to be given a meaning land here too.
+///
+/// Tab and Shift+Tab are the exception, and naming it is what keeps the rule
+/// that refuses them from reading as redundant. They move the selection as
+/// well, but they arrive through the combination the system was asked to hand
+/// over, and the presenter answers them — so the table this reaches through
+/// turns a Tab away unconditionally, and a press that came both ways would
+/// otherwise move the choice twice. The presenter's file has
 /// twice been divided by the length the linter allows, and this is the piece
 /// whose next addition is already written down.
 ///
