@@ -154,6 +154,29 @@ struct PanelExitTests {
         #expect(fixture.log.lines.last == "cancelled 4.8 ms after Escape")
     }
 
+    /// Cancelling works on a run with no monitor, where the bare Escape is
+    /// the only shape the key can arrive in.
+    ///
+    /// Every other keystroke in this suite goes into a presenter wired as a
+    /// run with a working monitor. On the run without the input monitoring
+    /// permission, Command has already been let go by the time a key is
+    /// pressed — so the keys arrive bare, and this is the run where a panel
+    /// that will not close is a panel left on screen indefinitely.
+    @Test func aBareEscapeCancelsOnARunWithNoMonitorToo() {
+        let fixture = Fixture()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+        let bareEscape = PanelKeystroke(
+            keyCode: UInt16(kVK_Escape),
+            modifiers: [],
+            isARepeat: false
+        )
+        #expect(fixture.presenter.handleKeyStroke(bareEscape) == .absorbed)
+
+        #expect(!fixture.surface.isPresented)
+        #expect(fixture.log.lines.last == "cancelled 4.8 ms after Escape")
+    }
+
     /// The gesture ends with Command coming up, and by then the panel is
     /// already gone. That release must write nothing: the user declined this
     /// appearance, and a line arriving afterwards would record a commit they
