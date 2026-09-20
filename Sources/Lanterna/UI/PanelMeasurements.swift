@@ -5,7 +5,10 @@
 /// the two cannot drift apart.
 struct HotkeyMeasurement: Sendable {
     let combination: HotkeyCombination
-    /// From the press arriving to the call that puts the panel up returning.
+    /// From the press arriving to the panel being up and having been asked for
+    /// the keyboard. Asking is a call of its own, separate from the one that
+    /// puts the panel up, and it goes to the window server — so it is inside
+    /// the budget, not beside it.
     ///
     /// Not the delivery before it and not the compositing after it: a process
     /// can see neither, and a budget that included them could not be checked
@@ -67,9 +70,10 @@ struct HotkeyMeasurement: Sendable {
 /// Named for the exit rather than for the release, because the release is now
 /// one of three things that can reach here.
 ///
-/// Holds two strings rather than the `WindowItem` they came from. The item
-/// carries an `NSImage` and so is not `Sendable`, and the line needs nothing
-/// from it but the names.
+/// Holds the names and the identity rather than the `WindowItem` they came
+/// from. The item carries an `NSImage` and so is not `Sendable`, and a line
+/// needs nothing else off it: the names for a person to read, the identity
+/// because two rows can share a pair of names.
 struct PanelExitMeasurement: Sendable {
     /// What ended the appearance, and the only place that is recorded.
     ///
