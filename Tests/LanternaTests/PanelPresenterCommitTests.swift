@@ -139,8 +139,13 @@ struct PanelPresenterCommitTests {
     }
 
     /// A second release with nothing on screen must not commit the row the
-    /// last one took, which is what clearing the selection with the panel
-    /// buys.
+    /// last one took.
+    ///
+    /// What holds that is the commit's own `guard surface.isPresented`, which
+    /// returns before the list or the choice is ever reached. This case does
+    /// not hold either of them being given up with the panel, and no case
+    /// can: nothing reads them while the panel is down, which is what the
+    /// comment beside the line that clears the list already says.
     @Test func aSecondReleaseAfterACommitCommitsNothingFurther() {
         let fixture = runningWithAMonitor()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
