@@ -1,8 +1,9 @@
 /// Watches whether key presses are still reaching the panel that is up.
 ///
-/// Losing key status leaves a panel that answers nothing: every keystroke is
-/// swallowed, and on a run with no monitor there is not even a further press
-/// that takes it down. So a look goes out on an interval for as long as the
+/// Losing key status leaves a stale panel on screen that answers nothing:
+/// keystrokes go to the key window instead, and with no monitor running no
+/// release is being listened for. A further press still takes it down, but
+/// the row it would commit is not one the user chose. So a look goes out on an interval for as long as the
 /// panel is up, and a loss it finds is answered with one attempt to take the
 /// keyboard back. Up to three such answers per appearance; the third one
 /// failing ends the appearance instead.
