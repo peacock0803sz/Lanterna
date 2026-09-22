@@ -46,6 +46,19 @@ final class PanelExit {
     /// fresher list could name a row this appearance never showed.
     private var presentedWindows: [WindowItem] = []
 
+    /// Whether this appearance may still write a commit line.
+    ///
+    /// True from the panel going up to it coming down, and false otherwise.
+    /// Every commit path asks it after asking whether the panel is up, and
+    /// spends it before writing. Looking at the panel alone used to be
+    /// enough, because taking it down and spending the commit went together
+    /// — but whether the screen still shows the panel is not whether this
+    /// appearance has already committed, and a panel that will not come down
+    /// when asked would otherwise let one appearance write two commits.
+    /// A press called off before any panel appeared is not a commit and
+    /// stays outside this flag.
+    private var commitIsStillOpen = false
+
     init(
         surface: any SwitcherSurface,
         now: @escaping @MainActor () -> ContinuousClock.Instant,
@@ -61,6 +74,7 @@ final class PanelExit {
     /// Takes down the list an appearance is showing.
     func nowShowing(_ windows: [WindowItem]) {
         presentedWindows = windows
+        commitIsStillOpen = true
     }
 
     /// Commits on Command having been let go over a panel that is up.
@@ -77,7 +91,8 @@ final class PanelExit {
         since startedAt: ContinuousClock.Instant
     ) {
         guard surface.isPresented else { return }
-
+        guard commitIsStillOpen else { return }
+        commitIsStillOpen = false
         let outcome: PanelExitMeasurement.Outcome = row(for: id).map {
             .committed(appName: $0.appName, displayTitle: $0.displayTitle, id: $0.id)
         } ?? .nothingToCommit
@@ -112,6 +127,8 @@ final class PanelExit {
         since startedAt: ContinuousClock.Instant
     ) {
         guard surface.isPresented else { return }
+        guard commitIsStillOpen else { return }
+        commitIsStillOpen = false
         let outcome: PanelExitMeasurement.Outcome = row(for: id).map {
             .committed(appName: $0.appName, displayTitle: $0.displayTitle, id: $0.id)
         } ?? .nothingToCommit
