@@ -9,7 +9,11 @@ import Testing
 struct SwitcherPanelTests {
     private func panel(rowCount: Int = 3) -> SwitcherPanel {
         SwitcherPanel(
-            content: SwitcherView(windows: SampleWindows.make(count: rowCount), selectedID: nil)
+            content: SwitcherView(
+                windows: SampleWindows.make(count: rowCount),
+                selectedID: nil,
+                appearanceToken: 0
+            )
         )
     }
 

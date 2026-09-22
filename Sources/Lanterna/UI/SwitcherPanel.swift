@@ -14,6 +14,13 @@ final class SwitcherPanel: NSPanel {
     /// place needs a handle on the view that holds it.
     private let hostingView: NSHostingView<SwitcherView>
 
+    /// Counts the appearances, so the view can tell one from the next. The
+    /// scrolled position survives a reused panel, and without something that
+    /// moves every time, an appearance opening on an unchanged choice would
+    /// leave `.onChange(of:)` silent and the list where the last one left
+    /// it.
+    private var appearances = 0
+
     /// The window decides its own size and the hosting view is denied any say
     /// in it. `update(windows:)` decides it again for a swapped-in list; the
     /// two cannot disagree, because both take their numbers from
@@ -85,7 +92,8 @@ final class SwitcherPanel: NSPanel {
     func update(windows: [WindowItem]) {
         hostingView.rootView = SwitcherView(
             windows: windows,
-            selectedID: hostingView.rootView.selectedID
+            selectedID: hostingView.rootView.selectedID,
+            appearanceToken: hostingView.rootView.appearanceToken
         )
         // The height is pushed down from the window, because the hosting view
         // has no sizing options and so cannot push one up.
@@ -112,7 +120,9 @@ final class SwitcherPanel: NSPanel {
     /// view, which is what lets the tests of this class put a real panel up
     /// twice and hold the second appearance to the row it was given.
     func present(windows: [WindowItem], selecting: WindowItem.Identifier?) {
+        appearances += 1
         update(windows: windows)
+        hostingView.rootView.appearanceToken = appearances
         showSelection(selecting)
         orderFrontRegardless()
     }

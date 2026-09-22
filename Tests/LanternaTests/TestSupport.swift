@@ -202,7 +202,8 @@ struct Fixture {
         step: Duration = .microseconds(4800),
         closesOnCommandRelease: Bool = false,
         commandIsHeld: Bool = true,
-        commandWatchInterval: Duration = .milliseconds(1)
+        commandWatchInterval: Duration = .milliseconds(1),
+        keyStatusWatchInterval: Duration = .milliseconds(1)
     ) {
         let windows = SampleWindows.make(count: entryCount)
         self.init(
@@ -211,7 +212,8 @@ struct Fixture {
             step: step,
             closesOnCommandRelease: closesOnCommandRelease,
             commandIsHeld: commandIsHeld,
-            commandWatchInterval: commandWatchInterval
+            commandWatchInterval: commandWatchInterval,
+            keyStatusWatchInterval: keyStatusWatchInterval
         )
     }
 
@@ -221,7 +223,8 @@ struct Fixture {
         step: Duration = .microseconds(4800),
         closesOnCommandRelease: Bool = false,
         commandIsHeld: Bool = true,
-        commandWatchInterval: Duration = .milliseconds(1)
+        commandWatchInterval: Duration = .milliseconds(1),
+        keyStatusWatchInterval: Duration = .milliseconds(1)
     ) {
         let surface = FakeSurface()
         let log = DiagnosticsLog()
@@ -242,7 +245,10 @@ struct Fixture {
             // A real fiftieth of a second per look would be paid over again by
             // every test that waits for one. The store's loop tests shorten
             // their interval for the same reason.
-            commandWatchInterval: commandWatchInterval
+            commandWatchInterval: commandWatchInterval,
+            // Half a second per look would put every loss past any test's
+            // patience. Shortened for the same reason as the watch above.
+            keyStatusWatchInterval: keyStatusWatchInterval
         )
         self.surface = surface
         self.log = log
