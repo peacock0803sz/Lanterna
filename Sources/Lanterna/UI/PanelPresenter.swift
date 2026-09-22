@@ -58,6 +58,10 @@ final class PanelPresenter {
     /// `KeyStatusWatch`'s.
     private let keyStatusWatchInterval: Duration
 
+    /// What commits take. Through to the way out, which owns the list the
+    /// target is read off.
+    private let switcher: any WindowSwitching
+
     /// The looking that catches a release the tap never reported.
     ///
     /// `lazy` because every question it puts and the answer it gives back are
@@ -125,7 +129,8 @@ final class PanelPresenter {
             CGEventSource.flagsState(.combinedSessionState).contains(.maskCommand)
         },
         commandWatchInterval: Duration = UnreportedReleaseWatch.defaultInterval,
-        keyStatusWatchInterval: Duration = KeyStatusWatch.defaultInterval
+        keyStatusWatchInterval: Duration = KeyStatusWatch.defaultInterval,
+        switcher: any WindowSwitching = LiveWindowSwitcher()
     ) {
         self.surface = surface
         selection = PanelSelection(surface: surface)
@@ -137,6 +142,7 @@ final class PanelPresenter {
         self.commandIsHeld = commandIsHeld
         self.commandWatchInterval = commandWatchInterval
         self.keyStatusWatchInterval = keyStatusWatchInterval
+        self.switcher = switcher
     }
 
     private func makeWayOut() -> PanelExit {
@@ -145,6 +151,7 @@ final class PanelPresenter {
             now: now,
             writeLine: writeLine,
             keyStatusWatchInterval: keyStatusWatchInterval,
+            switcher: switcher,
             onPanelGone: { [weak self] in
                 self?.commandWatch.stop()
                 self?.selection.end()

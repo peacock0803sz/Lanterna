@@ -116,6 +116,17 @@ struct PanelExitMeasurement: Sendable {
             case .cancelKey(.escape): "Escape"
             }
         }
+
+        /// Whether the appearance ended in a take. Only those endings have a
+        /// switch result to report; a cancellation must never reach one.
+        var isCommit: Bool {
+            switch self {
+            case .commandRelease, .commitKey:
+                return true
+            case .cancelKey:
+                return false
+            }
+        }
     }
 
     enum Outcome: Sendable, Equatable {
@@ -273,7 +284,7 @@ struct PanelExitMeasurement: Sendable {
     /// the panel closing for a release nothing reported both reach it through
     /// `rowDescription`, so neither can come to flatten what the other leaves
     /// alone — which is the whole reason that one goes through here.
-    private static func oneLine(_ text: String, fallback: String) -> String {
+    static func oneLine(_ text: String, fallback: String) -> String {
         let flattened = text
             .map { character -> String in
                 let isInvisible = character.unicodeScalars.allSatisfy {
@@ -290,5 +301,40 @@ struct PanelExitMeasurement: Sendable {
             .split(separator: " ", omittingEmptySubsequences: true)
             .joined(separator: " ")
         return flattened.isEmpty ? fallback : flattened
+    }
+}
+
+/// What taking a row came to, written as the commit line's pair.
+///
+/// The commit line says which row was taken; this line says what taking it
+/// came to. The two are written together with nothing between them, so one
+/// appearance's end reads as one unit. The figure on both is the same span —
+/// the commit's entrance to the panel going away, never the taking itself —
+/// so the pair carries one number twice rather than two numbers to tell
+/// apart.
+struct SwitchMeasurement: Sendable {
+    let appName: String
+    let displayTitle: String
+    let id: WindowItem.Identifier
+    let outcome: ActivationOutcome
+    let trigger: PanelExitMeasurement.Trigger
+    let elapsed: Duration
+
+    var summaryLine: String {
+        precondition(trigger.isCommit, "a switch result cannot follow a cancellation")
+        let row = PanelExitMeasurement.rowDescription(appName: appName, displayTitle: displayTitle, id: id)
+        let timing = "\(Diagnostics.millisecondsText(elapsed)) ms after \(trigger.phrase)"
+        switch outcome {
+        case .switched:
+            return "switched to \(row) \(timing)"
+        case .failed(.windowGone):
+            return "could not switch to \(row) (window gone) \(timing)"
+        case .failed(.applicationGone):
+            return "could not switch to \(row) (application gone) \(timing)"
+        case .failed(.timedOut):
+            return "could not switch to \(row) (timed out) \(timing)"
+        case let .failed(.other(reason)):
+            return "could not switch to \(row) (\(PanelExitMeasurement.oneLine(reason, fallback: "unknown"))) \(timing)"
+        }
     }
 }

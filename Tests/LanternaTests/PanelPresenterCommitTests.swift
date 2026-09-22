@@ -28,21 +28,21 @@ struct PanelPresenterCommitTests {
 
         let first = fixture.windows[0]
         #expect(
-            fixture.log.lines.last
+            fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
                 == "committed \(first.appName) — \(first.displayTitle) "
                 + "(window \(first.id.windowID)) 4.8 ms after Command was released"
         )
     }
 
-    /// One line for one disappearance. The commit words its own, so the
-    /// hiding wording must not also turn up — counting both would see two
-    /// events where the user saw one.
+    /// One unit for one disappearance: the commit words its own, and the take
+    /// words its pair, so the hiding wording must not also turn up — counting
+    /// all three would see two events where the user saw one.
     @Test func aCommitIsTheOnlyLineThePanelGoingAwayProduces() {
         let fixture = runningWithAMonitor()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
         fixture.presenter.handleCommandRelease()
 
-        #expect(fixture.log.lines.count == 2)
+        #expect(fixture.log.lines.count == 3)
         #expect(fixture.log.lines.filter { $0.hasPrefix("panel hidden") }.isEmpty)
     }
 
@@ -67,7 +67,7 @@ struct PanelPresenterCommitTests {
 
         let first = fixture.windows[0]
         #expect(
-            fixture.log.lines.last
+            fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
                 == "committed \(first.appName) — \(first.displayTitle) "
                 + "(window \(first.id.windowID)) 9.6 ms after Command was released"
         )
@@ -225,7 +225,7 @@ struct PanelPresenterCommitTests {
 
         #expect(fixture.surface.dismissCount == 1)
         #expect(!fixture.surface.isPresented)
-        #expect(fixture.log.lines.count == linesBefore + 1)
+        #expect(fixture.log.lines.count == linesBefore + 2)
 
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
         #expect(fixture.surface.presentedLists.count == 2)

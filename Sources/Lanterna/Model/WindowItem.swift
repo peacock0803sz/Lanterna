@@ -10,7 +10,7 @@ struct WindowItem: Identifiable {
     /// The window-server id is unique while the window exists and is
     /// independent of the title, so two windows showing the same title stay two
     /// rows and a renamed window keeps its row.
-    struct Identifier: Hashable {
+    struct Identifier: Hashable, Sendable {
         let windowID: CGWindowID
     }
 

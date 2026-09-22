@@ -108,7 +108,7 @@ struct PanelSelectionTests {
         let third = fixture.windows[2]
         #expect(fixture.surface.shownSelections.last == third.id)
         #expect(
-            fixture.log.lines.last
+            fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
                 == "committed \(third.appName) — \(third.displayTitle) "
                 + "(window \(third.id.windowID)) 4.8 ms after Command was released"
         )

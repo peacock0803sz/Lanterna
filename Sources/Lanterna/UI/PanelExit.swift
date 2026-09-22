@@ -79,6 +79,11 @@ final class PanelExit {
     /// `KeyStatusWatch`'s.
     private let keyStatusWatchInterval: Duration
 
+    /// What a commit takes. Owned here rather than by the presenter, for the
+    /// same reason the list is: the target is read off the list an appearance
+    /// is showing, and both go with the panel.
+    private let switcher: any WindowSwitching
+
     /// The list the panel is showing, kept so a line can name a row of it.
     ///
     /// The list and not a row read off it. Which row is chosen moves while
@@ -108,12 +113,14 @@ final class PanelExit {
         now: @escaping @MainActor () -> ContinuousClock.Instant,
         writeLine: @escaping @MainActor (String) -> Void,
         keyStatusWatchInterval: Duration = KeyStatusWatch.defaultInterval,
+        switcher: any WindowSwitching = LiveWindowSwitcher(),
         onPanelGone: @escaping @MainActor () -> Void
     ) {
         self.surface = surface
         self.now = now
         self.writeLine = writeLine
         self.keyStatusWatchInterval = keyStatusWatchInterval
+        self.switcher = switcher
         self.onPanelGone = onPanelGone
     }
 
@@ -152,11 +159,20 @@ final class PanelExit {
         guard surface.isPresented else { return }
         guard commitIsStillOpen else { return }
         commitIsStillOpen = false
-        let outcome: PanelExitMeasurement.Outcome = row(for: id).map {
-            .committed(appName: $0.appName, displayTitle: $0.displayTitle, id: $0.id)
-        } ?? .nothingToCommit
+        let target = row(for: id).map { Self.target(of: $0) }
         dismissPanel()
-        record(outcome, by: .commandRelease, since: startedAt)
+        // Read before switching, so the figure spans the call that hides
+        // the panel and none of what follows it.
+        let elapsed = now() - startedAt
+        switch target {
+        case let .some(take):
+            // The take happens before either line: the pair is written
+            // together, with nothing between the two.
+            let outcome = switcher.switchTo(take)
+            recordCommitPair(take, outcome, by: .commandRelease, elapsed: elapsed)
+        case .none:
+            record(.nothingToCommit, by: .commandRelease, elapsed: elapsed)
+        }
     }
 
     /// Writes down a press given up on before it ever became a panel.
@@ -188,11 +204,19 @@ final class PanelExit {
         guard surface.isPresented else { return }
         guard commitIsStillOpen else { return }
         commitIsStillOpen = false
-        let outcome: PanelExitMeasurement.Outcome = row(for: id).map {
-            .committed(appName: $0.appName, displayTitle: $0.displayTitle, id: $0.id)
-        } ?? .nothingToCommit
+        let target = row(for: id).map { Self.target(of: $0) }
         dismissPanel()
-        record(outcome, by: .commitKey(key), since: startedAt)
+        // Read before switching, for the same reason as above: the figure
+        // is about hiding, not about taking.
+        let elapsed = now() - startedAt
+        switch target {
+        case let .some(take):
+            // The pair, as above: the take first, then both lines together.
+            let outcome = switcher.switchTo(take)
+            recordCommitPair(take, outcome, by: .commitKey(key), elapsed: elapsed)
+        case .none:
+            record(.nothingToCommit, by: .commitKey(key), elapsed: elapsed)
+        }
     }
 
     /// Takes the panel down for a key that means not this one.
@@ -286,6 +310,42 @@ final class PanelExit {
         return presentedWindows.first { $0.id == id }
     }
 
+    /// Writes a commit and what taking it came to as one unit. The take is
+    /// already done when this runs, so nothing of it can land between the
+    /// two lines, and both carry the span that stops at the panel going
+    /// away rather than the taking itself.
+    private func recordCommitPair(
+        _ take: ActivationTarget,
+        _ outcome: ActivationOutcome,
+        by trigger: PanelExitMeasurement.Trigger,
+        elapsed: Duration
+    ) {
+        record(
+            .committed(appName: take.appName, displayTitle: take.displayTitle, id: take.id),
+            by: trigger,
+            elapsed: elapsed
+        )
+        writeLine(SwitchMeasurement(
+            appName: take.appName,
+            displayTitle: take.displayTitle,
+            id: take.id,
+            outcome: outcome,
+            trigger: trigger,
+            elapsed: elapsed
+        ).summaryLine)
+    }
+
+    /// The one derivation of what a commit names. The line and the switch
+    /// both read off this, so one row cannot be named two ways.
+    private static func target(of row: WindowItem) -> ActivationTarget {
+        ActivationTarget(
+            id: row.id,
+            ownerProcessIdentifier: row.ownerProcessIdentifier,
+            appName: row.appName,
+            displayTitle: row.displayTitle
+        )
+    }
+
     /// Reads the clock after the work, so the figure spans exactly the part
     /// this process is answerable for.
     private func record(
@@ -293,10 +353,20 @@ final class PanelExit {
         by trigger: PanelExitMeasurement.Trigger,
         since startedAt: ContinuousClock.Instant
     ) {
+        record(outcome, by: trigger, elapsed: now() - startedAt)
+    }
+
+    /// The same line with the span handed in, for the paths that act between
+    /// hiding and writing. What those paths do stays out of the figure.
+    private func record(
+        _ outcome: PanelExitMeasurement.Outcome,
+        by trigger: PanelExitMeasurement.Trigger,
+        elapsed: Duration
+    ) {
         let measurement = PanelExitMeasurement(
             outcome: outcome,
             trigger: trigger,
-            elapsed: now() - startedAt
+            elapsed: elapsed
         )
         writeLine(measurement.summaryLine)
     }

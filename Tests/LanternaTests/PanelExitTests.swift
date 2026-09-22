@@ -225,7 +225,7 @@ struct PanelExitTests {
         // assertion below rather than passing one of them by accident: the
         // empty string is a prefix of everything, including itself.
         let cancelledLine = cancelled.log.lines.last ?? ""
-        let committedLine = committed.log.lines.last ?? ""
+        let committedLine = committed.log.lines.first(where: { $0.hasPrefix("committed ") }) ?? ""
 
         #expect(cancelledLine.hasPrefix("cancelled "))
         #expect(committedLine.hasPrefix("committed "))
@@ -247,7 +247,7 @@ struct PanelExitTests {
         #expect(fixture.surface.dismissCount == 1)
         let second = fixture.windows[1]
         #expect(
-            fixture.log.lines.last
+            fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
                 == "committed \(second.appName) — \(second.displayTitle) "
                 + "(window \(second.id.windowID)) 4.8 ms after Return"
         )
@@ -269,9 +269,10 @@ struct PanelExitTests {
 
         #expect(!byKeypad.surface.isPresented)
         #expect(byKeypad.surface.dismissCount == 1)
-        #expect(byReturn.log.lines.last?.hasPrefix("committed ") == true)
-        #expect(byKeypad.log.lines.last?.hasPrefix("committed ") == true)
+        #expect(byReturn.log.lines.filter { $0.hasPrefix("committed ") }.count == 1)
+        #expect(byKeypad.log.lines.filter { $0.hasPrefix("committed ") }.count == 1)
         #expect(byReturn.log.lines.last != byKeypad.log.lines.last)
+        #expect(byReturn.log.lines.last?.hasSuffix("after Return") == true)
         #expect(byKeypad.log.lines.last?.hasSuffix("after keypad Enter") == true)
     }
 
