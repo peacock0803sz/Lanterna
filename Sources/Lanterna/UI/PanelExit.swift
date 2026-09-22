@@ -35,6 +35,50 @@ final class PanelExit {
     /// release is one of them, the chosen row the other.
     private let onPanelGone: @MainActor () -> Void
 
+    /// The looking that notices key presses no longer reaching the panel.
+    ///
+    /// Owned here rather than by the presenter, and the span is the reason:
+    /// the looking lasts exactly as long as the panel is up, and going up
+    /// and coming down both run through this type. What it reports back are
+    /// also this type's own operations — a line, or taking the panel down —
+    /// so nothing here reaches back out except through the one closure that
+    /// ends the other things lasting the panel's time.
+    ///
+    /// `lazy` because every question it puts and both answers it gives back
+    /// are this object's, and closures over `self` cannot be written until
+    /// the stored properties are in place.
+    private lazy var keyWatch = KeyStatusWatch(
+        interval: keyStatusWatchInterval,
+        now: now,
+        isPanelUp: { [weak self] in self?.surface.isPresented ?? false },
+        isTakingKeys: { [weak self] in self?.surface.isTakingKeys ?? false },
+        // Asked again here rather than trusted from the look just gone: the
+        // panel can go down between the two, and asking for the keyboard
+        // for one already gone would hand the next keystroke to whatever
+        // the user has moved on to.
+        takeKeys: { [weak self] in
+            guard let self, surface.isPresented else { return false }
+            return surface.takeKeys()
+        },
+        // Dated from the previous look — the earliest the loss could have
+        // happened — so the figure covers the whole of the keyboard-less
+        // while rather than only the noticing of it.
+        onTakenBack: { [weak self] withoutKeys in
+            self?.writeLine(
+                "panel stopped taking keys; taken back "
+                    + "\(Diagnostics.millisecondsText(withoutKeys)) ms later"
+            )
+        },
+        onGaveUp: { [weak self] in
+            self?.takeDown(because: "stopped taking keys")
+        }
+    )
+
+    /// How long the key-status watch waits between looks. Injected only so
+    /// a test need not wait a real one out; the number is
+    /// `KeyStatusWatch`'s.
+    private let keyStatusWatchInterval: Duration
+
     /// The list the panel is showing, kept so a line can name a row of it.
     ///
     /// The list and not a row read off it. Which row is chosen moves while
@@ -63,18 +107,33 @@ final class PanelExit {
         surface: any SwitcherSurface,
         now: @escaping @MainActor () -> ContinuousClock.Instant,
         writeLine: @escaping @MainActor (String) -> Void,
+        keyStatusWatchInterval: Duration = KeyStatusWatch.defaultInterval,
         onPanelGone: @escaping @MainActor () -> Void
     ) {
         self.surface = surface
         self.now = now
         self.writeLine = writeLine
+        self.keyStatusWatchInterval = keyStatusWatchInterval
         self.onPanelGone = onPanelGone
     }
 
     /// Takes down the list an appearance is showing.
-    func nowShowing(_ windows: [WindowItem]) {
+    ///
+    /// `startedAt` is the clock read the appearance began with, handed in
+    /// so the watch need not take one of its own: the reading below is what
+    /// judges how quickly the panel went up, and a read spent here would
+    /// land inside its span. As the watch's baseline it errs towards
+    /// overstating — the keyboard was last known good when it was asked
+    /// for, which is later than the press arriving — and that is the safe
+    /// side for a figure about going without.
+    func nowShowing(_ windows: [WindowItem], startedAt: ContinuousClock.Instant) {
         presentedWindows = windows
         commitIsStillOpen = true
+        // Watched for as long as it is up, and no longer: the looking is
+        // started here rather than in the presenter so that whatever puts a
+        // panel up gets the looking with it, and stopped where the panel
+        // comes down.
+        keyWatch.start(knownGoodAt: startedAt)
     }
 
     /// Commits on Command having been let go over a panel that is up.
@@ -205,6 +264,7 @@ final class PanelExit {
     private func dismissPanel() {
         surface.dismiss()
         presentedWindows = []
+        keyWatch.stop()
         // Run here rather than at each way out, so whatever lasts the panel's
         // time on screen covers it exactly — the watch's own way out included.
         onPanelGone()

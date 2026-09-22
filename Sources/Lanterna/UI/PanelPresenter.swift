@@ -53,6 +53,11 @@ final class PanelPresenter {
     /// not wait a real one out; the number is `UnreportedReleaseWatch`'s.
     private let commandWatchInterval: Duration
 
+    /// How long the key-status watch waits between looks. Injected only so
+    /// a test need not wait a real one out; the number is
+    /// `KeyStatusWatch`'s.
+    private let keyStatusWatchInterval: Duration
+
     /// The looking that catches a release the tap never reported.
     ///
     /// `lazy` because every question it puts and the answer it gives back are
@@ -119,7 +124,8 @@ final class PanelPresenter {
         commandIsHeld: @escaping @MainActor () -> Bool = {
             CGEventSource.flagsState(.combinedSessionState).contains(.maskCommand)
         },
-        commandWatchInterval: Duration = UnreportedReleaseWatch.defaultInterval
+        commandWatchInterval: Duration = UnreportedReleaseWatch.defaultInterval,
+        keyStatusWatchInterval: Duration = KeyStatusWatch.defaultInterval
     ) {
         self.surface = surface
         selection = PanelSelection(surface: surface)
@@ -130,6 +136,7 @@ final class PanelPresenter {
         self.closesOnCommandRelease = closesOnCommandRelease
         self.commandIsHeld = commandIsHeld
         self.commandWatchInterval = commandWatchInterval
+        self.keyStatusWatchInterval = keyStatusWatchInterval
     }
 
     private func makeWayOut() -> PanelExit {
@@ -137,6 +144,7 @@ final class PanelPresenter {
             surface: surface,
             now: now,
             writeLine: writeLine,
+            keyStatusWatchInterval: keyStatusWatchInterval,
             onPanelGone: { [weak self] in
                 self?.commandWatch.stop()
                 self?.selection.end()
@@ -282,7 +290,7 @@ final class PanelPresenter {
         selection.begin(windows.map(\.id))
         surface.present(windows: windows, selecting: selection.chosenID)
         let becameKey = surface.takeKeys()
-        wayOut.nowShowing(windows)
+        wayOut.nowShowing(windows, startedAt: startedAt)
         let measurement = HotkeyMeasurement(
             combination: combination,
             elapsed: now() - startedAt,
@@ -294,7 +302,9 @@ final class PanelPresenter {
         writeLine(measurement.summaryLine)
 
         // Only with a monitor is a release expected at all, and starting below
-        // the reading is what keeps the task out of the figure.
+        // the reading is what keeps the task out of the figure. The
+        // key-status looking starts with the handover above: it lasts as
+        // long as the panel does, and the way out owns both ends of that.
         if closesOnCommandRelease() {
             commandWatch.start()
         }
