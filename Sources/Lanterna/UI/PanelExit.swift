@@ -94,6 +94,31 @@ final class PanelExit {
         record(.pressCalledOff, by: .commandRelease, since: startedAt)
     }
 
+    /// Commits the highlighted row for a key that means take this one.
+    ///
+    /// Reads the row before the panel goes, for the reason a release-driven
+    /// commit reads it there: taking the panel down is what throws the list
+    /// away, so the reverse order would name a row of nothing. Dismisses
+    /// before recording, so the figure covers the call that hides the panel,
+    /// the same way round as every other measured exit. An empty list
+    /// commits the same way a full one does, except the line says there was
+    /// nothing to take — unlike a press called off, which never had a list
+    /// at all. Which physical key arrived stays on the line (Return apart
+    /// from keypad Enter): that difference is the on-the-run evidence for
+    /// going by key code rather than by character.
+    func commit(
+        by key: CommitKey,
+        naming id: WindowItem.Identifier?,
+        since startedAt: ContinuousClock.Instant
+    ) {
+        guard surface.isPresented else { return }
+        let outcome: PanelExitMeasurement.Outcome = row(for: id).map {
+            .committed(appName: $0.appName, displayTitle: $0.displayTitle, id: $0.id)
+        } ?? .nothingToCommit
+        dismissPanel()
+        record(outcome, by: .commitKey(key), since: startedAt)
+    }
+
     /// Takes the panel down for a key that means not this one.
     ///
     /// Names no row, and the omission is the point. The panel was highlighting

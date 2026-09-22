@@ -81,7 +81,9 @@ final class PanelKeyCommands {
             selection.moveToPrevious()
         case let .cancel(key):
             wayOut.cancel(by: key, since: startedAt)
-        case .commit, .absorb:
+        case let .commit(key):
+            wayOut.commit(by: key, naming: selection.chosenID, since: startedAt)
+        case .absorb:
             break
         }
         return .absorbed
