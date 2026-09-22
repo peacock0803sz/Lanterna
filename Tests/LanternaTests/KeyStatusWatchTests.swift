@@ -85,6 +85,31 @@ struct KeyStatusWatchTests {
         )
     }
 
+    /// Repeated losses spend the appearance's answers even when each taking-back
+    /// succeeds. The fourth loss finds the budget exhausted, so it closes the
+    /// panel without a fourth attempt: taking the keyboard back indefinitely
+    /// within one appearance is what the budget is there to stop.
+    @Test func repeatedLossesSpendTheBudgetAndCloseWithoutAnotherAttempt() async {
+        let fixture = Fixture(entryCount: 3)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+        for expectedCount in 2 ... 4 {
+            fixture.surface.isTakingKeys = false
+            await waitUntil { fixture.surface.takeKeysCount >= expectedCount }
+        }
+        #expect(fixture.surface.takeKeysCount == 4)
+        #expect(fixture.surface.isPresented)
+
+        fixture.surface.isTakingKeys = false
+        await waitUntil { !fixture.surface.isPresented }
+
+        #expect(fixture.surface.dismissCount == 1)
+        #expect(fixture.surface.takeKeysCount == 4)
+        #expect(
+            fixture.log.lines.filter { $0.hasPrefix("panel stopped taking keys;") }.count == 3
+        )
+    }
+
     /// A panel that lost the keyboard never stays up swallowing keystrokes.
     /// Either the taking-back mends it, or it comes down — and once down, a
     /// keystroke goes on to whatever would have had it instead of into a

@@ -82,6 +82,12 @@ final class KeyStatusWatch {
     /// loss that mended itself, and it owes no line.
     private var misses = 0
 
+    /// How many takings-back this appearance has attempted, wanted or not.
+    /// Reset only in `start()`: a recovery that succeeds still spent one of
+    /// the appearance's answers, so repeated losses cannot take the keyboard
+    /// back indefinitely within one appearance.
+    private var attempts = 0
+
     /// When the previous look ran. The start counts as a look nobody could
     /// have found anything at: a panel just put up was taking keys a moment
     /// ago, when it was asked for outright.
@@ -117,7 +123,10 @@ final class KeyStatusWatch {
     ///
     /// A successful taking-back resets the loss baseline and keeps looking:
     /// one recovery does not end the watch for this appearance, so a later
-    /// loss is still found and answered.
+    /// loss is still found and answered. Each answer still spends the
+    /// appearance's budget, wanted or not, so repeated losses end the
+    /// appearance once the answers run out rather than taking the keyboard
+    /// back indefinitely.
     ///
     /// Stops whatever it started before, the way the window list's loop does:
     /// two loops watching one panel would take the keyboard back twice over,
@@ -132,6 +141,7 @@ final class KeyStatusWatch {
     func start(knownGoodAt: ContinuousClock.Instant) {
         stop()
         misses = 0
+        attempts = 0
         previousLook = knownGoodAt
         // Read out here because the interval is wanted before there is a
         // `self` to read it from: the first thing the loop does is wait.
@@ -155,9 +165,15 @@ final class KeyStatusWatch {
                     previousLook = now()
                     continue
                 }
-                // Found wanting, so answered with one taking-back. Dated from
+                // Found wanting, so answered with one taking-back, unless the
+                // appearance has spent its answers already. Dated from
                 // the previous look: the loss happened sometime since, and
                 // the figure is meant to cover all of that sometime.
+                if attempts >= limit {
+                    onGaveUp()
+                    return
+                }
+                attempts += 1
                 let lostSince = previousLook ?? now()
                 if takeKeys() {
                     onTakenBack(now() - lostSince)
@@ -167,7 +183,7 @@ final class KeyStatusWatch {
                 }
                 misses += 1
                 previousLook = now()
-                if misses >= limit {
+                if misses >= limit || attempts >= limit {
                     onGaveUp()
                     return
                 }
