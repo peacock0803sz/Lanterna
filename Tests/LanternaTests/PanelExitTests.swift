@@ -233,6 +233,138 @@ struct PanelExitTests {
         #expect(!committedLine.hasPrefix(cancelledLine))
     }
 
+    /// Return takes the highlighted row, not the first one. The choice is
+    /// moved once before committing, so a line naming the first row would
+    /// show the cursor and the log disagreeing about which row was taken.
+    @Test func returnCommitsTheRowTheChoiceWasMovedTo() {
+        let fixture = runningWithAMonitor()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
+
+        #expect(fixture.presenter.handleKeyStroke(press(kVK_Return)) == .absorbed)
+
+        #expect(!fixture.surface.isPresented)
+        #expect(fixture.surface.dismissCount == 1)
+        let second = fixture.windows[1]
+        #expect(
+            fixture.log.lines.last
+                == "committed \(second.appName) — \(second.displayTitle) "
+                + "(window \(second.id.windowID)) 4.8 ms after Return"
+        )
+        #expect(fixture.log.lines.filter { $0.hasPrefix("cancelled ") }.isEmpty)
+    }
+
+    /// The keypad's Enter does the same thing and says so differently. The
+    /// two are worded apart because which physical key arrived is the
+    /// evidence for reading key codes rather than characters: a log that
+    /// flattened them could not show which of the two a given run had.
+    @Test func keypadEnterCommitsTheSameWayAndSaysWhichKeyDidIt() {
+        let byReturn = runningWithAMonitor()
+        byReturn.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        _ = byReturn.presenter.handleKeyStroke(press(kVK_Return))
+
+        let byKeypad = runningWithAMonitor()
+        byKeypad.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        _ = byKeypad.presenter.handleKeyStroke(press(kVK_ANSI_KeypadEnter))
+
+        #expect(!byKeypad.surface.isPresented)
+        #expect(byKeypad.surface.dismissCount == 1)
+        #expect(byReturn.log.lines.last?.hasPrefix("committed ") == true)
+        #expect(byKeypad.log.lines.last?.hasPrefix("committed ") == true)
+        #expect(byReturn.log.lines.last != byKeypad.log.lines.last)
+        #expect(byKeypad.log.lines.last?.hasSuffix("after keypad Enter") == true)
+    }
+
+    /// The gesture ends with Command coming up, and by then the panel is
+    /// already gone. That release must write nothing: the row was already
+    /// taken by the key, and a line arriving afterwards would count one
+    /// appearance as two commits.
+    @Test func theReleaseThatFollowsAKeyCommitWritesNothing() {
+        let fixture = runningWithAMonitor()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        _ = fixture.presenter.handleKeyStroke(press(kVK_Return))
+        let afterTheCommit = fixture.log.lines
+
+        fixture.presenter.handleCommandRelease()
+
+        #expect(fixture.log.lines == afterTheCommit)
+        #expect(fixture.surface.dismissCount == 1)
+    }
+
+    /// An empty panel commits nothing, and says so with the commit wording
+    /// rather than the called-off one. The two have different causes — a
+    /// list gathered and holding nothing, against no list yet — and a line
+    /// that confused them would read as a press given up on before its
+    /// panel arrived. Both keys that commit spell the empty case out, so a
+    /// run that only ever had the keypad's Enter keeps its evidence of which
+    /// key arrived.
+    @Test func anEmptyListCommitsNothingAndSaysSoApartFromACalledOffPress() {
+        let byReturn = runningWithAMonitor(entryCount: 0)
+        byReturn.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        _ = byReturn.presenter.handleKeyStroke(press(kVK_Return))
+
+        let byKeypad = runningWithAMonitor(entryCount: 0)
+        byKeypad.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        _ = byKeypad.presenter.handleKeyStroke(press(kVK_ANSI_KeypadEnter))
+
+        #expect(
+            byReturn.log.lines.last
+                == "committed nothing 4.8 ms after Return (the list was empty)"
+        )
+        #expect(
+            byKeypad.log.lines.last
+                == "committed nothing 4.8 ms after keypad Enter (the list was empty)"
+        )
+        for lines in [byReturn.log.lines, byKeypad.log.lines] {
+            #expect(lines.last?.hasPrefix("committed ") == true)
+            #expect(lines.last?.hasPrefix("press called off") == false)
+        }
+    }
+
+    /// Holding Return down must not take the row twice. The mapping already
+    /// turns a repeat into nothing, and this holds that nothing reaching the
+    /// panel: the panel stays up, and no line is written.
+    @Test func aRepeatedCommitKeyIsSwallowedRatherThanCommittedTwice() {
+        let fixture = runningWithAMonitor()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        let afterTheAppearance = fixture.log.lines
+
+        let repeatedReturn = PanelKeystroke(
+            keyCode: UInt16(kVK_Return),
+            modifiers: .command,
+            isARepeat: true
+        )
+        #expect(fixture.presenter.handleKeyStroke(repeatedReturn) == .absorbed)
+
+        #expect(fixture.surface.isPresented)
+        #expect(fixture.log.lines == afterTheAppearance)
+    }
+
+    /// One appearance, one commit — even against a panel that will not come
+    /// down when asked. Asking whether the panel is up cannot tell that the
+    /// commit was already spent, so the second commit is turned away by the
+    /// appearance's own flag rather than by the screen: the line count and
+    /// the dismissal count both stay where the first commit left them.
+    ///
+    /// Without the flag this passes the screen's guard both times and
+    /// writes two lines, which is exactly the "used to hold by accident"
+    /// state the flag was put in to replace.
+    @Test func aSecondCommitAgainstAPanelThatWillNotComeDownWritesNothing() {
+        let fixture = runningWithAMonitor()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.surface.onDismiss = { [surface = fixture.surface] in
+            surface.isPresented = true
+        }
+
+        _ = fixture.presenter.handleKeyStroke(press(kVK_Return))
+        let afterTheFirstCommit = fixture.log.lines
+        _ = fixture.presenter.handleKeyStroke(press(kVK_Return))
+
+        #expect(fixture.log.lines == afterTheFirstCommit)
+        #expect(fixture.log.lines.filter { $0.hasPrefix("committed ") }.count == 1)
+        #expect(fixture.surface.dismissCount == 1)
+    }
+
     /// A declined appearance leaves the next one able to start over. The
     /// whole path is walked — open, move off the first row, decline, open
     /// again — because each step has somewhere it could leave the next one
