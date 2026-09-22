@@ -33,21 +33,33 @@ struct SwitcherView: View {
     }
 
     var body: some View {
-        List {
-            ForEach(windows) { window in
-                WindowRow(window: window, isSelected: window.id == selectedID)
-                    // Vertical insets and separators are removed so the List
-                    // adds nothing to WindowRow's fixed height; the horizontal
-                    // insets stay.
-                    .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
+        ScrollViewReader { proxy in
+            List {
+                ForEach(windows) { window in
+                    WindowRow(window: window, isSelected: window.id == selectedID)
+                        // Vertical insets and separators are removed so the List
+                        // adds nothing to WindowRow's fixed height; the horizontal
+                        // insets stay.
+                        .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .id(window.id)
+                }
+            }
+            .listStyle(.plain)
+            .environment(\.defaultMinListRowHeight, PanelMetrics.rowHeight)
+            .scrollContentBackground(.hidden)
+            .padding(.vertical, PanelMetrics.verticalPadding)
+            .adaptiveGlass()
+            // The least scrolling that shows the row, and nothing when it is
+            // already showing. `.center` would move on every keystroke, and
+            // a list that jumps under a choice being moved along it is one
+            // the eye has to find again each time.
+            .onChange(of: selectedID) { _, id in
+                if let id {
+                    proxy.scrollTo(id, anchor: nil)
+                }
             }
         }
-        .listStyle(.plain)
-        .environment(\.defaultMinListRowHeight, PanelMetrics.rowHeight)
-        .scrollContentBackground(.hidden)
-        .padding(.vertical, PanelMetrics.verticalPadding)
-        .adaptiveGlass()
     }
 }
