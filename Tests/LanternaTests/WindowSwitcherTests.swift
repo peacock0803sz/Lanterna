@@ -48,7 +48,7 @@ struct WindowSwitcherTests {
     @Test func aSlowWindowsReadBecomesTimedOut() {
         let peer = ScriptedAccessibility(windowCount: 2)
         peer.windowsError = .cannotComplete
-        peer.messageCost = .milliseconds(600)
+        peer.listCost = .milliseconds(600)
         let outcome = peer.switcher().switchTo(target())
 
         #expect(outcome == .failed(.timedOut))
@@ -111,10 +111,53 @@ struct WindowSwitcherTests {
     func anElementIDSilenceSortsByItsWait(cost: Duration, failure: ActivationFailure) {
         let peer = ScriptedAccessibility(windowCount: 2)
         peer.idAnswers = [0: (.success, 100), 1: (.cannotComplete, 0)]
-        peer.messageCost = cost
+        peer.idCost = cost
         let outcome = peer.switcher().switchTo(target())
 
         #expect(outcome == .failed(failure))
+        #expect(peer.operationNames.isEmpty)
+    }
+
+    /// An earlier wait must not condemn a later refusal. The ceiling judges
+    /// one message, not the running total.
+    @Test func anAccumulatedWaitDoesNotCondemnAFastRefusal() {
+        let peer = ScriptedAccessibility(windowCount: 2)
+        peer.listCost = .milliseconds(600)
+        peer.idAnswers = [0: (.success, 100), 1: (.cannotComplete, 0)]
+        let outcome = peer.switcher().switchTo(target())
+
+        #expect(outcome == .failed(.applicationGone))
+        #expect(peer.operationNames.isEmpty)
+    }
+
+    /// Every element is given its own timeout before its first message: the
+    /// setting rides with the element it protects.
+    @Test func everyElementIsGivenItsOwnTimeout() {
+        let peer = ScriptedAccessibility(windowCount: 2)
+        _ = peer.switcher().switchTo(target())
+
+        #expect(peer.prepared == [peer.appIdentity(), peer.identity(of: 0), peer.identity(of: 1)])
+    }
+
+    /// An element that cannot take a timeout is skipped like anything else
+    /// unreadable. A target never matched is windowGone, while the other
+    /// window still takes.
+    @Test func anUnpreparableElementIsSkipped() {
+        let peer = ScriptedAccessibility(windowCount: 2)
+        peer.prepareErrors = [1: .failure]
+        #expect(peer.switcher().switchTo(target()) == .failed(.windowGone))
+
+        peer.prepareErrors = [0: .failure]
+        #expect(peer.switcher().switchTo(target()) == .switched)
+    }
+
+    /// A list that is not a list names itself, in the reader's words.
+    @Test func aMalformedListNamesItself() {
+        let peer = ScriptedAccessibility(windowCount: 2)
+        peer.malformedList = true
+        let outcome = peer.switcher().switchTo(target())
+
+        #expect(outcome == .failed(.other(reason: "malformed answer")))
         #expect(peer.operationNames.isEmpty)
     }
 
@@ -128,7 +171,7 @@ struct WindowSwitcherTests {
     func aWriteErrorEndsTheTakeWithItsOutcome(cost: Duration, failure: ActivationFailure) {
         let peer = ScriptedAccessibility(windowCount: 2)
         peer.writeError = .cannotComplete
-        peer.messageCost = cost
+        peer.writeCost = cost
         let outcome = peer.switcher().switchTo(target())
 
         #expect(outcome == .failed(failure))
@@ -180,22 +223,30 @@ private final class ScriptedAccessibility: @unchecked Sendable {
     let windows: [AXUIElement]
 
     private(set) var createPIDs: [pid_t] = []
+    /// Every element given a messaging timeout, in order: the application
+    /// first, then each window as it is met.
+    private(set) var prepared: [ObjectIdentifier] = []
     /// Every activating, unminimizing and raising call, in order, by name.
     private(set) var operationNames: [String] = []
     /// The elements those calls acted upon, in the same order.
     private(set) var operated: [ObjectIdentifier] = []
 
     var windowsError: AXError = .success
+    /// Answers a list that is not a list.
+    var malformedList = false
     /// Answers `nil` to fall through to a successful fetch of `100 + index`.
     var idAnswers: [Int: (AXError, CGWindowID)] = [:]
     var timeoutResult: AXError = .success
+    /// Answers `nil` to fall through to `.success`, keyed by window index.
+    var prepareErrors: [Int: AXError] = [:]
     var activateAnswer: LiveWindowSwitcher.ApplicationActivation = .activated
     var writeError: AXError = .success
     /// Answers `nil` to fall through to `writeError`.
     var raiseError: AXError?
-    /// Time each message costs, so a timeout can be spent without waiting.
-    /// Read and written alike: every closure below advances past it.
-    var messageCost: Duration = .zero
+    /// Time each read costs, so a timeout can be spent without waiting.
+    var listCost: Duration = .zero
+    var idCost: Duration = .zero
+    var writeCost: Duration = .zero
 
     private var clock = ContinuousClock.now
 
@@ -207,22 +258,35 @@ private final class ScriptedAccessibility: @unchecked Sendable {
         ObjectIdentifier(windows[index])
     }
 
+    func appIdentity() -> ObjectIdentifier {
+        ObjectIdentifier(application)
+    }
+
     func switcher() -> LiveWindowSwitcher {
         LiveWindowSwitcher(
             createApplication: { [self] pid in
                 createPIDs.append(pid)
                 return application
             },
-            setMessagingTimeout: { [self] _, _ in timeoutResult },
+            setMessagingTimeout: { [self] element, _ in
+                prepared.append(ObjectIdentifier(element))
+                if element === application {
+                    return timeoutResult
+                }
+                guard let index = windows.firstIndex(where: { $0 === element }) else {
+                    return .success
+                }
+                return prepareErrors[index] ?? .success
+            },
             copyWindows: { [self] _ in
-                clock = clock.advanced(by: messageCost)
-                return (windowsError, windows)
+                clock = clock.advanced(by: listCost)
+                return malformedList ? (windowsError, nil) : (windowsError, windows)
             },
             copyWindowID: { [self] element in
                 guard let index = windows.firstIndex(where: { $0 === element }) else {
                     return (.illegalArgument, 0)
                 }
-                clock = clock.advanced(by: messageCost)
+                clock = clock.advanced(by: idCost)
                 return idAnswers[index] ?? (.success, CGWindowID(100 + index))
             },
             activateApplication: { [self] _ in
@@ -232,13 +296,13 @@ private final class ScriptedAccessibility: @unchecked Sendable {
             setMinimized: { [self] element, _ in
                 operationNames.append("unminimize")
                 operated.append(ObjectIdentifier(element))
-                clock = clock.advanced(by: messageCost)
+                clock = clock.advanced(by: writeCost)
                 return writeError
             },
             raiseWindow: { [self] element in
                 operationNames.append("raise")
                 operated.append(ObjectIdentifier(element))
-                clock = clock.advanced(by: messageCost)
+                clock = clock.advanced(by: writeCost)
                 return raiseError ?? writeError
             },
             now: { [self] in clock }
