@@ -166,22 +166,10 @@ final class PanelExit {
         let elapsed = now() - startedAt
         switch target {
         case let .some(take):
-            record(
-                .committed(appName: take.appName, displayTitle: take.displayTitle, id: take.id),
-                by: .commandRelease,
-                elapsed: elapsed
-            )
-            // The pair: nothing may come between the two lines, and both
-            // carry the same figure, which stops at the panel going away.
+            // The take happens before either line: the pair is written
+            // together, with nothing between the two.
             let outcome = switcher.switchTo(take)
-            writeLine(SwitchMeasurement(
-                appName: take.appName,
-                displayTitle: take.displayTitle,
-                id: take.id,
-                outcome: outcome,
-                trigger: .commandRelease,
-                elapsed: elapsed
-            ).summaryLine)
+            recordCommitPair(take, outcome, by: .commandRelease, elapsed: elapsed)
         case .none:
             record(.nothingToCommit, by: .commandRelease, elapsed: elapsed)
         }
@@ -223,21 +211,9 @@ final class PanelExit {
         let elapsed = now() - startedAt
         switch target {
         case let .some(take):
-            record(
-                .committed(appName: take.appName, displayTitle: take.displayTitle, id: take.id),
-                by: .commitKey(key),
-                elapsed: elapsed
-            )
-            // The pair, as above: adjacent lines, one figure.
+            // The pair, as above: the take first, then both lines together.
             let outcome = switcher.switchTo(take)
-            writeLine(SwitchMeasurement(
-                appName: take.appName,
-                displayTitle: take.displayTitle,
-                id: take.id,
-                outcome: outcome,
-                trigger: .commitKey(key),
-                elapsed: elapsed
-            ).summaryLine)
+            recordCommitPair(take, outcome, by: .commitKey(key), elapsed: elapsed)
         case .none:
             record(.nothingToCommit, by: .commitKey(key), elapsed: elapsed)
         }
@@ -332,6 +308,31 @@ final class PanelExit {
     private func row(for id: WindowItem.Identifier?) -> WindowItem? {
         guard let id else { return nil }
         return presentedWindows.first { $0.id == id }
+    }
+
+    /// Writes a commit and what taking it came to as one unit. The take is
+    /// already done when this runs, so nothing of it can land between the
+    /// two lines, and both carry the span that stops at the panel going
+    /// away rather than the taking itself.
+    private func recordCommitPair(
+        _ take: ActivationTarget,
+        _ outcome: ActivationOutcome,
+        by trigger: PanelExitMeasurement.Trigger,
+        elapsed: Duration
+    ) {
+        record(
+            .committed(appName: take.appName, displayTitle: take.displayTitle, id: take.id),
+            by: trigger,
+            elapsed: elapsed
+        )
+        writeLine(SwitchMeasurement(
+            appName: take.appName,
+            displayTitle: take.displayTitle,
+            id: take.id,
+            outcome: outcome,
+            trigger: trigger,
+            elapsed: elapsed
+        ).summaryLine)
     }
 
     /// The one derivation of what a commit names. The line and the switch

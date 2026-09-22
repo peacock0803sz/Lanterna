@@ -105,17 +105,26 @@ struct PanelExitSwitchTests {
     }
 
     /// The take is reported as the commit line's pair: adjacent lines, one
-    /// figure, the same row named twice.
+    /// figure, the same row named twice. Both lines are matched whole, so a
+    /// wording drift on either side turns red here.
     @Test func aCommitWritesTheTakeAsTheCommitsPair() {
         let fixture = released()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
         fixture.presenter.handleCommandRelease()
 
+        let row = fixture.windows[0]
         let lines = fixture.log.lines
         #expect(lines.count == 3)
-        #expect(lines[1].hasPrefix("committed "))
-        #expect(lines[2].hasPrefix("switched to "))
-        #expect(lines[2].contains("(window \(fixture.windows[0].id.windowID))"))
+        #expect(
+            lines[1]
+                == "committed \(row.appName) — \(row.displayTitle) "
+                + "(window \(row.id.windowID)) 4.8 ms after Command was released"
+        )
+        #expect(
+            lines[2]
+                == "switched to \(row.appName) — \(row.displayTitle) "
+                + "(window \(row.id.windowID)) 4.8 ms after Command was released"
+        )
     }
 
     /// A failed take is a pair too, naming the reason in fixed words.
@@ -125,11 +134,15 @@ struct PanelExitSwitchTests {
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
         fixture.presenter.handleCommandRelease()
 
+        let row = fixture.windows[0]
         let lines = fixture.log.lines
         #expect(lines.count == 3)
         #expect(lines[1].hasPrefix("committed "))
-        #expect(lines[2].hasPrefix("could not switch to "))
-        #expect(lines[2].contains("(window gone)"))
+        #expect(
+            lines[2]
+                == "could not switch to \(row.appName) — \(row.displayTitle) "
+                + "(window \(row.id.windowID)) (window gone) 4.8 ms after Command was released"
+        )
     }
 
     /// The pair keeps the trigger's wording on both lines.
@@ -140,8 +153,13 @@ struct PanelExitSwitchTests {
             keyCode: UInt16(kVK_Return), modifiers: .command, isARepeat: false
         ))
 
+        let row = fixture.windows[0]
         let lines = fixture.log.lines
         #expect(lines.count == 3)
-        #expect(lines[2].hasSuffix("after Return"))
+        #expect(
+            lines[2]
+                == "switched to \(row.appName) — \(row.displayTitle) "
+                + "(window \(row.id.windowID)) 4.8 ms after Return"
+        )
     }
 }
