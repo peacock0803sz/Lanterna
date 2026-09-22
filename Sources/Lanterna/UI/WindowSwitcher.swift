@@ -154,15 +154,23 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
             return .failure(.failed(.applicationGone))
         }
         let sentAt = now()
-        let (windowsError, elements) = copyWindows(application)
-        guard windowsError == .success else {
-            return .failure(listFailure(for: windowsError, since: sentAt))
-        }
-        guard let elements else {
+        let (windowsError, rawElements) = copyWindows(application)
+        let elements: [AXUIElement]
+        switch windowsError {
+        case .success:
             // An application that answers its window list with something
             // that is not one cannot be read, and the reader's word for
             // that is kept: malformed answer.
-            return .failure(.failed(.other(reason: "malformed answer")))
+            guard let rawElements else {
+                return .failure(.failed(.other(reason: "malformed answer")))
+            }
+            elements = rawElements
+        case .noValue:
+            // No open windows, which the reader reads as an empty list: a
+            // target of this application is gone rather than erroneous.
+            elements = []
+        default:
+            return .failure(listFailure(for: windowsError, since: sentAt))
         }
         for element in elements {
             switch match(element, to: target) {

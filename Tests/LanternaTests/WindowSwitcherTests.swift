@@ -160,6 +160,18 @@ struct WindowSwitcherTests {
         #expect(peer.operationNames.isEmpty)
     }
 
+    /// No open windows reads as an empty list: the row is gone, not
+    /// erroneous. Closing an application's last window between showing and
+    /// taking is the ordinary way to arrive here.
+    @Test func anEmptyWindowListIsWindowGone() {
+        let peer = ScriptedAccessibility(windowCount: 2)
+        peer.windowsError = .noValue
+        let outcome = peer.switcher().switchTo(target())
+
+        #expect(outcome == .failed(.windowGone))
+        #expect(peer.operationNames.isEmpty)
+    }
+
     /// A write that never comes back is a wait; any other write error names
     /// itself. Either way the take ends there: later operations are not
     /// called on a window the take has already failed.
