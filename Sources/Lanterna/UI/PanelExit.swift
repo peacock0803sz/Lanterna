@@ -262,6 +262,7 @@ final class PanelExit {
     /// is kept because a list outliving the panel it was drawn on could name
     /// a row for an appearance that never showed it.
     private func dismissPanel() {
+        commitIsStillOpen = false
         surface.dismiss()
         presentedWindows = []
         keyWatch.stop()
