@@ -1,5 +1,13 @@
+import AppKit
+import Carbon.HIToolbox
 @testable import Lanterna
 import Testing
+
+/// Spelled as a press is made, with Command still down: this whole file is
+/// about the gesture that is still under way when the tap stops reporting.
+private func press(_ keyCode: Int) -> PanelKeystroke {
+    PanelKeystroke(keyCode: UInt16(keyCode), modifiers: .command, isARepeat: false)
+}
 
 /// The panel outliving a release that nothing reported.
 ///
@@ -10,9 +18,10 @@ import Testing
 ///
 /// The hole being closed: a tap can stay enabled and stop being handed events,
 /// and nothing about it then looks stopped. The release never arrives, so the
-/// panel stays up, and a further press is turned away because a monitor still
-/// reports itself as running — leaving a panel that nothing on the keyboard
-/// can close, since it is non-activating and takes no keys of its own.
+/// panel stays up, and a further press is spent on moving the selection
+/// because a monitor still reports itself as running. The panel asks for the
+/// keyboard now, so where that ask succeeded a cancel key still closes it;
+/// where it was refused, nothing on the keyboard reaches the panel at all.
 @MainActor
 struct PanelPresenterUnreportedReleaseTests {
     /// A presenter wired the way a run with a working monitor wires it. The
@@ -45,7 +54,41 @@ struct PanelPresenterUnreportedReleaseTests {
         #expect(!fixture.surface.isPresented)
         #expect(
             fixture.log.lines.last
-                == "closed the panel showing \(first.appName) — \(first.displayTitle); "
+                == "closed the panel showing \(first.appName) — \(first.displayTitle) "
+                + "(window \(first.id.windowID)); "
+                + "Command was let go and the tap never said so"
+        )
+    }
+
+    /// The line names the row the panel was left highlighting, not the row it
+    /// opened on. This way out words its line in `PanelExit` rather than
+    /// through the measurement type, so the choice and the wording reach the
+    /// log by different routes and can drift apart with nothing to say so.
+    ///
+    /// The case above cannot catch that. It moves nothing, so the row it
+    /// opened on and the row it was left showing are the same row, and an
+    /// implementation that reached for either would write the same line.
+    ///
+    /// The whole line is compared rather than a part of it, which pins the
+    /// identity along with the names. Telling apart two rows that share both
+    /// names is a claim of its own and is made where the fixture produces
+    /// such a pair, which this one does not.
+    @Test(.timeLimit(.minutes(1)))
+    func theLineNamesTheRowTheChoiceWasMovedTo() async {
+        let fixture = runningWithAMonitor()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .absorbed)
+        #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .absorbed)
+
+        fixture.commandHold.isHeld = false
+        await fixture.commandHold.waitUntilAsked(times: 2)
+        await settle()
+
+        let third = fixture.windows[2]
+        #expect(
+            fixture.log.lines.last
+                == "closed the panel showing \(third.appName) — \(third.displayTitle) "
+                + "(window \(third.id.windowID)); "
                 + "Command was let go and the tap never said so"
         )
     }

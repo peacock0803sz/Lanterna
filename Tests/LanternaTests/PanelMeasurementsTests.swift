@@ -98,25 +98,85 @@ struct HotkeyMeasurementTests {
     }
 }
 
-/// What a Command release says it did.
+/// What the end of an appearance says it was.
 ///
-/// Three wordings, one of which is written every time the key is let go while
-/// the panel is up or on its way. They are pinned here rather than where the
-/// decision is made, so a reword shows up as a failure in the file that owns
-/// the wording.
-struct CommandReleaseMeasurementTests {
+/// The exits that carry a measured span are worded by this type: a release, a
+/// commit key, a cancel key, and a press let go of before its panel ever
+/// arrived. They are pinned here rather than where the decision is made, so a
+/// reword shows up as a failure in the file that owns the wording.
+///
+/// Not every way the panel goes comes through here. A further hotkey press
+/// and the release the tap never reported are worded in `PanelExit` itself,
+/// and are pinned where they are driven from — so this file is the inventory
+/// of one kind of ending, not of all of them.
+///
+/// The ones Command's release has always written predate the trigger being
+/// recorded at all, and are the ones no later feature may disturb; the helper
+/// below defaults to that trigger so the cases pinning them go on saying
+/// nothing about one.
+struct PanelExitMeasurementTests {
+    /// Letting go of Command by default, so that the cases pinning the three
+    /// wordings it has always written say nothing about a trigger and go on
+    /// reading as they did. Those three are wording no later feature may
+    /// disturb.
     private static func measurement(
-        _ outcome: CommandReleaseMeasurement.Outcome,
+        _ outcome: PanelExitMeasurement.Outcome,
+        by trigger: PanelExitMeasurement.Trigger = .commandRelease,
         elapsed: Duration = .microseconds(4800)
-    ) -> CommandReleaseMeasurement {
-        CommandReleaseMeasurement(outcome: outcome, elapsed: elapsed)
+    ) -> PanelExitMeasurement {
+        PanelExitMeasurement(outcome: outcome, trigger: trigger, elapsed: elapsed)
+    }
+
+    /// Stands in for whichever window was taken. Every case below but the two
+    /// about the identity itself is about how the names are worded, and one
+    /// value throughout keeps the identity out of their way.
+    private static let someWindow = WindowItem.Identifier(windowID: 42)
+
+    private static func committed(
+        appName: String,
+        displayTitle: String
+    ) -> PanelExitMeasurement.Outcome {
+        .committed(appName: appName, displayTitle: displayTitle, id: someWindow)
     }
 
     @Test func aCommitNamesTheRowItTook() {
         #expect(
-            Self.measurement(.committed(appName: "Safari", displayTitle: "Release notes"))
+            Self.measurement(Self.committed(appName: "Safari", displayTitle: "Release notes"))
                 .summaryLine
-                == "committed Safari — Release notes 4.8 ms after Command was released"
+                == "committed Safari — Release notes (window 42) "
+                + "4.8 ms after Command was released"
+        )
+    }
+
+    /// The identity is what tells two rows apart when the names cannot, so a
+    /// line that spelled it any other way would be a line nobody can search.
+    /// Swift's own rendering of the identity would read
+    /// `(window Identifier(windowID: 42))`, which matches nothing and would
+    /// leave a count of rows taken by mistake reading zero for the wrong
+    /// reason.
+    @Test func twoRowsWithTheSameNamesAreStillToldApartByTheirIdentity() {
+        let rows = [WindowItem.Identifier(windowID: 7), WindowItem.Identifier(windowID: 9)]
+        let lines = rows.map {
+            Self.measurement(
+                .committed(appName: "Preview", displayTitle: "Preview", id: $0)
+            ).summaryLine
+        }
+        #expect(
+            lines == [
+                "committed Preview — Preview (window 7) 4.8 ms after Command was released",
+                "committed Preview — Preview (window 9) 4.8 ms after Command was released",
+            ]
+        )
+    }
+
+    /// The timing runs to the end of the line, and a check written against
+    /// the previous wording anchors there. Putting the identity before it
+    /// rather than after is what keeps that anchor attached.
+    @Test func theIdentityGoesBeforeTheTimingSoTheLineStillEndsOnIt() {
+        #expect(
+            Self.measurement(Self.committed(appName: "Safari", displayTitle: "Notes"))
+                .summaryLine
+                .hasSuffix(" 4.8 ms after Command was released")
         )
     }
 
@@ -141,9 +201,9 @@ struct CommandReleaseMeasurementTests {
     @Test(arguments: ["", "   ", "\t\n "])
     func aTitleThatIsNothingFallsBackToTheApplicationName(displayTitle: String) {
         #expect(
-            Self.measurement(.committed(appName: "Preview", displayTitle: displayTitle))
+            Self.measurement(Self.committed(appName: "Preview", displayTitle: displayTitle))
                 .summaryLine
-                == "committed Preview — Preview 4.8 ms after Command was released"
+                == "committed Preview — Preview (window 42) 4.8 ms after Command was released"
         )
     }
 
@@ -152,19 +212,22 @@ struct CommandReleaseMeasurementTests {
     /// any count taken by matching these lines.
     @Test func aTitleHoldingNewlinesStillPrintsAsOneLine() {
         let line = Self.measurement(
-            .committed(appName: "Notes", displayTitle: "first\nsecond\r\nthird")
+            Self.committed(appName: "Notes", displayTitle: "first\nsecond\r\nthird")
         ).summaryLine
         #expect(!line.contains("\n"))
         #expect(!line.contains("\r"))
-        #expect(line == "committed Notes — first second third 4.8 ms after Command was released")
+        #expect(
+            line == "committed Notes — first second third (window 42) "
+                + "4.8 ms after Command was released"
+        )
     }
 
     @Test func tabsAndRunsOfSpacesCollapseToOne() {
         #expect(
             Self.measurement(
-                .committed(appName: "Xcode", displayTitle: "  a\t\tb   c  ")
+                Self.committed(appName: "Xcode", displayTitle: "  a\t\tb   c  ")
             ).summaryLine
-                == "committed Xcode — a b c 4.8 ms after Command was released"
+                == "committed Xcode — a b c (window 42) 4.8 ms after Command was released"
         )
     }
 
@@ -174,9 +237,9 @@ struct CommandReleaseMeasurementTests {
     @Test func theApplicationNameIsFlattenedTheSameWay() {
         #expect(
             Self.measurement(
-                .committed(appName: "Some\nApp", displayTitle: "Window")
+                Self.committed(appName: "Some\nApp", displayTitle: "Window")
             ).summaryLine
-                == "committed Some App — Window 4.8 ms after Command was released"
+                == "committed Some App — Window (window 42) 4.8 ms after Command was released"
         )
     }
 
@@ -185,9 +248,9 @@ struct CommandReleaseMeasurementTests {
     @Test func controlCharactersBecomeSpacesToo() {
         #expect(
             Self.measurement(
-                .committed(appName: "Term", displayTitle: "a\u{0007}b")
+                Self.committed(appName: "Term", displayTitle: "a\u{0007}b")
             ).summaryLine
-                == "committed Term — a b 4.8 ms after Command was released"
+                == "committed Term — a b (window 42) 4.8 ms after Command was released"
         )
     }
 
@@ -201,9 +264,10 @@ struct CommandReleaseMeasurementTests {
             Self.measurement(
                 // U+200B ZERO WIDTH SPACE, written as an escape: pasted in
                 // whole it is unreadable here and impossible to maintain.
-                .committed(appName: "Safari\u{200B}", displayTitle: "Release notes")
+                Self.committed(appName: "Safari\u{200B}", displayTitle: "Release notes")
             ).summaryLine
-                == "committed Safari — Release notes 4.8 ms after Command was released"
+                == "committed Safari — Release notes (window 42) "
+                + "4.8 ms after Command was released"
         )
     }
 
@@ -215,9 +279,9 @@ struct CommandReleaseMeasurementTests {
         #expect(
             Self.measurement(
                 // U+202E RIGHT-TO-LEFT OVERRIDE
-                .committed(appName: "Mail", displayTitle: "Inbox\u{202E}draft")
+                Self.committed(appName: "Mail", displayTitle: "Inbox\u{202E}draft")
             ).summaryLine
-                == "committed Mail — Inbox draft 4.8 ms after Command was released"
+                == "committed Mail — Inbox draft (window 42) 4.8 ms after Command was released"
         )
     }
 
@@ -230,8 +294,8 @@ struct CommandReleaseMeasurementTests {
         // U+200D ZERO WIDTH JOINER between the three figures.
         let name = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}"
         #expect(
-            Self.measurement(.committed(appName: name, displayTitle: "Album")).summaryLine
-                == "committed \(name) — Album 4.8 ms after Command was released"
+            Self.measurement(Self.committed(appName: name, displayTitle: "Album")).summaryLine
+                == "committed \(name) — Album (window 42) 4.8 ms after Command was released"
         )
     }
 
@@ -240,8 +304,8 @@ struct CommandReleaseMeasurementTests {
     /// nobody at all.
     @Test func anApplicationNameThatIsNothingIsSaidToBeMissing() {
         #expect(
-            Self.measurement(.committed(appName: "  ", displayTitle: "  ")).summaryLine
-                == "committed an unnamed application — an unnamed application "
+            Self.measurement(Self.committed(appName: "  ", displayTitle: "  ")).summaryLine
+                == "committed an unnamed application — an unnamed application (window 42) "
                 + "4.8 ms after Command was released"
         )
     }
@@ -255,9 +319,9 @@ struct CommandReleaseMeasurementTests {
             Self.measurement(
                 // U+200B ZERO WIDTH SPACE, U+00AD SOFT HYPHEN and U+FEFF ZERO
                 // WIDTH NO-BREAK SPACE: none of the three is whitespace.
-                .committed(appName: "\u{200B}\u{00AD}\u{FEFF}", displayTitle: "\u{200B}")
+                Self.committed(appName: "\u{200B}\u{00AD}\u{FEFF}", displayTitle: "\u{200B}")
             ).summaryLine
-                == "committed an unnamed application — an unnamed application "
+                == "committed an unnamed application — an unnamed application (window 42) "
                 + "4.8 ms after Command was released"
         )
     }
@@ -274,17 +338,60 @@ struct CommandReleaseMeasurementTests {
     /// Committing nothing and never getting as far as a panel are different
     /// events with different answers, so no reading of the log may conflate
     /// them — including a grep that anchors on one and matches the other.
-    @Test func theThreeOutcomesAreTellableApartFromTheLineAlone() {
-        let outcomes: [CommandReleaseMeasurement.Outcome] = [
-            .committed(appName: "Safari", displayTitle: "Release notes"),
-            .nothingToCommit,
-            .pressCalledOff,
-        ]
-        let lines = outcomes.map { Self.measurement($0).summaryLine }
+    ///
+    /// Every pair that can happen is here, not a sample of them. Telling
+    /// events apart is a property of the whole set of wordings, so a subset
+    /// can only fail to find a clash, never say there is none.
+    @Test func everyEndingIsTellableApartFromTheLineAlone() {
+        let row = Self.committed(appName: "Safari", displayTitle: "Release notes")
+        let lines = [
+            Self.measurement(row),
+            Self.measurement(row, by: .commitKey(.returnKey)),
+            Self.measurement(row, by: .commitKey(.keypadEnter)),
+            Self.measurement(.nothingToCommit),
+            Self.measurement(.nothingToCommit, by: .commitKey(.returnKey)),
+            Self.measurement(.nothingToCommit, by: .commitKey(.keypadEnter)),
+            Self.measurement(.pressCalledOff),
+            Self.measurement(.cancelled, by: .cancelKey(.commandPeriod)),
+            Self.measurement(.cancelled, by: .cancelKey(.escape)),
+        ].map(\.summaryLine)
 
-        #expect(Set(lines).count == 3)
+        #expect(Set(lines).count == lines.count)
         for line in lines {
             #expect(lines.filter { $0.hasPrefix(line) }.count == 1)
         }
+    }
+
+    /// The two exits a key can bring about, worded so that counting one can
+    /// never pick up the other. `cancelled` shares no word with any commit
+    /// line, which is what lets `^committed ` and `^cancelled ` be counted
+    /// with one pattern each.
+    @Test func cancellingSaysNothingAboutARowAndSharesNoStemWithACommit() {
+        let byPeriod = Self.measurement(.cancelled, by: .cancelKey(.commandPeriod)).summaryLine
+        let byEscape = Self.measurement(.cancelled, by: .cancelKey(.escape)).summaryLine
+
+        #expect(byPeriod == "cancelled 4.8 ms after Cmd+Period")
+        #expect(byEscape == "cancelled 4.8 ms after Escape")
+        #expect(!byPeriod.hasPrefix("committed"))
+        #expect(!byEscape.hasPrefix("committed"))
+    }
+
+    /// A commit says which key did it, and the two keys are worded apart.
+    /// Which physical key arrived is the evidence for going by key code at
+    /// all, and a log that flattened them would throw that evidence away.
+    @Test func aCommitByKeyNamesTheKeyAndKeepsTheRow() {
+        let row = Self.committed(appName: "Safari", displayTitle: "Release notes")
+        #expect(
+            Self.measurement(row, by: .commitKey(.returnKey)).summaryLine
+                == "committed Safari — Release notes (window 42) 4.8 ms after Return"
+        )
+        #expect(
+            Self.measurement(row, by: .commitKey(.keypadEnter)).summaryLine
+                == "committed Safari — Release notes (window 42) 4.8 ms after keypad Enter"
+        )
+        #expect(
+            Self.measurement(.nothingToCommit, by: .commitKey(.returnKey)).summaryLine
+                == "committed nothing 4.8 ms after Return (the list was empty)"
+        )
     }
 }

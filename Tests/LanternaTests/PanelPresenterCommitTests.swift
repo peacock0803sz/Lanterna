@@ -30,7 +30,7 @@ struct PanelPresenterCommitTests {
         #expect(
             fixture.log.lines.last
                 == "committed \(first.appName) — \(first.displayTitle) "
-                + "4.8 ms after Command was released"
+                + "(window \(first.id.windowID)) 4.8 ms after Command was released"
         )
     }
 
@@ -69,7 +69,7 @@ struct PanelPresenterCommitTests {
         #expect(
             fixture.log.lines.last
                 == "committed \(first.appName) — \(first.displayTitle) "
-                + "9.6 ms after Command was released"
+                + "(window \(first.id.windowID)) 9.6 ms after Command was released"
         )
     }
 
@@ -139,8 +139,13 @@ struct PanelPresenterCommitTests {
     }
 
     /// A second release with nothing on screen must not commit the row the
-    /// last one took, which is what clearing the selection with the panel
-    /// buys.
+    /// last one took.
+    ///
+    /// What holds that is the commit's own `guard surface.isPresented`, which
+    /// returns before the list or the choice is ever reached. This case does
+    /// not hold either of them being given up with the panel, and no case
+    /// can: nothing reads them while the panel is down, which is what the
+    /// comment beside the line that clears the list already says.
     @Test func aSecondReleaseAfterACommitCommitsNothingFurther() {
         let fixture = runningWithAMonitor()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
@@ -152,11 +157,18 @@ struct PanelPresenterCommitTests {
         #expect(fixture.surface.dismissCount == 1)
     }
 
-    /// The press is the one that would have moved the selection on, so with a
-    /// monitor running it has to do nothing at all — not close the panel, and
-    /// not put a second one up.
+    /// The press moves the selection along now, and what this case holds is
+    /// everything it must leave alone while doing so: the panel stays, no
+    /// second one goes up, and nothing is written. Which row it lands on is
+    /// held elsewhere, by the suite about the choice.
+    ///
+    /// Both combinations, because they walk opposite ways and a path that
+    /// closed the panel for one of them would pass every case that only ever
+    /// pressed the other.
     @Test(arguments: [HotkeyCombination.forward, .reverse])
-    func withAMonitorRunningAFurtherPressDoesNothing(combination: HotkeyCombination) {
+    func withAMonitorRunningAFurtherPressDisturbsNothingButTheChoice(
+        combination: HotkeyCombination
+    ) {
         let fixture = runningWithAMonitor()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
         let linesSoFar = fixture.log.lines
@@ -222,8 +234,9 @@ struct PanelPresenterCommitTests {
 
     /// A monitor that stops running partway through has to hand the closing
     /// back to the press. The release it was going to close on can no longer
-    /// arrive, and the panel takes no keys of its own, so a press still turned
-    /// away here would leave a panel nothing on the keyboard could close.
+    /// arrive, so a press still spent on the selection here would leave the
+    /// panel's way out resting on the cancel keys alone — and those reach it
+    /// only where it was granted key status.
     @Test func aMonitorThatStopsRunningHandsTheClosingBackToThePress() {
         let fixture = runningWithAMonitor()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)

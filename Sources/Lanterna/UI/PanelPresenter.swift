@@ -33,9 +33,11 @@ final class PanelPresenter {
     ///
     /// Asked on every press rather than settled at launch: the answer can stop
     /// being true under the app, because the system is free to switch a tap off
-    /// whenever it likes. A remembered yes would go on turning away the very
-    /// press that is the way out, leaving a panel nothing on the keyboard can
-    /// close. A run with no monitor answers no throughout.
+    /// whenever it likes. A remembered yes would go on spending the very press
+    /// that is the way out on moving the selection, leaving a panel whose only
+    /// remaining keyboard exits are the cancel keys — which reach it only
+    /// where it was granted key status, and which have not been measured
+    /// under secure input at all. A run with no monitor answers no throughout.
     private let closesOnCommandRelease: @MainActor () -> Bool
 
     /// Whether Command is down on the keyboard at this instant.
@@ -62,10 +64,23 @@ final class PanelPresenter {
         interval: commandWatchInterval,
         isPanelUp: { [weak self] in self?.surface.isPresented ?? false },
         commandIsHeld: { [weak self] in self?.commandIsHeld() ?? false },
-        onUnreportedRelease: { [weak self] in self?.wayOut.closeForAnUnreportedRelease() }
+        // The chosen row is read here and not inside the call, because the
+        // call is what clears it. Swift settles the argument before the
+        // method runs, so the order is the language's rather than a habit.
+        onUnreportedRelease: { [weak self] in
+            self?.wayOut.closeForAnUnreportedRelease(naming: self?.selection.chosenID)
+        }
     )
 
-    /// Every way the panel comes off the screen, and the row it was showing
+    /// Which row of the list on screen is chosen.
+    ///
+    /// Kept apart from the list it indexes, and the line is drawn where it is
+    /// on purpose: `PanelExit` names rows, and naming is not choosing. Given
+    /// up where the panel comes off the screen rather than at each way out,
+    /// so no way out can be the one that forgets.
+    private let selection: PanelSelection
+
+    /// Every way the panel comes off the screen, and the list it was showing
     /// while it was up.
     ///
     /// `lazy` for the reason the watch above is: what it does when the panel
@@ -81,6 +96,19 @@ final class PanelPresenter {
     /// again as a repetition of the initialiser beside it.
     private lazy var wayOut = makeWayOut()
 
+    /// What a press means to a panel that is up.
+    ///
+    /// `lazy` because it is handed the way out, which is itself `lazy`. It
+    /// holds nothing of its own — the panel, the chosen row and the ways out
+    /// are all this object's — so the two can share them rather than keep
+    /// second copies.
+    private lazy var keyCommands = PanelKeyCommands(
+        surface: surface,
+        selection: selection,
+        wayOut: wayOut,
+        now: now
+    )
+
     init(
         surface: any SwitcherSurface,
         store: WindowListStore,
@@ -94,6 +122,7 @@ final class PanelPresenter {
         commandWatchInterval: Duration = UnreportedReleaseWatch.defaultInterval
     ) {
         self.surface = surface
+        selection = PanelSelection(surface: surface)
         self.store = store
         self.ownProcessIdentifier = ownProcessIdentifier
         self.now = now
@@ -108,19 +137,24 @@ final class PanelPresenter {
             surface: surface,
             now: now,
             writeLine: writeLine,
-            stopWatching: { [weak self] in self?.commandWatch.stop() }
+            onPanelGone: { [weak self] in
+                self?.commandWatch.stop()
+                self?.selection.end()
+            }
         )
     }
 
-    /// Puts the panel up for a press, and on a run with no monitor takes it
-    /// down again if the press found it already up.
+    /// Puts the panel up for a press, and takes it down again if the press
+    /// found one already up and letting go of Command is not what will close
+    /// it. That is three of the four states enumerated below, not only the
+    /// run with no monitor.
     ///
     /// That second job is a fallback now rather than the design. One key doing
     /// both was what dismissed the panel without a second key having to be
-    /// learned or claimed from the system; with a monitor running, letting go
-    /// of Command does the dismissing and a further press does nothing at all,
-    /// because that keystroke is spoken for by the step that lets the
-    /// selection move.
+    /// learned or claimed from the system; where letting go of Command does
+    /// the dismissing, a further press moves the selection along instead,
+    /// which is the keystroke the user reaches for anyway while the key is
+    /// still down.
     ///
     /// Nothing here turns a press away for arriving too soon after the last
     /// one. Holding the key down does not produce a stream of presses: three
@@ -144,16 +178,38 @@ final class PanelPresenter {
         // nothing.
         let startedAt = now()
         if surface.isPresented {
-            // The press is what closes the panel whenever nothing else will.
-            // A running monitor alone does not settle that: one that came
-            // back while this panel was already up takes its idea of the
-            // modifiers from the keyboard as it finds it, so a Command let go
-            // meanwhile leaves it no release to report, and the panel was
-            // shown with nothing running and so was given no watch. Where a
-            // release will close it, this keystroke moves the selection along.
-            let releaseWillCloseIt = closesOnCommandRelease() && commandWatch.isLooking
-            guard !releaseWillCloseIt else { return }
-            wayOut.takeDown(because: combination.name)
+            // Two questions, and the four states they make between them. Is
+            // a monitor running, and was this appearance given a watch.
+            //
+            // Both yes, and the press moves the selection: letting go of
+            // Command is what will close the panel, so this keystroke is
+            // free to mean something else.
+            //
+            // Any other pair, and the press is what closes the panel,
+            // because nothing else will. No monitor ever started, and there
+            // is no release being listened for at all. A monitor that was
+            // stopped when the panel went up left this appearance without a
+            // watch, and one that has come back since takes its idea of the
+            // modifiers from the keyboard as it finds it — a Command let go
+            // meanwhile leaves it no release to report. A monitor that has
+            // stopped since the panel went up leaves a watch still looking
+            // with nothing left to report to it.
+            //
+            // So the split is neither question on its own. The middle two
+            // states differ from the first in one of them each, and both are
+            // read again on every press because either can have changed
+            // since the last.
+            let pressMovesTheSelection = closesOnCommandRelease() && commandWatch.isLooking
+            guard pressMovesTheSelection else {
+                wayOut.takeDown(because: combination.name)
+                return
+            }
+            switch combination {
+            case .forward:
+                selection.moveToNext()
+            case .reverse:
+                selection.moveToPrevious()
+            }
             return
         }
         // The press comes in through Carbon and the release through the tap,
@@ -204,12 +260,28 @@ final class PanelPresenter {
         startedAt: ContinuousClock.Instant,
         gatheredOnDemand: Bool
     ) {
-        // The first row, stated rather than worked out, and only until
-        // `SelectionCursor` is wired to this — it already knows how to move
-        // the choice, and nothing here reaches for it yet. It says out loud
-        // what the panel used to arrive at on its own, so that the one place
-        // deciding it is here from the start.
-        surface.present(windows: windows, selecting: windows.first?.id)
+        // Three orderings below are load-bearing, and the statements they
+        // hold apart are named one pair at a time rather than counted.
+        //
+        // The cursor is made first, so that what the panel is told to draw is
+        // read off it. The first row was worked out twice over until now —
+        // once here and once inside the panel — and two derivations of one
+        // thing agreed only because nothing could move the choice. Passing
+        // `windows.first?.id` here instead would leave the second derivation
+        // standing beside the cursor, agreeing with it, until the day it did
+        // not.
+        //
+        // Keys are asked for after the panel is up, because a window that is
+        // not on screen cannot become the key window, and before the reading
+        // is taken, because a press that put a panel up the keyboard never
+        // reached is a press that did not finish its work.
+        //
+        // Handing the list to the way out is the one statement here whose
+        // position is free. It has to happen before the panel can go, and
+        // every route to that runs through a later turn.
+        selection.begin(windows.map(\.id))
+        surface.present(windows: windows, selecting: selection.chosenID)
+        let becameKey = surface.takeKeys()
         wayOut.nowShowing(windows)
         let measurement = HotkeyMeasurement(
             combination: combination,
@@ -217,12 +289,7 @@ final class PanelPresenter {
             entryCount: windows.count,
             deliveryDelay: deliveryDelay,
             gatheredOnDemand: gatheredOnDemand,
-            // Nothing asks the panel for the keyboard yet, so no appearance
-            // is taking it. Stated rather than left out, so that the phrase
-            // is already on every line before there is a true to tell from a
-            // false: put in afterwards, "no phrase" and "the phrase says no"
-            // could not be told apart.
-            becameKey: false
+            becameKey: becameKey
         )
         writeLine(measurement.summaryLine)
 
@@ -262,8 +329,10 @@ final class PanelPresenter {
             // and not for the panel: the press is what the user did, and one
             // that disappeared without a word could not be told from one that
             // never arrived at all. Written plainly rather than measured,
-            // because every figure in these lines is a span since Command was
-            // released, and no release happened here.
+            // because every figure in these lines runs from something the
+            // user did to this process answering it — a release, or one of
+            // the keys that end an appearance — and nothing of the kind
+            // happened here. The frontmost application changed on its own.
             pendingPress.callOff()
             writeLine(
                 "called off the press waiting for its first list; "
@@ -275,32 +344,12 @@ final class PanelPresenter {
         wayOut.takeDown(because: "frontmost application changed")
     }
 
-    /// Decides what becomes of a key press.
+    /// Hands a key press to the one place that decides what becomes of it.
     ///
-    /// With no panel up the press is nothing to do with this app, and it goes
-    /// on to whatever would have had it. This is the only place that question
-    /// is asked: the channel delivering the press keeps no idea of whether a
-    /// panel is up, because two records of that are two things that can
-    /// disagree.
-    ///
-    /// With a panel up, everything is swallowed — the keys that mean
-    /// something here and equally the ones that mean nothing. The middle
-    /// course of handing back only the keys with no meaning was considered
-    /// and is wrong twice over. An event handed back travels the responder
-    /// chain, and the SDK says plainly what waits at the end of it: a key
-    /// press nothing handles rings the system alert. And a character key
-    /// passed on would type into whatever is in front, so a panel that is up
-    /// would be filling somebody's document while it stood there.
-    ///
-    /// What the press means is not read yet. The mapping from a key to a
-    /// meaning is already here, in `PanelKeyInput`; the step that acts on it
-    /// — moving, committing and cancelling — is where a meaning starts to
-    /// matter. Until then every press has the same answer, and classifying
-    /// one only to throw the answer away would be work no run could tell had
-    /// happened.
-    func handleKeyStroke(_: PanelKeystroke) -> PanelKeyDisposition {
-        guard surface.isPresented else { return .passedThrough }
-        return .absorbed
+    /// Kept as an entry here because the channel delivering presses is wired
+    /// to the presenter, which is what the application knows about.
+    func handleKeyStroke(_ keystroke: PanelKeystroke) -> PanelKeyDisposition {
+        keyCommands.handle(keystroke)
     }
 
     /// Acts on Command having been let go.
@@ -317,6 +366,6 @@ final class PanelPresenter {
             wayOut.recordPressCalledOff(since: startedAt)
             return
         }
-        wayOut.commitOnCommandRelease(since: startedAt)
+        wayOut.commitOnCommandRelease(naming: selection.chosenID, since: startedAt)
     }
 }

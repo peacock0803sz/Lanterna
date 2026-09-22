@@ -1,11 +1,20 @@
 /// Looks for Command having been let go when nothing said so.
 ///
 /// The panel closes on the tap reporting Command going up. A tap that is
-/// enabled but is not being handed events reports nothing, and then nothing
-/// closes the panel at all: it is non-activating and takes no keys of its own,
-/// and a further press is turned away for as long as a monitor is running. So
-/// the keyboard is asked directly instead, on a short interval, for as long as
-/// the panel is up.
+/// enabled but is not being handed events reports nothing, and a further
+/// press does not close the panel either, because for as long as a monitor
+/// reports itself as running that press means the next row instead.
+///
+/// The panel does ask for the keyboard now, and where that ask succeeded the
+/// user has a cancel key. That is a hand to reach for, not a way for the
+/// panel to go on its own: nothing here would ever take it down, and it
+/// would stand on the screen until somebody thought of the key. Where the
+/// ask was refused there is not even that.
+///
+/// So this is the cover for every appearance rather than for some of them,
+/// and it is started for every appearance a monitor is running for. The
+/// keyboard is asked directly, on a short interval, for as long as the panel
+/// is up.
 ///
 /// Asking does not travel the tap's delivery path, and that independence is
 /// the whole point. The answer comes from the session's own record of the
@@ -76,8 +85,9 @@ final class UnreportedReleaseWatch {
     /// that panel is still up does not go back and start one: it takes its
     /// idea of the modifiers from the keyboard as it finds it, so a Command
     /// let go in the meantime leaves no release for it to report. A press is
-    /// that panel's only way off the screen, and a monitor answering yes after
-    /// the fact must not be enough on its own to take that press away.
+    /// that panel's only way off the screen that works without a hand reaching
+    /// for a second key, and a monitor answering yes after the fact must not
+    /// be enough on its own to take that press away.
     var isLooking: Bool {
         task != nil
     }
