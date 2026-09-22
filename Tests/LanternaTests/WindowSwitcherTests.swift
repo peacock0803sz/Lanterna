@@ -102,6 +102,50 @@ struct WindowSwitcherTests {
         #expect(peer.operationNames.isEmpty)
     }
 
+    /// Element-level answers sort the same way application-level ones do: a
+    /// slow silence is a wait, a fast one the application going away.
+    @Test(arguments: [
+        (Duration.zero, ActivationFailure.applicationGone),
+        (.milliseconds(600), .timedOut),
+    ])
+    func anElementIDSilenceSortsByItsWait(cost: Duration, failure: ActivationFailure) {
+        let peer = ScriptedAccessibility(windowCount: 2)
+        peer.idAnswers = [0: (.success, 100), 1: (.cannotComplete, 0)]
+        peer.messageCost = cost
+        let outcome = peer.switcher().switchTo(target())
+
+        #expect(outcome == .failed(failure))
+        #expect(peer.operationNames.isEmpty)
+    }
+
+    /// A write that never comes back is a wait; any other write error names
+    /// itself. Either way the take ends there: later operations are not
+    /// called on a window the take has already failed.
+    @Test(arguments: [
+        (Duration.zero, ActivationFailure.other(reason: "error \(AXError.cannotComplete.rawValue)")),
+        (.milliseconds(600), .timedOut),
+    ])
+    func aWriteErrorEndsTheTakeWithItsOutcome(cost: Duration, failure: ActivationFailure) {
+        let peer = ScriptedAccessibility(windowCount: 2)
+        peer.writeError = .cannotComplete
+        peer.messageCost = cost
+        let outcome = peer.switcher().switchTo(target())
+
+        #expect(outcome == .failed(failure))
+        #expect(peer.operationNames == ["activate", "unminimize"])
+    }
+
+    /// A refused raise names its code and calls nothing after itself,
+    /// because nothing comes after it.
+    @Test func aRefusedRaiseNamesItsCode() {
+        let peer = ScriptedAccessibility(windowCount: 2)
+        peer.raiseError = .failure
+        let outcome = peer.switcher().switchTo(target())
+
+        #expect(outcome == .failed(.other(reason: "error \(AXError.failure.rawValue)")))
+        #expect(peer.operationNames == ["activate", "unminimize", "raise"])
+    }
+
     /// The full order, pinned: activate, then unminimize, then raise. The
     /// order is the design's answer to a hidden and minimized window, so a
     /// rewrite putting it back the other way round must turn red here.
@@ -147,7 +191,10 @@ private final class ScriptedAccessibility: @unchecked Sendable {
     var timeoutResult: AXError = .success
     var activateAnswer: LiveWindowSwitcher.ApplicationActivation = .activated
     var writeError: AXError = .success
+    /// Answers `nil` to fall through to `writeError`.
+    var raiseError: AXError?
     /// Time each message costs, so a timeout can be spent without waiting.
+    /// Read and written alike: every closure below advances past it.
     var messageCost: Duration = .zero
 
     private var clock = ContinuousClock.now
@@ -175,6 +222,7 @@ private final class ScriptedAccessibility: @unchecked Sendable {
                 guard let index = windows.firstIndex(where: { $0 === element }) else {
                     return (.illegalArgument, 0)
                 }
+                clock = clock.advanced(by: messageCost)
                 return idAnswers[index] ?? (.success, CGWindowID(100 + index))
             },
             activateApplication: { [self] _ in
@@ -184,12 +232,14 @@ private final class ScriptedAccessibility: @unchecked Sendable {
             setMinimized: { [self] element, _ in
                 operationNames.append("unminimize")
                 operated.append(ObjectIdentifier(element))
+                clock = clock.advanced(by: messageCost)
                 return writeError
             },
             raiseWindow: { [self] element in
                 operationNames.append("raise")
                 operated.append(ObjectIdentifier(element))
-                return writeError
+                clock = clock.advanced(by: messageCost)
+                return raiseError ?? writeError
             },
             now: { [self] in clock }
         )
