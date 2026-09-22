@@ -194,6 +194,9 @@ struct Fixture {
     /// The very box the presenter asks, so a test can let Command go before
     /// the press that was made with it arrives.
     let commandHold: CommandHold
+    /// What commits take. Silent unless a test scripts it, so the suites
+    /// written before anything was taken keep reading the same lines.
+    let switcher: FakeWindowSwitcher
 
     /// A store that already holds a list, which is every press but the first
     /// one after launch.
@@ -203,7 +206,8 @@ struct Fixture {
         closesOnCommandRelease: Bool = false,
         commandIsHeld: Bool = true,
         commandWatchInterval: Duration = .milliseconds(1),
-        keyStatusWatchInterval: Duration = .milliseconds(1)
+        keyStatusWatchInterval: Duration = .milliseconds(1),
+        switcher: FakeWindowSwitcher = FakeWindowSwitcher()
     ) {
         let windows = SampleWindows.make(count: entryCount)
         self.init(
@@ -213,7 +217,8 @@ struct Fixture {
             closesOnCommandRelease: closesOnCommandRelease,
             commandIsHeld: commandIsHeld,
             commandWatchInterval: commandWatchInterval,
-            keyStatusWatchInterval: keyStatusWatchInterval
+            keyStatusWatchInterval: keyStatusWatchInterval,
+            switcher: switcher
         )
     }
 
@@ -224,7 +229,8 @@ struct Fixture {
         closesOnCommandRelease: Bool = false,
         commandIsHeld: Bool = true,
         commandWatchInterval: Duration = .milliseconds(1),
-        keyStatusWatchInterval: Duration = .milliseconds(1)
+        keyStatusWatchInterval: Duration = .milliseconds(1),
+        switcher: FakeWindowSwitcher = FakeWindowSwitcher()
     ) {
         let surface = FakeSurface()
         let log = DiagnosticsLog()
@@ -248,7 +254,8 @@ struct Fixture {
             commandWatchInterval: commandWatchInterval,
             // Half a second per look would put every loss past any test's
             // patience. Shortened for the same reason as the watch above.
-            keyStatusWatchInterval: keyStatusWatchInterval
+            keyStatusWatchInterval: keyStatusWatchInterval,
+            switcher: switcher
         )
         self.surface = surface
         self.log = log
@@ -256,6 +263,7 @@ struct Fixture {
         self.clock = clock
         self.monitorLiveness = monitorLiveness
         self.commandHold = commandHold
+        self.switcher = switcher
     }
 }
 
