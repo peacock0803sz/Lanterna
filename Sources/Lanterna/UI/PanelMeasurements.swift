@@ -116,6 +116,17 @@ struct PanelExitMeasurement: Sendable {
             case .cancelKey(.escape): "Escape"
             }
         }
+
+        /// Whether the appearance ended in a take. Only those endings have a
+        /// switch result to report; a cancellation must never reach one.
+        var isCommit: Bool {
+            switch self {
+            case .commandRelease, .commitKey:
+                return true
+            case .cancelKey:
+                return false
+            }
+        }
     }
 
     enum Outcome: Sendable, Equatable {
@@ -310,6 +321,7 @@ struct SwitchMeasurement: Sendable {
     let elapsed: Duration
 
     var summaryLine: String {
+        precondition(trigger.isCommit, "a switch result cannot follow a cancellation")
         let row = PanelExitMeasurement.rowDescription(appName: appName, displayTitle: displayTitle, id: id)
         let timing = "\(Diagnostics.millisecondsText(elapsed)) ms after \(trigger.phrase)"
         switch outcome {

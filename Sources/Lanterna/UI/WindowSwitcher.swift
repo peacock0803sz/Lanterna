@@ -13,10 +13,6 @@ struct ActivationTarget: Equatable, Sendable {
     let ownerProcessIdentifier: pid_t
     let appName: String
     let displayTitle: String
-    /// As of the appearance that named it, for the log line only. Whether to
-    /// unminimize is never decided off this: unminimizing is written
-    /// unconditionally, a write with no effect when there is nothing to undo.
-    let isMinimized: Bool
 }
 
 /// Why a switch did not happen. The smallest vocabulary that tells the four

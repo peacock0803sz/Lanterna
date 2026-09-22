@@ -342,8 +342,7 @@ final class PanelExit {
             id: row.id,
             ownerProcessIdentifier: row.ownerProcessIdentifier,
             appName: row.appName,
-            displayTitle: row.displayTitle,
-            isMinimized: row.isMinimized
+            displayTitle: row.displayTitle
         )
     }
 

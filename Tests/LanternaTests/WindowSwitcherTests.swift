@@ -14,13 +14,12 @@ import Testing
 /// synchronously on one thread, with a clock the answers advance.
 @MainActor
 struct WindowSwitcherTests {
-    private func target(windowID: CGWindowID = 101, minimized: Bool = false) -> ActivationTarget {
+    private func target(windowID: CGWindowID = 101) -> ActivationTarget {
         ActivationTarget(
             id: WindowItem.Identifier(windowID: windowID),
             ownerProcessIdentifier: 4242,
             appName: "TextEdit",
-            displayTitle: "Untitled",
-            isMinimized: minimized
+            displayTitle: "Untitled"
         )
     }
 
@@ -192,25 +191,14 @@ struct WindowSwitcherTests {
     /// The full order, pinned: activate, then unminimize, then raise. The
     /// order is the design's answer to a hidden and minimized window, so a
     /// rewrite putting it back the other way round must turn red here.
+    /// Unminimizing is written without asking first, so the order holds
+    /// whether or not the window was minimized.
     @Test func theOperationsRunActivateUnminimizeRaise() {
         let peer = ScriptedAccessibility(windowCount: 2)
-        let outcome = peer.switcher().switchTo(target(minimized: true))
+        let outcome = peer.switcher().switchTo(target())
 
         #expect(outcome == .switched)
         #expect(peer.operationNames == ["activate", "unminimize", "raise"])
-    }
-
-    /// Unminimizing is written without asking first. The flag travels along
-    /// for the log line only; consulting it would cost a round trip per take
-    /// to learn what the write would have done anyway.
-    @Test func unminimizingIsWrittenRegardlessOfTheFlag() {
-        for minimized in [false, true] {
-            let peer = ScriptedAccessibility(windowCount: 2)
-            let outcome = peer.switcher().switchTo(target(minimized: minimized))
-
-            #expect(outcome == .switched)
-            #expect(peer.operationNames == ["activate", "unminimize", "raise"])
-        }
     }
 }
 
