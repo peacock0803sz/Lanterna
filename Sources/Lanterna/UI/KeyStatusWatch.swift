@@ -120,10 +120,16 @@ final class KeyStatusWatch {
     /// two loops watching one panel would take the keyboard back twice over,
     /// and the second taking-back would write a line for a loss the first
     /// had already mended.
-    func start() {
+    ///
+    /// `knownGoodAt` is the last moment the keyboard was known good — the
+    /// appearance's own clock read, handed in so this need not take one
+    /// inside the span that read is measuring. The first loss found dates
+    /// from there rather than from the finding, so the figure covers the
+    /// whole of the keyboard-less while.
+    func start(knownGoodAt: ContinuousClock.Instant) {
         stop()
         misses = 0
-        previousLook = now()
+        previousLook = knownGoodAt
         // Read out here because the interval is wanted before there is a
         // `self` to read it from: the first thing the loop does is wait.
         let betweenLooks = interval
