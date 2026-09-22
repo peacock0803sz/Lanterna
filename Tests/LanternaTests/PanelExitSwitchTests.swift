@@ -73,6 +73,9 @@ struct PanelExitSwitchTests {
 
         #expect(!fixture.surface.isPresented)
         #expect(fixture.switcher.targets.isEmpty)
+        #expect(fixture.log.lines.filter {
+            $0.hasPrefix("switched to ") || $0.hasPrefix("could not switch to ")
+        }.isEmpty)
     }
 
     /// An empty list commits the same way a full one does, except there is
@@ -85,6 +88,9 @@ struct PanelExitSwitchTests {
         #expect(!fixture.surface.isPresented)
         #expect(fixture.switcher.targets.isEmpty)
         #expect(fixture.log.lines.filter { $0.hasPrefix("committed nothing") }.count == 1)
+        #expect(fixture.log.lines.filter {
+            $0.hasPrefix("switched to ") || $0.hasPrefix("could not switch to ")
+        }.isEmpty)
     }
 
     /// One appearance takes at most once. A second commit down the same path
