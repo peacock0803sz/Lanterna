@@ -17,6 +17,16 @@ struct SwitcherView: View {
     /// exactly what makes them.
     var selectedID: WindowItem.Identifier?
 
+    /// Which appearance this list belongs to, counted up by the panel.
+    ///
+    /// A reused panel keeps its scrolled position across appearances, so a
+    /// second appearance opens wherever the last one left off while the
+    /// choice is back on the first row — chosen but off screen. The choice
+    /// alone cannot always say that: an appearance that never moves it
+    /// leaves `selectedID` unchanged and `.onChange(of:)` silent. A token
+    /// that moves every time does the saying instead.
+    var appearanceToken: Int
+
     /// Written out rather than left to the compiler, so that the choice
     /// cannot be omitted.
     ///
@@ -27,9 +37,10 @@ struct SwitcherView: View {
     /// swapping a new list in must never do. Spelling the initialiser out
     /// removes the synthesised one, so a call site that says nothing about
     /// the choice fails to build instead.
-    init(windows: [WindowItem], selectedID: WindowItem.Identifier?) {
+    init(windows: [WindowItem], selectedID: WindowItem.Identifier?, appearanceToken: Int) {
         self.windows = windows
         self.selectedID = selectedID
+        self.appearanceToken = appearanceToken
     }
 
     var body: some View {
@@ -57,6 +68,15 @@ struct SwitcherView: View {
             // the eye has to find again each time.
             .onChange(of: selectedID) { _, id in
                 if let id {
+                    proxy.scrollTo(id, anchor: nil)
+                }
+            }
+            // A new appearance always moves the token, even when the choice
+            // is the same row it was last time, so reopening onto the first
+            // row scrolls back to it rather than staying where the last
+            // appearance left off.
+            .onChange(of: appearanceToken) { _, _ in
+                if let id = selectedID {
                     proxy.scrollTo(id, anchor: nil)
                 }
             }
