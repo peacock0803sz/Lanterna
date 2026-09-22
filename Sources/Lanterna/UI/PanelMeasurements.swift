@@ -283,7 +283,7 @@ struct PanelExitMeasurement: Sendable {
     /// Two lines are counted on this now rather than one. The commit above and
     /// the panel closing for a release nothing reported both reach it through
     /// `rowDescription`, so neither can come to flatten what the other leaves
-    /// Alone — which is the whole reason that one goes through here.
+    /// alone — which is the whole reason that one goes through here.
     static func oneLine(_ text: String, fallback: String) -> String {
         let flattened = text
             .map { character -> String in
