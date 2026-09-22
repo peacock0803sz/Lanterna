@@ -113,8 +113,11 @@ final class KeyStatusWatch {
         self.onGaveUp = onGaveUp
     }
 
-    /// Looks until the keyboard is taken back, the attempts run out, the
-    /// panel goes, or `stop()`.
+    /// Looks until the attempts run out, the panel goes, or `stop()`.
+    ///
+    /// A successful taking-back resets the loss baseline and keeps looking:
+    /// one recovery does not end the watch for this appearance, so a later
+    /// loss is still found and answered.
     ///
     /// Stops whatever it started before, the way the window list's loop does:
     /// two loops watching one panel would take the keyboard back twice over,
@@ -158,7 +161,9 @@ final class KeyStatusWatch {
                 let lostSince = previousLook ?? now()
                 if takeKeys() {
                     onTakenBack(now() - lostSince)
-                    return
+                    misses = 0
+                    previousLook = now()
+                    continue
                 }
                 misses += 1
                 previousLook = now()
