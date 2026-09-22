@@ -131,7 +131,7 @@ struct PanelPresenterUnreportedReleaseTests {
         try? await Task.sleep(for: .milliseconds(50))
 
         #expect(fixture.surface.dismissCount == 1)
-        #expect(fixture.log.lines.count == 2)
+        #expect(fixture.log.lines.count == 3)
         #expect(fixture.log.lines.filter { $0.hasPrefix("closed the panel") }.isEmpty)
     }
 

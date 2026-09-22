@@ -171,7 +171,17 @@ final class PanelExit {
                 by: .commandRelease,
                 elapsed: elapsed
             )
-            _ = switcher.switchTo(take)
+            // The pair: nothing may come between the two lines, and both
+            // carry the same figure, which stops at the panel going away.
+            let outcome = switcher.switchTo(take)
+            writeLine(SwitchMeasurement(
+                appName: take.appName,
+                displayTitle: take.displayTitle,
+                id: take.id,
+                outcome: outcome,
+                trigger: .commandRelease,
+                elapsed: elapsed
+            ).summaryLine)
         case .none:
             record(.nothingToCommit, by: .commandRelease, elapsed: elapsed)
         }
@@ -218,7 +228,16 @@ final class PanelExit {
                 by: .commitKey(key),
                 elapsed: elapsed
             )
-            _ = switcher.switchTo(take)
+            // The pair, as above: adjacent lines, one figure.
+            let outcome = switcher.switchTo(take)
+            writeLine(SwitchMeasurement(
+                appName: take.appName,
+                displayTitle: take.displayTitle,
+                id: take.id,
+                outcome: outcome,
+                trigger: .commitKey(key),
+                elapsed: elapsed
+            ).summaryLine)
         case .none:
             record(.nothingToCommit, by: .commitKey(key), elapsed: elapsed)
         }

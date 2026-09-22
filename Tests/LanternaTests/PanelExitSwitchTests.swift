@@ -97,4 +97,45 @@ struct PanelExitSwitchTests {
 
         #expect(fixture.switcher.targets.count == 1)
     }
+
+    /// The take is reported as the commit line's pair: adjacent lines, one
+    /// figure, the same row named twice.
+    @Test func aCommitWritesTheTakeAsTheCommitsPair() {
+        let fixture = released()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.presenter.handleCommandRelease()
+
+        let lines = fixture.log.lines
+        #expect(lines.count == 3)
+        #expect(lines[1].hasPrefix("committed "))
+        #expect(lines[2].hasPrefix("switched to "))
+        #expect(lines[2].contains("(window \(fixture.windows[0].id.windowID))"))
+    }
+
+    /// A failed take is a pair too, naming the reason in fixed words.
+    @Test func aFailedTakeWritesTheReasonAsTheCommitsPair() {
+        let fixture = released()
+        fixture.switcher.outcomes = [.failed(.windowGone)]
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.presenter.handleCommandRelease()
+
+        let lines = fixture.log.lines
+        #expect(lines.count == 3)
+        #expect(lines[1].hasPrefix("committed "))
+        #expect(lines[2].hasPrefix("could not switch to "))
+        #expect(lines[2].contains("(window gone)"))
+    }
+
+    /// The pair keeps the trigger's wording on both lines.
+    @Test func thePairKeepsTheKeyCommitWording() {
+        let fixture = released()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.presenter.handleKeyStroke(PanelKeystroke(
+            keyCode: UInt16(kVK_Return), modifiers: .command, isARepeat: false
+        ))
+
+        let lines = fixture.log.lines
+        #expect(lines.count == 3)
+        #expect(lines[2].hasSuffix("after Return"))
+    }
 }
