@@ -60,6 +60,13 @@ struct SwitcherView: View {
             .listStyle(.plain)
             .environment(\.defaultMinListRowHeight, PanelMetrics.rowHeight)
             .scrollContentBackground(.hidden)
+            // The panel is never the place typing goes, so it must never
+            // draw the ring that says it is. What is not added here matters
+            // as much: a `List(selection:)` binding would hand the arrow
+            // keys to the list ahead of the panel, and `.allowsHitTesting`
+            // turned off would take wheel and trackpad scrolling with it —
+            // the one way to reach the far rows of a long list.
+            .focusEffectDisabled(true)
             .padding(.vertical, PanelMetrics.verticalPadding)
             .adaptiveGlass()
             // The least scrolling that shows the row, and nothing when it is
