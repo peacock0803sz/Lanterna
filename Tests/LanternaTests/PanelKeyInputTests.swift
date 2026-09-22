@@ -123,4 +123,19 @@ struct PanelKeyInputTests {
         #expect(PanelKeyInput.action(for: press(kVK_Tab, .command)) == .absorb)
         #expect(PanelKeyInput.action(for: press(kVK_Tab, [.command, .shift])) == .absorb)
     }
+
+    /// On a run whose modifier monitor never started, Command is already up
+    /// by the time a key arrives, so every keystroke comes in bare. The
+    /// cases above already say each of these bare shapes one by one; this
+    /// says them together, as the run sees them, so that dropping one of
+    /// them reads as losing the run rather than as losing a row of a table.
+    /// Moving along the list is the arrows' job on this run — Tab stays
+    /// swallowed even here, because the two-path reason above does not turn
+    /// on which modifiers are down.
+    @Test func bareKeysStayUsableOnARunWithNoMonitor() {
+        #expect(PanelKeyInput.action(for: press(kVK_DownArrow)) == .selectNext)
+        #expect(PanelKeyInput.action(for: press(kVK_UpArrow)) == .selectPrevious)
+        #expect(PanelKeyInput.action(for: press(kVK_Escape)) == .cancel(.escape))
+        #expect(PanelKeyInput.action(for: press(kVK_Tab)) == .absorb)
+    }
 }
