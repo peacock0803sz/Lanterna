@@ -110,10 +110,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         startMonitoringModifiers(for: presenter)
         startWatchingPanelKeys(for: presenter)
         // Pinned outside the ring so a long run cannot push the startup
-        // outcome and the permission state off the on-screen view.
+        // outcome and the permission state off the on-screen view. The hotkey
+        // outcome rides along: it is written once at launch and would be the
+        // first thing evicted past the cap.
         Diagnostics.pinLaunchSummary(
             "launch: accessibility granted: \(permissionState.accessibilityGranted), "
-                + "input monitoring granted: \(permissionState.inputMonitoringGranted)"
+                + "input monitoring granted: \(permissionState.inputMonitoringGranted); "
+                + outcome.summaryLine
         )
         observeFrontmostApplication(presenter)
     }
