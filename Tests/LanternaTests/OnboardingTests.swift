@@ -23,4 +23,19 @@ struct OnboardingTests {
     ) {
         #expect(OnboardingNeed.isNeeded(state: state, sampleCount: sampleCount) == opens)
     }
+
+    /// The guide names only what is missing, in a fixed order. Screen
+    /// Recording is never among them: this app must not ask for it.
+    @Test(arguments: [
+        (
+            PermissionState(accessibilityGranted: false, inputMonitoringGranted: false),
+            ["Accessibility", "Input Monitoring"]
+        ),
+        (PermissionState(accessibilityGranted: false, inputMonitoringGranted: true), ["Accessibility"]),
+        (PermissionState(accessibilityGranted: true, inputMonitoringGranted: false), ["Input Monitoring"]),
+        (PermissionState(accessibilityGranted: true, inputMonitoringGranted: true), []),
+    ])
+    func theGuideNamesOnlyWhatIsMissing(state: PermissionState, names: [String]) {
+        #expect(MissingPermission.list(for: state).map(\.name) == names)
+    }
 }
