@@ -40,14 +40,15 @@ protocol PermissionReading: Sendable {
 
 /// The production reader.
 ///
-/// Asks with prompts: the first launch without a grant is exactly when the
-/// system should put up its own dialog, and the onboarding window explains
-/// what it means.
+/// Asks without prompting: the fixture launch needs no permission at all,
+/// and the window-list path already prompts where a prompt is due. Prompting
+/// here would put up a dialog for a `--sample-count` run and ask twice on an
+/// ordinary run missing Accessibility.
 @MainActor
 struct SystemPermissionReader: PermissionReading {
     func currentState() -> PermissionState {
         PermissionState(
-            accessibilityGranted: AccessibilityPermission.isTrusted(promptingIfNeeded: true),
+            accessibilityGranted: AccessibilityPermission.isTrusted(promptingIfNeeded: false),
             inputMonitoringGranted: CGPreflightListenEventAccess()
         )
     }
