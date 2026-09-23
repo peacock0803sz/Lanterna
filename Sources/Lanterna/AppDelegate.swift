@@ -27,10 +27,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Held so the monitor over this process's key presses can be taken off
     /// on the way out, and so that it lasts until then.
     private var panelKeys: LocalKeyEventChannel?
-    /// Held so the onboarding window stays up until the user closes it. Nil
-    /// once closed or when nothing was missing at launch.
-    private var guideWindow: OnboardingWindow?
-    /// Held so the menu-bar entry lasts the whole run.
+    /// Held so the two informational windows outlive the calls that open
+    /// them, and so the menu-bar entry lasts the whole run.
+    private var guideWindows: GuideWindows?
     private var statusMenu: StatusMenu?
     private var appNapActivity: NSObjectProtocol?
 
@@ -53,13 +52,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Asked once per launch. A grant given while the app runs takes effect
         // on the next run, so this answer stands for the whole run (FR-005).
         let permissionState = SystemPermissionReader().currentState()
+        let guideWindows = GuideWindows()
+        self.guideWindows = guideWindows
         if OnboardingNeed.isNeeded(state: permissionState, sampleCount: options.sampleCount) {
-            openGuide(state: permissionState)
+            guideWindows.openGuide(state: permissionState)
         }
         let statusMenu = StatusMenu()
-        statusMenu.stand { [weak self] in
-            self?.openGuide(state: permissionState)
-        }
+        statusMenu.stand(
+            openGuide: { [weak guideWindows] in guideWindows?.openGuide(state: permissionState) },
+            openVersionLog: { [weak guideWindows] in guideWindows?.openVersionLog() }
+        )
         self.statusMenu = statusMenu
 
         // Built now and left off screen. Nothing shows until a key is pressed,
@@ -222,12 +224,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Reopening shows the same answers: the state is read once per launch,
     /// so a grant given while the app runs changes nothing until the next
     /// launch, and the guide says exactly that.
-    private func openGuide(state: PermissionState) {
-        let window = OnboardingWindow(missing: MissingPermission.list(for: state), opener: SystemSettings.open)
-        window.makeKeyAndOrderFront(nil)
-        guideWindow = window
-    }
-
     /// Puts the input-monitoring dialog in front of the user, once, before a
     /// tap is attempted.
     ///

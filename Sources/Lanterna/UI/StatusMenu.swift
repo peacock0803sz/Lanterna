@@ -11,9 +11,10 @@ final class StatusMenu {
     /// take the menu down with it.
     private var item: NSStatusItem?
 
-    /// Puts the menu up. The guide entry reopens the onboarding window; the
-    /// quit entry ends the process through the usual teardown.
-    func stand(openGuide: @escaping () -> Void) {
+    /// Puts the menu up. The guide entry reopens the onboarding window, the
+    /// version entry opens the version and log window, and the quit entry
+    /// ends the process through the usual teardown.
+    func stand(openGuide: @escaping () -> Void, openVersionLog: @escaping () -> Void) {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.title = "◈"
         item.button?.toolTip = "Lanterna"
@@ -26,6 +27,14 @@ final class StatusMenu {
         guideItem.target = self
         guideItem.representedObject = openGuide
         menu.addItem(guideItem)
+        let versionItem = NSMenuItem(
+            title: "Version and Logs…",
+            action: #selector(openVersionLogFromMenu(_:)),
+            keyEquivalent: ""
+        )
+        versionItem.target = self
+        versionItem.representedObject = openVersionLog
+        menu.addItem(versionItem)
         menu.addItem(.separator())
         let quitItem = NSMenuItem(
             title: "Quit Lanterna",
@@ -49,6 +58,12 @@ final class StatusMenu {
     /// Unpacks the closure the menu item carries. A selector cannot carry a
     /// closure, so it rides along as the represented object.
     @objc private func openGuideFromMenu(_ sender: NSMenuItem) {
+        (sender.representedObject as? () -> Void)?()
+    }
+
+    /// The version twin of the above. One unpacker per entry, so a click can
+    /// never open the wrong window.
+    @objc private func openVersionLogFromMenu(_ sender: NSMenuItem) {
         (sender.representedObject as? () -> Void)?()
     }
 }
