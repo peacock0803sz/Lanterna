@@ -78,3 +78,6 @@ result
 
 # OS
 .DS_Store
+
+# Packaged app bundles
+build/
