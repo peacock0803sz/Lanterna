@@ -19,9 +19,25 @@ final class DiagnosticLogStore: @unchecked Sendable {
     private var nextSequence: UInt64 = 0
     private var pinnedSummary: String?
 
+    /// Emits the line and mirrors it as one locked step. Two calls racing
+    /// each other still land in stderr and in the mirror in the same order;
+    /// anything weaker would let the on-screen log disagree with what was
+    /// emitted. Tests use `append` directly, which mirrors without emitting.
+    func write(_ message: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        try? FileHandle.standardError.write(contentsOf: Data((message + "\n").utf8))
+        mirror(message)
+    }
+
     func append(_ message: String) {
         lock.lock()
         defer { lock.unlock() }
+        mirror(message)
+    }
+
+    /// Adds one line under the caller's lock.
+    private func mirror(_ message: String) {
         entries.append(
             Diagnostics.LogEntry(sequence: nextSequence, capturedAt: Date(), message: message)
         )
@@ -72,8 +88,7 @@ enum Diagnostics {
     private static let store = DiagnosticLogStore()
 
     static func writeLine(_ message: String) {
-        try? FileHandle.standardError.write(contentsOf: Data((message + "\n").utf8))
-        store.append(message)
+        store.write(message)
     }
 
     /// The mirrored lines, oldest first. Never longer than
