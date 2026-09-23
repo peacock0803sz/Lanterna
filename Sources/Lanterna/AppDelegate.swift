@@ -27,6 +27,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Held so the monitor over this process's key presses can be taken off
     /// on the way out, and so that it lasts until then.
     private var panelKeys: LocalKeyEventChannel?
+    /// Held so the two informational windows outlive the calls that open
+    /// them, and so the menu-bar entry lasts the whole run.
+    private var guideWindows: GuideWindows?
+    private var statusMenu: StatusMenu?
     private var appNapActivity: NSObjectProtocol?
 
     /// Takes the options whole rather than one parameter per flag, so a flag
@@ -44,6 +48,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             options: [.userInitiatedAllowingIdleSystemSleep],
             reason: "Switcher panel must be drawn without a wake-up delay"
         )
+
+        // Asked once per launch. A grant given while the app runs takes effect
+        // on the next run, so this answer stands for the whole run (FR-005).
+        let permissionState = SystemPermissionReader().currentState()
+        let guideWindows = GuideWindows()
+        self.guideWindows = guideWindows
+        if OnboardingNeed.isNeeded(state: permissionState, sampleCount: options.sampleCount) {
+            guideWindows.openGuide(state: permissionState)
+        }
+        let statusMenu = StatusMenu()
+        statusMenu.stand(
+            openGuide: { [weak guideWindows] in guideWindows?.openGuide(state: permissionState) },
+            openVersionLog: { [weak guideWindows] in guideWindows?.openVersionLog() }
+        )
+        self.statusMenu = statusMenu
 
         // Built now and left off screen. Nothing shows until a key is pressed,
         // and building the window ahead of time keeps its cost off the path
@@ -90,6 +109,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         startMonitoringModifiers(for: presenter)
         startWatchingPanelKeys(for: presenter)
+        // Pinned outside the ring so a long run cannot push the startup
+        // outcome and the permission state off the on-screen view. The hotkey
+        // outcome rides along: it is written once at launch and would be the
+        // first thing evicted past the cap.
+        Diagnostics.pinLaunchSummary(
+            "launch: accessibility granted: \(permissionState.accessibilityGranted), "
+                + "input monitoring granted: \(permissionState.inputMonitoringGranted); "
+                + outcome.summaryLine
+        )
         observeFrontmostApplication(presenter)
     }
 
@@ -194,6 +222,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Shows the onboarding window for the launch-time answers.
+    ///
+    /// Reopening shows the same answers: the state is read once per launch,
+    /// so a grant given while the app runs changes nothing until the next
+    /// launch, and the guide says exactly that.
     /// Puts the input-monitoring dialog in front of the user, once, before a
     /// tap is attempted.
     ///
@@ -292,6 +325,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // that switched it off. So nothing that could fail is allowed to stand
         // between a launch and that shortcut coming back.
         monitor?.stop()
+        statusMenu?.remove()
+        statusMenu = nil
         // Last of the three claims this process makes on the keyboard — the
         // Carbon registration, the tap, and this monitor — and it can be: it
         // is handed events the system had already decided were this
