@@ -27,6 +27,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Held so the monitor over this process's key presses can be taken off
     /// on the way out, and so that it lasts until then.
     private var panelKeys: LocalKeyEventChannel?
+    /// Held so the onboarding window stays up until the user closes it. Nil
+    /// once closed or when nothing was missing at launch.
+    private var guideWindow: OnboardingWindow?
+    /// Held so the menu-bar entry lasts the whole run.
+    private var statusMenu: StatusMenu?
     private var appNapActivity: NSObjectProtocol?
 
     /// Takes the options whole rather than one parameter per flag, so a flag
@@ -44,6 +49,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             options: [.userInitiatedAllowingIdleSystemSleep],
             reason: "Switcher panel must be drawn without a wake-up delay"
         )
+
+        // Asked once per launch. A grant given while the app runs takes effect
+        // on the next run, so this answer stands for the whole run (FR-005).
+        let permissionState = SystemPermissionReader().currentState()
+        if OnboardingNeed.isNeeded(state: permissionState, sampleCount: options.sampleCount) {
+            openGuide(state: permissionState)
+        }
+        let statusMenu = StatusMenu()
+        statusMenu.stand { [weak self] in
+            self?.openGuide(state: permissionState)
+        }
+        self.statusMenu = statusMenu
 
         // Built now and left off screen. Nothing shows until a key is pressed,
         // and building the window ahead of time keeps its cost off the path
@@ -194,6 +211,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Shows the onboarding window for the launch-time answers.
+    ///
+    /// Reopening shows the same answers: the state is read once per launch,
+    /// so a grant given while the app runs changes nothing until the next
+    /// launch, and the guide says exactly that.
+    private func openGuide(state: PermissionState) {
+        let window = OnboardingWindow(missing: MissingPermission.list(for: state), opener: SystemSettings.open)
+        window.makeKeyAndOrderFront(nil)
+        guideWindow = window
+    }
+
     /// Puts the input-monitoring dialog in front of the user, once, before a
     /// tap is attempted.
     ///
@@ -292,6 +320,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // that switched it off. So nothing that could fail is allowed to stand
         // between a launch and that shortcut coming back.
         monitor?.stop()
+        statusMenu?.remove()
+        statusMenu = nil
         // Last of the three claims this process makes on the keyboard — the
         // Carbon registration, the tap, and this monitor — and it can be: it
         // is handed events the system had already decided were this
