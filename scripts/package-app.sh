@@ -71,6 +71,8 @@ cat > "$app/Contents/Info.plist" <<EOF
     <string>${short}</string>
     <key>CFBundleVersion</key>
     <string>${short}</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
     <key>CFBundleExecutable</key>
     <string>Lanterna</string>
     <key>CFBundleIconFile</key>
