@@ -22,6 +22,10 @@ final class GuideWindows {
             missing: MissingPermission.list(for: state),
             opener: SystemSettings.open
         )
+        // The accessory policy never brings the app forward on its own. At
+        // login or a Finder launch another app is frontmost, and ordering
+        // front alone can leave this guide behind it.
+        NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         guideWindow = window
     }
