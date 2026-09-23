@@ -38,7 +38,7 @@ if ! cmp -s Sources/Lanterna/Support/Version.swift /tmp/lanterna-version-committ
 fi
 
 swift build --triple arm64-apple-macosx26.0 --configuration release
-binary=".build/arm64-apple-macosx26.0/release/Lanterna"
+binary="$(swift build --triple arm64-apple-macosx26.0 --configuration release --show-bin-path)/Lanterna"
 if [[ $(lipo -archs "$binary") != "arm64" ]]; then
     echo "package-app: expected arm64-only binary" >&2
     exit 1
