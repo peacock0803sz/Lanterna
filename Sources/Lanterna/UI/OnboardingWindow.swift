@@ -26,10 +26,16 @@ enum SystemSettings {
 /// One missing permission, as the guide shows it.
 struct MissingPermission: Identifiable, Equatable {
     /// Accessibility or Input Monitoring. Never anything else.
-    var id: String {
-        name
+    enum Kind: Equatable {
+        case accessibility
+        case inputMonitoring
     }
 
+    var id: Kind {
+        kind
+    }
+
+    let kind: Kind
     /// The name as System Settings shows the face.
     let name: String
     /// The face this button opens.
@@ -46,6 +52,7 @@ extension MissingPermission {
         var missing: [MissingPermission] = []
         if !state.accessibilityGranted {
             missing.append(MissingPermission(
+                kind: .accessibility,
                 name: "Accessibility",
                 settingsURL: URL(
                     string: "x-apple.systempreferences:com.apple.preference.security"
@@ -55,6 +62,7 @@ extension MissingPermission {
         }
         if !state.inputMonitoringGranted {
             missing.append(MissingPermission(
+                kind: .inputMonitoring,
                 name: "Input Monitoring",
                 settingsURL: URL(
                     string: "x-apple.systempreferences:com.apple.preference.security"
@@ -74,7 +82,8 @@ extension MissingPermission {
 @MainActor
 final class OnboardingWindow: NSWindow {
     /// Builds the window for exactly the permissions still missing. Opening
-    /// with nothing missing is a caller error, not an empty guide.
+    /// with nothing missing shows the all-clear state rather than an empty
+    /// guide, so the menu entry never opens a dead window.
     convenience init(missing: [MissingPermission], opener: @escaping SettingsOpener) {
         self.init(
             contentRect: NSRect(x: 0, y: 0, width: 440, height: 300),
@@ -96,6 +105,19 @@ struct OnboardingView: View {
     let missing: [MissingPermission]
     let opener: SettingsOpener
 
+    /// What is actually broken decides the headline. Without Accessibility no
+    /// list can be built; without only Input Monitoring the list still
+    /// appears but the panel stops closing on Command release.
+    var headline: String {
+        if missing.isEmpty {
+            "Lanterna has the permissions it needs"
+        } else if missing.contains(where: { $0.kind == .accessibility }) {
+            "Lanterna cannot list windows yet"
+        } else {
+            "Lanterna cannot notice Command being released"
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
@@ -104,27 +126,33 @@ struct OnboardingView: View {
                         .resizable()
                         .frame(width: 48, height: 48)
                 }
-                Text("Lanterna cannot list windows yet")
+                Text(headline)
                     .font(.headline)
             }
-            Group {
-                Text("Grant the missing permissions, then restart Lanterna.")
-                Text("A grant takes effect on the next launch, not this one.")
-            }
-            .font(.body)
-            .foregroundStyle(.secondary)
-            ForEach(missing) { permission in
-                HStack {
-                    Text(permission.name)
-                    Spacer()
-                    Button("Open Settings") {
-                        _ = opener(permission.settingsURL)
+            if missing.isEmpty {
+                Text("Both permissions are granted. Restarting changes nothing.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            } else {
+                Group {
+                    Text("Grant the missing permissions, then restart Lanterna.")
+                    Text("A grant takes effect on the next launch, not this one.")
+                }
+                .font(.body)
+                .foregroundStyle(.secondary)
+                ForEach(missing) { permission in
+                    HStack {
+                        Text(permission.name)
+                        Spacer()
+                        Button("Open Settings") {
+                            _ = opener(permission.settingsURL)
+                        }
                     }
                 }
+                Text("System Settings → Privacy & Security → Accessibility, Input Monitoring")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
-            Text("System Settings → Privacy & Security → Accessibility, Input Monitoring")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
         .padding(20)
         .frame(width: 440)
