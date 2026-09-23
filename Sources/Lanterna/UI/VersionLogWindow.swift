@@ -95,6 +95,9 @@ struct VersionLogView: View {
                 LazyVStack(alignment: .leading, spacing: 2) {
                     ForEach(entries) { entry in
                         HStack(alignment: .top, spacing: 8) {
+                            Text("#\(entry.sequence)")
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundStyle(.secondary)
                             Text(Self.timeFormat.string(from: entry.capturedAt))
                                 .font(.system(.body, design: .monospaced))
                                 .foregroundStyle(.secondary)
