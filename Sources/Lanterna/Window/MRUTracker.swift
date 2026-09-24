@@ -80,6 +80,10 @@ final class MRUTracker {
     /// returned. A notice for the same application is the commit's own
     /// activation coming back — but only once the switch it belongs to has
     /// run its course; until then the entry only says a commit happened.
+    /// Single slot by main-thread seriality: a second commit cannot complete
+    /// before the first commit's notice is handled, so at most one echo is
+    /// ever outstanding. Window-server-level lag past a whole later commit
+    /// cycle is accepted as-is and heals on the next activation.
     private var lastCommit: (owner: pid_t, switchedAt: ContinuousClock.Instant?)?
     private let now: @MainActor () -> ContinuousClock.Instant
     private var lastSweptAsOf: ContinuousClock.Instant?
