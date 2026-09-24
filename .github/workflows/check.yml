@@ -37,10 +37,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: reviewdog/action-actionlint@2085657ab2c7f48c58edcc767fba576f63bea76b # v1.77.0
         with:
-          fail_level: error
+          fail_level: any
       - uses: reviewdog/action-shellcheck@0a90156c6e0553996a217f0a9e09be6b0f6bee4c # v1.34.0
         with:
-          fail_level: error
+          fail_level: any
       # pinact-action v3.0.1 fails to bootstrap pinact via aqua
       # (upstream issue suzuki-shunsuke/pinact-action#1209), so run the
       # official release binary directly with checksum verification.
