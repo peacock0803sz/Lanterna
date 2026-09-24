@@ -149,6 +149,10 @@ jobs:
           SHORT="${{ steps.package.outputs.short }}"
           gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" -f tag_name="$TAG" --jq .body > /tmp/generated.md
           cat /tmp/generated.md .github/release-notes-footer.md > /tmp/notes.md
+          if gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null | grep -qx true; then
+            echo "removing leftover draft from a previous run"
+            gh release delete "$TAG" --yes
+          fi
           gh release create "$TAG" --draft --title "$TAG" --notes-file /tmp/notes.md \
             "build/Lanterna-${SHORT}.dmg" "build/Lanterna-${SHORT}.dmg.sha256"
       - name: Verify draft assets
