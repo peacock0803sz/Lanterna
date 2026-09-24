@@ -6,11 +6,23 @@
   },
   "lockFileMaintenance": {
     "enabled": true,
+    "commitMessagePrefix": ":snowflake:",
+    "commitMessageAction": "Update",
+    "commitMessageTopic": "flake.lock",
+    "commitMessageExtra": "",
   },
   "packageRules": [
     {
       "matchManagers": ["nix"],
       "groupName": "nix flake inputs",
+      "commitMessagePrefix": ":snowflake:",
+      "commitMessageAction": "Update",
+      "commitMessageTopic": "flake.lock",
+      "commitMessageExtra": "",
+      "group": {
+        "commitMessageTopic": "flake.lock",
+        "commitMessageExtra": "",
+      },
     },
   ],
 }
