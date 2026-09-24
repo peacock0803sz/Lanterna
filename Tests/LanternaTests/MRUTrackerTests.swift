@@ -322,3 +322,65 @@ struct MRUShownListFreezeTests {
         #expect(tracker.ordered([first, second]).map(\.id) == [second.id, first.id])
     }
 }
+
+/// Empty, stale, and fixture lists, plus the exits that must not record.
+///
+/// Cancels, empty commits, and unreported releases reach the way out without
+/// touching the recording closure, so the tracker cannot tell they happened.
+/// What it can say — that nothing was written — is what these pin.
+@MainActor
+struct MRUEdgeTests {
+    @Test func emptyRecordsKeepFixedOrderWithNoSource() {
+        let tracker = MRUTracker()
+        let rows = [
+            row(windowID: 1, owner: 101),
+            row(windowID: 2, owner: 102),
+            row(windowID: 3, owner: 103),
+        ]
+        #expect(tracker.ordered(rows).map(\.id) == rows.map(\.id))
+        #expect(tracker.newestSource == .none)
+    }
+
+    @Test func staleOnlyRecordsPrunedAtShow() {
+        let tracker = MRUTracker()
+        tracker.record(
+            WindowItem.Identifier(windowID: 9001),
+            ownerProcessIdentifier: 901,
+            origin: .commit
+        )
+        let rows = [row(windowID: 1, owner: 101)]
+        #expect(tracker.ordered(rows).map(\.id) == rows.map(\.id))
+        #expect(tracker.newestSource == .none)
+    }
+
+    @Test func fixedStoreItemsSortThroughTheSameEntry() {
+        let tracker = MRUTracker()
+        let rows = SampleWindows.make(count: 6)
+        let target = rows[4]
+        tracker.record(
+            target.id, ownerProcessIdentifier: target.ownerProcessIdentifier,
+            origin: .external
+        )
+        #expect(tracker.ordered(rows).first?.id == target.id)
+        #expect(tracker.newestSource == .external)
+    }
+
+    @Test func cancelRecordsNothing() {
+        let fixture = Fixture(entryCount: 3, closesOnCommandRelease: true)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        _ = fixture.presenter.handleKeyStroke(
+            PanelKeystroke(
+                keyCode: UInt16(53), modifiers: .command, isARepeat: false
+            )
+        )
+        #expect(!fixture.surface.isPresented)
+        #expect(fixture.presenter.tracker.newestSource == .none)
+    }
+
+    @Test func emptyListCommitRecordsNothing() {
+        let fixture = Fixture(entryCount: 0, closesOnCommandRelease: true)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.presenter.handleCommandRelease()
+        #expect(fixture.presenter.tracker.newestSource == .none)
+    }
+}
