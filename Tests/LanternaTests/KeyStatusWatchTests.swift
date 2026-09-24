@@ -58,7 +58,7 @@ struct KeyStatusWatchTests {
         #expect(fixture.surface.isTakingKeys)
         #expect(
             fixture.log.lines == [
-                "panel shown 4.8 ms after Cmd+Tab (3 entries); taking keys",
+                "panel shown 4.8 ms after Cmd+Tab (3 entries); taking keys; mru first (window 1000000000) via none",
                 "panel stopped taking keys; taken back 9.6 ms later",
             ]
         )
@@ -79,7 +79,8 @@ struct KeyStatusWatchTests {
         #expect(
             fixture.log.lines == [
                 "panel shown 4.8 ms after Cmd+Tab (3 entries)"
-                    + "; not taking keys (they reach the frontmost application)",
+                    + "; not taking keys (they reach the frontmost application)"
+                    + "; mru first (window 1000000000) via none",
                 "panel hidden (stopped taking keys)",
             ]
         )
