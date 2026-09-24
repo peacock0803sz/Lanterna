@@ -35,7 +35,14 @@ defaults:
 
 jobs:
   release:
-    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        # xcode-27 is the preview label for the macOS 27 image;
+        # switch to macos-27 once it reaches GA.
+        # Publish steps run on macos-26 only so the DMG/cask sha stays single.
+        os: [macos-26, xcode-27]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -112,8 +119,8 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .build
-          key: ${{ runner.os }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
-          restore-keys: ${{ runner.os }}-spm-
+          key: ${{ matrix.os }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: ${{ matrix.os }}-spm-
       # The triple is pinned; CONTRIBUTING.md says why.
       - name: Build
         run: nix develop --command swift build --triple arm64-apple-macosx26.0
@@ -128,11 +135,11 @@ jobs:
           bash -n scripts/update-cask.sh
           bash -n scripts/test.sh
       - name: Package app
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
+        if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: nix develop --command bash scripts/package-app.sh
       - name: Record artifact hashes
         id: package
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
+        if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           SHORT="${TAG#v}"
@@ -143,7 +150,7 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
       - name: Create draft release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
+        if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           SHORT="${{ steps.package.outputs.short }}"
@@ -156,7 +163,7 @@ jobs:
           gh release create "$TAG" --draft --title "$TAG" --notes-file /tmp/notes.md \
             "build/Lanterna-${SHORT}.dmg" "build/Lanterna-${SHORT}.dmg.sha256"
       - name: Verify draft assets
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
+        if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           SHORT="${{ steps.package.outputs.short }}"
@@ -173,7 +180,7 @@ jobs:
           echo "draft assets verified"
 
       - name: Publish release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
+        if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           SHORT="${{ steps.package.outputs.short }}"
@@ -198,7 +205,7 @@ jobs:
           gh release edit "$TAG" --draft=false
 
       - name: Push cask to main
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
+        if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           SHORT="${{ steps.package.outputs.short }}"
