@@ -50,9 +50,9 @@ bash scripts/test.sh
 | CI Step | Local Command |
 |---------|---------------|
 | nix-validate | `nix flake check --all-systems` |
-| lint-workflows (actionlint) | `nix develop --command actionlint` |
-| lint-workflows (shellcheck) | `nix develop --command shellcheck scripts/*.sh` |
-| lint-workflows (pinact) | `nix develop --command pinact run --verify --check` |
+| workflow-lint (actionlint) | `nix develop --command actionlint` |
+| workflow-lint (shellcheck) | `nix develop --command shellcheck scripts/*.sh` |
+| workflow-lint (pinact) | `nix develop --command pinact run --verify --check` |
 | swift-build (build) | `nix develop --command swift build --triple arm64-apple-macosx26.0` |
 | swift-build (verify architecture) | `lipo -archs .build/debug/Lanterna \| grep -qx arm64` |
 | swift-build (test) | `nix develop --command swift test --triple arm64-apple-macosx26.0` |
