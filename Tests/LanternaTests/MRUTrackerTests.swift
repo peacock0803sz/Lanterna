@@ -297,3 +297,28 @@ struct MRUExternalSeamTests {
         )
     }
 }
+
+/// An appearance keeps the list it was given: recording while it is up
+/// changes the next appearance, never the one on screen. The tracker always
+/// answers from current records, so the freeze lives in the presenter
+/// holding its array, and this pins the model half — a returned order is a
+/// value, already detached from later writes.
+@MainActor
+struct MRUShownListFreezeTests {
+    @Test func returnedOrderIsDetachedFromLaterRecords() {
+        let tracker = MRUTracker()
+        let first = row(windowID: 1, owner: 101)
+        let second = row(windowID: 2, owner: 102)
+        tracker.record(
+            first.id, ownerProcessIdentifier: first.ownerProcessIdentifier,
+            origin: .commit
+        )
+        let shown = tracker.ordered([first, second])
+        tracker.record(
+            second.id, ownerProcessIdentifier: second.ownerProcessIdentifier,
+            origin: .external
+        )
+        #expect(shown.map(\.id) == [first.id, second.id])
+        #expect(tracker.ordered([first, second]).map(\.id) == [second.id, first.id])
+    }
+}

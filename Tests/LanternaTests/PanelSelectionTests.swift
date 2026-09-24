@@ -335,3 +335,24 @@ struct RepeatedPressStateTests {
         #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
     }
 }
+
+/// An appearance keeps the list it was given, even when a use is recorded
+/// while it is up. The record reaches the next appearance and no sooner:
+/// rows must not move under the choice being moved.
+@MainActor
+struct ShownListFreezeTests {
+    @Test func recordWhileShownAppliesToTheNextAppearance() {
+        let fixture = Fixture(entryCount: 4)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        let firstShown = fixture.surface.presentedLists.first
+        let newcomer = fixture.windows[3]
+        fixture.presenter.tracker.record(
+            newcomer.id, ownerProcessIdentifier: newcomer.ownerProcessIdentifier,
+            origin: .external
+        )
+        #expect(fixture.surface.presentedLists.first?.map(\.id) == firstShown?.map(\.id))
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(fixture.surface.presentedLists.last?.first?.id == newcomer.id)
+    }
+}
