@@ -30,7 +30,13 @@ jobs:
 
   swift-build:
     needs: nix-validate
-    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        # xcode-27 is the preview label for the macOS 27 image;
+        # switch to macos-27 once it reaches GA.
+        os: [macos-26, xcode-27]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
@@ -42,8 +48,8 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .build
-          key: ${{ runner.os }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
-          restore-keys: ${{ runner.os }}-spm-
+          key: ${{ matrix.os }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: ${{ matrix.os }}-spm-
       # The triple is pinned; CONTRIBUTING.md says why.
       - name: Build
         run: nix develop --command swift build --triple arm64-apple-macosx26.0
