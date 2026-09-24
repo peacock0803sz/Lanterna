@@ -2,9 +2,10 @@
 # Assembles Lanterna.app, then a DMG holding it.
 #
 # The release gate comes first: HEAD must sit exactly on a `vX.Y.Z` tag with
-# a clean tree. Regeneration is then compared rather than applied, so the
-# tree stays clean throughout: a mismatch between the committed Version.swift
-# and a fresh generation fails the run instead of shipping a stale version.
+# a clean tree. The version is then regenerated from the tag and applied, so
+# the bundle and the on-screen display always name the tagged release. The
+# committed Version.swift is only a snapshot of the last release; the tag is
+# the single source of truth.
 #
 # Icon artwork comes from Assets/Lanterna.iconset, a tracked copy of the
 # provided materials. A missing size fails the run; a generic icon never ships.
@@ -28,14 +29,9 @@ if [[ -n $(git status --short) ]]; then
     exit 1
 fi
 
-# Regenerate aside and compare: the committed file must already name this tag.
-cp Sources/Lanterna/Support/Version.swift /tmp/lanterna-version-committed.swift
+# Regenerate from the tag: the bundle and the on-screen display always name
+# this tag, regardless of what the committed snapshot says.
 bash scripts/generate-version.sh >/dev/null
-if ! cmp -s Sources/Lanterna/Support/Version.swift /tmp/lanterna-version-committed.swift; then
-    cp /tmp/lanterna-version-committed.swift Sources/Lanterna/Support/Version.swift
-    echo "package-app: regenerated version differs from the committed file" >&2
-    exit 1
-fi
 
 swift build --triple arm64-apple-macosx26.0 --configuration release
 binary="$(swift build --triple arm64-apple-macosx26.0 --configuration release --show-bin-path)/Lanterna"
