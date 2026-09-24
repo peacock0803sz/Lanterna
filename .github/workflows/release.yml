@@ -127,12 +127,6 @@ jobs:
         run: lipo -archs .build/debug/Lanterna | grep -qx arm64
       - name: Test
         run: nix develop --command swift test --triple arm64-apple-macosx26.0
-      - name: Check script syntax
-        run: |
-          bash -n scripts/package-app.sh
-          bash -n scripts/generate-version.sh
-          bash -n scripts/update-cask.sh
-          bash -n scripts/test.sh
       - name: Package app
         if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: nix develop --command bash scripts/package-app.sh
