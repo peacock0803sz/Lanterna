@@ -81,3 +81,4 @@ result
 
 # Packaged app bundles
 build/
+.pre-commit-config.yaml
