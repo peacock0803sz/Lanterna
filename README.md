@@ -1,5 +1,7 @@
 # Lanterna
 
+![artwork](https://img.p3ac0ck.net/figs/Lanterna.png)
+
 A list-style window switcher for macOS.
 
 ## Why Lanterna
