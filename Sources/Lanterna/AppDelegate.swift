@@ -289,6 +289,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // stops being true.
             MainActor.assumeIsolated {
                 presenter.handleActivation(of: application.processIdentifier)
+                recordExternalActivation(
+                    of: application.processIdentifier,
+                    excluding: getpid(),
+                    reading: AXFocusedWindowReader(),
+                    into: presenter.tracker
+                )
             }
         }
     }
