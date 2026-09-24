@@ -49,11 +49,11 @@ jobs:
           set -euo pipefail
           version="4.1.1"
           base="https://github.com/suzuki-shunsuke/pinact/releases/download/v${version}"
-          curl -fsSL -o /tmp/pinact.tar.gz "${base}/pinact_linux_amd64.tar.gz"
+          curl -fsSL -o /tmp/pinact_linux_amd64.tar.gz "${base}/pinact_linux_amd64.tar.gz"
           curl -fsSL -o /tmp/pinact-checksums.txt "${base}/pinact_${version}_checksums.txt"
           (cd /tmp && grep ' pinact_linux_amd64.tar.gz$' pinact-checksums.txt | sha256sum -c -)
           mkdir -p /tmp/pinact-bin
-          tar -xzf /tmp/pinact.tar.gz -C /tmp/pinact-bin pinact
+          tar -xzf /tmp/pinact_linux_amd64.tar.gz -C /tmp/pinact-bin pinact
           /tmp/pinact-bin/pinact run --verify --check
 
   swift-build:
