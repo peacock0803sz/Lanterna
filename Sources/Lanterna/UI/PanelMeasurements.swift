@@ -29,6 +29,33 @@ struct HotkeyMeasurement: Sendable {
     /// it. An answer that could be left out would be left out.
     let becameKey: Bool
 
+    /// The recent-use evidence, or nothing when the caller has none to give.
+    ///
+    /// The presenter always passes one; the older tests pinning other
+    /// segments pass none and keep reading the lines they always read.
+    let mru: MRUSummary?
+
+    /// Every segment spelled out, so no caller can leave one out by
+    /// accident. Only `mru` has a default: the presenter always passes the
+    /// evidence, and the older tests keep the lines they always read.
+    init(
+        combination: HotkeyCombination,
+        elapsed: Duration,
+        entryCount: Int,
+        deliveryDelay: Duration?,
+        gatheredOnDemand: Bool,
+        becameKey: Bool,
+        mru: MRUSummary? = nil
+    ) {
+        self.combination = combination
+        self.elapsed = elapsed
+        self.entryCount = entryCount
+        self.deliveryDelay = deliveryDelay
+        self.gatheredOnDemand = gatheredOnDemand
+        self.becameKey = becameKey
+        self.mru = mru
+    }
+
     var summaryLine: String {
         var line = "panel shown \(Diagnostics.millisecondsText(elapsed)) ms "
             + "after \(combination.name) (\(entryCount) entries)"
@@ -52,6 +79,9 @@ struct HotkeyMeasurement: Sendable {
         line += becameKey
             ? "; taking keys"
             : "; not taking keys (they reach the frontmost application)"
+        if let mru {
+            line += "; " + mru.phrase
+        }
         return line
     }
 }
