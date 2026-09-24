@@ -92,6 +92,13 @@ struct AXFocusedWindowReader: FocusedWindowReading {
 /// The whole outside entry in one place: recording from anywhere else would
 /// be a second entry to the same memory, and a failure that recorded would
 /// turn every unreachable application into a use that never happened.
+///
+/// Runs synchronously on the notification turn by design: the record must
+/// land before the next appearance sorts, which an off-main read cannot
+/// promise. The wait is bounded by the messaging timeout (at most two timed
+/// reads), and a wedged frontmost application leaves the user with worse
+/// than a late panel. Same-application moves without an activation carry
+/// no notice and are therefore never recorded here; that scope is deliberate.
 @MainActor
 func recordExternalActivation(
     of processIdentifier: pid_t,

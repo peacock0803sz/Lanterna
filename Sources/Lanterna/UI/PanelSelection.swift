@@ -36,7 +36,12 @@ final class PanelSelection {
     /// The first row is the window already in front, so choosing it without
     /// moving would take the user nowhere they are not. One row keeps its
     /// first, and an empty list is a cursor with nothing to choose, as
-    /// before.
+    /// before. With no records yet the order is the fixed one and the
+    /// second row may not be the previously used window; that is the
+    /// specified cold-start behaviour, corrected by the first activation
+    /// or commit. Determining the frontmost window here would cost an
+    /// accessibility read inside the show span, so it is deliberately
+    /// not done.
     ///
     /// Tells the panel nothing, because there is no panel yet: the chosen row
     /// travels with the list in the call that puts one there, and a redraw

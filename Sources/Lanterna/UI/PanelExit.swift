@@ -91,7 +91,9 @@ final class PanelExit {
     /// A closure rather than the tracker itself, because this type records
     /// commits and knows nothing of ordering: the tracker behind it is the
     /// presenter's. Called before the switch, so waiting on an unresponsive
-    /// application can never hold the record back.
+    /// application can never hold the record back. A failed switch does not
+    /// retract it either: the record names the commit, gone rows are swept
+    /// at the next show, and the unresponsive case keeps its row on purpose.
     private let recordCommit: @MainActor (WindowItem.Identifier, pid_t) -> Void
 
     /// The list the panel is showing, kept so a line can name a row of it.
