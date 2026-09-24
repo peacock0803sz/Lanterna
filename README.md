@@ -36,3 +36,53 @@ To upgrade:
 ```bash
 brew upgrade --cask peacock0803sz/lanterna/lanterna
 ```
+
+## First launch and permissions
+
+On first launch, grant exactly two permissions when asked:
+
+- Accessibility
+- Input Monitoring
+
+Lanterna lists and switches windows through accessibility information. It does not need Screen Recording.
+
+You can verify in System Settings → Privacy & Security that only these two entries exist for Lanterna.
+
+## Usage
+
+- `Cmd+Tab`: show the switcher. Keep holding `Cmd` and press `Tab` to move, release to switch.
+- `Shift+Cmd+Tab`: move in the reverse direction.
+
+## Troubleshooting
+
+### Cmd+Tab shortcuts are not restored after a crash
+
+Lanterna takes Cmd+Tab and Shift+Cmd+Tab away from the system while it runs and gives them back when it exits. After `kill -9` or a crash it cannot give them back, so both shortcuts stay off until something else puts them on.
+
+Check that no Lanterna is running before doing anything else. Restoring writes the shortcuts back on without reading their current state, so running this while another Lanterna is up takes the hotkeys away from that process. Running more than one at a time is not supported.
+
+```bash
+pgrep -x Lanterna    # expect no output; run `pkill Lanterna` first if there is any
+```
+
+Then start Lanterna again and stop it cleanly, which lets its shutdown do the restoring.
+
+```bash
+/Applications/Lanterna.app/Contents/MacOS/Lanterna &
+sleep 1
+pkill Lanterna
+```
+
+If the shortcuts are still off after that, log out and back in. The system's assignment is per login session.
+
+### Windows do not appear
+
+Check that the two permissions above are granted, then relaunch Lanterna.
+
+## For developers
+
+See [CONTRIBUTING](CONTRIBUTING.md) for the development setup, build, and test instructions.
+
+## License
+
+See [LICENSE](LICENSE).
