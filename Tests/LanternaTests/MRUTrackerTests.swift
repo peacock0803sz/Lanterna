@@ -176,10 +176,11 @@ struct MRUTrackerTests {
     /// inside the show span.
     @Test func reusedIDUnderAnotherOwnerDoesNotMerge() {
         let tracker = MRUTracker()
+        let reborn = row(windowID: 1, owner: 999)
         tracker.record(first.id, ownerProcessIdentifier: 101, origin: .commit)
-        tracker.record(first.id, ownerProcessIdentifier: 999, origin: .external)
-        let ordered = tracker.ordered([first])
-        #expect(ordered.map(\.id) == [first.id])
+        tracker.record(reborn.id, ownerProcessIdentifier: 999, origin: .external)
+        let ordered = tracker.ordered([reborn])
+        #expect(ordered.map(\.id) == [reborn.id])
         #expect(tracker.newestSource == .external)
     }
 
