@@ -1,0 +1,274 @@
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Validate without publishing (skips tag-only steps)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      recover_tag:
+        description: 'Published tag to recover the cask for (recovery only)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+  queue: max
+  # Keep queued runs instead of replacing them so every tag is processed.
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag
+        id: validate
+        run: |
+          note() { echo "tag validation ($1): $2"; }
+          cask_sha() {
+            git show "origin/main:Casks/lanterna.rb" 2>/dev/null | grep -o 'sha256 "[^"]*"' | head -1 | cut -d'"' -f2
+          }
+          cask_url() {
+            git show "origin/main:Casks/lanterna.rb" 2>/dev/null | grep -o 'url "[^"]*"' | head -1 | cut -d'"' -f2
+          }
+          verify_cask() {
+            # $1 = cask version (X.Y.Z). Downloads the referenced published
+            # assets and checks them against the cask declaration.
+            local ver="$1" dir
+            dir="$(mktemp -d)"
+            gh release download "v$ver" --pattern "Lanterna-$ver.dmg*" --dir "$dir" >/dev/null || return 1
+            local actual sidecar
+            actual="$(shasum -a 256 "$dir/Lanterna-$ver.dmg" | cut -d' ' -f1)"
+            sidecar="$(cat "$dir/Lanterna-$ver.dmg.sha256" 2>/dev/null | cut -d' ' -f1)"
+            [[ "$actual" == "$(cask_sha)" && "$actual" == "$sidecar" ]] || return 1
+            [[ "$(cask_url)" == "https://github.com/peacock0803sz/Lanterna/releases/download/v$ver/Lanterna-$ver.dmg" ]] || return 1
+            return 0
+          }
+          git fetch origin main
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            ADVISORY=false
+          else
+            TAG=""
+            ADVISORY=true
+          fi
+          fail() { note "refusing" "$1"; if [[ "$ADVISORY" == "true" ]]; then echo "(advisory only, continuing)"; else exit 1; fi; }
+          if [[ -n "$TAG" ]]; then
+            [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "\"$TAG\" is not exactly vX.Y.Z"
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main || fail "tag commit is not an ancestor of origin/main"
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          else
+            note "advisory" "no tag ref; strict checks run in advisory mode"
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          fi
+          # Monotonicity and existing-cask integrity against the main tip.
+          CASK_VER="$(git show origin/main:Casks/lanterna.rb 2>/dev/null | grep -o 'version "[^"]*"' | head -1 | cut -d'"' -f2 || true)"
+          if [[ -z "$CASK_VER" ]]; then
+            note "first run" "no cask on origin/main; treated as the first release"
+          elif [[ -n "$TAG" ]]; then
+            SHORT="${TAG#v}"
+            verify_cask "$CASK_VER" || fail "existing cask $CASK_VER is stale"
+            if printf '%s\n%s\n' "v$CASK_VER" "$TAG" | sort -VC 2>/dev/null; then
+              if [[ "$CASK_VER" == "$SHORT" ]]; then
+                gh release view "$TAG" --json isPrerelease --jq .isPrerelease | grep -qx true || fail "release $TAG is not a published prerelease"
+                echo "proceed=false" >> "$GITHUB_OUTPUT"
+                note "already done" "release $TAG matches the cask; further steps skip"
+              else
+                note "ok" "tag $TAG is newer than cask $CASK_VER"
+              fi
+            else
+              fail "tag $TAG is not newer than cask $CASK_VER"
+            fi
+          else
+            verify_cask "$CASK_VER" || note "advisory" "existing cask $CASK_VER is stale (advisory only)"
+          fi
+
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
+      - name: Cache SPM build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: ${{ runner.os }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
+      # The triple is pinned; CONTRIBUTING.md says why.
+      - name: Build
+        run: nix develop --command swift build --triple arm64-apple-macosx26.0
+      - name: Verify architecture
+        run: lipo -archs .build/debug/Lanterna | grep -qx arm64
+      - name: Test
+        run: nix develop --command swift test --triple arm64-apple-macosx26.0
+      - name: Check script syntax
+        run: |
+          bash -n scripts/package-app.sh
+          bash -n scripts/generate-version.sh
+          bash -n scripts/update-cask.sh
+          bash -n scripts/test.sh
+      - name: Package app
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
+        run: nix develop --command bash scripts/package-app.sh
+      - name: Record artifact hashes
+        id: package
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          SHORT="${TAG#v}"
+          DMG="build/Lanterna-${SHORT}.dmg"
+          SHA="$(shasum -a 256 "$DMG" | cut -d' ' -f1)"
+          echo "$SHA  $(basename "$DMG")" > "${DMG}.sha256"
+          echo "short=$SHORT" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Create draft release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          SHORT="${{ steps.package.outputs.short }}"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" -f tag_name="$TAG" --jq .body > /tmp/generated.md
+          cat /tmp/generated.md .github/release-notes-footer.md > /tmp/notes.md
+          if gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null | grep -qx true; then
+            echo "removing leftover draft from a previous run"
+            gh release delete "$TAG" --yes
+          fi
+          gh release create "$TAG" --draft --title "$TAG" --notes-file /tmp/notes.md \
+            "build/Lanterna-${SHORT}.dmg" "build/Lanterna-${SHORT}.dmg.sha256"
+      - name: Verify draft assets
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          SHORT="${{ steps.package.outputs.short }}"
+          BUILT="${{ steps.package.outputs.sha }}"
+          dir="$(mktemp -d)"
+          gh release download "$TAG" --pattern "Lanterna-${SHORT}.dmg*" --dir "$dir"
+          GOT="$(shasum -a 256 "$dir/Lanterna-${SHORT}.dmg" | cut -d' ' -f1)"
+          SIDECAR="$(cut -d' ' -f1 "$dir/Lanterna-${SHORT}.dmg.sha256")"
+          if [[ "$GOT" != "$BUILT" || "$GOT" != "$SIDECAR" ]]; then
+            echo "draft assets do not match; deleting the draft"
+            gh release delete "$TAG" --yes
+            exit 1
+          fi
+          echo "draft assets verified"
+
+      - name: Publish release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          SHORT="${{ steps.package.outputs.short }}"
+          cleanup_draft() { gh release delete "$TAG" --yes; exit 1; }
+          git fetch origin main
+          # Re-verify against the main tip: stop without publishing when stale.
+          CASK_VER="$(git show origin/main:Casks/lanterna.rb 2>/dev/null | grep -o 'version "[^"]*"' | head -1 | cut -d'"' -f2 || true)"
+          if [[ -n "$CASK_VER" ]]; then
+            if printf '%s\n%s\n' "v$CASK_VER" "$TAG" | sort -VC 2>/dev/null; then
+              if [[ "$CASK_VER" == "$SHORT" ]]; then echo "same version already reflected; deleting the draft"; cleanup_draft; fi
+            else
+              echo "a newer cask already exists; deleting the draft"
+              cleanup_draft
+            fi
+          fi
+          NEWEST="$(gh release list --exclude-drafts --limit 50 --json tagName --jq '.[].tagName' | sort -V | tail -1)"
+          if [[ -n "$NEWEST" && "$NEWEST" != "$TAG" ]] && printf '%s\n%s\n' "$TAG" "$NEWEST" | sort -VC; then
+            echo "a newer release $NEWEST exists; deleting the draft"
+            cleanup_draft
+          fi
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "tag commit is no longer on origin/main"; cleanup_draft; }
+          gh release edit "$TAG" --draft=false --prerelease
+
+      - name: Push cask to main
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          SHORT="${{ steps.package.outputs.short }}"
+          SHA="${{ steps.package.outputs.sha }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          attempt=0
+          while (( attempt < 3 )); do
+            attempt=$(( attempt + 1 ))
+            git fetch origin main
+            git checkout -B tmp/release-cask origin/main
+            bash scripts/update-cask.sh "$SHORT" "$SHA"
+            ruby -c Casks/lanterna.rb
+            git add Casks/lanterna.rb
+            if git diff --cached --quiet; then echo "no changes; already in sync"; exit 0; fi
+            git commit -m ":wrench: Update cask to ${SHORT} [skip ci]"
+            if git push origin HEAD:main; then echo "cask pushed"; exit 0; fi
+            echo "push failed (attempt $attempt); resetting and retrying"
+            git rebase --abort 2>/dev/null || true
+            git reset --hard origin/main
+          done
+          echo "cask push failed after 3 attempts"
+          exit 1
+
+  recover:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.recover_tag != ''
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Recover cask for a published tag
+        env:
+          RECOVER_TAG: ${{ inputs.recover_tag }}
+        run: |
+          TAG="$RECOVER_TAG"
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "refusing \"$TAG\"; need exactly vX.Y.Z"; exit 1; }
+          [[ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" == false ]] || { echo "release $TAG is not published (still draft)"; exit 1; }
+          [[ "$(gh release view "$TAG" --json isPrerelease --jq .isPrerelease)" == true ]] || { echo "release $TAG is not a prerelease"; exit 1; }
+          SHORT="${TAG#v}"
+          dir="$(mktemp -d)"
+          gh release download "$TAG" --pattern "Lanterna-${SHORT}.dmg*" --dir "$dir"
+          GOT="$(shasum -a 256 "$dir/Lanterna-${SHORT}.dmg" | cut -d' ' -f1)"
+          SIDECAR="$(cut -d' ' -f1 "$dir/Lanterna-${SHORT}.dmg.sha256")"
+          [[ "$GOT" == "$SIDECAR" ]] || { echo "asset mismatch"; exit 1; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          attempt=0
+          while (( attempt < 3 )); do
+            attempt=$(( attempt + 1 ))
+            git fetch origin main
+            git checkout -B tmp/release-cask origin/main
+            CUR="$(grep -o 'version "[^"]*"' Casks/lanterna.rb 2>/dev/null | head -1 | cut -d'"' -f2 || true)"
+            if [[ -n "$CUR" ]]; then
+              if [[ "$CUR" == "$SHORT" ]]; then
+                CSHA="$(grep -o 'sha256 "[^"]*"' Casks/lanterna.rb | head -1 | cut -d'"' -f2)"
+                if [[ "$CSHA" == "$GOT" ]]; then echo "cask already in sync; nothing to do"; exit 0; fi
+                echo "same version but different sha; stopping for investigation"; exit 1
+              fi
+              printf '%s\n%s\n' "v$CUR" "$TAG" | sort -VC || { echo "a newer cask already exists; nothing to do"; exit 0; }
+            fi
+            bash scripts/update-cask.sh "$SHORT" "$GOT"
+            ruby -c Casks/lanterna.rb
+            git add Casks/lanterna.rb
+            if git diff --cached --quiet; then echo "no changes; already in sync"; exit 0; fi
+            git commit -m ":wrench: Update cask to ${SHORT} [skip ci]"
+            if git push origin HEAD:main; then echo "cask recovered"; exit 0; fi
+            git rebase --abort 2>/dev/null || true
+            git reset --hard origin/main
+          done
+          echo "cask recovery failed after 3 attempts"
+          exit 1
