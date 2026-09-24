@@ -201,3 +201,16 @@ struct MRUTrackerTests {
         #expect(elapsed < .milliseconds(100))
     }
 }
+
+/// A commit through the presenter writes the record with the commit kind,
+/// before anything is taken. The tracker behind the panel is the same one
+/// the ordering reads: one memory, not two.
+@MainActor
+struct MRUCommitWiringTests {
+    @Test func commitThroughThePresenterRecordsWithCommitKind() {
+        let fixture = Fixture(entryCount: 3, closesOnCommandRelease: true)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        fixture.presenter.handleCommandRelease()
+        #expect(fixture.presenter.tracker.newestSource == .commit)
+    }
+}

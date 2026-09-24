@@ -1,3 +1,5 @@
+import Darwin
+
 /// Every way the panel comes off the screen, and the line each of them
 /// writes.
 ///
@@ -84,6 +86,14 @@ final class PanelExit {
     /// is showing, and both go with the panel.
     private let switcher: any WindowSwitching
 
+    /// Where a commit writes down that it happened, before anything is taken.
+    ///
+    /// A closure rather than the tracker itself, because this type records
+    /// commits and knows nothing of ordering: the tracker behind it is the
+    /// presenter's. Called before the switch, so waiting on an unresponsive
+    /// application can never hold the record back.
+    private let recordCommit: @MainActor (WindowItem.Identifier, pid_t) -> Void
+
     /// The list the panel is showing, kept so a line can name a row of it.
     ///
     /// The list and not a row read off it. Which row is chosen moves while
@@ -114,6 +124,7 @@ final class PanelExit {
         writeLine: @escaping @MainActor (String) -> Void,
         keyStatusWatchInterval: Duration = KeyStatusWatch.defaultInterval,
         switcher: any WindowSwitching = LiveWindowSwitcher(),
+        recordCommit: @escaping @MainActor (WindowItem.Identifier, pid_t) -> Void,
         onPanelGone: @escaping @MainActor () -> Void
     ) {
         self.surface = surface
@@ -121,6 +132,7 @@ final class PanelExit {
         self.writeLine = writeLine
         self.keyStatusWatchInterval = keyStatusWatchInterval
         self.switcher = switcher
+        self.recordCommit = recordCommit
         self.onPanelGone = onPanelGone
     }
 
@@ -168,6 +180,7 @@ final class PanelExit {
         case let .some(take):
             // The take happens before either line: the pair is written
             // together, with nothing between the two.
+            recordCommit(take.id, take.ownerProcessIdentifier)
             let outcome = switcher.switchTo(take)
             recordCommitPair(take, outcome, by: .commandRelease, elapsed: elapsed)
         case .none:
@@ -212,6 +225,7 @@ final class PanelExit {
         switch target {
         case let .some(take):
             // The pair, as above: the take first, then both lines together.
+            recordCommit(take.id, take.ownerProcessIdentifier)
             let outcome = switcher.switchTo(take)
             recordCommitPair(take, outcome, by: .commitKey(key), elapsed: elapsed)
         case .none:

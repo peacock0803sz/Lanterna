@@ -62,6 +62,13 @@ final class PanelPresenter {
     /// target is read off.
     private let switcher: any WindowSwitching
 
+    /// What commits and appearances consult for the order rows are drawn in.
+    ///
+    /// Owned here rather than in the way out: recording a commit and sorting
+    /// an appearance are two ends of one memory, and the way out only borrows
+    /// the recording end through the closure below.
+    let tracker: MRUTracker
+
     /// The looking that catches a release the tap never reported.
     ///
     /// `lazy` because every question it puts and the answer it gives back are
@@ -130,7 +137,8 @@ final class PanelPresenter {
         },
         commandWatchInterval: Duration = UnreportedReleaseWatch.defaultInterval,
         keyStatusWatchInterval: Duration = KeyStatusWatch.defaultInterval,
-        switcher: any WindowSwitching = LiveWindowSwitcher()
+        switcher: any WindowSwitching = LiveWindowSwitcher(),
+        tracker: MRUTracker = MRUTracker()
     ) {
         self.surface = surface
         selection = PanelSelection(surface: surface)
@@ -143,6 +151,7 @@ final class PanelPresenter {
         self.commandWatchInterval = commandWatchInterval
         self.keyStatusWatchInterval = keyStatusWatchInterval
         self.switcher = switcher
+        self.tracker = tracker
     }
 
     private func makeWayOut() -> PanelExit {
@@ -152,6 +161,9 @@ final class PanelPresenter {
             writeLine: writeLine,
             keyStatusWatchInterval: keyStatusWatchInterval,
             switcher: switcher,
+            recordCommit: { [weak self] id, pid in
+                self?.tracker.record(id, ownerProcessIdentifier: pid, origin: .commit)
+            },
             onPanelGone: { [weak self] in
                 self?.commandWatch.stop()
                 self?.selection.end()
