@@ -33,7 +33,7 @@ Enter the development shell:
 nix develop
 ```
 
-This provides `swiftformat`, `swiftlint`, and installs pre-commit hooks automatically.
+This provides `actionlint`, `pinact`, `shellcheck`, `swiftformat`, `swiftlint`, and installs pre-commit hooks automatically.
 
 ### Build and Test
 
