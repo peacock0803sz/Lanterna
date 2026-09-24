@@ -6,6 +6,7 @@
   },
   "lockFileMaintenance": {
     "enabled": true,
+    "minimumReleaseAge": null,
     "commitMessagePrefix": ":snowflake:",
     "commitMessageAction": "Update",
     "commitMessageTopic": "flake.lock",
