@@ -77,6 +77,13 @@ struct AXFocusedWindowReader: FocusedWindowReading {
         guard focusError == .success, let focused else {
             return nil
         }
+        // The timeout rides with the element it protects: messaging timeouts
+        // are per element, so the id fetch below needs its own. Without it a
+        // wedged application would answer on the multi-second default while
+        // the main queue handles the activation.
+        guard setMessagingTimeout(focused, Self.messagingTimeout) == .success else {
+            return nil
+        }
         let (idError, windowID) = copyWindowID(focused)
         guard idError == .success, windowID != 0 else {
             return nil

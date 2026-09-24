@@ -33,6 +33,10 @@ final class MRUTracker {
         let ownerProcessIdentifier: pid_t
         let sequence: UInt64
         let origin: RecordOrigin
+        /// When the use was written down. A record missing from a snapshot
+        /// younger than this may postdate the snapshot rather than name a
+        /// gone window, so the sweep below spares it.
+        let recordedAt: ContinuousClock.Instant
     }
 
     /// How long an activation notice for the just-committed application is
@@ -42,6 +46,12 @@ final class MRUTracker {
     /// application takes far longer. One second clears the echo with room
     /// on both sides.
     static let echoWindow: Duration = .seconds(1)
+
+    /// How long a missing record is spared by the sweep. The refresh loop
+    /// re-reads the world about every interval below, so a record younger
+    /// than twice that may postdate the snapshot being swept against rather
+    /// than name a gone window.
+    static let sweepGracePeriod: Duration = .seconds(3)
 
     /// Where one record came from: the panel's own commit, or an activation
     /// that went around it. Kinds never decide order — newest wins whatever
@@ -86,7 +96,8 @@ final class MRUTracker {
             id: id,
             ownerProcessIdentifier: ownerProcessIdentifier,
             sequence: nextSequence,
-            origin: origin
+            origin: origin,
+            recordedAt: now()
         )
         nextSequence += 1
         if origin == .commit {
@@ -96,15 +107,26 @@ final class MRUTracker {
 
     // Whether an outside activation of an application is worth writing down.
     //
-    // False only for the commit's own echo: the same application inside the
-    // echo window after this tracker recorded a commit to it. The commit
-    // already named the exact row, so the notice can only blur it.
+    // False only for the commit's own echo: the same application as the
+    // last commit, inside the echo window, with no other activation in
+    // between. Anything else — another application (which also retires the
+    // pending echo), or an expired window — records normally, so a genuine
+    // return after a detour is never mistaken for the echo.
 
     func shouldRecordExternal(for ownerProcessIdentifier: pid_t) -> Bool {
-        guard let lastCommit, lastCommit.owner == ownerProcessIdentifier else {
+        guard let pending = lastCommit else {
             return true
         }
-        return now() - lastCommit.at >= Self.echoWindow
+        guard pending.owner == ownerProcessIdentifier else {
+            lastCommit = nil
+            return true
+        }
+        if now() - pending.at >= Self.echoWindow {
+            lastCommit = nil
+            return true
+        }
+        lastCommit = nil
+        return false
     }
 
     /// The given rows newest first, sweeping records for rows that are gone.
@@ -156,6 +178,7 @@ final class MRUTracker {
     /// appearance is up is never swept by it — the next appearance sweeps
     /// against its own, newer snapshot.
     private func prune(to items: [WindowItem]) {
+        let sweptAt = now()
         var live = Set<MRUKey>()
         live.reserveCapacity(items.count)
         for item in items {
@@ -166,6 +189,9 @@ final class MRUTracker {
                 )
             )
         }
-        records = records.filter { live.contains($0.key) }
+        records = records.filter { entry in
+            live.contains(entry.key)
+                || sweptAt - entry.value.recordedAt < Self.sweepGracePeriod
+        }
     }
 }

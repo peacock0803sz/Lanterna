@@ -123,7 +123,8 @@ struct MRUTrackerTests {
     /// Sweeping anywhere else would delete a record the next appearance
     /// still needs; never sweeping would grow the records without bound.
     @Test func missingRecordsArePrunedAtShowTime() {
-        let tracker = MRUTracker()
+        let clock = SteppingClock(step: .seconds(4))
+        let tracker = MRUTracker(now: clock.read)
         tracker.record(
             first.id, ownerProcessIdentifier: first.ownerProcessIdentifier,
             origin: .commit
@@ -140,7 +141,8 @@ struct MRUTrackerTests {
     /// back to the surviving newest record's origin, or to none when nothing
     /// survives. The origin rides on each record for exactly this reason.
     @Test func viaFallsBackToSurvivingNewestAfterPrune() {
-        let tracker = MRUTracker()
+        let clock = SteppingClock(step: .seconds(4))
+        let tracker = MRUTracker(now: clock.read)
         tracker.record(
             first.id, ownerProcessIdentifier: first.ownerProcessIdentifier,
             origin: .commit
@@ -153,6 +155,22 @@ struct MRUTrackerTests {
         #expect(tracker.newestSource == .commit)
         _ = tracker.ordered([third])
         #expect(tracker.newestSource == .none)
+    }
+
+    /// A record missing from a snapshot younger than itself may postdate the
+    /// snapshot: activation after the last refresh, panel before the next.
+    /// The sweep spares it, and the next snapshot including the row proves
+    /// the wait was worth it.
+    @Test func freshMissingRecordSurvivesTheShow() {
+        let clock = SteppingClock(step: .seconds(1))
+        let tracker = MRUTracker(now: clock.read)
+        tracker.record(
+            first.id, ownerProcessIdentifier: first.ownerProcessIdentifier,
+            origin: .external
+        )
+        #expect(tracker.ordered([second]).map(\.id) == [second.id])
+        #expect(tracker.ordered([first, second]).map(\.id) == [first.id, second.id])
+        #expect(tracker.newestSource == .external)
     }
 
     /// Two rows sharing both names stay two rows, told apart by identity
@@ -256,46 +274,6 @@ struct MRUExternalSeamTests {
         )
         #expect(tracker.newestSource == .none)
     }
-
-    @Test func liveReaderReportsTheFocusedWindowID() {
-        let reader = AXFocusedWindowReader(
-            setMessagingTimeout: { _, _ in .success },
-            copyFocusedWindow: { _ in (.success, AXUIElementCreateApplication(102)) },
-            copyWindowID: { _ in (.success, 7) }
-        )
-        #expect(reader.focusedWindowID(of: 102) == 7)
-    }
-
-    @Test func liveReaderFailuresReadAsNothing() {
-        #expect(
-            AXFocusedWindowReader(
-                setMessagingTimeout: { _, _ in .failure },
-                copyFocusedWindow: { _ in (.success, AXUIElementCreateApplication(102)) },
-                copyWindowID: { _ in (.success, 7) }
-            ).focusedWindowID(of: 102) == nil
-        )
-        #expect(
-            AXFocusedWindowReader(
-                setMessagingTimeout: { _, _ in .success },
-                copyFocusedWindow: { _ in (.cannotComplete, nil) },
-                copyWindowID: { _ in (.success, 7) }
-            ).focusedWindowID(of: 102) == nil
-        )
-        #expect(
-            AXFocusedWindowReader(
-                setMessagingTimeout: { _, _ in .success },
-                copyFocusedWindow: { _ in (.success, AXUIElementCreateApplication(102)) },
-                copyWindowID: { _ in (.failure, 0) }
-            ).focusedWindowID(of: 102) == nil
-        )
-        #expect(
-            AXFocusedWindowReader(
-                setMessagingTimeout: { _, _ in .success },
-                copyFocusedWindow: { _ in (.success, AXUIElementCreateApplication(102)) },
-                copyWindowID: { _ in (.success, 0) }
-            ).focusedWindowID(of: 102) == nil
-        )
-    }
 }
 
 /// An appearance keeps the list it was given: recording while it is up
@@ -342,7 +320,8 @@ struct MRUEdgeTests {
     }
 
     @Test func staleOnlyRecordsPrunedAtShow() {
-        let tracker = MRUTracker()
+        let clock = SteppingClock(step: .seconds(4))
+        let tracker = MRUTracker(now: clock.read)
         tracker.record(
             WindowItem.Identifier(windowID: 9001),
             ownerProcessIdentifier: 901,

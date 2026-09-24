@@ -89,3 +89,39 @@ struct MRUCommitEchoTests {
         }
     }
 }
+
+/// A genuine return after a detour is never the echo.
+///
+/// Committing to one application, moving to another, and coming back records
+/// every step: the detour retires the pending echo, so the return lands as
+/// the newest use and the next panel opens on it.
+@MainActor
+struct MRUGenuineReturnTests {
+    @Test func returnAfterDetourIsRecorded() {
+        let clock = SteppingClock(step: .milliseconds(100))
+        let tracker = MRUTracker(now: clock.read)
+        let home = echoRow(windowID: 1, owner: 101)
+        let away = echoRow(windowID: 2, owner: 102)
+        tracker.record(
+            home.id, ownerProcessIdentifier: home.ownerProcessIdentifier,
+            origin: .commit
+        )
+        recordExternalActivation(
+            of: 102, excluding: 999,
+            reading: FakeReturnReader(windowID: 2), into: tracker
+        )
+        recordExternalActivation(
+            of: 101, excluding: 999,
+            reading: FakeReturnReader(windowID: 1), into: tracker
+        )
+        #expect(tracker.newestSource == .external)
+        #expect(tracker.ordered([home, away]).map(\.id) == [home.id, away.id])
+    }
+
+    private struct FakeReturnReader: FocusedWindowReading {
+        var windowID: CGWindowID?
+        func focusedWindowID(of _: pid_t) -> CGWindowID? {
+            windowID
+        }
+    }
+}
