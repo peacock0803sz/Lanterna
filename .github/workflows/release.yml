@@ -143,3 +143,29 @@ jobs:
           echo "$SHA  $(basename "$DMG")" > "${DMG}.sha256"
           echo "short=$SHORT" >> "$GITHUB_OUTPUT"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Create draft release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          SHORT="${{ steps.package.outputs.short }}"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" -f tag_name="$TAG" --jq .body > /tmp/generated.md
+          cat /tmp/generated.md .github/release-notes-footer.md > /tmp/notes.md
+          gh release create "$TAG" --draft --title "$TAG" --notes-file /tmp/notes.md \
+            "build/Lanterna-${SHORT}.dmg" "build/Lanterna-${SHORT}.dmg.sha256"
+      - name: Verify draft assets
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          SHORT="${{ steps.package.outputs.short }}"
+          BUILT="${{ steps.package.outputs.sha }}"
+          dir="$(mktemp -d)"
+          gh release download "$TAG" --pattern "Lanterna-${SHORT}.dmg*" --dir "$dir"
+          GOT="$(shasum -a 256 "$dir/Lanterna-${SHORT}.dmg" | cut -d' ' -f1)"
+          SIDECAR="$(cut -d' ' -f1 "$dir/Lanterna-${SHORT}.dmg.sha256")"
+          if [[ "$GOT" != "$BUILT" || "$GOT" != "$SIDECAR" ]]; then
+            echo "draft assets do not match; deleting the draft"
+            gh release delete "$TAG" --yes
+            exit 1
+          fi
+          echo "draft assets verified"
