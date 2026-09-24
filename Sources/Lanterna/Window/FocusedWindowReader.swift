@@ -86,7 +86,8 @@ struct AXFocusedWindowReader: FocusedWindowReading {
 }
 
 /// Reads the frontmost window of an application and records it as an external
-/// activation, doing nothing when the read fails or names this process.
+/// activation, doing nothing when the read fails, names this process, or is
+/// the commit's own echo coming back.
 ///
 /// The whole outside entry in one place: recording from anywhere else would
 /// be a second entry to the same memory, and a failure that recorded would
@@ -99,6 +100,9 @@ func recordExternalActivation(
     into tracker: MRUTracker
 ) {
     guard processIdentifier != ownProcessIdentifier else {
+        return
+    }
+    guard tracker.shouldRecordExternal(for: processIdentifier) else {
         return
     }
     guard let windowID = reading.focusedWindowID(of: processIdentifier) else {

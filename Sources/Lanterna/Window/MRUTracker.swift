@@ -35,6 +35,14 @@ final class MRUTracker {
         let origin: RecordOrigin
     }
 
+    /// How long an activation notice for the just-committed application is
+    /// treated as the commit's own echo. The notice arrives tens of
+    /// milliseconds after the switch (measured), while the raise it reports
+    /// on may still be on its way; a human round-trip back to the same
+    /// application takes far longer. One second clears the echo with room
+    /// on both sides.
+    static let echoWindow: Duration = .seconds(1)
+
     /// Where one record came from: the panel's own commit, or an activation
     /// that went around it. Kinds never decide order — newest wins whatever
     /// the kind — they only decide the `via` word on the show line.
@@ -54,6 +62,16 @@ final class MRUTracker {
 
     private var records: [MRUKey: UsageRecord] = [:]
     private var nextSequence: UInt64 = 0
+    /// The application the last commit took, and when. A notice for the same
+    /// application inside the echo window is the commit's own activation
+    /// coming back, naming whichever window happened to be in front while
+    /// the raise was still travelling — never newer information.
+    private var lastCommit: (owner: pid_t, at: ContinuousClock.Instant)?
+    private let now: @MainActor () -> ContinuousClock.Instant
+
+    init(now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now }) {
+        self.now = now
+    }
 
     /// Writes down one use. Recording the same target twice only moves its
     /// number forward; the order keeps it first either way, which is what
@@ -71,6 +89,22 @@ final class MRUTracker {
             origin: origin
         )
         nextSequence += 1
+        if origin == .commit {
+            lastCommit = (ownerProcessIdentifier, now())
+        }
+    }
+
+    // Whether an outside activation of an application is worth writing down.
+    //
+    // False only for the commit's own echo: the same application inside the
+    // echo window after this tracker recorded a commit to it. The commit
+    // already named the exact row, so the notice can only blur it.
+
+    func shouldRecordExternal(for ownerProcessIdentifier: pid_t) -> Bool {
+        guard let lastCommit, lastCommit.owner == ownerProcessIdentifier else {
+            return true
+        }
+        return now() - lastCommit.at >= Self.echoWindow
     }
 
     /// The given rows newest first, sweeping records for rows that are gone.
