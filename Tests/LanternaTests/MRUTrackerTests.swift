@@ -214,3 +214,86 @@ struct MRUCommitWiringTests {
         #expect(fixture.presenter.tracker.newestSource == .commit)
     }
 }
+
+/// The seam through which activations from outside the panel arrive.
+///
+/// The reader names the frontmost window or fails; the entry records it or
+/// does nothing. Both halves are injected here because no test can switch
+/// applications for real, and the live observation behind them was settled
+/// before implementation in the spike the plan put first.
+@MainActor
+struct MRUExternalSeamTests {
+    private struct FakeFocusedReader: FocusedWindowReading {
+        var windowID: CGWindowID?
+        func focusedWindowID(of _: pid_t) -> CGWindowID? {
+            windowID
+        }
+    }
+
+    @Test func reportedWindowIDIsRecordedAsExternal() {
+        let tracker = MRUTracker()
+        recordExternalActivation(
+            of: 102, excluding: 101,
+            reading: FakeFocusedReader(windowID: 2), into: tracker
+        )
+        #expect(tracker.newestSource == .external)
+    }
+
+    @Test func failedReadRecordsNothing() {
+        let tracker = MRUTracker()
+        recordExternalActivation(
+            of: 102, excluding: 101,
+            reading: FakeFocusedReader(windowID: nil), into: tracker
+        )
+        #expect(tracker.newestSource == .none)
+    }
+
+    @Test func ownProcessRecordsNothing() {
+        let tracker = MRUTracker()
+        recordExternalActivation(
+            of: 101, excluding: 101,
+            reading: FakeFocusedReader(windowID: 1), into: tracker
+        )
+        #expect(tracker.newestSource == .none)
+    }
+
+    @Test func liveReaderReportsTheFocusedWindowID() {
+        let reader = AXFocusedWindowReader(
+            setMessagingTimeout: { _, _ in .success },
+            copyFocusedWindow: { _ in (.success, AXUIElementCreateApplication(102)) },
+            copyWindowID: { _ in (.success, 7) }
+        )
+        #expect(reader.focusedWindowID(of: 102) == 7)
+    }
+
+    @Test func liveReaderFailuresReadAsNothing() {
+        #expect(
+            AXFocusedWindowReader(
+                setMessagingTimeout: { _, _ in .failure },
+                copyFocusedWindow: { _ in (.success, AXUIElementCreateApplication(102)) },
+                copyWindowID: { _ in (.success, 7) }
+            ).focusedWindowID(of: 102) == nil
+        )
+        #expect(
+            AXFocusedWindowReader(
+                setMessagingTimeout: { _, _ in .success },
+                copyFocusedWindow: { _ in (.cannotComplete, nil) },
+                copyWindowID: { _ in (.success, 7) }
+            ).focusedWindowID(of: 102) == nil
+        )
+        #expect(
+            AXFocusedWindowReader(
+                setMessagingTimeout: { _, _ in .success },
+                copyFocusedWindow: { _ in (.success, AXUIElementCreateApplication(102)) },
+                copyWindowID: { _ in (.failure, 0) }
+            ).focusedWindowID(of: 102) == nil
+        )
+        #expect(
+            AXFocusedWindowReader(
+                setMessagingTimeout: { _, _ in .success },
+                copyFocusedWindow: { _ in (.success, AXUIElementCreateApplication(102)) },
+                copyWindowID: { _ in (.success, 0) }
+            ).focusedWindowID(of: 102) == nil
+        )
+    }
+}
