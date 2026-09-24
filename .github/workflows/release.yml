@@ -37,3 +37,109 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: Validate tag
+        run: |
+          note() { echo "tag validation ($1): $2"; }
+          version_lt() {
+            # Returns 0 when $1 (X.Y.Z) is numerically older than $2.
+            local IFS=.
+            local -a a=($1) b=($2)
+            local i
+            for i in 0 1 2; do
+              (( 10#${a[i]:-0} < 10#${b[i]:-0} )) && return 0
+              (( 10#${a[i]:-0} > 10#${b[i]:-0} )) && return 1
+            done
+            return 1
+          }
+          cask_sha() {
+            git show "origin/main:Casks/lanterna.rb" 2>/dev/null | grep -o 'sha256 "[^"]*"' | head -1 | cut -d'"' -f2
+          }
+          cask_url() {
+            git show "origin/main:Casks/lanterna.rb" 2>/dev/null | grep -o 'url "[^"]*"' | head -1 | cut -d'"' -f2
+          }
+          verify_cask() {
+            # $1 = cask version (X.Y.Z). Downloads the referenced published
+            # assets and checks them against the cask declaration.
+            local ver="$1" dir
+            dir="$(mktemp -d)"
+            gh release download "v$ver" --pattern "Lanterna-$ver.dmg*" --dir "$dir" >/dev/null || return 1
+            local actual sidecar
+            actual="$(shasum -a 256 "$dir/Lanterna-$ver.dmg" | cut -d' ' -f1)"
+            sidecar="$(cat "$dir/Lanterna-$ver.dmg.sha256" 2>/dev/null | cut -d' ' -f1)"
+            [[ "$actual" == "$(cask_sha)" && "$actual" == "$sidecar" ]] || return 1
+            [[ "$(cask_url)" == "https://github.com/peacock0803sz/Lanterna/releases/download/v$ver/Lanterna-$ver.dmg" ]] || return 1
+            return 0
+          }
+          git fetch origin main
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            ADVISORY=false
+          else
+            TAG=""
+            ADVISORY=true
+          fi
+          fail() { note "refusing" "$1"; if [[ "$ADVISORY" == "true" ]]; then echo "(advisory only, continuing)"; else exit 1; fi; }
+          if [[ -n "$TAG" ]]; then
+            [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "\"$TAG\" is not exactly vX.Y.Z"
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main || fail "tag commit is not an ancestor of origin/main"
+          else
+            note "advisory" "no tag ref; strict checks run in advisory mode"
+          fi
+          # Monotonicity and existing-cask integrity against the main tip.
+          CASK_VER="$(git show origin/main:Casks/lanterna.rb 2>/dev/null | grep -o 'version "[^"]*"' | head -1 | cut -d'"' -f2 || true)"
+          if [[ -z "$CASK_VER" ]]; then
+            note "first run" "no cask on origin/main; treated as the first release"
+          elif [[ -n "$TAG" ]]; then
+            SHORT="${TAG#v}"
+            verify_cask "$CASK_VER" || fail "existing cask $CASK_VER is stale"
+            if version_lt "$CASK_VER" "$SHORT"; then
+              note "ok" "tag $TAG is newer than cask $CASK_VER"
+            elif [[ "$CASK_VER" == "$SHORT" ]]; then
+              gh release view "$TAG" --json isPrerelease --jq .isPrerelease | grep -qx true || fail "release $TAG is not a published prerelease"
+              verify_cask "$CASK_VER" && note "already done" "release $TAG matches the cask" || fail "same version but assets do not match"
+            else
+              fail "tag $TAG is not newer than cask $CASK_VER"
+            fi
+          else
+            verify_cask "$CASK_VER" || note "advisory" "existing cask $CASK_VER is stale (advisory only)"
+          fi
+
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
+      - name: Cache SPM build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: ${{ runner.os }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
+      # The triple is pinned; CONTRIBUTING.md says why.
+      - name: Build
+        run: nix develop --command swift build --triple arm64-apple-macosx26.0
+      - name: Verify architecture
+        run: lipo -archs .build/debug/Lanterna | grep -qx arm64
+      - name: Test
+        run: nix develop --command swift test --triple arm64-apple-macosx26.0
+      - name: Check script syntax
+        run: |
+          bash -n scripts/package-app.sh
+          bash -n scripts/generate-version.sh
+          bash -n scripts/update-cask.sh
+          bash -n scripts/test.sh
+      - name: Package app
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: nix develop --command bash scripts/package-app.sh
+      - name: Record artifact hashes
+        id: package
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          SHORT="${TAG#v}"
+          DMG="build/Lanterna-${SHORT}.dmg"
+          SHA="$(shasum -a 256 "$DMG" | cut -d' ' -f1)"
+          echo "$SHA  $(basename "$DMG")" > "${DMG}.sha256"
+          echo "short=$SHORT" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
