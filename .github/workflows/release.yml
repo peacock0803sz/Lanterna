@@ -216,8 +216,9 @@ jobs:
             if git diff --cached --quiet; then echo "no changes; already in sync"; exit 0; fi
             git commit -m ":wrench: Update cask to ${SHORT} [skip ci]"
             if git push origin HEAD:main; then echo "cask pushed"; exit 0; fi
-            echo "push failed (attempt $attempt); rebasing and retrying"
-            git pull --rebase origin main || true
+            echo "push failed (attempt $attempt); resetting and retrying"
+            git rebase --abort 2>/dev/null || true
+            git reset --hard origin/main
           done
           echo "cask push failed after 3 attempts"
           exit 1
@@ -264,7 +265,8 @@ jobs:
             if git diff --cached --quiet; then echo "no changes; already in sync"; exit 0; fi
             git commit -m ":wrench: Update cask to ${SHORT} [skip ci]"
             if git push origin HEAD:main; then echo "cask recovered"; exit 0; fi
-            git pull --rebase origin main || true
+            git rebase --abort 2>/dev/null || true
+            git reset --hard origin/main
           done
           echo "cask recovery failed after 3 attempts"
           exit 1
