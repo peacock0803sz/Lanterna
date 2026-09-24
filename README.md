@@ -2,6 +2,15 @@
 
 A list-style window switcher for macOS.
 
+## Why Lanterna
+
+Compared with the system switcher and other switchers such as AltTab and Contexts:
+
+- List-first, no thumbnails: a Contexts-style list of app icon plus window title. No thumbnails means instant display with near-zero memory and no capture wait.
+- Only two permissions: Accessibility and Input Monitoring. No Screen Recording is needed because window titles are read through accessibility information, so onboarding stays simple with no weekly re-confirmation dialog.
+- Window-level switching in most-recently-used order, with type-to-filter search and shortcut hints.
+- Native feel: Apple Silicon only, Liquid Glass on Tahoe, menu-bar app with no Dock icon, and a floating panel kept in memory for a sub-30 ms show target.
+
 ## Requirements
 
 - macOS 26 (Tahoe) or later
