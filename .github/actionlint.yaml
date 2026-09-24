@@ -1,0 +1,9 @@
+# actionlint configuration.
+# https://github.com/rhysd/actionlint/blob/main/docs/config.md
+
+self-hosted-runner:
+  # xcode-27 is the preview label for the macOS 27 image, unknown to
+  # actionlint's built-in runner label list. Remove this once the workflows
+  # switch to macos-27 at GA.
+  labels:
+    - xcode-27

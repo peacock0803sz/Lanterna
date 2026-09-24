@@ -28,6 +28,22 @@ jobs:
       - name: Validate flake
         run: nix flake check --all-systems
 
+  workflow-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: reviewdog/action-actionlint@2085657ab2c7f48c58edcc767fba576f63bea76b # v1.77.0
+        with:
+          fail_level: error
+      - uses: reviewdog/action-shellcheck@0a90156c6e0553996a217f0a9e09be6b0f6bee4c # v1.34.0
+        with:
+          fail_level: error
+      - uses: suzuki-shunsuke/pinact-action@2a42f29b3397967439ed46e7650f3045f49699f9 # v3.0.1
+        with:
+          verify: "true"
+          fix: "false"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
   swift-build:
     needs: nix-validate
     strategy:
