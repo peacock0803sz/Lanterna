@@ -62,6 +62,11 @@ final class PanelPresenter {
     /// target is read off.
     private let switcher: any WindowSwitching
 
+    /// What commits and appearances consult for the order rows are drawn in.
+    /// Owned here so recording and sorting share one memory; the way out
+    /// borrows the recording end through the closure below.
+    let tracker: MRUTracker
+
     /// The looking that catches a release the tap never reported.
     ///
     /// `lazy` because every question it puts and the answer it gives back are
@@ -130,7 +135,8 @@ final class PanelPresenter {
         },
         commandWatchInterval: Duration = UnreportedReleaseWatch.defaultInterval,
         keyStatusWatchInterval: Duration = KeyStatusWatch.defaultInterval,
-        switcher: any WindowSwitching = LiveWindowSwitcher()
+        switcher: any WindowSwitching = LiveWindowSwitcher(),
+        tracker: MRUTracker = MRUTracker()
     ) {
         self.surface = surface
         selection = PanelSelection(surface: surface)
@@ -143,6 +149,7 @@ final class PanelPresenter {
         self.commandWatchInterval = commandWatchInterval
         self.keyStatusWatchInterval = keyStatusWatchInterval
         self.switcher = switcher
+        self.tracker = tracker
     }
 
     private func makeWayOut() -> PanelExit {
@@ -152,6 +159,10 @@ final class PanelPresenter {
             writeLine: writeLine,
             keyStatusWatchInterval: keyStatusWatchInterval,
             switcher: switcher,
+            recordCommit: { [weak self] id, pid in
+                self?.tracker.record(id, ownerProcessIdentifier: pid, origin: .commit)
+            },
+            noteSwitchReturned: { [weak self] in self?.tracker.noteSwitchReturned() },
             onPanelGone: { [weak self] in
                 self?.commandWatch.stop()
                 self?.selection.end()
@@ -275,36 +286,37 @@ final class PanelPresenter {
         startedAt: ContinuousClock.Instant,
         gatheredOnDemand: Bool
     ) {
-        // Three orderings below are load-bearing, and the statements they
+        // Four orderings below are load-bearing, and the statements they
         // hold apart are named one pair at a time rather than counted.
         //
-        // The cursor is made first, so that what the panel is told to draw is
-        // read off it. The first row was worked out twice over until now —
-        // once here and once inside the panel — and two derivations of one
-        // thing agreed only because nothing could move the choice. Passing
-        // `windows.first?.id` here instead would leave the second derivation
-        // standing beside the cursor, agreeing with it, until the day it did
-        // not.
+        // The list is ordered first, so everything this appearance shows,
+        // names, and measures reads off one value no later refresh can move.
         //
-        // Keys are asked for after the panel is up, because a window that is
-        // not on screen cannot become the key window, and before the reading
-        // is taken, because a press that put a panel up the keyboard never
-        // reached is a press that did not finish its work.
+        // The cursor is made next, so that what the panel is told to draw is
+        // read off it. A first row worked out here too would be a second
+        // derivation of one thing, agreeing with the cursor until the day
+        // it did not.
+        //
+        // Keys are asked for after the panel is up and before the reading:
+        // a window that is not on screen cannot become the key window, and
+        // a press the keyboard never reached did not finish its work.
         //
         // Handing the list to the way out is the one statement here whose
-        // position is free. It has to happen before the panel can go, and
-        // every route to that runs through a later turn.
-        selection.begin(windows.map(\.id))
-        surface.present(windows: windows, selecting: selection.chosenID)
+        // position is free: it has to happen before the panel can go.
+        tracker.noteSnapshotObserved(store.snapshot?.gatheredAt ?? now())
+        let ordered = tracker.ordered(windows, skipping: store.snapshot?.skippedOwners ?? [])
+        selection.beginSecond(ordered.map(\.id))
+        surface.present(windows: ordered, selecting: selection.chosenID)
         let becameKey = surface.takeKeys()
-        wayOut.nowShowing(windows, startedAt: startedAt)
+        wayOut.nowShowing(ordered, startedAt: startedAt)
         let measurement = HotkeyMeasurement(
             combination: combination,
             elapsed: now() - startedAt,
-            entryCount: windows.count,
+            entryCount: ordered.count,
             deliveryDelay: deliveryDelay,
             gatheredOnDemand: gatheredOnDemand,
-            becameKey: becameKey
+            becameKey: becameKey,
+            mru: MRUSummary(firstID: ordered.first?.id, source: tracker.newestSource)
         )
         writeLine(measurement.summaryLine)
 

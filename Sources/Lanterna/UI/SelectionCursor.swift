@@ -35,6 +35,17 @@ struct SelectionCursor: Equatable, Sendable {
         selectedID = ids.first
     }
 
+    /// Chooses the second row, leaving whatever `init` chose otherwise.
+    ///
+    /// The panel opens on the second row while the cursor's arithmetic still
+    /// opens on the first: choosing is the panel's business, stepping is the
+    /// cursor's, and the two meet in `PanelSelection` rather than here. A
+    /// list of one keeps its first row, and an empty list keeps nothing.
+    mutating func selectSecond() {
+        guard ids.count >= 2 else { return }
+        selectedID = ids[1]
+    }
+
     mutating func moveToNext() {
         move(by: 1)
     }

@@ -31,13 +31,28 @@ final class PanelSelection {
         cursor?.selectedID
     }
 
-    /// Opens the choice on the first row of a list that is about to go up.
+    /// Opens the choice on the second row of a list that is about to go up.
+    ///
+    /// The first row is the window already in front, so choosing it without
+    /// moving would take the user nowhere they are not. One row keeps its
+    /// first, and an empty list is a cursor with nothing to choose, as
+    /// before. With no records yet the order is the fixed one and the
+    /// second row may not be the previously used window; that is the
+    /// specified cold-start behaviour, corrected by the first activation
+    /// or commit. Determining the frontmost window here would cost an
+    /// accessibility read inside the show span, so it is deliberately
+    /// not done. The row is the same for forward and reverse openings:
+    /// reverse presses walk back from here. A stale first row from a
+    /// recorded switch that never landed still leaves this choice, which
+    /// no focus read here could tell apart.
     ///
     /// Tells the panel nothing, because there is no panel yet: the chosen row
     /// travels with the list in the call that puts one there, and a redraw
     /// before that would be a redraw of nothing.
-    func begin(_ ids: [WindowItem.Identifier]) {
-        cursor = SelectionCursor(ids: ids)
+    func beginSecond(_ ids: [WindowItem.Identifier]) {
+        var opened = SelectionCursor(ids: ids)
+        opened.selectSecond()
+        cursor = opened
     }
 
     /// Gives up the choice, which has no meaning once the panel is down.

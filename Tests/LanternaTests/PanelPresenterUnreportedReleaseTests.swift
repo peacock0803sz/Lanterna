@@ -49,13 +49,13 @@ struct PanelPresenterUnreportedReleaseTests {
         await fixture.commandHold.waitUntilAsked(times: 2)
         await settle()
 
-        let first = fixture.windows[0]
+        let second = fixture.windows[1]
         #expect(fixture.surface.dismissCount == 1)
         #expect(!fixture.surface.isPresented)
         #expect(
             fixture.log.lines.last
-                == "closed the panel showing \(first.appName) — \(first.displayTitle) "
-                + "(window \(first.id.windowID)); "
+                == "closed the panel showing \(second.appName) — \(second.displayTitle) "
+                + "(window \(second.id.windowID)); "
                 + "Command was let go and the tap never said so"
         )
     }
@@ -84,11 +84,11 @@ struct PanelPresenterUnreportedReleaseTests {
         await fixture.commandHold.waitUntilAsked(times: 2)
         await settle()
 
-        let third = fixture.windows[2]
+        let fourth = fixture.windows[3]
         #expect(
             fixture.log.lines.last
-                == "closed the panel showing \(third.appName) — \(third.displayTitle) "
-                + "(window \(third.id.windowID)); "
+                == "closed the panel showing \(fourth.appName) — \(fourth.displayTitle) "
+                + "(window \(fourth.id.windowID)); "
                 + "Command was let go and the tap never said so"
         )
     }

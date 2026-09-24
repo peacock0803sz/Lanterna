@@ -24,10 +24,10 @@ struct PanelPresenterTests {
     /// downstream of `present` would notice an appearance that named no row
     /// or named the wrong one — the panel goes up either way, the same size,
     /// with the same rows, and the line written about it says the same thing.
-    @Test func theFirstRowIsTheOneThePanelIsToldToDrawAsChosen() {
+    @Test func theSecondRowIsTheOneThePanelIsToldToDrawAsChosen() {
         let fixture = Fixture()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        #expect(fixture.surface.presentedSelections == [fixture.windows.first?.id])
+        #expect(fixture.surface.presentedSelections == [fixture.windows[1].id])
     }
 
     /// An empty list is the one input for which no row is the right answer,
@@ -54,7 +54,7 @@ struct PanelPresenterTests {
         #expect(fixture.surface.takeKeysCount == 1)
         #expect(
             fixture.surface.calls == [
-                .present(selecting: fixture.windows.first?.id),
+                .present(selecting: fixture.windows[1].id),
                 .takeKeys,
             ]
         )
@@ -72,7 +72,8 @@ struct PanelPresenterTests {
         #expect(
             fixture.log.lines == [
                 "panel shown 4.8 ms after Cmd+Tab (3 entries)"
-                    + "; not taking keys (they reach the frontmost application)",
+                    + "; not taking keys (they reach the frontmost application)"
+                    + "; mru first (window 1000000000) via none",
             ]
         )
     }
@@ -87,7 +88,7 @@ struct PanelPresenterTests {
         #expect(
             fixture.log.lines == [
                 "panel shown 4.8 ms after Cmd+Tab (12 entries); delivery 1.9 ms"
-                    + takingKeys,
+                    + takingKeys + "; mru first (window 1000000000) via none",
             ]
         )
     }
@@ -99,7 +100,8 @@ struct PanelPresenterTests {
         #expect(fixture.surface.presentedLists.first?.count == 3)
         #expect(
             fixture.log.lines == [
-                "panel shown 4.8 ms after Shift+Cmd+Tab (3 entries)" + takingKeys,
+                "panel shown 4.8 ms after Shift+Cmd+Tab (3 entries)" + takingKeys
+                    + "; mru first (window 1000000000) via none",
             ]
         )
     }
@@ -210,7 +212,8 @@ struct PanelPresenterWaitingForAListTests {
         #expect(fixture.surface.presentedLists.first?.count == 4)
         #expect(
             fixture.log.lines == [
-                "panel shown 4.8 ms after Cmd+Tab (4 entries)" + takingKeys,
+                "panel shown 4.8 ms after Cmd+Tab (4 entries)" + takingKeys
+                    + "; mru first (window 1000000000) via none",
             ]
         )
     }
@@ -233,7 +236,8 @@ struct PanelPresenterWaitingForAListTests {
         #expect(
             fixture.log.lines == [
                 "panel shown 4.8 ms after Cmd+Tab (4 entries)"
-                    + "; gathered on the spot (no list held yet)" + takingKeys,
+                    + "; gathered on the spot (no list held yet)" + takingKeys
+                    + "; mru first (window 1000000000) via none",
             ]
         )
     }
@@ -266,7 +270,8 @@ struct PanelPresenterWaitingForAListTests {
         #expect(
             fixture.log.lines == [
                 "panel shown 9.6 ms after Cmd+Tab (4 entries)"
-                    + "; gathered on the spot (no list held yet)" + takingKeys,
+                    + "; gathered on the spot (no list held yet)" + takingKeys
+                    + "; mru first (window 1000000000) via none",
             ]
         )
     }
@@ -328,7 +333,8 @@ struct PanelPresenterWaitingForAListTests {
         #expect(
             fixture.log.lines == [
                 "panel shown 4.8 ms after Cmd+Tab (4 entries)"
-                    + "; gathered on the spot (no list held yet)" + takingKeys,
+                    + "; gathered on the spot (no list held yet)" + takingKeys
+                    + "; mru first (window 1000000000) via none",
             ]
         )
     }
@@ -353,7 +359,8 @@ struct PanelPresenterWaitingForAListTests {
             fixture.log.lines == [
                 "called off the press waiting for its first list; "
                     + "the frontmost application changed",
-                "panel shown 4.8 ms after Cmd+Tab (4 entries)" + takingKeys,
+                "panel shown 4.8 ms after Cmd+Tab (4 entries)" + takingKeys
+                    + "; mru first (window 1000000000) via none",
             ]
         )
     }
@@ -382,7 +389,8 @@ struct PanelPresenterWaitingForAListTests {
                 "called off the press waiting for its first list; "
                     + "the frontmost application changed",
                 "panel shown 4.8 ms after Shift+Cmd+Tab (4 entries)"
-                    + "; gathered on the spot (no list held yet)" + takingKeys,
+                    + "; gathered on the spot (no list held yet)" + takingKeys
+                    + "; mru first (window 1000000000) via none",
             ]
         )
     }

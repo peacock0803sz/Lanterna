@@ -9,10 +9,13 @@ import Foundation
 /// disturbing what is on screen.
 struct WindowListSnapshot {
     /// An application whose read failed. Named in the diagnostics line so a
-    /// missing application is explained rather than silently absent.
+    /// missing application is explained rather than silently absent. The
+    /// owner travels along so the sweep can tell a skipped application from
+    /// a gone window: absence from a list that never looked is not absence.
     struct SkippedApplication {
         let name: String
         let reason: ReadFailure
+        let processIdentifier: pid_t
     }
 
     /// Grouped by application in process-identifier order, and within an
@@ -25,6 +28,19 @@ struct WindowListSnapshot {
     let gatheringDuration: Duration
     let skipped: [SkippedApplication]
     let droppedWithoutID: Int
+    /// When this pass started observing. The sweep spares records newer
+    /// than this: a snapshot that predates a use could not have observed it.
+    let gatheredAt: ContinuousClock.Instant
+
+    // When this pass finished assembling. The sweep spares records newer
+    // than this: a snapshot that predates a use could not have observed it.
+
+    /// The owners a pass failed to read. Records for these stay put when
+    /// sweeping: their rows are missing because the look missed, not
+    /// because the windows closed.
+    var skippedOwners: Set<pid_t> {
+        Set(skipped.map(\.processIdentifier))
+    }
 
     /// `assert` rather than `precondition`: a duplicated id is loud in debug
     /// builds and under test, but a doubled row must never take the panel
@@ -34,7 +50,8 @@ struct WindowListSnapshot {
         applicationCount: Int,
         gatheringDuration: Duration,
         skipped: [SkippedApplication],
-        droppedWithoutID: Int
+        droppedWithoutID: Int,
+        gatheredAt: ContinuousClock.Instant
     ) {
         assert(Set(items.map(\.id)).count == items.count, "window ids must be unique")
         self.items = items
@@ -42,6 +59,7 @@ struct WindowListSnapshot {
         self.gatheringDuration = gatheringDuration
         self.skipped = skipped
         self.droppedWithoutID = droppedWithoutID
+        self.gatheredAt = gatheredAt
     }
 
     /// The one line written after a pass. Counts, timings and skipped

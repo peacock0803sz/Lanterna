@@ -103,7 +103,11 @@ struct WindowEnumerator {
             switch result {
             case let .failure(reason):
                 skipped.append(
-                    WindowListSnapshot.SkippedApplication(name: application.name, reason: reason)
+                    WindowListSnapshot.SkippedApplication(
+                        name: application.name,
+                        reason: reason,
+                        processIdentifier: application.processIdentifier
+                    )
                 )
             case let .success(read):
                 droppedWithoutID += read.droppedWithoutID
@@ -120,7 +124,8 @@ struct WindowEnumerator {
             applicationCount: ordered.count,
             gatheringDuration: ContinuousClock.now - startedAt,
             skipped: skipped,
-            droppedWithoutID: droppedWithoutID
+            droppedWithoutID: droppedWithoutID,
+            gatheredAt: startedAt
         )
     }
 

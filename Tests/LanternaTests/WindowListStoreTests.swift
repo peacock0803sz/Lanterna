@@ -8,7 +8,8 @@ private func snapshot(count: Int) -> WindowListSnapshot {
         applicationCount: count,
         gatheringDuration: .milliseconds(12),
         skipped: [],
-        droppedWithoutID: 0
+        droppedWithoutID: 0,
+        gatheredAt: .now
     )
 }
 

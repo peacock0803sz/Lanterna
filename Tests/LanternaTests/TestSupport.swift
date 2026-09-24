@@ -309,7 +309,8 @@ final class HeldGather {
                 applicationCount: entryCount,
                 gatheringDuration: .milliseconds(12),
                 skipped: [],
-                droppedWithoutID: 0
+                droppedWithoutID: 0,
+                gatheredAt: .now
             )
         )
     }
