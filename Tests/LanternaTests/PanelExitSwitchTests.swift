@@ -31,7 +31,7 @@ struct PanelExitSwitchTests {
         fixture.presenter.handleCommandRelease()
 
         #expect(!fixture.surface.isPresented)
-        #expect(fixture.switcher.targets == [expectedTarget(of: fixture.windows[0])])
+        #expect(fixture.switcher.targets == [expectedTarget(of: fixture.windows[1])])
         #expect(fixture.log.lines.filter { $0.hasPrefix("committed ") }.count == 1)
     }
 
@@ -47,7 +47,7 @@ struct PanelExitSwitchTests {
         ))
 
         #expect(!fixture.surface.isPresented)
-        #expect(fixture.switcher.targets == [expectedTarget(of: fixture.windows[0])])
+        #expect(fixture.switcher.targets == [expectedTarget(of: fixture.windows[1])])
         #expect(fixture.log.lines.last?.contains("after Return") == true)
     }
 
@@ -111,7 +111,7 @@ struct PanelExitSwitchTests {
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
         fixture.presenter.handleCommandRelease()
 
-        let row = fixture.windows[0]
+        let row = fixture.windows[1]
         let lines = fixture.log.lines
         #expect(lines.count == 3)
         #expect(
@@ -133,7 +133,7 @@ struct PanelExitSwitchTests {
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
         fixture.presenter.handleCommandRelease()
 
-        let row = fixture.windows[0]
+        let row = fixture.windows[1]
         let lines = fixture.log.lines
         #expect(lines.count == 3)
         #expect(lines[1].hasPrefix("committed "))
@@ -152,7 +152,7 @@ struct PanelExitSwitchTests {
             keyCode: UInt16(kVK_Return), modifiers: .command, isARepeat: false
         ))
 
-        let row = fixture.windows[0]
+        let row = fixture.windows[1]
         let lines = fixture.log.lines
         #expect(lines.count == 3)
         #expect(

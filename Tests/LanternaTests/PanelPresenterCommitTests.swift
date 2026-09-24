@@ -26,11 +26,11 @@ struct PanelPresenterCommitTests {
         #expect(fixture.surface.dismissCount == 1)
         #expect(!fixture.surface.isPresented)
 
-        let first = fixture.windows[0]
+        let second = fixture.windows[1]
         #expect(
             fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
-                == "committed \(first.appName) — \(first.displayTitle) "
-                + "(window \(first.id.windowID)) 4.8 ms after Command was released"
+                == "committed \(second.appName) — \(second.displayTitle) "
+                + "(window \(second.id.windowID)) 4.8 ms after Command was released"
         )
     }
 
@@ -65,11 +65,11 @@ struct PanelPresenterCommitTests {
 
         fixture.presenter.handleCommandRelease()
 
-        let first = fixture.windows[0]
+        let second = fixture.windows[1]
         #expect(
             fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
-                == "committed \(first.appName) — \(first.displayTitle) "
-                + "(window \(first.id.windowID)) 9.6 ms after Command was released"
+                == "committed \(second.appName) — \(second.displayTitle) "
+                + "(window \(second.id.windowID)) 9.6 ms after Command was released"
         )
     }
 

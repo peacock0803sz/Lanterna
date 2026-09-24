@@ -305,7 +305,7 @@ final class PanelPresenter {
         // Handing the list to the way out is the one statement here whose
         // position is free: it has to happen before the panel can go.
         let ordered = tracker.ordered(windows)
-        selection.begin(ordered.map(\.id))
+        selection.beginSecond(ordered.map(\.id))
         surface.present(windows: ordered, selecting: selection.chosenID)
         let becameKey = surface.takeKeys()
         wayOut.nowShowing(ordered, startedAt: startedAt)

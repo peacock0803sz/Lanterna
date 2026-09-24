@@ -29,10 +29,14 @@ struct PanelSelectionTests {
         Fixture(entryCount: entryCount, closesOnCommandRelease: true)
     }
 
-    @Test func aPanelOpensOnItsFirstRow() {
+    /// The panel opens on the second row: the first is the window already in
+    /// front, and taking it without moving would go nowhere the user is not
+    /// already. A panel that opened on the first row would spend every plain
+    /// press showing the user where they are.
+    @Test func aPanelOpensOnItsSecondRow() {
         let fixture = runningWithAMonitor()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        #expect(fixture.surface.presentedSelections == [fixture.windows.first?.id])
+        #expect(fixture.surface.presentedSelections == [fixture.windows[1].id])
         #expect(fixture.surface.shownSelections.isEmpty)
     }
 
@@ -53,7 +57,7 @@ struct PanelSelectionTests {
         for _ in 0 ..< presses {
             #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .absorbed)
         }
-        #expect(fixture.surface.shownSelections.last == fixture.windows[presses].id)
+        #expect(fixture.surface.shownSelections.last == fixture.windows[presses + 1].id)
         #expect(fixture.surface.shownSelections.count == presses)
     }
 
@@ -73,9 +77,15 @@ struct PanelSelectionTests {
 
     /// The up arrow is not a second implementation of the down arrow, and a
     /// presenter that wired both to the same step would pass every case above.
-    @Test func theUpArrowGoesBackAndWrapsOntoTheLastRow() {
+    /// The up arrow steps back from the second row onto the first, and a
+    /// second step wraps onto the last row. The wrap still belongs here:
+    /// the cursor's own suite settles the arithmetic, and this settles that
+    /// the presses arrive.
+    @Test func theUpArrowFromTheSecondRowGoesBackToTheFirst() {
         let fixture = runningWithAMonitor(entryCount: 5)
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(fixture.presenter.handleKeyStroke(press(kVK_UpArrow)) == .absorbed)
+        #expect(fixture.surface.shownSelections.last == fixture.windows[0].id)
         #expect(fixture.presenter.handleKeyStroke(press(kVK_UpArrow)) == .absorbed)
         #expect(fixture.surface.shownSelections.last == fixture.windows[4].id)
     }
@@ -105,12 +115,12 @@ struct PanelSelectionTests {
         _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
         fixture.presenter.handleCommandRelease()
 
-        let third = fixture.windows[2]
-        #expect(fixture.surface.shownSelections.last == third.id)
+        let fourth = fixture.windows[3]
+        #expect(fixture.surface.shownSelections.last == fourth.id)
         #expect(
             fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
-                == "committed \(third.appName) — \(third.displayTitle) "
-                + "(window \(third.id.windowID)) 4.8 ms after Command was released"
+                == "committed \(fourth.appName) — \(fourth.displayTitle) "
+                + "(window \(fourth.id.windowID)) 4.8 ms after Command was released"
         )
     }
 
@@ -127,6 +137,7 @@ struct PanelSelectionTests {
         #expect(first.id != last.id)
 
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        _ = fixture.presenter.handleKeyStroke(press(kVK_UpArrow))
         _ = fixture.presenter.handleKeyStroke(press(kVK_UpArrow))
         fixture.presenter.handleCommandRelease()
 
@@ -197,7 +208,7 @@ struct PanelSelectionTests {
 
         #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .absorbed)
 
-        #expect(fixture.surface.shownSelections.last == fixture.windows[1].id)
+        #expect(fixture.surface.shownSelections.last == fixture.windows[2].id)
         #expect(fixture.surface.presentedLists.count == 1)
         #expect(fixture.surface.isPresented)
     }
@@ -242,7 +253,7 @@ struct RepeatedPressStateTests {
 
         #expect(fixture.surface.isPresented)
         #expect(fixture.surface.dismissCount == 0)
-        #expect(fixture.surface.shownSelections == [fixture.windows[1].id])
+        #expect(fixture.surface.shownSelections == [fixture.windows[2].id])
     }
 
     /// The reversed combination walks the other way, which is the whole of
@@ -252,7 +263,7 @@ struct RepeatedPressStateTests {
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
         fixture.presenter.handleHotkey(.reverse, deliveryDelay: nil)
 
-        #expect(fixture.surface.shownSelections == [fixture.windows[4].id])
+        #expect(fixture.surface.shownSelections == [fixture.windows[0].id])
     }
 
     /// No monitor ever started, so no release is being listened for and the

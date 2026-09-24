@@ -24,10 +24,10 @@ struct PanelPresenterTests {
     /// downstream of `present` would notice an appearance that named no row
     /// or named the wrong one — the panel goes up either way, the same size,
     /// with the same rows, and the line written about it says the same thing.
-    @Test func theFirstRowIsTheOneThePanelIsToldToDrawAsChosen() {
+    @Test func theSecondRowIsTheOneThePanelIsToldToDrawAsChosen() {
         let fixture = Fixture()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        #expect(fixture.surface.presentedSelections == [fixture.windows.first?.id])
+        #expect(fixture.surface.presentedSelections == [fixture.windows[1].id])
     }
 
     /// An empty list is the one input for which no row is the right answer,
@@ -54,7 +54,7 @@ struct PanelPresenterTests {
         #expect(fixture.surface.takeKeysCount == 1)
         #expect(
             fixture.surface.calls == [
-                .present(selecting: fixture.windows.first?.id),
+                .present(selecting: fixture.windows[1].id),
                 .takeKeys,
             ]
         )

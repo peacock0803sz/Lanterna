@@ -245,11 +245,11 @@ struct PanelExitTests {
 
         #expect(!fixture.surface.isPresented)
         #expect(fixture.surface.dismissCount == 1)
-        let second = fixture.windows[1]
+        let third = fixture.windows[2]
         #expect(
             fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
-                == "committed \(second.appName) — \(second.displayTitle) "
-                + "(window \(second.id.windowID)) 4.8 ms after Return"
+                == "committed \(third.appName) — \(third.displayTitle) "
+                + "(window \(third.id.windowID)) 4.8 ms after Return"
         )
         #expect(fixture.log.lines.filter { $0.hasPrefix("cancelled ") }.isEmpty)
     }
@@ -378,7 +378,7 @@ struct PanelExitTests {
     /// the one beside it in `dismissPanel` is kept, and its own comment says
     /// so: nothing reads the choice while the panel is down, so no sequence
     /// of calls can tell whether it was cleared.
-    @Test func thePanelAfterACancellationOpensOnItsOwnFirstRowAgain() {
+    @Test func thePanelAfterACancellationOpensOnItsOwnSecondRowAgain() {
         let fixture = runningWithAMonitor()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
         _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
@@ -388,6 +388,6 @@ struct PanelExitTests {
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
 
         #expect(fixture.surface.presentedSelections.count == 2)
-        #expect(fixture.surface.presentedSelections.last == fixture.windows.first?.id)
+        #expect(fixture.surface.presentedSelections.last == fixture.windows[1].id)
     }
 }
