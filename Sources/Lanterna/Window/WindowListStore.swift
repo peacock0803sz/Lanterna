@@ -67,7 +67,8 @@ final class WindowListStore {
             applicationCount: Set(items.map(\.appName)).count,
             gatheringDuration: .zero,
             skipped: [],
-            droppedWithoutID: 0
+            droppedWithoutID: 0,
+            gatheredAt: .now
         )
         snapshot = fixed
         gather = { fixed }

@@ -31,7 +31,8 @@ struct WindowListSnapshotTests {
             applicationCount: applicationCount,
             gatheringDuration: duration,
             skipped: skipped,
-            droppedWithoutID: droppedWithoutID
+            droppedWithoutID: droppedWithoutID,
+            gatheredAt: .now
         )
     }
 

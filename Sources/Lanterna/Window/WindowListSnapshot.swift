@@ -28,6 +28,10 @@ struct WindowListSnapshot {
     let gatheringDuration: Duration
     let skipped: [SkippedApplication]
     let droppedWithoutID: Int
+    let gatheredAt: ContinuousClock.Instant
+
+    // When this pass finished assembling. The sweep spares records newer
+    // than this: a snapshot that predates a use could not have observed it.
 
     /// The owners a pass failed to read. Records for these stay put when
     /// sweeping: their rows are missing because the look missed, not
@@ -44,7 +48,8 @@ struct WindowListSnapshot {
         applicationCount: Int,
         gatheringDuration: Duration,
         skipped: [SkippedApplication],
-        droppedWithoutID: Int
+        droppedWithoutID: Int,
+        gatheredAt: ContinuousClock.Instant
     ) {
         assert(Set(items.map(\.id)).count == items.count, "window ids must be unique")
         self.items = items
@@ -52,6 +57,7 @@ struct WindowListSnapshot {
         self.gatheringDuration = gatheringDuration
         self.skipped = skipped
         self.droppedWithoutID = droppedWithoutID
+        self.gatheredAt = gatheredAt
     }
 
     /// The one line written after a pass. Counts, timings and skipped

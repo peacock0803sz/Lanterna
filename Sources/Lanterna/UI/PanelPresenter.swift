@@ -303,6 +303,7 @@ final class PanelPresenter {
         //
         // Handing the list to the way out is the one statement here whose
         // position is free: it has to happen before the panel can go.
+        tracker.noteSnapshotObserved(store.snapshot?.gatheredAt ?? now())
         let ordered = tracker.ordered(windows, skipping: store.snapshot?.skippedOwners ?? [])
         selection.beginSecond(ordered.map(\.id))
         surface.present(windows: ordered, selecting: selection.chosenID)

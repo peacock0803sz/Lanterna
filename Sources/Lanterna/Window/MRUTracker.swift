@@ -72,12 +72,17 @@ final class MRUTracker {
 
     private var records: [MRUKey: UsageRecord] = [:]
     private var nextSequence: UInt64 = 0
+    /// What the last swept appearance knew. A record newer than this
+    /// predates no snapshot it was swept against: the look finished before
+    /// the use happened, so absence proves nothing. Starts where no look
+    /// has ever finished, which sweeps like before.
     /// The application the last commit took, and whether its switch has
     /// returned. A notice for the same application is the commit's own
     /// activation coming back — but only once the switch it belongs to has
     /// run its course; until then the entry only says a commit happened.
     private var lastCommit: (owner: pid_t, switchedAt: ContinuousClock.Instant?)?
     private let now: @MainActor () -> ContinuousClock.Instant
+    private var lastSweptAsOf: ContinuousClock.Instant?
 
     init(now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now }) {
         self.now = now
@@ -140,6 +145,17 @@ final class MRUTracker {
         }
         lastCommit = nil
         return false
+    }
+
+    /// Notes what the coming sweep may assume known.
+    ///
+    /// Called with the held snapshot's gathering time before every sweep,
+    /// so the sweep below can tell a use the look predates from a window
+    /// the look should have seen. Until the first note the sweep behaves
+    /// like before, so callers that never observe a snapshot keep the old
+    /// semantics.
+    func noteSnapshotObserved(_ gatheredAt: ContinuousClock.Instant) {
+        lastSweptAsOf = gatheredAt
     }
 
     /// The given rows newest first, sweeping records for rows that are gone.
@@ -209,6 +225,7 @@ final class MRUTracker {
         records = records.filter { entry in
             live.contains(entry.key)
                 || skippedOwners.contains(entry.key.ownerProcessIdentifier)
+                || lastSweptAsOf.map { entry.value.recordedAt > $0 } ?? false
                 || sweptAt - entry.value.recordedAt < Self.sweepGracePeriod
         }
     }
