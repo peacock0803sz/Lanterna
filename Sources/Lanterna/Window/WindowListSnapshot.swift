@@ -28,6 +28,8 @@ struct WindowListSnapshot {
     let gatheringDuration: Duration
     let skipped: [SkippedApplication]
     let droppedWithoutID: Int
+    /// When this pass started observing. The sweep spares records newer
+    /// than this: a snapshot that predates a use could not have observed it.
     let gatheredAt: ContinuousClock.Instant
 
     // When this pass finished assembling. The sweep spares records newer

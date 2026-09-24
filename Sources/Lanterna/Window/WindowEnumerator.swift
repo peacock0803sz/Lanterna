@@ -125,7 +125,7 @@ struct WindowEnumerator {
             gatheringDuration: ContinuousClock.now - startedAt,
             skipped: skipped,
             droppedWithoutID: droppedWithoutID,
-            gatheredAt: ContinuousClock.now
+            gatheredAt: startedAt
         )
     }
 

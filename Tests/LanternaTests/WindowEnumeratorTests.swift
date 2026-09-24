@@ -315,6 +315,18 @@ struct WindowEnumeratorTests {
         let icon = NSImage()
         #expect(RunningApplicationInfo.resolvedIcon(icon) === icon)
     }
+
+    /// The snapshot is stamped when the pass starts observing, not when it
+    /// finishes assembling: a use that happens mid-pass postdates the reads
+    /// that already ran, and the sweep must spare it.
+    @Test func theSnapshotCarriesThePassStartTime() {
+        let startedAt = ContinuousClock.now
+        let snapshot = WindowEnumerator(reader: FakeReader([:])).enumerate(
+            applications: [],
+            startedAt: startedAt
+        )
+        #expect(snapshot.gatheredAt == startedAt)
+    }
 }
 
 /// Counts the reads that ran on the main thread. A `Mutex` because the reads
