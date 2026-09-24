@@ -26,7 +26,6 @@ env:
 concurrency:
   group: release
   cancel-in-progress: false
-  queue: max
   # Keep queued runs instead of replacing them so every tag is processed.
 
 defaults:
@@ -172,6 +171,8 @@ jobs:
           gh release download "$TAG" --pattern "Lanterna-${SHORT}.dmg*" --dir "$dir"
           GOT="$(shasum -a 256 "$dir/Lanterna-${SHORT}.dmg" | cut -d' ' -f1)"
           SIDECAR="$(cut -d' ' -f1 "$dir/Lanterna-${SHORT}.dmg.sha256")"
+          # GOT must match both BUILT and SIDECAR; fail when either differs.
+          # shellcheck disable=SC2055
           if [[ "$GOT" != "$BUILT" || "$GOT" != "$SIDECAR" ]]; then
             echo "draft assets do not match; deleting the draft"
             gh release delete "$TAG" --yes
@@ -207,7 +208,6 @@ jobs:
       - name: Push cask to main
         if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"
           SHORT="${{ steps.package.outputs.short }}"
           SHA="${{ steps.package.outputs.sha }}"
           git config user.name "github-actions[bot]"
