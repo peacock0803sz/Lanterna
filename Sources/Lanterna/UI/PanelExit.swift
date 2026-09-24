@@ -96,6 +96,11 @@ final class PanelExit {
     /// at the next show, and the unresponsive case keeps its row on purpose.
     private let recordCommit: @MainActor (WindowItem.Identifier, pid_t) -> Void
 
+    /// Marks the switch belonging to a commit as returned, so the commit's
+    /// own activation notice — which cannot arrive before the synchronous
+    /// switch lets go of the turn — is told apart from a genuine later move.
+    private let noteSwitchReturned: @MainActor () -> Void
+
     /// The list the panel is showing, kept so a line can name a row of it.
     ///
     /// The list and not a row read off it. Which row is chosen moves while
@@ -127,6 +132,7 @@ final class PanelExit {
         keyStatusWatchInterval: Duration = KeyStatusWatch.defaultInterval,
         switcher: any WindowSwitching = LiveWindowSwitcher(),
         recordCommit: @escaping @MainActor (WindowItem.Identifier, pid_t) -> Void,
+        noteSwitchReturned: @escaping @MainActor () -> Void,
         onPanelGone: @escaping @MainActor () -> Void
     ) {
         self.surface = surface
@@ -135,6 +141,7 @@ final class PanelExit {
         self.keyStatusWatchInterval = keyStatusWatchInterval
         self.switcher = switcher
         self.recordCommit = recordCommit
+        self.noteSwitchReturned = noteSwitchReturned
         self.onPanelGone = onPanelGone
     }
 
@@ -184,6 +191,7 @@ final class PanelExit {
             // together, with nothing between the two.
             recordCommit(take.id, take.ownerProcessIdentifier)
             let outcome = switcher.switchTo(take)
+            noteSwitchReturned()
             recordCommitPair(take, outcome, by: .commandRelease, elapsed: elapsed)
         case .none:
             record(.nothingToCommit, by: .commandRelease, elapsed: elapsed)
@@ -229,6 +237,7 @@ final class PanelExit {
             // The pair, as above: the take first, then both lines together.
             recordCommit(take.id, take.ownerProcessIdentifier)
             let outcome = switcher.switchTo(take)
+            noteSwitchReturned()
             recordCommitPair(take, outcome, by: .commitKey(key), elapsed: elapsed)
         case .none:
             record(.nothingToCommit, by: .commitKey(key), elapsed: elapsed)

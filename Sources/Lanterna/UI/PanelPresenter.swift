@@ -63,10 +63,8 @@ final class PanelPresenter {
     private let switcher: any WindowSwitching
 
     /// What commits and appearances consult for the order rows are drawn in.
-    ///
-    /// Owned here rather than in the way out: recording a commit and sorting
-    /// an appearance are two ends of one memory, and the way out only borrows
-    /// the recording end through the closure below.
+    /// Owned here so recording and sorting share one memory; the way out
+    /// borrows the recording end through the closure below.
     let tracker: MRUTracker
 
     /// The looking that catches a release the tap never reported.
@@ -164,6 +162,7 @@ final class PanelPresenter {
             recordCommit: { [weak self] id, pid in
                 self?.tracker.record(id, ownerProcessIdentifier: pid, origin: .commit)
             },
+            noteSwitchReturned: { [weak self] in self?.tracker.noteSwitchReturned() },
             onPanelGone: { [weak self] in
                 self?.commandWatch.stop()
                 self?.selection.end()
@@ -304,7 +303,7 @@ final class PanelPresenter {
         //
         // Handing the list to the way out is the one statement here whose
         // position is free: it has to happen before the panel can go.
-        let ordered = tracker.ordered(windows)
+        let ordered = tracker.ordered(windows, skipping: store.snapshot?.skippedOwners ?? [])
         selection.beginSecond(ordered.map(\.id))
         surface.present(windows: ordered, selecting: selection.chosenID)
         let becameKey = surface.takeKeys()

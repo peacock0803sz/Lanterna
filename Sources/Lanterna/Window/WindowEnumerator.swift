@@ -103,7 +103,11 @@ struct WindowEnumerator {
             switch result {
             case let .failure(reason):
                 skipped.append(
-                    WindowListSnapshot.SkippedApplication(name: application.name, reason: reason)
+                    WindowListSnapshot.SkippedApplication(
+                        name: application.name,
+                        reason: reason,
+                        processIdentifier: application.processIdentifier
+                    )
                 )
             case let .success(read):
                 droppedWithoutID += read.droppedWithoutID

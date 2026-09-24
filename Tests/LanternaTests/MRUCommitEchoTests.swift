@@ -35,6 +35,7 @@ struct MRUCommitEchoTests {
             target.id, ownerProcessIdentifier: target.ownerProcessIdentifier,
             origin: .commit
         )
+        tracker.noteSwitchReturned()
         recordExternalActivation(
             of: 101, excluding: 999,
             reading: FakeEchoReader(windowID: 2), into: tracker
@@ -52,6 +53,7 @@ struct MRUCommitEchoTests {
             target.id, ownerProcessIdentifier: target.ownerProcessIdentifier,
             origin: .commit
         )
+        tracker.noteSwitchReturned()
         recordExternalActivation(
             of: 101, excluding: 999,
             reading: FakeEchoReader(windowID: 9), into: tracker
@@ -74,6 +76,7 @@ struct MRUCommitEchoTests {
             target.id, ownerProcessIdentifier: target.ownerProcessIdentifier,
             origin: .commit
         )
+        tracker.noteSwitchReturned()
         recordExternalActivation(
             of: 102, excluding: 999,
             reading: FakeEchoReader(windowID: 2), into: tracker
@@ -106,6 +109,7 @@ struct MRUGenuineReturnTests {
             home.id, ownerProcessIdentifier: home.ownerProcessIdentifier,
             origin: .commit
         )
+        tracker.noteSwitchReturned()
         recordExternalActivation(
             of: 102, excluding: 999,
             reading: FakeReturnReader(windowID: 2), into: tracker
@@ -119,6 +123,39 @@ struct MRUGenuineReturnTests {
     }
 
     private struct FakeReturnReader: FocusedWindowReading {
+        var windowID: CGWindowID?
+        func focusedWindowID(of _: pid_t) -> CGWindowID? {
+            windowID
+        }
+    }
+}
+
+/// A slow switch does not spend the echo window.
+///
+/// The window starts when the switch returns, not when the commit ran: a
+/// notice handled before that could not be the commit's own, because
+/// handling anything at all means the switch is no longer holding the turn.
+@MainActor
+struct MRUSlowSwitchTests {
+    @Test func windowStartsAtSwitchReturn() {
+        let clock = SteppingClock(step: .milliseconds(100))
+        let tracker = MRUTracker(now: clock.read)
+        let target = echoRow(windowID: 1, owner: 101)
+        tracker.record(
+            target.id, ownerProcessIdentifier: target.ownerProcessIdentifier,
+            origin: .commit
+        )
+        for _ in 0 ..< 20 {
+            tracker.noteSwitchReturned()
+        }
+        recordExternalActivation(
+            of: 101, excluding: 999,
+            reading: FakeSlowReader(windowID: 2), into: tracker
+        )
+        #expect(tracker.newestSource == .commit)
+    }
+
+    private struct FakeSlowReader: FocusedWindowReading {
         var windowID: CGWindowID?
         func focusedWindowID(of _: pid_t) -> CGWindowID? {
             windowID

@@ -59,10 +59,12 @@ struct WindowListSnapshotTests {
     /// from a bug.
     @Test func summaryNamesEverySkippedApplicationAndWhy() {
         let line = snapshot(skipped: [
-            WindowListSnapshot.SkippedApplication(name: "TextEdit", reason: .timedOut),
-            WindowListSnapshot.SkippedApplication(name: "Foo", reason: .permissionMissing),
-            WindowListSnapshot.SkippedApplication(name: "Bar", reason: .unavailable(.invalidUIElement)),
-            WindowListSnapshot.SkippedApplication(name: "Baz", reason: .malformedAnswer),
+            WindowListSnapshot.SkippedApplication(name: "TextEdit", reason: .timedOut, processIdentifier: 101),
+            WindowListSnapshot.SkippedApplication(name: "Foo", reason: .permissionMissing, processIdentifier: 102),
+            WindowListSnapshot.SkippedApplication(
+                name: "Bar", reason: .unavailable(.invalidUIElement), processIdentifier: 103
+            ),
+            WindowListSnapshot.SkippedApplication(name: "Baz", reason: .malformedAnswer, processIdentifier: 104),
         ]).summaryLine
         #expect(line.hasSuffix(
             "; skipped TextEdit (timed out), Foo (permission missing), "
@@ -77,7 +79,13 @@ struct WindowListSnapshotTests {
 
     @Test func skippedApplicationsComeBeforeDroppedElements() {
         let line = snapshot(
-            skipped: [WindowListSnapshot.SkippedApplication(name: "TextEdit", reason: .timedOut)],
+            skipped: [
+                WindowListSnapshot.SkippedApplication(
+                    name: "TextEdit",
+                    reason: .timedOut,
+                    processIdentifier: 101
+                ),
+            ],
             droppedWithoutID: 1
         ).summaryLine
         #expect(line == "listed 9 windows from 11 applications in 71.2 ms"
@@ -88,7 +96,13 @@ struct WindowListSnapshotTests {
     /// A title never reaches the log, whatever went wrong.
     @Test func summaryNeverCarriesAWindowTitle() {
         let line = snapshot(
-            skipped: [WindowListSnapshot.SkippedApplication(name: "TextEdit", reason: .timedOut)],
+            skipped: [
+                WindowListSnapshot.SkippedApplication(
+                    name: "TextEdit",
+                    reason: .timedOut,
+                    processIdentifier: 101
+                ),
+            ],
             droppedWithoutID: 1
         ).summaryLine
         #expect(!line.contains("Downloads"))

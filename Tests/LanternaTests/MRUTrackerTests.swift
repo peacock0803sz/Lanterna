@@ -363,3 +363,25 @@ struct MRUEdgeTests {
         #expect(fixture.presenter.tracker.newestSource == .none)
     }
 }
+
+/// Records owned by skipped applications survive the sweep.
+///
+/// A refresh that times an application out drops its rows from the held
+/// list, but absence from a list that never looked is not absence. Only a
+/// complete look sweeps them.
+@MainActor
+struct MRUSkippedApplicationTests {
+    @Test func skippedOwnersKeepTheirRecords() {
+        let clock = SteppingClock(step: .seconds(4))
+        let tracker = MRUTracker(now: clock.read)
+        let kept = row(windowID: 1, owner: 101)
+        let listed = row(windowID: 2, owner: 102)
+        tracker.record(
+            kept.id, ownerProcessIdentifier: kept.ownerProcessIdentifier,
+            origin: .external
+        )
+        #expect(tracker.ordered([listed], skipping: [101]).map(\.id) == [listed.id])
+        #expect(tracker.newestSource == .external)
+        #expect(tracker.ordered([kept, listed]).map(\.id) == [kept.id, listed.id])
+    }
+}

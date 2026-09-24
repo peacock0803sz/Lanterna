@@ -72,11 +72,11 @@ final class MRUTracker {
 
     private var records: [MRUKey: UsageRecord] = [:]
     private var nextSequence: UInt64 = 0
-    /// The application the last commit took, and when. A notice for the same
-    /// application inside the echo window is the commit's own activation
-    /// coming back, naming whichever window happened to be in front while
-    /// the raise was still travelling — never newer information.
-    private var lastCommit: (owner: pid_t, at: ContinuousClock.Instant)?
+    /// The application the last commit took, and whether its switch has
+    /// returned. A notice for the same application is the commit's own
+    /// activation coming back — but only once the switch it belongs to has
+    /// run its course; until then the entry only says a commit happened.
+    private var lastCommit: (owner: pid_t, switchedAt: ContinuousClock.Instant?)?
     private let now: @MainActor () -> ContinuousClock.Instant
 
     init(now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now }) {
@@ -101,8 +101,19 @@ final class MRUTracker {
         )
         nextSequence += 1
         if origin == .commit {
-            lastCommit = (ownerProcessIdentifier, now())
+            lastCommit = (ownerProcessIdentifier, nil)
         }
+    }
+
+    /// Marks the switch belonging to the last commit as returned.
+    ///
+    /// Called on every path out of the switch, success or failure: what
+    /// matters is that the synchronous wait is over, not how it ended. Only
+    /// from here does the echo window mean anything — a notice handled
+    /// before this ran could not be the commit's own, because handling
+    /// anything at all means the switch is no longer holding the turn.
+    func noteSwitchReturned() {
+        lastCommit?.switchedAt = now()
     }
 
     // Whether an outside activation of an application is worth writing down.
@@ -121,7 +132,9 @@ final class MRUTracker {
             lastCommit = nil
             return true
         }
-        if now() - pending.at >= Self.echoWindow {
+        guard let switchedAt = pending.switchedAt,
+              now() - switchedAt < Self.echoWindow
+        else {
             lastCommit = nil
             return true
         }
@@ -134,9 +147,11 @@ final class MRUTracker {
     /// Sweeping happens here and nowhere else: once per appearance, against
     /// the snapshot that appearance was given. Rows with no record keep the
     /// input order behind every recorded row; the input arrives in the
-    /// store's fixed order, so that is the fixed order kept.
-    func ordered(_ items: [WindowItem]) -> [WindowItem] {
-        prune(to: items)
+    /// store's fixed order, so that is the fixed order kept. Records owned
+    /// by skipped applications stay put whatever their age: their rows are
+    /// missing because the look missed, not because the windows closed.
+    func ordered(_ items: [WindowItem], skipping skippedOwners: Set<pid_t> = []) -> [WindowItem] {
+        prune(to: items, sparing: skippedOwners)
         var recorded: [(item: WindowItem, sequence: UInt64)] = []
         var unrecorded: [WindowItem] = []
         for item in items {
@@ -176,8 +191,10 @@ final class MRUTracker {
     /// The list and not the panel: what counts as gone is decided against the
     /// snapshot one appearance was given, so a record written while that
     /// appearance is up is never swept by it — the next appearance sweeps
-    /// against its own, newer snapshot.
-    private func prune(to items: [WindowItem]) {
+    /// against its own, newer snapshot. Two stays of execution: records
+    /// owned by skipped applications, and records younger than the sweep
+    /// grace period, which may postdate a stale snapshot.
+    private func prune(to items: [WindowItem], sparing skippedOwners: Set<pid_t>) {
         let sweptAt = now()
         var live = Set<MRUKey>()
         live.reserveCapacity(items.count)
@@ -191,6 +208,7 @@ final class MRUTracker {
         }
         records = records.filter { entry in
             live.contains(entry.key)
+                || skippedOwners.contains(entry.key.ownerProcessIdentifier)
                 || sweptAt - entry.value.recordedAt < Self.sweepGracePeriod
         }
     }

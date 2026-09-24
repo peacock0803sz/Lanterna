@@ -9,10 +9,13 @@ import Foundation
 /// disturbing what is on screen.
 struct WindowListSnapshot {
     /// An application whose read failed. Named in the diagnostics line so a
-    /// missing application is explained rather than silently absent.
+    /// missing application is explained rather than silently absent. The
+    /// owner travels along so the sweep can tell a skipped application from
+    /// a gone window: absence from a list that never looked is not absence.
     struct SkippedApplication {
         let name: String
         let reason: ReadFailure
+        let processIdentifier: pid_t
     }
 
     /// Grouped by application in process-identifier order, and within an
@@ -25,6 +28,13 @@ struct WindowListSnapshot {
     let gatheringDuration: Duration
     let skipped: [SkippedApplication]
     let droppedWithoutID: Int
+
+    /// The owners a pass failed to read. Records for these stay put when
+    /// sweeping: their rows are missing because the look missed, not
+    /// because the windows closed.
+    var skippedOwners: Set<pid_t> {
+        Set(skipped.map(\.processIdentifier))
+    }
 
     /// `assert` rather than `precondition`: a duplicated id is loud in debug
     /// builds and under test, but a doubled row must never take the panel
