@@ -40,9 +40,10 @@ This provides `actionlint`, `pinact`, `shellcheck`, `swiftformat`, `swiftlint`, 
 The target architecture is pinned rather than left to the host, so the triple is given on every build: the architecture is a property of the product, not of whichever machine happens to build it. `scripts/test.sh` passes it for you, along with the search paths Swift Testing needs when only the Command Line Tools are installed.
 
 ```bash
+bash scripts/generate-version.sh --dev   # stamp whose checkout this build names
 swift build --triple arm64-apple-macosx26.0
 lipo -archs .build/debug/Lanterna   # must print arm64 and nothing else
-bash scripts/test.sh
+bash scripts/test.sh   # stamps too, before running the suite
 ```
 
 ### CI-to-Local Command Mapping
