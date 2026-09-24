@@ -29,6 +29,23 @@
 
         pre-commit.check.enable = false;
         pre-commit.settings.hooks = {
+          actionlint = {
+            enable = true;
+            entry = "${pkgs.actionlint}/bin/actionlint";
+            files = "\\.github/workflows/.*\\.ya?ml$";
+          };
+          pinact = {
+            enable = true;
+            entry = "${pkgs.pinact}/bin/pinact";
+            args = [ "run" "-fix=false" "-no-api" ];
+            files = "\\.github/workflows/.*\\.ya?ml$";
+            pass_filenames = false;
+          };
+          shellcheck = {
+            enable = true;
+            entry = "${pkgs.shellcheck}/bin/shellcheck";
+            files = "\\.sh$";
+          };
           swiftformat = {
             enable = true;
             entry = "${pkgs.swiftformat}/bin/swiftformat";
@@ -70,6 +87,9 @@
         devShells.default = pkgs.mkShellNoCC {
           inputsFrom = [ config.pre-commit.devShell ];
           packages = with pkgs; [
+            actionlint
+            pinact
+            shellcheck
             swiftformat
             swiftlint
           ];

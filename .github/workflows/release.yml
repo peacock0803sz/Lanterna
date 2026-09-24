@@ -26,7 +26,6 @@ env:
 concurrency:
   group: release
   cancel-in-progress: false
-  queue: max
   # Keep queued runs instead of replacing them so every tag is processed.
 
 defaults:
@@ -128,12 +127,6 @@ jobs:
         run: lipo -archs .build/debug/Lanterna | grep -qx arm64
       - name: Test
         run: nix develop --command swift test --triple arm64-apple-macosx26.0
-      - name: Check script syntax
-        run: |
-          bash -n scripts/package-app.sh
-          bash -n scripts/generate-version.sh
-          bash -n scripts/update-cask.sh
-          bash -n scripts/test.sh
       - name: Package app
         if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: nix develop --command bash scripts/package-app.sh
@@ -172,6 +165,8 @@ jobs:
           gh release download "$TAG" --pattern "Lanterna-${SHORT}.dmg*" --dir "$dir"
           GOT="$(shasum -a 256 "$dir/Lanterna-${SHORT}.dmg" | cut -d' ' -f1)"
           SIDECAR="$(cut -d' ' -f1 "$dir/Lanterna-${SHORT}.dmg.sha256")"
+          # GOT must match both BUILT and SIDECAR; fail when either differs.
+          # shellcheck disable=SC2055
           if [[ "$GOT" != "$BUILT" || "$GOT" != "$SIDECAR" ]]; then
             echo "draft assets do not match; deleting the draft"
             gh release delete "$TAG" --yes
@@ -207,7 +202,6 @@ jobs:
       - name: Push cask to main
         if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"
           SHORT="${{ steps.package.outputs.short }}"
           SHA="${{ steps.package.outputs.sha }}"
           git config user.name "github-actions[bot]"
