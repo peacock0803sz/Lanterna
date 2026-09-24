@@ -4,7 +4,7 @@
 # The release gate comes first: HEAD must sit exactly on a `vX.Y.Z` tag with
 # a clean tree. The version is then regenerated from the tag and applied, so
 # the bundle and the on-screen display always name the tagged release. The
-# committed Version.swift is only a snapshot of the last release; the tag is
+# checked-in stamp is only the last development state; the tag is
 # the single source of truth.
 #
 # Icon artwork comes from Assets/Lanterna.iconset, a tracked copy of the
@@ -29,8 +29,8 @@ if [[ -n $(git status --short) ]]; then
     exit 1
 fi
 
-# Regenerate from the tag: the bundle and the on-screen display always name
-# this tag, regardless of what the committed snapshot says.
+# Restamp from the tag: the bundle and the on-screen display always name
+# this tag, regardless of what the checked-in stamp says.
 bash scripts/generate-version.sh >/dev/null
 
 swift build --triple arm64-apple-macosx26.0 --configuration release

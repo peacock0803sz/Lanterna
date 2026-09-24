@@ -18,6 +18,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Stamp first so the build names the checkout at hand; a no-op when the stamp
+# is already current (see generate-version.sh).
+bash scripts/generate-version.sh --dev >/dev/null
+
 CLT_FRAMEWORKS=/Library/Developer/CommandLineTools/Library/Developer/Frameworks
 CLT_LIB=/Library/Developer/CommandLineTools/Library/Developer/usr/lib
 
