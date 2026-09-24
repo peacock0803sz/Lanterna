@@ -41,7 +41,10 @@ final class PanelSelection {
     /// specified cold-start behaviour, corrected by the first activation
     /// or commit. Determining the frontmost window here would cost an
     /// accessibility read inside the show span, so it is deliberately
-    /// not done.
+    /// not done. The row is the same for forward and reverse openings:
+    /// reverse presses walk back from here. A stale first row from a
+    /// recorded switch that never landed still leaves this choice, which
+    /// no focus read here could tell apart.
     ///
     /// Tells the panel nothing, because there is no panel yet: the chosen row
     /// travels with the list in the call that puts one there, and a redraw
