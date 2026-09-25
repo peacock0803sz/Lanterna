@@ -127,8 +127,10 @@ final class WindowListStore {
     /// polling loop's in-flight pass nor return before it lands (#44).
     /// Concurrent requests coalesce: any number of calls arriving during one
     /// pass produce a single following pass that releases them all. The
-    /// polling loop goes through here too, which is what drains a flag set
-    /// mid-pass; it never overlaps itself because it awaits each pass.
+    /// polling loop and the first-list path go through here too, which is
+    /// what drains a flag set mid-pass; the loop never overlaps itself
+    /// because it awaits each pass. Stopping releases waiters early with
+    /// whatever is held, which is the one exception to waiting for fresh.
     func refreshEventually() async {
         if isRefreshing {
             refreshAgain = true
@@ -158,7 +160,10 @@ final class WindowListStore {
             if isRefreshing {
                 await withCheckedContinuation { waitingForFirstList.append($0) }
             } else {
-                await refresh()
+                // Through `refreshEventually` so an event flag set mid-pass
+                // is drained rather than orphaned: every production pass
+                // goes through the one draining path.
+                await refreshEventually()
             }
         }
         return snapshot?.items ?? []

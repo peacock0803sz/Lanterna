@@ -1,7 +1,37 @@
+import AppKit
 import CoreGraphics
 import Darwin
 @testable import Lanterna
 import Testing
+
+/// A row naming an exact window, so the handler tests can stage a frontmost
+/// window the refreshed list does or does not hold. File-local like the
+/// sibling suites' builders.
+@MainActor
+private func spaceRow(windowID: CGWindowID, owner: pid_t) -> WindowItem {
+    WindowItem(
+        id: WindowItem.Identifier(windowID: windowID),
+        ownerProcessIdentifier: owner,
+        appName: "SpaceApp",
+        bundleIdentifier: nil,
+        windowTitle: "Space Window",
+        kind: .standard,
+        isMinimized: false,
+        icon: NSImage(size: NSSize(width: 1, height: 1))
+    )
+}
+
+@MainActor
+private func spaceSnapshot(_ items: [WindowItem]) -> WindowListSnapshot {
+    WindowListSnapshot(
+        items: items,
+        applicationCount: 1,
+        gatheringDuration: .milliseconds(1),
+        skipped: [],
+        droppedWithoutID: 0,
+        gatheredAt: .now
+    )
+}
 
 /// A Space switch carries no application in its notification, so the handler
 /// reads the frontmost application itself and records it the way an
@@ -12,16 +42,7 @@ import Testing
 struct SpaceSwitchHandlerTests {
     @Test func spaceChangeRecordsFrontmostAndRefreshes() async {
         let store = WindowListStore(
-            gather: {
-                WindowListSnapshot(
-                    items: [],
-                    applicationCount: 1,
-                    gatheringDuration: .milliseconds(1),
-                    skipped: [],
-                    droppedWithoutID: 0,
-                    gatheredAt: .now
-                )
-            },
+            gather: { spaceSnapshot([spaceRow(windowID: 7, owner: otherProcess)]) },
             writeLine: { _ in }
         )
         let tracker = MRUTracker()
@@ -146,6 +167,33 @@ struct SpaceSwitchHandlerTests {
         #expect(tracker.newestSource == .none)
         #expect(store.snapshot != nil)
         #expect(log.lines.contains("space changed; refreshing window list"))
+        #expect(log.lines.contains("space changed; frontmost window not in the refreshed list"))
+    }
+
+    /// A readable frontmost window the refreshed list does not hold is left
+    /// out: recording it would promote a use the enumeration never saw
+    /// (for example a window that closed mid-switch) to the newest record.
+    @Test func spaceChangeWithAbsentFrontmostRecordsNothing() async {
+        let store = WindowListStore(
+            gather: { spaceSnapshot([spaceRow(windowID: 8, owner: otherProcess)]) },
+            writeLine: { _ in }
+        )
+        let tracker = MRUTracker()
+        let log = DiagnosticsLog()
+        let handler = SpaceSwitchHandler(
+            store: store,
+            tracker: tracker,
+            ownProcessIdentifier: ownProcess,
+            frontmostProcessIdentifier: { otherProcess },
+            reading: FakeFocusedReading(windowID: 7),
+            writeLine: log.write
+        )
+
+        await handler.handle()
+
+        #expect(tracker.newestSource == .none)
+        #expect(store.snapshot != nil)
+        #expect(log.lines.contains("space changed; frontmost window not in the refreshed list"))
     }
 
     /// An update arriving during an in-flight polling pass queues one
@@ -153,11 +201,16 @@ struct SpaceSwitchHandlerTests {
     /// until that pass lands (#44). The first pass is held open, the handler
     /// runs inside it, and both passes are then released: two gathers with
     /// two summary lines, the external record kept, and no "skipped" line.
-    /// The wait below is event-driven rather than a fixed settle: the record
-    /// precedes the queueing in one synchronous segment, so observing the
-    /// record means the handler is parked behind the pass.
+    /// The wait is a fixed settle because handling parks with no observable
+    /// side effect first (the record lands only at the end now); both arrival
+    /// orders satisfy the assertions below — a late handler runs its own
+    /// pass, an early one is drained — so the settle cannot flake the
+    /// outcome, only delay it past the time limit on a real regression.
     @Test(.timeLimit(.minutes(1))) func spaceChangeDuringAPassQueuesAnotherPass() async {
-        let fake = HeldGather(entryCount: 5)
+        let answer = spaceSnapshot(
+            [spaceRow(windowID: 7, owner: otherProcess)] + SampleWindows.make(count: 4)
+        )
+        let fake = HeldGather(answer: answer)
         let storeLog = DiagnosticsLog()
         let store = WindowListStore(gather: fake.gather, writeLine: storeLog.write)
         let tracker = MRUTracker()
@@ -174,9 +227,7 @@ struct SpaceSwitchHandlerTests {
         let poll = Task { await store.refreshEventually() }
         await fake.waitUntilCalled()
         let handling = Task { await handler.handle() }
-        while tracker.newestSource != .external {
-            await Task.yield()
-        }
+        await settle()
         fake.finish()
         while fake.callCount < 2 {
             await Task.yield()
