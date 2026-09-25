@@ -22,6 +22,11 @@ final class WindowListStore {
     /// again as many log lines, because every pass writes one.
     static let defaultInterval: Duration = .milliseconds(1500)
 
+    /// Whether the list is refreshed: false for the fixture and the
+    /// missing-permission empty list, which never change. The Space
+    /// observer is only registered for a live list.
+    let isLive: Bool
+
     /// What the last completed pass found, or `nil` if none has completed.
     ///
     /// Only ever `nil` at the very start. A press landing in that window is
@@ -53,6 +58,7 @@ final class WindowListStore {
     ) {
         self.gather = gather
         self.writeLine = writeLine
+        isLive = true
     }
 
     /// A list that stands in for the real one and never changes, which is what
@@ -80,6 +86,7 @@ final class WindowListStore {
         snapshot = fixed
         gather = { fixed }
         self.writeLine = writeLine
+        isLive = false
     }
 
     /// Runs one pass and replaces the list with what it found.

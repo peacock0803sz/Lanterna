@@ -126,9 +126,11 @@ private struct FixedWindowReading: FocusedWindowReading {
 
 /// Watches the active Space through SpaceSwitchHandler. Nothing removes
 /// the observation: it stops with the process, the way the activation
-/// observer does.
+/// observer does. Fixed lists (the fixture, the missing-permission empty
+/// list) never change, so no observer is registered for them.
 @MainActor
 func startObservingSpaceChanges(store: WindowListStore, tracker: MRUTracker) {
+    guard store.isLive else { return }
     let handler = SpaceSwitchHandler(
         store: store,
         tracker: tracker,
