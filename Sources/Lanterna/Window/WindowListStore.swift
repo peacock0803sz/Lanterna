@@ -33,6 +33,7 @@ final class WindowListStore {
     private(set) var isRefreshing = false
 
     private var refreshTask: Task<Void, Never>?
+    private var refreshAgain = false
     /// Callers parked until the first pass produces something.
     private var waitingForFirstList: [CheckedContinuation<Void, Never>] = []
     private let gather: @MainActor () async -> WindowListSnapshot
@@ -98,6 +99,25 @@ final class WindowListStore {
         waitingForFirstList = []
         for continuation in waiting {
             continuation.resume()
+        }
+    }
+
+    /// Requests a pass, running one now unless one is already running, in which
+    /// case exactly one more pass follows it.
+    ///
+    /// Event-driven callers (a Space switch) must not lose their update to the
+    /// polling loop's in-flight pass (#44). Concurrent requests coalesce: any
+    /// number of calls arriving during one pass produce a single following pass.
+    /// The polling loop itself never overlaps because it awaits each pass.
+    func refreshEventually() async {
+        if isRefreshing {
+            refreshAgain = true
+            return
+        }
+        await refresh()
+        while refreshAgain {
+            refreshAgain = false
+            await refresh()
         }
     }
 

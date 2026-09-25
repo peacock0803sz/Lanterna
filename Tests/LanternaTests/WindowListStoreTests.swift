@@ -127,6 +127,76 @@ struct WindowListStoreTests {
         #expect(store.snapshot?.items.count == 9)
     }
 
+    // MARK: - Event-driven refresh
+
+    /// A Space switch must not lose its update to the polling loop's
+    /// in-flight pass (#44). A request arriving mid-pass runs exactly one
+    /// more pass after it, replacing the list with the second answer and
+    /// writing no "skipped" line.
+    @Test func anEventRefreshDuringAPassRunsOneMorePassAfterIt() async {
+        let first = snapshot(count: 3)
+        let second = snapshot(count: 7)
+        let log = DiagnosticsLog()
+        var callCount = 0
+        var firstStarted: CheckedContinuation<Void, Never>?
+        var secondStarted: CheckedContinuation<Void, Never>?
+        var release: CheckedContinuation<Void, Never>?
+        let store = WindowListStore(
+            gather: {
+                callCount += 1
+                if callCount == 1 {
+                    firstStarted?.resume()
+                    firstStarted = nil
+                } else {
+                    secondStarted?.resume()
+                    secondStarted = nil
+                }
+                let answer = callCount == 1 ? first : second
+                await withCheckedContinuation { release = $0 }
+                return answer
+            },
+            writeLine: log.write
+        )
+
+        let pass = Task { await store.refreshEventually() }
+        if callCount == 0 {
+            await withCheckedContinuation { firstStarted = $0 }
+        }
+        await store.refreshEventually()
+        release?.resume()
+        release = nil
+        if callCount < 2 {
+            await withCheckedContinuation { secondStarted = $0 }
+        }
+        release?.resume()
+        release = nil
+        await pass.value
+
+        #expect(callCount == 2)
+        #expect(store.snapshot?.items.count == 7)
+        #expect(!log.lines.contains("refresh skipped (previous pass still running)"))
+    }
+
+    /// Concurrent requests coalesce: two calls arriving during one pass
+    /// still produce only a single following pass.
+    @Test func twoEventRefreshesDuringOnePassProduceOnlyOneExtraPass() async {
+        let fake = HeldGather(answer: snapshot(count: 5))
+        let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
+
+        let pass = Task { await store.refreshEventually() }
+        await fake.waitUntilCalled()
+        await store.refreshEventually()
+        await store.refreshEventually()
+        fake.finish()
+        while fake.callCount < 2 {
+            await Task.yield()
+        }
+        fake.finish()
+        await pass.value
+
+        #expect(fake.callCount == 2)
+    }
+
     /// The fixture needs no gathering at all, so the list is there before the
     /// first press rather than after the first pass.
     @Test func aFixedListIsInPlaceBeforeAnythingIsGathered() {
