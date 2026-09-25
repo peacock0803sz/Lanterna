@@ -130,6 +130,16 @@ struct PanelFilterTests {
         #expect(made.selection.chosenID == made.rows[0].id)
     }
 
+    /// Backspace on an empty query does nothing: no redraw, no moved choice.
+    @Test func backspaceOnAnEmptyQueryDoesNothing() {
+        let made = makeFilter()
+        let updates = made.surface.updatedLists.count
+        let chosen = made.selection.chosenID
+        made.filter.removeLast()
+        #expect(made.surface.updatedLists.count == updates)
+        #expect(made.selection.chosenID == chosen)
+    }
+
     /// An empty match chooses nothing.
     @Test func anEmptyMatchChoosesNothing() {
         let made = makeFilter()
