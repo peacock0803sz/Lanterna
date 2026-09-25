@@ -46,7 +46,10 @@ struct PanelFilterTests {
         let rows: [WindowItem]
     }
 
-    private func makeFilter() -> Harness {
+    /// A filter over the rows, active unless asked otherwise. An inactive
+    /// filter answers nothing: typing before the invocation is swallowed
+    /// the way it always was.
+    private func makeFilter(active: Bool = true) -> Harness {
         let surface = FakeSurface()
         surface.isPresented = true
         let log = DiagnosticsLog()
@@ -63,7 +66,7 @@ struct PanelFilterTests {
         let filter = PanelFilter(selection: selection, surface: surface)
         selection.beginSecond(rows.map(\.id))
         wayOut.nowShowing(rows, startedAt: ContinuousClock.now)
-        filter.begin(fullWindows: rows)
+        filter.begin(fullWindows: rows, filtering: active)
         return Harness(
             filter: filter,
             surface: surface,
@@ -131,6 +134,17 @@ struct PanelFilterTests {
         #expect(made.selection.chosenID == made.rows[0].id)
     }
 
+    /// Typing, deleting, and clearing while inactive do nothing: no redraw,
+    /// no moved choice, and clearing answers no so the caller cancels.
+    @Test func actingWhileInactiveDoesNothing() {
+        let made = makeFilter(active: false)
+        made.filter.append("sa")
+        made.filter.removeLast()
+        #expect(made.filter.clear() == false)
+        #expect(made.surface.updatedLists.isEmpty)
+        #expect(made.selection.chosenID == made.rows[1].id)
+    }
+
     /// Backspace on an empty query does nothing: no redraw, no moved choice.
     @Test func backspaceOnAnEmptyQueryDoesNothing() {
         let made = makeFilter()
@@ -176,7 +190,7 @@ struct PanelFilterTests {
             wayOut: made.wayOut,
             now: { ContinuousClock.now }
         )
-        commands.beginFiltering(fullWindows: made.rows)
+        commands.beginFiltering(fullWindows: made.rows, filtering: true)
         let escape = PanelKeystroke(keyCode: UInt16(kVK_Escape), modifiers: [], isARepeat: false, characters: "")
         let letter = PanelKeystroke(keyCode: UInt16(kVK_ANSI_U), modifiers: [], isARepeat: false, characters: "u")
         #expect(commands.handle(letter) == .absorbed)
@@ -191,13 +205,66 @@ struct PanelFilterTests {
         #expect(made.log.lines.filter { $0.hasPrefix("committed ") }.isEmpty)
     }
 
-    /// Closing drops the query: the next appearance starts over the whole list.
-    @Test func closingDropsTheQueryForTheNextAppearance() {
+    /// A plain appearance swallows typing: without the invocation, letters
+    /// narrow nothing.
+    @Test func typingWithoutTheInvocationNarrowsNothing() {
         let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
         let letter = PanelKeystroke(
             keyCode: UInt16(kVK_ANSI_S),
-            modifiers: .command,
+            modifiers: [],
+            isARepeat: false,
+            characters: "s"
+        )
+        #expect(fixture.presenter.handleKeyStroke(letter) == .absorbed)
+        #expect(fixture.surface.updatedLists.isEmpty)
+        #expect(fixture.surface.presentedLists.last?.count == 12)
+    }
+
+    /// The invocation on a closed panel shows the whole list, and typing
+    /// from there narrows it.
+    @Test func invokingOnAClosedPanelShowsTheWholeList() {
+        let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+        fixture.presenter.handleHotkey(.filter, deliveryDelay: nil)
+        #expect(fixture.surface.presentedLists.last?.count == 12)
+        let letter = PanelKeystroke(
+            keyCode: UInt16(kVK_ANSI_S),
+            modifiers: [],
+            isARepeat: false,
+            characters: "s"
+        )
+        #expect(fixture.presenter.handleKeyStroke(letter) == .absorbed)
+        #expect((fixture.surface.updatedLists.last?.count ?? 12) < 12)
+    }
+
+    /// The invocation on an open panel keeps the list and the choice, and
+    /// typing from there narrows it.
+    @Test func invokingOnAnOpenPanelKeepsTheListAndTheChoice() {
+        let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        let shown = fixture.surface.presentedLists.last?.map(\.id)
+        let chosen = fixture.surface.presentedSelections.last
+        fixture.presenter.handleHotkey(.filter, deliveryDelay: nil)
+        #expect(fixture.surface.presentedLists.count == 1)
+        #expect(fixture.surface.presentedSelections.last == chosen)
+        let letter = PanelKeystroke(
+            keyCode: UInt16(kVK_ANSI_S),
+            modifiers: [],
+            isARepeat: false,
+            characters: "s"
+        )
+        #expect(fixture.presenter.handleKeyStroke(letter) == .absorbed)
+        #expect((fixture.surface.updatedLists.last?.count ?? 12) < 12)
+        #expect(shown?.count == 12)
+    }
+
+    /// Closing drops the query: the next appearance starts over the whole list.
+    @Test func closingDropsTheQueryForTheNextAppearance() {
+        let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+        fixture.presenter.handleHotkey(.filter, deliveryDelay: nil)
+        let letter = PanelKeystroke(
+            keyCode: UInt16(kVK_ANSI_S),
+            modifiers: [],
             isARepeat: false,
             characters: "s"
         )
