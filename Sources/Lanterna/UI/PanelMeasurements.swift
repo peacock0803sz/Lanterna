@@ -234,21 +234,28 @@ struct PanelExitMeasurement: Sendable {
     /// print `cancelled ... after Command was released` for a combination no
     /// run produces. Naming both is what gives the six that cannot happen
     /// somewhere to be turned away.
+    /// The filtering evidence, or nothing when the query was empty.
+    private var filterSuffix: String {
+        guard let summary = filterSummary, !summary.query.isEmpty else { return "" }
+        let query = Self.oneLine(summary.query.filter { $0 != "\"" }, fallback: "?")
+        return "; filter \"\(query)\" (\(summary.matchedCount) of \(summary.totalCount))"
+    }
+
     var summaryLine: String {
         let timing = "\(Diagnostics.millisecondsText(elapsed)) ms after \(trigger.phrase)"
         switch (outcome, trigger) {
         case let (.committed(appName, displayTitle, id), .commandRelease),
              let (.committed(appName, displayTitle, id), .commitKey):
             let row = Self.rowDescription(appName: appName, displayTitle: displayTitle, id: id)
-            return "committed \(row) \(timing)"
+            return "committed \(row) \(timing)" + filterSuffix
         case (.nothingToCommit, .commandRelease), (.nothingToCommit, .commitKey):
-            return "committed nothing \(timing) (the list was empty)"
+            return "committed nothing \(timing) (the list was empty)" + filterSuffix
         case (.pressCalledOff, .commandRelease):
-            return "press called off \(timing), before the panel appeared"
+            return "press called off \(timing), before the panel appeared" + filterSuffix
         // Shares no word with any of the commit wordings, so one pattern tells
         // the two apart with nothing to disambiguate.
         case (.cancelled, .cancelKey):
-            return "cancelled \(timing)"
+            return "cancelled \(timing)" + filterSuffix
         // The pairs that cannot happen, gathered in one place. Written out
         // rather than swept up by a `default`: a case added to either enum
         // then fails to build until somebody decides which side of this line
