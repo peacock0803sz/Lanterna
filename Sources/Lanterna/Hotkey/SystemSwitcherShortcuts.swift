@@ -84,6 +84,7 @@ enum SystemSwitcherShortcuts {
         switch combination {
         case .forward: CGSSymbolicHotKey(kCGSHotKeyCommandTab)
         case .reverse: CGSSymbolicHotKey(kCGSHotKeyCommandShiftTab)
+        case .filter: CGSSymbolicHotKey(kCGSHotKeySpotlight)
         }
     }
 }
