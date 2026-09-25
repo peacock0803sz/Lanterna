@@ -49,31 +49,27 @@ final class PanelPresenter {
     /// is a decision nothing checks.
     private let commandIsHeld: @MainActor () -> Bool
 
-    /// How long the watch waits between looks. Injected only so a test need
-    /// not wait a real one out; the number is `UnreportedReleaseWatch`'s.
+    /// How long the watch waits between looks (`UnreportedReleaseWatch`'s
+    /// number, injected so a test need not wait a real one out).
     private let commandWatchInterval: Duration
 
-    /// How long the key-status watch waits between looks. Injected only so
-    /// a test need not wait a real one out; the number is
-    /// `KeyStatusWatch`'s.
+    /// How long the key-status watch waits between looks (`KeyStatusWatch`'s
+    /// number, injected so a test need not wait a real one out).
     private let keyStatusWatchInterval: Duration
 
     /// What commits take. Through to the way out, which owns the list the
     /// target is read off.
     private let switcher: any WindowSwitching
 
-    /// What commits and appearances consult for the order rows are drawn in.
-    /// Owned here so recording and sorting share one memory; the way out
-    /// borrows the recording end through the closure below.
+    /// What commits and appearances consult for the order rows are drawn in,
+    /// owned here so recording and sorting share one memory.
     let tracker: MRUTracker
 
     /// The looking that catches a release the tap never reported.
     ///
     /// `lazy` because every question it puts and the answer it gives back are
-    /// this object's, and a closure over `self` cannot be written until the
-    /// stored properties are in place. One watch for the presenter's life,
-    /// started and stopped the way the window list's loop is rather than made
-    /// again for each panel.
+    /// this object's. One watch for the presenter's life, started and stopped
+    /// the way the window list's loop is rather than made again for each panel.
     private lazy var commandWatch = UnreportedReleaseWatch(
         interval: commandWatchInterval,
         isPanelUp: { [weak self] in self?.surface.isPresented ?? false },
@@ -166,6 +162,7 @@ final class PanelPresenter {
             onPanelGone: { [weak self] in
                 self?.commandWatch.stop()
                 self?.selection.end()
+                self?.keyCommands.endFiltering()
             }
         )
     }
@@ -286,16 +283,15 @@ final class PanelPresenter {
         startedAt: ContinuousClock.Instant,
         gatheredOnDemand: Bool
     ) {
-        // Four orderings below are load-bearing, and the statements they
+        // Five orderings below are load-bearing, and the statements they
         // hold apart are named one pair at a time rather than counted.
         //
         // The list is ordered first, so everything this appearance shows,
         // names, and measures reads off one value no later refresh can move.
         //
         // The cursor is made next, so that what the panel is told to draw is
-        // read off it. A first row worked out here too would be a second
-        // derivation of one thing, agreeing with the cursor until the day
-        // it did not.
+        // read off it. The filter starts beside it, over the same ordered
+        // list, so the first keystroke narrows what the panel was shown.
         //
         // Keys are asked for after the panel is up and before the reading:
         // a window that is not on screen cannot become the key window, and
@@ -306,6 +302,7 @@ final class PanelPresenter {
         tracker.noteSnapshotObserved(store.snapshot?.gatheredAt ?? now())
         let ordered = tracker.ordered(windows, skipping: store.snapshot?.skippedOwners ?? [])
         selection.beginSecond(ordered.map(\.id))
+        keyCommands.beginFiltering(fullWindows: ordered)
         surface.present(windows: ordered, selecting: selection.chosenID)
         let becameKey = surface.takeKeys()
         wayOut.nowShowing(ordered, startedAt: startedAt)
@@ -395,6 +392,6 @@ final class PanelPresenter {
             wayOut.recordPressCalledOff(since: startedAt)
             return
         }
-        wayOut.commitOnCommandRelease(naming: selection.chosenID, since: startedAt)
+        wayOut.commitOnCommandRelease(naming: selection.chosenID, since: startedAt, filter: keyCommands.filterSummary())
     }
 }
