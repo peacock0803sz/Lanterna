@@ -63,6 +63,23 @@ struct WindowFilterTests {
         #expect(WindowFilter.matching("zzz", against: rows).isEmpty)
     }
 
+    /// Every occurrence is reported, ignoring case.
+    @Test func matchedRangesReportEveryOccurrence() {
+        let ranges = WindowFilter.matchedRanges(query: "a", in: "Banana")
+        #expect(ranges.map { String("Banana"[$0]) } == ["a", "a", "a"])
+        let cased = WindowFilter.matchedRanges(query: "SAF", in: "Safari")
+        #expect(cased.map { String("Safari"[$0]) } == ["Saf"])
+    }
+
+    /// An empty query, or one with no match, reports no ranges. Ranges
+    /// never overlap.
+    @Test func matchedRangesStayEmptyAndDisjoint() {
+        #expect(WindowFilter.matchedRanges(query: "", in: "Safari").isEmpty)
+        #expect(WindowFilter.matchedRanges(query: "zzz", in: "Safari").isEmpty)
+        let ranges = WindowFilter.matchedRanges(query: "aa", in: "aaa")
+        #expect(ranges.count == 1)
+    }
+
     /// One ASCII letter or digit is accepted; nothing else single is.
     @Test func singleASCIIAlphanumericsAreAccepted() {
         #expect(WindowFilter.allowedText("a") == "a")

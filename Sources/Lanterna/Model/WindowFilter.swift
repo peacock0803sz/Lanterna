@@ -28,6 +28,22 @@ enum WindowFilter {
         target.range(of: query, options: .caseInsensitive) != nil
     }
 
+    /// Every range where the query occurs in the text, for highlighting.
+    ///
+    /// Case-insensitive, and every occurrence rather than only the first.
+    /// Ranges never overlap: searching resumes past each match. An empty
+    /// query matches nothing.
+    static func matchedRanges(query: String, in text: String) -> [Range<String.Index>] {
+        guard !query.isEmpty else { return [] }
+        var ranges: [Range<String.Index>] = []
+        var remainder = text.startIndex ..< text.endIndex
+        while let found = text.range(of: query, options: .caseInsensitive, range: remainder) {
+            ranges.append(found)
+            remainder = found.upperBound ..< text.endIndex
+        }
+        return ranges
+    }
+
     /// Whether the string a keystroke produced joins the query, and as what.
     ///
     /// Judged by content alone, because origin cannot be told apart this far
