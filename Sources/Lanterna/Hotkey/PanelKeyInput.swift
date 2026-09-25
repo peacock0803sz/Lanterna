@@ -21,6 +21,12 @@ struct PanelKeystroke: Equatable, Sendable {
     /// held down, rather than the user pressing it.
     let isARepeat: Bool
 
+    /// What the keyboard made of the press, ignoring the modifiers held with
+    /// it, or nothing when it made nothing. Read where the press arrives
+    /// rather than decided later: meaning is still worked out by key code,
+    /// and this is only what a row that means filtering carries with it.
+    let characters: String
+
     /// Narrows the modifiers here rather than where they are read.
     ///
     /// A raw `modifierFlags` carries bits that say which physical key was
@@ -31,10 +37,16 @@ struct PanelKeystroke: Equatable, Sendable {
     /// the flags are read would leave the injected ones holding a value the
     /// real ones never hold, and the next reader of `modifiers` would be the
     /// one to find out.
-    init(keyCode: UInt16, modifiers: NSEvent.ModifierFlags, isARepeat: Bool) {
+    init(
+        keyCode: UInt16,
+        modifiers: NSEvent.ModifierFlags,
+        isARepeat: Bool,
+        characters: String = ""
+    ) {
         self.keyCode = keyCode
         self.modifiers = modifiers.intersection(.deviceIndependentFlagsMask)
         self.isARepeat = isARepeat
+        self.characters = characters
     }
 }
 
@@ -60,6 +72,10 @@ enum PanelKeyAction: Equatable, Sendable {
     case selectPrevious
     case commit(CommitKey)
     case cancel(CancelKey)
+    /// A letter or a confirmed string: narrows the list on screen.
+    case filterText(String)
+    /// Backspace: shortens the query by one character.
+    case filterBackspace
     /// No meaning was given to this key. It is swallowed all the same.
     case absorb
 }
@@ -191,7 +207,8 @@ final class LocalKeyEventChannel: PanelKeyChannel {
             let keystroke = PanelKeystroke(
                 keyCode: event.keyCode,
                 modifiers: event.modifierFlags,
-                isARepeat: event.isARepeat
+                isARepeat: event.isARepeat,
+                characters: event.charactersIgnoringModifiers ?? ""
             )
             // AppKit delivers these on the main thread, so this is the main
             // actor's executor; nothing weaker than a trap is wanted if that
@@ -276,12 +293,19 @@ enum PanelKeyInput {
         // have to work the same way.
         case kVK_ANSI_Period where keystroke.modifiers.contains(.command):
             return .cancel(.commandPeriod)
+        case kVK_Delete:
+            return .filterBackspace
         default:
             // Every other key, including the ones that would type something.
             // Going by key code and not by the character is what keeps this
             // whole table independent of the input source and the physical
-            // layout — in kana mode the full stop's key reports 。
-            return .absorb
+            // layout — in kana mode the full stop's key reports 。 What the
+            // key made is only read here, where a row means filtering, and
+            // nowhere else in the table.
+            guard let text = WindowFilter.allowedText(keystroke.characters) else {
+                return .absorb
+            }
+            return .filterText(text)
         }
     }
 }
@@ -296,7 +320,7 @@ private extension PanelKeyAction {
     /// second one would land on whatever the first one left behind.
     var whenTheKeyboardIsRepeating: PanelKeyAction {
         switch self {
-        case .selectNext, .selectPrevious:
+        case .selectNext, .selectPrevious, .filterText, .filterBackspace:
             self
         case .commit, .cancel, .absorb:
             .absorb

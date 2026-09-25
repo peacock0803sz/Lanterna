@@ -12,7 +12,9 @@ struct SwitcherPanelTests {
             content: SwitcherView(
                 windows: SampleWindows.make(count: rowCount),
                 selectedID: nil,
-                appearanceToken: 0
+                appearanceToken: 0,
+                query: "",
+                filterActive: false
             )
         )
     }

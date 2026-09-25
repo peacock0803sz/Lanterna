@@ -201,6 +201,26 @@ struct PanelExitMeasurement: Sendable {
     /// let go of.
     let elapsed: Duration
 
+    /// What the appearance filtered by, or nothing when it never narrowed.
+    ///
+    /// The exits always pass one; the older tests pinning other endings pass
+    /// none and keep reading the lines they always read. The wording that
+    /// reads this arrives with the diagnostics contract.
+    let filterSummary: FilterLogSummary?
+
+    /// Every segment spelled out. Only `filterSummary` has a default.
+    init(
+        outcome: Outcome,
+        trigger: Trigger,
+        elapsed: Duration,
+        filterSummary: FilterLogSummary? = nil
+    ) {
+        self.outcome = outcome
+        self.trigger = trigger
+        self.elapsed = elapsed
+        self.filterSummary = filterSummary
+    }
+
     /// Said of an application whose name flattened away to nothing, which
     /// takes a name of spaces alone — the one shape the window enumeration's
     /// own fallback does not rule out. A line naming nobody is worse than one
@@ -214,21 +234,28 @@ struct PanelExitMeasurement: Sendable {
     /// print `cancelled ... after Command was released` for a combination no
     /// run produces. Naming both is what gives the six that cannot happen
     /// somewhere to be turned away.
+    /// The filtering evidence, or nothing when the query was empty.
+    private var filterSuffix: String {
+        guard let summary = filterSummary, !summary.query.isEmpty else { return "" }
+        let query = Self.oneLine(summary.query.filter { $0 != "\"" }, fallback: "?")
+        return "; filter \"\(query)\" (\(summary.matchedCount) of \(summary.totalCount))"
+    }
+
     var summaryLine: String {
         let timing = "\(Diagnostics.millisecondsText(elapsed)) ms after \(trigger.phrase)"
         switch (outcome, trigger) {
         case let (.committed(appName, displayTitle, id), .commandRelease),
              let (.committed(appName, displayTitle, id), .commitKey):
             let row = Self.rowDescription(appName: appName, displayTitle: displayTitle, id: id)
-            return "committed \(row) \(timing)"
+            return "committed \(row) \(timing)" + filterSuffix
         case (.nothingToCommit, .commandRelease), (.nothingToCommit, .commitKey):
-            return "committed nothing \(timing) (the list was empty)"
+            return "committed nothing \(timing) (the list was empty)" + filterSuffix
         case (.pressCalledOff, .commandRelease):
-            return "press called off \(timing), before the panel appeared"
+            return "press called off \(timing), before the panel appeared" + filterSuffix
         // Shares no word with any of the commit wordings, so one pattern tells
         // the two apart with nothing to disambiguate.
         case (.cancelled, .cancelKey):
-            return "cancelled \(timing)"
+            return "cancelled \(timing)" + filterSuffix
         // The pairs that cannot happen, gathered in one place. Written out
         // rather than swept up by a `default`: a case added to either enum
         // then fails to build until somebody decides which side of this line

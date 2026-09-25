@@ -33,9 +33,16 @@ typedef int CGSSymbolicHotKey;
 /// `kCGSHotKeyCommandTab` would leave the system's reverse switcher alive on
 /// Shift+Cmd+Tab. Cmd+` (id 6, cycling one application's windows) is left to
 /// the system, so no constant is given for it.
+///
+/// The filter invocation takes over Spotlight's. The id below is a candidate
+/// verified by observation rather than a documented value: disabling it must
+/// silence Spotlight, and restoring it must bring Spotlight back. It passes
+/// the same test as the two above — no public API takes a system-held
+/// combination over — argued here rather than for private APIs as a class.
 enum {
     kCGSHotKeyCommandTab = 1,
     kCGSHotKeyCommandShiftTab = 2,
+    kCGSHotKeySpotlight = 64,
 };
 
 /// Turns one of those shortcuts off, or back on.

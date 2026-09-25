@@ -175,7 +175,7 @@ final class PanelExit {
     /// what throws the list away.
     func commitOnCommandRelease(
         naming id: WindowItem.Identifier?,
-        since startedAt: ContinuousClock.Instant
+        since startedAt: ContinuousClock.Instant, filter filterSummary: FilterLogSummary? = nil
     ) {
         guard surface.isPresented else { return }
         guard commitIsStillOpen else { return }
@@ -192,17 +192,14 @@ final class PanelExit {
             recordCommit(take.id, take.ownerProcessIdentifier)
             let outcome = switcher.switchTo(take)
             noteSwitchReturned()
-            recordCommitPair(take, outcome, by: .commandRelease, elapsed: elapsed)
+            recordCommitPair(take, outcome, by: .commandRelease, elapsed: elapsed, filter: filterSummary)
         case .none:
-            record(.nothingToCommit, by: .commandRelease, elapsed: elapsed)
+            record(.nothingToCommit, by: .commandRelease, elapsed: elapsed, filter: filterSummary)
         }
     }
 
-    /// Writes down a press given up on before it ever became a panel.
-    ///
-    /// Kept apart from a commit over an empty list because the two have
-    /// different causes and different answers: one means the list was
-    /// gathered and held nothing, the other that there was no list yet.
+    /// Writes down a press given up on before it ever became a panel, apart
+    /// from a commit over an empty list, which had one and found nothing.
     func recordPressCalledOff(since startedAt: ContinuousClock.Instant) {
         record(.pressCalledOff, by: .commandRelease, since: startedAt)
     }
@@ -222,7 +219,7 @@ final class PanelExit {
     func commit(
         by key: CommitKey,
         naming id: WindowItem.Identifier?,
-        since startedAt: ContinuousClock.Instant
+        since startedAt: ContinuousClock.Instant, filter filterSummary: FilterLogSummary? = nil
     ) {
         guard surface.isPresented else { return }
         guard commitIsStillOpen else { return }
@@ -238,9 +235,9 @@ final class PanelExit {
             recordCommit(take.id, take.ownerProcessIdentifier)
             let outcome = switcher.switchTo(take)
             noteSwitchReturned()
-            recordCommitPair(take, outcome, by: .commitKey(key), elapsed: elapsed)
+            recordCommitPair(take, outcome, by: .commitKey(key), elapsed: elapsed, filter: filterSummary)
         case .none:
-            record(.nothingToCommit, by: .commitKey(key), elapsed: elapsed)
+            record(.nothingToCommit, by: .commitKey(key), elapsed: elapsed, filter: filterSummary)
         }
     }
 
@@ -262,9 +259,12 @@ final class PanelExit {
     /// Dismisses before recording, and that order is the measurement. The
     /// figure is meant to cover the call that takes the panel off the screen,
     /// which on a real machine is where the time goes.
-    func cancel(by key: CancelKey, since startedAt: ContinuousClock.Instant) {
+    func cancel(
+        by key: CancelKey,
+        since startedAt: ContinuousClock.Instant, filter filterSummary: FilterLogSummary? = nil
+    ) {
         dismissPanel()
-        record(.cancelled, by: .cancelKey(key), since: startedAt)
+        record(.cancelled, by: .cancelKey(key), since: startedAt, filter: filterSummary)
     }
 
     /// Takes the panel down for a release that came by no route at all.
@@ -343,12 +343,13 @@ final class PanelExit {
         _ take: ActivationTarget,
         _ outcome: ActivationOutcome,
         by trigger: PanelExitMeasurement.Trigger,
-        elapsed: Duration
+        elapsed: Duration, filter filterSummary: FilterLogSummary? = nil
     ) {
         record(
             .committed(appName: take.appName, displayTitle: take.displayTitle, id: take.id),
             by: trigger,
-            elapsed: elapsed
+            elapsed: elapsed,
+            filter: filterSummary
         )
         writeLine(SwitchMeasurement(
             appName: take.appName,
@@ -376,9 +377,9 @@ final class PanelExit {
     private func record(
         _ outcome: PanelExitMeasurement.Outcome,
         by trigger: PanelExitMeasurement.Trigger,
-        since startedAt: ContinuousClock.Instant
+        since startedAt: ContinuousClock.Instant, filter filterSummary: FilterLogSummary? = nil
     ) {
-        record(outcome, by: trigger, elapsed: now() - startedAt)
+        record(outcome, by: trigger, elapsed: now() - startedAt, filter: filterSummary)
     }
 
     /// The same line with the span handed in, for the paths that act between
@@ -386,12 +387,13 @@ final class PanelExit {
     private func record(
         _ outcome: PanelExitMeasurement.Outcome,
         by trigger: PanelExitMeasurement.Trigger,
-        elapsed: Duration
+        elapsed: Duration, filter filterSummary: FilterLogSummary? = nil
     ) {
         let measurement = PanelExitMeasurement(
             outcome: outcome,
             trigger: trigger,
-            elapsed: elapsed
+            elapsed: elapsed,
+            filterSummary: filterSummary
         )
         writeLine(measurement.summaryLine)
     }

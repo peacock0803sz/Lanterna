@@ -55,6 +55,20 @@ final class PanelSelection {
         cursor = opened
     }
 
+    /// Swaps the choice onto a new list without drawing.
+    ///
+    /// The caller redraws through the entry that swaps the rows, so one
+    /// keystroke draws once: drawing here as well would tell the panel twice
+    /// about one press. Rebuilds the cursor because the old one indexes rows
+    /// that are gone; choosing by identity keeps a row that survived the swap.
+    func retarget(to ids: [WindowItem.Identifier], selecting id: WindowItem.Identifier?) {
+        var remade = SelectionCursor(ids: ids)
+        if let id {
+            remade.select(id)
+        }
+        cursor = remade
+    }
+
     /// Gives up the choice, which has no meaning once the panel is down.
     func end() {
         cursor = nil

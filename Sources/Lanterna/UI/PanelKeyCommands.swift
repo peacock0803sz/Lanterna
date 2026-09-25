@@ -22,6 +22,7 @@ final class PanelKeyCommands {
     private let surface: any SwitcherSurface
     private let selection: PanelSelection
     private let wayOut: PanelExit
+    private let filter: PanelFilter
     private let now: @MainActor () -> ContinuousClock.Instant
 
     init(
@@ -33,7 +34,36 @@ final class PanelKeyCommands {
         self.surface = surface
         self.selection = selection
         self.wayOut = wayOut
+        filter = PanelFilter(selection: selection, surface: surface)
         self.now = now
+    }
+
+    /// Starts an appearance over the whole ordered list, filtering only
+    /// when the appearance asked for it.
+    func beginFiltering(fullWindows: [WindowItem], filtering: Bool = false) {
+        filter.begin(fullWindows: fullWindows, filtering: filtering)
+    }
+
+    /// Gives the appearance up; the next one starts empty either way.
+    func endFiltering() {
+        filter.reset()
+    }
+
+    /// Switches filtering on for the panel that is up.
+    func activateFiltering() {
+        filter.activate()
+    }
+
+    /// What the commit and cancel lines will say about this appearance.
+    func filterSummary() -> FilterLogSummary {
+        filter.logSummary()
+    }
+
+    /// Whether filtering answers keystrokes right now. The presenter asks
+    /// before sending keystrokes here and before treating a released
+    /// Command as anything.
+    var isFilteringActive: Bool {
+        filter.isActive
     }
 
     /// Decides what becomes of a key press.
@@ -80,9 +110,19 @@ final class PanelKeyCommands {
         case .selectPrevious:
             selection.moveToPrevious()
         case let .cancel(key):
-            wayOut.cancel(by: key, since: startedAt)
+            // Escape clears the query first and only cancels on an empty
+            // one. The table cannot tell the two apart: it keeps no state,
+            // and the filter is where the question is answered.
+            if key == .escape, filter.clear() {
+                break
+            }
+            wayOut.cancel(by: key, since: startedAt, filter: filter.logSummary())
         case let .commit(key):
-            wayOut.commit(by: key, naming: selection.chosenID, since: startedAt)
+            wayOut.commit(by: key, naming: selection.chosenID, since: startedAt, filter: filter.logSummary())
+        case let .filterText(text):
+            filter.append(text)
+        case .filterBackspace:
+            filter.removeLast()
         case .absorb:
             break
         }

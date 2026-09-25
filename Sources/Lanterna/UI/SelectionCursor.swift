@@ -35,6 +35,18 @@ struct SelectionCursor: Equatable, Sendable {
         selectedID = ids.first
     }
 
+    /// Chooses the row holding this identity, leaving the choice where it is
+    /// when no row holds it.
+    ///
+    /// The one way back onto a rebuilt list: filtering swaps the rows while
+    /// the panel is up, and the cursor over the old rows cannot step onto
+    /// the new ones. Choosing by identity rather than by position is what
+    /// keeps a renamed-but-present row chosen across the swap.
+    mutating func select(_ id: WindowItem.Identifier) {
+        guard ids.contains(id) else { return }
+        selectedID = id
+    }
+
     /// Chooses the second row, leaving whatever `init` chose otherwise.
     ///
     /// The panel opens on the second row while the cursor's arithmetic still
