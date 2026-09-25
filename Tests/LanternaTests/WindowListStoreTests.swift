@@ -134,6 +134,18 @@ struct WindowListStoreTests {
         #expect(store.snapshot?.items.count == 4)
     }
 
+    /// Fixed lists (the fixture, the missing-permission empty list) never
+    /// change, so the Space observer stays off them: only a live list is
+    /// observed.
+    @Test func fixedListsAreNotLive() {
+        #expect(WindowListStore(fixed: SampleWindows.make(count: 2)).isLive == false)
+    }
+
+    @Test func liveListsAreLive() {
+        let store = WindowListStore(gather: { snapshot(count: 1) }, writeLine: { _ in })
+        #expect(store.isLive == true)
+    }
+
     /// The panel asks whether a list is held in order to decide whether it may
     /// show at once, so a list that went missing again would put the delay
     /// back after it had already been paid for.
