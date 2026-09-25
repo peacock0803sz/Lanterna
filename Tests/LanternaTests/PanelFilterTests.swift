@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 @testable import Lanterna
 import Testing
 
@@ -138,6 +139,74 @@ struct PanelFilterTests {
         made.filter.removeLast()
         #expect(made.surface.updatedLists.count == updates)
         #expect(made.selection.chosenID == chosen)
+    }
+
+    /// Clearing restores the whole list and leaves the panel up.
+    @Test func clearingRestoresTheWholeListAndKeepsThePanelUp() {
+        let made = makeFilter()
+        made.filter.append("update")
+        #expect(made.filter.clear() == true)
+        #expect(made.surface.updatedLists.last?.map(\.id) == made.rows.map(\.id))
+        #expect(made.surface.isPresented)
+    }
+
+    /// Clearing an empty query answers no; the caller cancels instead.
+    @Test func clearingAnEmptyQueryAnswersNo() {
+        let made = makeFilter()
+        #expect(made.filter.clear() == false)
+        #expect(made.surface.updatedLists.isEmpty)
+    }
+
+    /// Clearing from an empty match restores everything.
+    @Test func clearingFromAnEmptyMatchRestoresEverything() {
+        let made = makeFilter()
+        made.filter.append("update")
+        made.filter.append("x")
+        #expect(made.filter.clear() == true)
+        #expect(made.surface.updatedLists.last?.map(\.id) == made.rows.map(\.id))
+        #expect(made.selection.chosenID == made.rows[0].id)
+    }
+
+    /// Escape clears first and cancels second, writing one cancel line.
+    @Test func escapeClearsFirstAndCancelsSecond() {
+        let made = makeFilter()
+        let commands = PanelKeyCommands(
+            surface: made.surface,
+            selection: made.selection,
+            wayOut: made.wayOut,
+            now: { ContinuousClock.now }
+        )
+        commands.beginFiltering(fullWindows: made.rows)
+        let escape = PanelKeystroke(keyCode: UInt16(kVK_Escape), modifiers: [], isARepeat: false, characters: "")
+        let letter = PanelKeystroke(keyCode: UInt16(kVK_ANSI_U), modifiers: [], isARepeat: false, characters: "u")
+        #expect(commands.handle(letter) == .absorbed)
+        #expect(made.surface.updatedLists.last?.map(\.id) == [made.rows[0].id])
+        #expect(commands.handle(escape) == .absorbed)
+        #expect(made.surface.isPresented)
+        #expect(made.surface.updatedLists.last?.map(\.id) == made.rows.map(\.id))
+        #expect(made.log.lines.isEmpty)
+        #expect(commands.handle(escape) == .absorbed)
+        #expect(!made.surface.isPresented)
+        #expect(made.log.lines.filter { $0.hasPrefix("cancelled ") }.count == 1)
+        #expect(made.log.lines.filter { $0.hasPrefix("committed ") }.isEmpty)
+    }
+
+    /// Closing drops the query: the next appearance starts over the whole list.
+    @Test func closingDropsTheQueryForTheNextAppearance() {
+        let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        let letter = PanelKeystroke(
+            keyCode: UInt16(kVK_ANSI_S),
+            modifiers: .command,
+            isARepeat: false,
+            characters: "s"
+        )
+        #expect(fixture.presenter.handleKeyStroke(letter) == .absorbed)
+        let cancel = PanelKeystroke(keyCode: UInt16(kVK_ANSI_Period), modifiers: .command, isARepeat: false)
+        #expect(fixture.presenter.handleKeyStroke(cancel) == .absorbed)
+        #expect(!fixture.surface.isPresented)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(fixture.surface.presentedLists.last?.count == 12)
     }
 
     /// An empty match chooses nothing.
