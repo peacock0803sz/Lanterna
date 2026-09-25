@@ -201,6 +201,26 @@ struct PanelExitMeasurement: Sendable {
     /// let go of.
     let elapsed: Duration
 
+    /// What the appearance filtered by, or nothing when it never narrowed.
+    ///
+    /// The exits always pass one; the older tests pinning other endings pass
+    /// none and keep reading the lines they always read. The wording that
+    /// reads this arrives with the diagnostics contract.
+    let filterSummary: FilterLogSummary?
+
+    /// Every segment spelled out. Only `filterSummary` has a default.
+    init(
+        outcome: Outcome,
+        trigger: Trigger,
+        elapsed: Duration,
+        filterSummary: FilterLogSummary? = nil
+    ) {
+        self.outcome = outcome
+        self.trigger = trigger
+        self.elapsed = elapsed
+        self.filterSummary = filterSummary
+    }
+
     /// Said of an application whose name flattened away to nothing, which
     /// takes a name of spaces alone — the one shape the window enumeration's
     /// own fallback does not rule out. A line naming nobody is worse than one
