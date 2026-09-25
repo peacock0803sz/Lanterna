@@ -84,9 +84,7 @@ struct PanelFilterTests {
         made.filter.append("s")
         #expect(made.surface.updatedLists.last?.map(\.id) == made.rows.map(\.id))
         made.filter.append("a")
-        #expect(
-            made.surface.updatedLists.last?.map(\.id) == [made.rows[0].id, made.rows[1].id]
-        )
+        #expect(made.surface.updatedLists.last?.map(\.id) == [made.rows[0].id, made.rows[1].id])
         #expect(made.selection.chosenID == made.rows[1].id)
     }
 
@@ -256,6 +254,33 @@ struct PanelFilterTests {
         #expect(fixture.presenter.handleKeyStroke(letter) == .absorbed)
         #expect((fixture.surface.updatedLists.last?.count ?? 12) < 12)
         #expect(shown?.count == 12)
+    }
+
+    /// Letting go of Command while filtering ends nothing: the panel stays
+    /// up with no commit line, and narrowing goes on.
+    @Test func releasingCommandWhileFilteringEndsNothing() {
+        let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+        fixture.presenter.handleHotkey(.filter, deliveryDelay: nil)
+        let letter = PanelKeystroke(
+            keyCode: UInt16(kVK_ANSI_S),
+            modifiers: [],
+            isARepeat: false,
+            characters: "s"
+        )
+        #expect(fixture.presenter.handleKeyStroke(letter) == .absorbed)
+        fixture.presenter.handleCommandRelease()
+        #expect(fixture.surface.isPresented)
+        #expect(fixture.log.lines.filter { $0.hasPrefix("committed ") }.isEmpty)
+        #expect((fixture.surface.updatedLists.last?.count ?? 12) < 12)
+    }
+
+    /// Filtering starts no watch: a further press closes the panel the way
+    /// a watchless appearance always closes it.
+    @Test func aFurtherPressClosesTheFilteringPanel() {
+        let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+        fixture.presenter.handleHotkey(.filter, deliveryDelay: nil)
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(!fixture.surface.isPresented)
     }
 
     /// Closing drops the query: the next appearance starts over the whole list.

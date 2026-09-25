@@ -59,6 +59,13 @@ final class PanelKeyCommands {
         filter.logSummary()
     }
 
+    /// Whether filtering answers keystrokes right now. The presenter asks
+    /// before sending keystrokes here and before treating a released
+    /// Command as anything.
+    var isFilteringActive: Bool {
+        filter.isActive
+    }
+
     /// Decides what becomes of a key press.
     ///
     /// With no panel up the press is nothing to do with this app, and it goes

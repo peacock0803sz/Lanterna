@@ -234,6 +234,7 @@ final class PanelPresenter {
                 selection.moveToPrevious()
             case .filter:
                 keyCommands.activateFiltering()
+                commandWatch.stop()
             }
             return
         }
@@ -320,10 +321,11 @@ final class PanelPresenter {
         writeLine(measurement.summaryLine)
 
         // Only with a monitor is a release expected at all, and starting below
-        // the reading is what keeps the task out of the figure. The
-        // key-status looking starts with the handover above: it lasts as
-        // long as the panel does, and the way out owns both ends of that.
-        if closesOnCommandRelease() {
+        // the reading is what keeps the task out of the figure. Filtering starts
+        // no watch, for releases end nothing there. The key-status looking starts
+        // with the handover above: it lasts as long as the panel does, and the
+        // way out owns both ends of that.
+        if closesOnCommandRelease(), !keyCommands.isFilteringActive {
             commandWatch.start()
         }
     }
@@ -372,10 +374,8 @@ final class PanelPresenter {
         wayOut.takeDown(because: "frontmost application changed")
     }
 
-    /// Hands a key press to the one place that decides what becomes of it.
-    ///
-    /// Kept as an entry here because the channel delivering presses is wired
-    /// to the presenter, which is what the application knows about.
+    /// Hands a key press to the one place that decides what becomes of it,
+    /// kept as an entry because the channel is wired to the presenter.
     func handleKeyStroke(_ keystroke: PanelKeystroke) -> PanelKeyDisposition {
         keyCommands.handle(keystroke)
     }
@@ -394,6 +394,7 @@ final class PanelPresenter {
             wayOut.recordPressCalledOff(since: startedAt)
             return
         }
+        guard !keyCommands.isFilteringActive else { return }
         wayOut.commitOnCommandRelease(naming: selection.chosenID, since: startedAt, filter: keyCommands.filterSummary())
     }
 }
