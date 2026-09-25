@@ -11,14 +11,27 @@ struct SwitcherViewTests {
     @Test func theChosenRowIsTheOneItWasHanded() {
         let windows = SampleWindows.standard()
         let third = windows[2].id
-        #expect(SwitcherView(windows: windows, selectedID: third, appearanceToken: 0).selectedID == third)
+        #expect(
+            SwitcherView(windows: windows, selectedID: third, appearanceToken: 0, query: "")
+                .selectedID == third
+        )
     }
 
     /// Nothing chosen is a state the view has to be able to draw: the panel
     /// goes up over an empty list whenever the window enumeration comes back
     /// with nothing.
     @Test func nothingNeedBeChosen() {
-        #expect(SwitcherView(windows: SampleWindows.standard(), selectedID: nil, appearanceToken: 0).selectedID == nil)
-        #expect(SwitcherView(windows: [], selectedID: nil, appearanceToken: 1).selectedID == nil)
+        #expect(
+            SwitcherView(
+                windows: SampleWindows.standard(),
+                selectedID: nil,
+                appearanceToken: 0,
+                query: ""
+            ).selectedID == nil
+        )
+        #expect(
+            SwitcherView(windows: [], selectedID: nil, appearanceToken: 1, query: "")
+                .selectedID == nil
+        )
     }
 }

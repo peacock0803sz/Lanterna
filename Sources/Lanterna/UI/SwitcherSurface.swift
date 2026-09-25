@@ -45,6 +45,11 @@ protocol SwitcherSurface {
     /// panel — not its size, not its position, and writing no line.
     func showSelection(_ id: WindowItem.Identifier?)
 
+    /// Swaps the rows on screen for a narrowed set, redrawing the query
+    /// beside them, and changes nothing else about the panel — not its size,
+    /// not its position, and writing no line.
+    func updateList(windows: [WindowItem], selecting: WindowItem.Identifier?, query: String)
+
     func dismiss()
 }
 

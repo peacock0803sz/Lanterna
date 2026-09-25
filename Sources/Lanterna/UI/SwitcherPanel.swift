@@ -93,7 +93,8 @@ final class SwitcherPanel: NSPanel {
         hostingView.rootView = SwitcherView(
             windows: windows,
             selectedID: hostingView.rootView.selectedID,
-            appearanceToken: hostingView.rootView.appearanceToken
+            appearanceToken: hostingView.rootView.appearanceToken,
+            query: hostingView.rootView.query
         )
         // The height is pushed down from the window, because the hosting view
         // has no sizing options and so cannot push one up.
@@ -160,6 +161,22 @@ final class SwitcherPanel: NSPanel {
     /// a panel the eye has to find again on every keystroke.
     func showSelection(_ id: WindowItem.Identifier?) {
         hostingView.rootView.selectedID = id
+    }
+
+    /// Swaps the rows for a narrowed set, and changes nothing else.
+    ///
+    /// A new root view like `update(windows:)` swaps, but without the size
+    /// and the centre that call decides: narrowing happens a keystroke at a
+    /// time, and a panel that resized or jumped on every one would be one
+    /// the eye has to find again. The appearance token travels across
+    /// untouched, so the scrolled position is left where it was.
+    func updateList(windows: [WindowItem], selecting: WindowItem.Identifier?, query: String) {
+        hostingView.rootView = SwitcherView(
+            windows: windows,
+            selectedID: selecting,
+            appearanceToken: hostingView.rootView.appearanceToken,
+            query: query
+        )
     }
 
     /// Which row the panel is drawing as chosen at this instant.

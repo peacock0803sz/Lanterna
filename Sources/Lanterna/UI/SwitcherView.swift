@@ -27,23 +27,23 @@ struct SwitcherView: View {
     /// that moves every time does the saying instead.
     var appearanceToken: Int
 
-    /// Written out rather than left to the compiler, so that the choice
-    /// cannot be omitted.
+    /// Every call site passes the choice explicitly: an omitted choice
+    /// would quietly draw no row as chosen, which is exactly what the one
+    /// place swapping a new list in must never do. `nil` is only for when
+    /// nothing is chosen.
     ///
-    /// The synthesised memberwise initialiser would give this one a default:
-    /// an optional `var` carries an implicit `nil`, and that implicit value
-    /// becomes a default argument, so `SwitcherView(windows:)` would compile
-    /// and quietly draw no row as chosen. That is exactly what the one place
-    /// swapping a new list in must never do. Spelling the initialiser out
-    /// removes the synthesised one, so a call site that says nothing about
-    /// the choice fails to build instead.
-    init(windows: [WindowItem], selectedID: WindowItem.Identifier?, appearanceToken: Int) {
-        self.windows = windows
-        self.selectedID = selectedID
-        self.appearanceToken = appearanceToken
-    }
+    /// The query narrowing the list, drawn as one small row under it.
+    ///
+    /// Empty means the whole list, and draws nothing: an appearance that
+    /// never narrows looks exactly as it did before any of this existed.
+    var query: String
 
     var body: some View {
+        // The query rides as an overlay so the layout never moves for it:
+        // the panel frame is fixed to the row count, and a row that pushed
+        // the list up would move the chosen row under the eye on every
+        // keystroke. Empty draws nothing at all, so an appearance that
+        // never narrows looks exactly as it did before any of this existed.
         ScrollViewReader { proxy in
             List {
                 ForEach(windows) { window in
@@ -86,6 +86,18 @@ struct SwitcherView: View {
                 if let id = selectedID {
                     proxy.scrollTo(id, anchor: nil)
                 }
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if !query.isEmpty {
+                Text(query)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 2)
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6))
+                    .padding(.bottom, 4)
             }
         }
     }
