@@ -90,8 +90,6 @@ struct SwitcherView: View {
                 // turned off would take wheel and trackpad scrolling with it —
                 // the one way to reach the far rows of a long list.
                 .focusEffectDisabled(true)
-                .padding(.vertical, PanelMetrics.verticalPadding)
-                .adaptiveGlass()
                 // The least scrolling that shows the row, and nothing when it is
                 // already showing. `.center` would move on every keystroke, and
                 // a list that jumps under a choice being moved along it is one
@@ -112,5 +110,11 @@ struct SwitcherView: View {
                 }
             }
         }
+        // The glass covers the whole stack, not the list alone: the query
+        // and the header above it would otherwise float over the desktop
+        // with no background to read against. An inactive panel stacks
+        // nothing, so it draws exactly as it did before.
+        .padding(.vertical, PanelMetrics.verticalPadding)
+        .adaptiveGlass()
     }
 }
