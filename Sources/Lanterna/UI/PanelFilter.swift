@@ -13,6 +13,10 @@ final class PanelFilter {
     private var fullWindows: [WindowItem] = []
     private var state = FilterState()
     private var lastSummary = FilterLogSummary(query: "", matchedCount: 0, totalCount: 0)
+    /// Whether keystrokes narrow the list right now. Set only by the filter
+    /// invocation; a panel shown any other way leaves it off, and typing is
+    /// swallowed as before.
+    private(set) var isActive = false
     private let selection: PanelSelection
     private let surface: any SwitcherSurface
 
@@ -27,11 +31,18 @@ final class PanelFilter {
     }
 
     /// Starts an appearance over the whole ordered list, remembering nothing.
-    func begin(fullWindows: [WindowItem]) {
+    /// Filtering answers keystrokes only when the appearance asked for it.
+    func begin(fullWindows: [WindowItem], filtering: Bool = false) {
         self.fullWindows = fullWindows
         state = FilterState()
         state.previousMatchedIDs = Set(fullWindows.map(\.id))
         lastSummary = FilterLogSummary(query: "", matchedCount: fullWindows.count, totalCount: fullWindows.count)
+        isActive = filtering
+    }
+
+    /// Switches filtering on for the panel that is up.
+    func activate() {
+        isActive = true
     }
 
     /// Gives the appearance up; the next one starts empty either way.
@@ -39,6 +50,7 @@ final class PanelFilter {
         fullWindows = []
         state = FilterState()
         lastSummary = FilterLogSummary(query: "", matchedCount: 0, totalCount: 0)
+        isActive = false
     }
 
     /// What the commit and cancel lines will say about this appearance.
@@ -50,8 +62,9 @@ final class PanelFilter {
         lastSummary
     }
 
-    /// Narrows one keystroke further.
+    /// Narrows one keystroke further. Answers nothing while inactive.
     func append(_ text: String) {
+        guard isActive else { return }
         state.append(text)
         apply()
     }
@@ -60,7 +73,7 @@ final class PanelFilter {
     /// empty: there is nothing to narrow back to that the panel is not
     /// already showing.
     func removeLast() {
-        guard isFiltering else { return }
+        guard isActive, isFiltering else { return }
         state.removeLast()
         apply()
     }
@@ -73,7 +86,7 @@ final class PanelFilter {
     /// are different fates for one press, and forgetting to ask would
     /// silently turn one into the other.
     func clear() -> Bool {
-        guard isFiltering else { return false }
+        guard isActive, isFiltering else { return false }
         state.clear()
         apply()
         return true

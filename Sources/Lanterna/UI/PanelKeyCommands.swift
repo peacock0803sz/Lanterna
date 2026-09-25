@@ -38,14 +38,20 @@ final class PanelKeyCommands {
         self.now = now
     }
 
-    /// Starts an appearance over the whole ordered list.
-    func beginFiltering(fullWindows: [WindowItem]) {
-        filter.begin(fullWindows: fullWindows)
+    /// Starts an appearance over the whole ordered list, filtering only
+    /// when the appearance asked for it.
+    func beginFiltering(fullWindows: [WindowItem], filtering: Bool = false) {
+        filter.begin(fullWindows: fullWindows, filtering: filtering)
     }
 
     /// Gives the appearance up; the next one starts empty either way.
     func endFiltering() {
         filter.reset()
+    }
+
+    /// Switches filtering on for the panel that is up.
+    func activateFiltering() {
+        filter.activate()
     }
 
     /// What the commit and cancel lines will say about this appearance.

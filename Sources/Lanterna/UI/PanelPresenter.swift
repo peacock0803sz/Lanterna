@@ -223,7 +223,7 @@ final class PanelPresenter {
             // read again on every press because either can have changed
             // since the last.
             let pressMovesTheSelection = closesOnCommandRelease() && commandWatch.isLooking
-            guard pressMovesTheSelection else {
+            guard pressMovesTheSelection || combination == .filter else {
                 wayOut.takeDown(because: combination.name)
                 return
             }
@@ -232,6 +232,8 @@ final class PanelPresenter {
                 selection.moveToNext()
             case .reverse:
                 selection.moveToPrevious()
+            case .filter:
+                keyCommands.activateFiltering()
             }
             return
         }
@@ -302,7 +304,7 @@ final class PanelPresenter {
         tracker.noteSnapshotObserved(store.snapshot?.gatheredAt ?? now())
         let ordered = tracker.ordered(windows, skipping: store.snapshot?.skippedOwners ?? [])
         selection.beginSecond(ordered.map(\.id))
-        keyCommands.beginFiltering(fullWindows: ordered)
+        keyCommands.beginFiltering(fullWindows: ordered, filtering: combination == .filter)
         surface.present(windows: ordered, selecting: selection.chosenID)
         let becameKey = surface.takeKeys()
         wayOut.nowShowing(ordered, startedAt: startedAt)
