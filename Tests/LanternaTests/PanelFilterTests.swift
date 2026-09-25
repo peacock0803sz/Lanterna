@@ -59,7 +59,7 @@ struct PanelFilterTests {
             noteSwitchReturned: {},
             onPanelGone: {}
         )
-        let filter = PanelFilter(selection: selection, surface: surface, wayOut: wayOut)
+        let filter = PanelFilter(selection: selection, surface: surface)
         selection.beginSecond(rows.map(\.id))
         wayOut.nowShowing(rows, startedAt: ContinuousClock.now)
         filter.begin(fullWindows: rows)

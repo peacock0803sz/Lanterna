@@ -77,14 +77,15 @@ struct FilterStateTests {
         #expect(chosen == third)
     }
 
-    /// Passing through an empty match keeps the memory for the way back.
-    @Test func passingThroughAnEmptyMatchKeepsTheMemory() {
+    /// Passing through an empty match remembers the row that vanished into
+    /// it; coming back restores that row, not an older one.
+    @Test func passingThroughAnEmptyMatchRemembersTheVanishedRow() {
         var state = FilterState(previousMatchedIDs: Set(all))
         _ = state.resolveSelection(matched: [second], incoming: first)
-        let none = state.resolveSelection(matched: [], incoming: nil)
+        let none = state.resolveSelection(matched: [], incoming: second)
         #expect(none == nil)
-        #expect(state.rememberedID == first)
-        let chosen = state.resolveSelection(matched: all, incoming: nil)
-        #expect(chosen == first)
+        #expect(state.rememberedID == second)
+        let chosen = state.resolveSelection(matched: [second, third], incoming: nil)
+        #expect(chosen == second)
     }
 }
