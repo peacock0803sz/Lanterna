@@ -83,6 +83,10 @@ final class PanelKeyCommands {
             wayOut.cancel(by: key, since: startedAt)
         case let .commit(key):
             wayOut.commit(by: key, naming: selection.chosenID, since: startedAt)
+        case .filterText:
+            break
+        case .filterBackspace:
+            break
         case .absorb:
             break
         }
