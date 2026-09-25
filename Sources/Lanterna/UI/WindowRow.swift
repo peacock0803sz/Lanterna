@@ -57,11 +57,13 @@ struct WindowRow: View {
         var out = Text("")
         var cursor = text.startIndex
         for range in ranges {
-            out = out + Text(String(text[cursor ..< range.lowerBound])).foregroundStyle(rowStyle(base))
-                + Text(String(text[range])).foregroundColor(.red)
+            let before = Text(String(text[cursor ..< range.lowerBound])).foregroundStyle(rowStyle(base))
+            let hit = Text(String(text[range])).foregroundColor(.red)
+            out = Text("\(out)\(before)\(hit)")
             cursor = range.upperBound
         }
-        return out + Text(String(text[cursor...])).foregroundStyle(rowStyle(base))
+        let tail = Text(String(text[cursor...])).foregroundStyle(rowStyle(base))
+        return Text("\(out)\(tail)")
     }
 
     @ViewBuilder
