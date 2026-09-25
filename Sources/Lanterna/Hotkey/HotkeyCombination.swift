@@ -7,6 +7,10 @@ import Carbon.HIToolbox
 enum HotkeyCombination: Sendable, CaseIterable {
     case forward
     case reverse
+    /// The filter invocation. Registered and diagnosed like the other two:
+    /// `HotkeyManager` and the disable/restore discipline iterate `all`, so
+    /// adding the case is what reaches them.
+    case filter
 
     /// Rides along on the `EventHotKeyID` and comes back on every press, which
     /// is how the handler tells the two apart. Non-zero, so a zeroed-out
@@ -15,16 +19,20 @@ enum HotkeyCombination: Sendable, CaseIterable {
         switch self {
         case .forward: 1
         case .reverse: 2
+        case .filter: 3
         }
     }
 
     var keyCode: UInt32 {
-        UInt32(kVK_Tab)
+        switch self {
+        case .forward, .reverse: UInt32(kVK_Tab)
+        case .filter: UInt32(kVK_Space)
+        }
     }
 
     var carbonModifiers: UInt32 {
         switch self {
-        case .forward: UInt32(cmdKey)
+        case .forward, .filter: UInt32(cmdKey)
         case .reverse: UInt32(cmdKey | shiftKey)
         }
     }
@@ -35,6 +43,7 @@ enum HotkeyCombination: Sendable, CaseIterable {
         switch self {
         case .forward: "Cmd+Tab"
         case .reverse: "Shift+Cmd+Tab"
+        case .filter: "Cmd+Space"
         }
     }
 

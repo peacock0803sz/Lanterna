@@ -17,16 +17,25 @@ struct HotkeyCombinationTests {
         #expect(identifiers.allSatisfy { $0 != 0 })
     }
 
-    @Test(arguments: [0, 3, 99, UInt32.max] as [UInt32])
+    @Test(arguments: [0, 4, 99, UInt32.max] as [UInt32])
     func anIdentifierThisAppNeverHandedOutIsRejected(identifier: UInt32) {
         #expect(HotkeyCombination(id: identifier) == nil)
     }
 
-    /// The manual acceptance checks grep the diagnostics for these two
-    /// spellings, so they are pinned rather than derived.
+    /// The manual acceptance checks grep the diagnostics for these spellings,
+    /// so they are pinned rather than derived.
     @Test func namesReadTheWayTheDiagnosticsDo() {
         #expect(HotkeyCombination.forward.name == "Cmd+Tab")
         #expect(HotkeyCombination.reverse.name == "Shift+Cmd+Tab")
+        #expect(HotkeyCombination.filter.name == "Cmd+Space")
+    }
+
+    /// Pinned to the literals, not to each other: the filter invocation is
+    /// Space with Command and nothing else, on its own identifier.
+    @Test func filterIsSpaceWithCommandAndNothingElse() {
+        #expect(HotkeyCombination.filter.id == 3)
+        #expect(HotkeyCombination.filter.keyCode == UInt32(kVK_Space))
+        #expect(HotkeyCombination.filter.carbonModifiers == UInt32(cmdKey))
     }
 
     /// Pinned to the literals, not to each other: these two numbers are what

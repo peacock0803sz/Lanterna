@@ -20,8 +20,8 @@ struct HotkeyRegistrationOutcomeTests {
         failures: []
     )
 
-    private static let onlyReverse = HotkeyRegistrationOutcome(
-        registered: [.reverse],
+    private static let allButForward = HotkeyRegistrationOutcome(
+        registered: [.reverse, .filter],
         failures: [failure(.forward)]
     )
 
@@ -30,26 +30,26 @@ struct HotkeyRegistrationOutcomeTests {
         failures: HotkeyCombination.all.map(failure)
     )
 
-    @Test func bothTakenReadsAsOneList() {
-        #expect(Self.everything.summaryLine == "registered Cmd+Tab, Shift+Cmd+Tab")
+    @Test func allTakenReadsAsOneList() {
+        #expect(Self.everything.summaryLine == "registered Cmd+Tab, Shift+Cmd+Tab, Cmd+Space")
         #expect(Self.everything.isTotalFailure == false)
     }
 
     /// A half-working app is the case worth reading carefully: it keeps
     /// running, so the log is all that says why one key does nothing.
-    @Test func oneRefusalSitsBesideTheOneThatWorked() {
+    @Test func oneRefusalSitsBesideTheOnesThatWorked() {
         #expect(
-            Self.onlyReverse.summaryLine
-                == "registered Shift+Cmd+Tab; could not register Cmd+Tab (error -9878)"
+            Self.allButForward.summaryLine
+                == "registered Shift+Cmd+Tab, Cmd+Space; could not register Cmd+Tab (error -9878)"
         )
-        #expect(Self.onlyReverse.isTotalFailure == false)
+        #expect(Self.allButForward.isTotalFailure == false)
     }
 
     @Test func nothingTakenSaysWhyAndSaysItIsLeaving() {
         #expect(
             Self.nothing.summaryLine
                 == "could not register Cmd+Tab (error -9878), "
-                + "Shift+Cmd+Tab (error -9878); no hotkey registered, exiting"
+                + "Shift+Cmd+Tab (error -9878), Cmd+Space (error -9878); no hotkey registered, exiting"
         )
         #expect(Self.nothing.isTotalFailure)
     }
@@ -61,7 +61,7 @@ struct HotkeyRegistrationOutcomeTests {
     /// rather than failing an expectation here. This is kept because it
     /// states the invariant at the type's boundary, and because it is still a
     /// check in a release test build, where the assert is compiled out.
-    @Test(arguments: [everything, onlyReverse, nothing])
+    @Test(arguments: [everything, allButForward, nothing])
     func theTwoListsTogetherAccountForEveryCombination(outcome: HotkeyRegistrationOutcome) {
         let accounted = outcome.registered.map(\.id) + outcome.failures.map(\.combination.id)
         #expect(accounted.count == HotkeyCombination.all.count)
