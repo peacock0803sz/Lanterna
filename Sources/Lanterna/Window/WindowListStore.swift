@@ -29,11 +29,17 @@ final class WindowListStore {
     private(set) var snapshot: WindowListSnapshot?
 
     /// Whether a pass is in flight, which is what a second caller is turned
-    /// away on.
+    /// away on. Event-driven callers use `refreshEventually` instead and
+    /// queue behind it.
     private(set) var isRefreshing = false
 
     private var refreshTask: Task<Void, Never>?
     private var refreshAgain = false
+    /// Callers that arrived while a pass was running and wait until a pass
+    /// completes with nothing queued, which is when the list is freshest.
+    /// Released by `stop()` too: the loop is dead then, so what is held is
+    /// all there will ever be.
+    private var waitingForFresh: [CheckedContinuation<Void, Never>] = []
     /// Callers parked until the first pass produces something.
     private var waitingForFirstList: [CheckedContinuation<Void, Never>] = []
     private let gather: @MainActor () async -> WindowListSnapshot
@@ -100,18 +106,33 @@ final class WindowListStore {
         for continuation in waiting {
             continuation.resume()
         }
+        // A pass ending with nothing queued leaves the freshest list:
+        // release the event callers waiting for exactly that. No awaits
+        // stand between the flag read and the resumes, so a request landing
+        // in between cannot miss its pass.
+        if !refreshAgain {
+            let waitingForFresh = waitingForFresh
+            self.waitingForFresh = []
+            for continuation in waitingForFresh {
+                continuation.resume()
+            }
+        }
     }
 
-    /// Requests a pass, running one now unless one is already running, in which
-    /// case exactly one more pass follows it.
+    /// Requests a pass and does not return until the list is fresh again.
     ///
-    /// Event-driven callers (a Space switch) must not lose their update to the
-    /// polling loop's in-flight pass (#44). Concurrent requests coalesce: any
-    /// number of calls arriving during one pass produce a single following pass.
-    /// The polling loop itself never overlaps because it awaits each pass.
+    /// Runs one now unless one is already running, in which case exactly one
+    /// more pass follows it and this waits for that pass. Event-driven
+    /// callers (a Space switch) must neither lose their update to the
+    /// polling loop's in-flight pass nor return before it lands (#44).
+    /// Concurrent requests coalesce: any number of calls arriving during one
+    /// pass produce a single following pass that releases them all. The
+    /// polling loop goes through here too, which is what drains a flag set
+    /// mid-pass; it never overlaps itself because it awaits each pass.
     func refreshEventually() async {
         if isRefreshing {
             refreshAgain = true
+            await withCheckedContinuation { waitingForFresh.append($0) }
             return
         }
         await refresh()
@@ -154,7 +175,10 @@ final class WindowListStore {
         // store keeping itself alive through its own loop.
         refreshTask = Task { [weak self] in
             while !Task.isCancelled {
-                await self?.refresh()
+                // Through `refreshEventually` rather than `refresh` so that
+                // an event flag set mid-pass is drained by the following
+                // pass instead of being orphaned until the next event.
+                await self?.refreshEventually()
                 do {
                     try await Task.sleep(for: interval)
                 } catch {
@@ -166,9 +190,17 @@ final class WindowListStore {
         }
     }
 
-    /// Ends the loop. The list already held stays held.
+    /// Ends the loop. The list already held stays held. Drops a queued
+    /// event pass and releases its waiters: with no loop left to drain it,
+    /// waiting would never end.
     func stop() {
         refreshTask?.cancel()
         refreshTask = nil
+        refreshAgain = false
+        let waitingForFresh = waitingForFresh
+        self.waitingForFresh = []
+        for continuation in waitingForFresh {
+            continuation.resume()
+        }
     }
 }

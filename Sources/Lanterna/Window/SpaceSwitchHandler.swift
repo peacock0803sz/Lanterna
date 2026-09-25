@@ -9,9 +9,15 @@ import Darwin
 /// the first open after the switch would sort on the pre-switch memory until
 /// the next pass replaces it. The notification itself names no application,
 /// so the frontmost one is read here and recorded the way an activation
-/// would be. Recording runs before the refresh because the refresh can take
-/// a second behind a wedged application while the record is bounded by the
-/// messaging timeout.
+/// would be. The record is bounded by at most two timed reads
+/// (AXFocusedWindowReader.messagingTimeout each), the same bound the
+/// activation path accepts by running on the notification turn.
+///
+/// Overlapping notifications serialize on the MainActor and the panel sorts
+/// at show time, so a transient interleave is harmless; refreshEventually
+/// guarantees the snapshot is fresh. The frontmost application is read as
+/// found: a still-settling switch may name the previous application, and
+/// the next activation then corrects the order.
 @MainActor
 struct SpaceSwitchHandler {
     private let store: WindowListStore
@@ -37,29 +43,35 @@ struct SpaceSwitchHandler {
         self.writeLine = writeLine
     }
 
+    /// Handles one Space change: records the frontmost window the way an
+    /// activation would, then asks for a fresh pass. The pass still runs
+    /// when there is nothing to record, because the list itself is stale
+    /// from the switch either way.
     func handle() async {
         writeLine("space changed; refreshing window list")
-        if let frontmost = frontmostProcessIdentifier() {
-            recordExternalActivation(
-                of: frontmost,
-                excluding: ownProcessIdentifier,
-                reading: reading,
-                into: tracker
-            )
+        guard let frontmost = frontmostProcessIdentifier() else {
+            writeLine("space changed; no frontmost application to record")
+            await store.refreshEventually()
+            return
         }
-        await store.refresh()
+        guard frontmost != ownProcessIdentifier else {
+            writeLine("space changed; frontmost is this process")
+            await store.refreshEventually()
+            return
+        }
+        recordExternalActivation(
+            of: frontmost,
+            excluding: ownProcessIdentifier,
+            reading: reading,
+            into: tracker
+        )
+        await store.refreshEventually()
     }
 }
 
-/// Watches the active Space and refreshes the held list and the
-/// most-recently-used order when it changes.
-///
-/// A Space switch does not always activate an application, so the activation
-/// observer misses it and the first open after the switch would sort on the
-/// pre-switch memory until the next poll pass. The notification names no
-/// application, so the handler reads the frontmost one itself. Nothing
-/// removes the observation: it stops with the process, the way the
-/// activation observer does.
+/// Watches the active Space through SpaceSwitchHandler. Nothing removes
+/// the observation: it stops with the process, the way the activation
+/// observer does.
 @MainActor
 func startObservingSpaceChanges(store: WindowListStore, tracker: MRUTracker) {
     let handler = SpaceSwitchHandler(
@@ -75,10 +87,8 @@ func startObservingSpaceChanges(store: WindowListStore, tracker: MRUTracker) {
         object: nil,
         queue: .main
     ) { _ in
-        MainActor.assumeIsolated {
-            Task {
-                await handler.handle()
-            }
+        Task { @MainActor in
+            await handler.handle()
         }
     }
 }

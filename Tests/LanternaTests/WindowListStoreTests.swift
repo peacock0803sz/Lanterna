@@ -129,11 +129,13 @@ struct WindowListStoreTests {
 
     // MARK: - Event-driven refresh
 
-    /// A Space switch must not lose its update to the polling loop's
-    /// in-flight pass (#44). A request arriving mid-pass runs exactly one
-    /// more pass after it, replacing the list with the second answer and
-    /// writing no "skipped" line.
-    @Test func anEventRefreshDuringAPassRunsOneMorePassAfterIt() async {
+    /// A Space switch must neither lose its update to the polling loop's
+    /// in-flight pass nor return before it lands (#44). A request arriving
+    /// mid-pass runs exactly one more pass after it and waits for that pass.
+    /// Awaiting the event call itself is the freshness assertion: it returns
+    /// only after the second answer replaced the list, with no "skipped"
+    /// line on the way.
+    @Test(.timeLimit(.minutes(1))) func anEventRefreshDuringAPassWaitsForTheFollowingPass() async {
         let first = snapshot(count: 3)
         let second = snapshot(count: 7)
         let log = DiagnosticsLog()
@@ -162,7 +164,8 @@ struct WindowListStoreTests {
         if callCount == 0 {
             await withCheckedContinuation { firstStarted = $0 }
         }
-        await store.refreshEventually()
+        let event = Task { await store.refreshEventually() }
+        await settle()
         release?.resume()
         release = nil
         if callCount < 2 {
@@ -170,6 +173,7 @@ struct WindowListStoreTests {
         }
         release?.resume()
         release = nil
+        await event.value
         await pass.value
 
         #expect(callCount == 2)
@@ -177,21 +181,74 @@ struct WindowListStoreTests {
         #expect(!log.lines.contains("refresh skipped (previous pass still running)"))
     }
 
+    /// A request arriving during the following pass queues a third one: the
+    /// drain keeps draining until nothing is queued. Rapid consecutive Space
+    /// switches land exactly here.
+    @Test(.timeLimit(.minutes(1))) func aRequestDuringTheFollowingPassQueuesAThirdPass() async {
+        let answers = [snapshot(count: 3), snapshot(count: 7), snapshot(count: 9)]
+        let log = DiagnosticsLog()
+        var callCount = 0
+        var started: CheckedContinuation<Void, Never>?
+        var release: CheckedContinuation<Void, Never>?
+        let store = WindowListStore(
+            gather: {
+                callCount += 1
+                started?.resume()
+                started = nil
+                let answer = answers[min(callCount - 1, answers.count - 1)]
+                await withCheckedContinuation { release = $0 }
+                return answer
+            },
+            writeLine: log.write
+        )
+
+        let pass = Task { await store.refreshEventually() }
+        if callCount == 0 {
+            await withCheckedContinuation { started = $0 }
+        }
+        let firstEvent = Task { await store.refreshEventually() }
+        await settle()
+        release?.resume()
+        release = nil
+        if callCount < 2 {
+            await withCheckedContinuation { started = $0 }
+        }
+        let secondEvent = Task { await store.refreshEventually() }
+        await settle()
+        release?.resume()
+        release = nil
+        if callCount < 3 {
+            await withCheckedContinuation { started = $0 }
+        }
+        release?.resume()
+        release = nil
+        await firstEvent.value
+        await secondEvent.value
+        await pass.value
+
+        #expect(callCount == 3)
+        #expect(store.snapshot?.items.count == 9)
+        #expect(!log.lines.contains("refresh skipped (previous pass still running)"))
+    }
+
     /// Concurrent requests coalesce: two calls arriving during one pass
-    /// still produce only a single following pass.
-    @Test func twoEventRefreshesDuringOnePassProduceOnlyOneExtraPass() async {
+    /// still produce only a single following pass, which releases them both.
+    @Test(.timeLimit(.minutes(1))) func twoEventRefreshesDuringOnePassProduceOnlyOneExtraPass() async {
         let fake = HeldGather(answer: snapshot(count: 5))
         let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
 
         let pass = Task { await store.refreshEventually() }
         await fake.waitUntilCalled()
-        await store.refreshEventually()
-        await store.refreshEventually()
+        let first = Task { await store.refreshEventually() }
+        let second = Task { await store.refreshEventually() }
+        await settle()
         fake.finish()
         while fake.callCount < 2 {
             await Task.yield()
         }
         fake.finish()
+        await first.value
+        await second.value
         await pass.value
 
         #expect(fake.callCount == 2)
