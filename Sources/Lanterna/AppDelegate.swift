@@ -119,6 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 + outcome.summaryLine
         )
         observeFrontmostApplication(presenter)
+        startObservingSpaceChanges(store: windowList, tracker: presenter.tracker)
     }
 
     /// Puts the monitor over this process's key presses up, for the rest of
