@@ -32,72 +32,84 @@ struct SwitcherView: View {
     /// place swapping a new list in must never do. `nil` is only for when
     /// nothing is chosen.
     ///
-    /// The query narrowing the list, drawn as one small row under it.
-    ///
-    /// Empty means the whole list, and draws nothing: an appearance that
-    /// never narrows looks exactly as it did before any of this existed.
+    /// The query narrowing the list, drawn large over it. Empty draws
+    /// nothing: an appearance that never narrows looks exactly as it did
+    /// before any of this existed.
     var query: String
 
+    /// Whether the filter chrome (the query when it reads anything, and the
+    /// header) belongs on screen. Off draws neither, whatever the query is.
+    var filterActive: Bool
+
     var body: some View {
-        // The query rides as an overlay so the layout never moves for it:
-        // the panel frame is fixed to the row count, and a row that pushed
-        // the list up would move the chosen row under the eye on every
-        // keystroke. Empty draws nothing at all, so an appearance that
-        // never narrows looks exactly as it did before any of this existed.
-        ScrollViewReader { proxy in
-            List {
-                ForEach(windows) { window in
-                    WindowRow(window: window, isSelected: window.id == selectedID)
-                        // Vertical insets and separators are removed so the List
-                        // adds nothing to WindowRow's fixed height; the horizontal
-                        // insets stay.
-                        .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .id(window.id)
-                }
-            }
-            .listStyle(.plain)
-            .environment(\.defaultMinListRowHeight, PanelMetrics.rowHeight)
-            .scrollContentBackground(.hidden)
-            // The panel is never the place typing goes, so it must never
-            // draw the ring that says it is. What is not added here matters
-            // as much: a `List(selection:)` binding would hand the arrow
-            // keys to the list ahead of the panel, and `.allowsHitTesting`
-            // turned off would take wheel and trackpad scrolling with it —
-            // the one way to reach the far rows of a long list.
-            .focusEffectDisabled(true)
-            .padding(.vertical, PanelMetrics.verticalPadding)
-            .adaptiveGlass()
-            // The least scrolling that shows the row, and nothing when it is
-            // already showing. `.center` would move on every keystroke, and
-            // a list that jumps under a choice being moved along it is one
-            // the eye has to find again each time.
-            .onChange(of: selectedID) { _, id in
-                if let id {
-                    proxy.scrollTo(id, anchor: nil)
-                }
-            }
-            // A new appearance always moves the token, even when the choice
-            // is the same row it was last time, so reopening onto the first
-            // row scrolls back to it rather than staying where the last
-            // appearance left off.
-            .onChange(of: appearanceToken) { _, _ in
-                if let id = selectedID {
-                    proxy.scrollTo(id, anchor: nil)
-                }
-            }
-        }
-        .overlay(alignment: .bottom) {
-            if !query.isEmpty {
+        // The query and the header stack over the list, so the first rows
+        // keep their order while the panel grows down from its top edge.
+        // Empty draws nothing at all, and a panel without the filter draws
+        // no chrome either, so either looks exactly as it did before any of
+        // this existed.
+        VStack(spacing: 0) {
+            if filterActive, !query.isEmpty {
                 Text(query)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 2)
-                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6))
+                    .padding(.top, 8)
                     .padding(.bottom, 4)
+            }
+            if filterActive {
+                Text("All Results")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 4)
+                Divider()
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+            }
+            ScrollViewReader { proxy in
+                List {
+                    ForEach(windows) { window in
+                        WindowRow(window: window, isSelected: window.id == selectedID, query: query)
+                            // Vertical insets and separators are removed so the List
+                            // adds nothing to WindowRow's fixed height; the horizontal
+                            // insets stay.
+                            .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .id(window.id)
+                    }
+                }
+                .listStyle(.plain)
+                .environment(\.defaultMinListRowHeight, PanelMetrics.rowHeight)
+                .scrollContentBackground(.hidden)
+                // The panel is never the place typing goes, so it must never
+                // draw the ring that says it is. What is not added here matters
+                // as much: a `List(selection:)` binding would hand the arrow
+                // keys to the list ahead of the panel, and `.allowsHitTesting`
+                // turned off would take wheel and trackpad scrolling with it —
+                // the one way to reach the far rows of a long list.
+                .focusEffectDisabled(true)
+                .padding(.vertical, PanelMetrics.verticalPadding)
+                .adaptiveGlass()
+                // The least scrolling that shows the row, and nothing when it is
+                // already showing. `.center` would move on every keystroke, and
+                // a list that jumps under a choice being moved along it is one
+                // the eye has to find again each time.
+                .onChange(of: selectedID) { _, id in
+                    if let id {
+                        proxy.scrollTo(id, anchor: nil)
+                    }
+                }
+                // A new appearance always moves the token, even when the choice
+                // is the same row it was last time, so reopening onto the first
+                // row scrolls back to it rather than staying where the last
+                // appearance left off.
+                .onChange(of: appearanceToken) { _, _ in
+                    if let id = selectedID {
+                        proxy.scrollTo(id, anchor: nil)
+                    }
+                }
             }
         }
     }

@@ -45,10 +45,16 @@ protocol SwitcherSurface {
     /// panel — not its size, not its position, and writing no line.
     func showSelection(_ id: WindowItem.Identifier?)
 
-    /// Swaps the rows on screen for a narrowed set, redrawing the query
-    /// beside them, and changes nothing else about the panel — not its size,
-    /// not its position, and writing no line.
-    func updateList(windows: [WindowItem], selecting: WindowItem.Identifier?, query: String)
+    /// Swaps the rows on screen for a narrowed set, redrawing the query and
+    /// the header beside them, and changes nothing about the panel's place —
+    /// not its position, and writing no line. Only the height follows the
+    /// content, with the top edge staying where it was.
+    func updateList(
+        windows: [WindowItem],
+        selecting: WindowItem.Identifier?,
+        query: String,
+        filterActive: Bool
+    )
 
     func dismiss()
 }

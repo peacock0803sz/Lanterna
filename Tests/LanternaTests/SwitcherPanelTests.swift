@@ -13,7 +13,8 @@ struct SwitcherPanelTests {
                 windows: SampleWindows.make(count: rowCount),
                 selectedID: nil,
                 appearanceToken: 0,
-                query: ""
+                query: "",
+                filterActive: false
             )
         )
     }

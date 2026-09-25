@@ -17,7 +17,7 @@ final class FakeSurface: SwitcherSurface {
         case present(selecting: WindowItem.Identifier?)
         case takeKeys
         case showSelection(WindowItem.Identifier?)
-        case updateList(selecting: WindowItem.Identifier?, query: String)
+        case updateList(selecting: WindowItem.Identifier?, query: String, filterActive: Bool)
         case dismiss
     }
 
@@ -28,6 +28,8 @@ final class FakeSurface: SwitcherSurface {
     /// The choice and the query each swap carried beside the rows.
     private(set) var updatedSelections: [WindowItem.Identifier?] = []
     private(set) var updatedQueries: [String] = []
+    /// Whether the filter chrome was on for each swap.
+    private(set) var updatedActives: [Bool] = []
     /// The row each appearance was told to draw as chosen.
     private(set) var presentedSelections: [WindowItem.Identifier?] = []
     /// Every row the panel was told to redraw as chosen, in order. The count
@@ -84,11 +86,17 @@ final class FakeSurface: SwitcherSurface {
         calls.append(.showSelection(id))
     }
 
-    func updateList(windows: [WindowItem], selecting: WindowItem.Identifier?, query: String) {
+    func updateList(
+        windows: [WindowItem],
+        selecting: WindowItem.Identifier?,
+        query: String,
+        filterActive: Bool
+    ) {
         updatedLists.append(windows)
         updatedSelections.append(selecting)
         updatedQueries.append(query)
-        calls.append(.updateList(selecting: selecting, query: query))
+        updatedActives.append(filterActive)
+        calls.append(.updateList(selecting: selecting, query: query, filterActive: filterActive))
     }
 
     func dismiss() {

@@ -24,8 +24,10 @@ final class SwitcherPanel: NSPanel {
     /// The window decides its own size and the hosting view is denied any say
     /// in it. `update(windows:)` decides it again for a swapped-in list; the
     /// two cannot disagree, because both take their numbers from
-    /// `PanelMetrics`.
-    init(content: SwitcherView) {
+    /// `PanelMetrics`. The initial content is the empty, unfiltered list.
+    init(content: SwitcherView = SwitcherView(
+        windows: [], selectedID: nil, appearanceToken: 0, query: "", filterActive: false
+    )) {
         hostingView = NSHostingView(rootView: content)
         super.init(
             contentRect: NSRect(
@@ -94,7 +96,8 @@ final class SwitcherPanel: NSPanel {
             windows: windows,
             selectedID: hostingView.rootView.selectedID,
             appearanceToken: hostingView.rootView.appearanceToken,
-            query: hostingView.rootView.query
+            query: hostingView.rootView.query,
+            filterActive: hostingView.rootView.filterActive
         )
         // The height is pushed down from the window, because the hosting view
         // has no sizing options and so cannot push one up.
@@ -163,20 +166,38 @@ final class SwitcherPanel: NSPanel {
         hostingView.rootView.selectedID = id
     }
 
-    /// Swaps the rows for a narrowed set, and changes nothing else.
+    /// Swaps the rows for a narrowed set, and changes nothing else about
+    /// the panel's place.
     ///
-    /// A new root view like `update(windows:)` swaps, but without the size
-    /// and the centre that call decides: narrowing happens a keystroke at a
-    /// time, and a panel that resized or jumped on every one would be one
-    /// the eye has to find again. The appearance token travels across
-    /// untouched, so the scrolled position is left where it was.
-    func updateList(windows: [WindowItem], selecting: WindowItem.Identifier?, query: String) {
+    /// A new root view like `update(windows:)` swaps, but without the centre
+    /// that call decides: narrowing happens a keystroke at a time, and a
+    /// panel that jumped on every one would be one the eye has to find
+    /// again. Only the height follows the content, with the top edge staying
+    /// where it was, so the first rows keep their place while the list
+    /// narrows. The appearance token travels across untouched, so the
+    /// scrolled position is left where it was.
+    func updateList(
+        windows: [WindowItem],
+        selecting: WindowItem.Identifier?,
+        query: String,
+        filterActive: Bool
+    ) {
         hostingView.rootView = SwitcherView(
             windows: windows,
             selectedID: selecting,
             appearanceToken: hostingView.rootView.appearanceToken,
-            query: query
+            query: query,
+            filterActive: filterActive
         )
+        let height = min(
+            PanelMetrics.height(rowCount: windows.count)
+                + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
+            PanelMetrics.maximumHeight
+        )
+        var frame = frame
+        frame.origin.y -= height - frame.height
+        frame.size.height = height
+        setFrame(frame, display: true)
     }
 
     /// Which row the panel is drawing as chosen at this instant.

@@ -40,9 +40,12 @@ final class PanelFilter {
         isActive = filtering
     }
 
-    /// Switches filtering on for the panel that is up.
+    /// Switches filtering on for the panel that is up, drawing at once: the
+    /// chrome appears with the activation rather than with the next keystroke.
     func activate() {
+        guard !isActive else { return }
         isActive = true
+        apply()
     }
 
     /// Gives the appearance up; the next one starts empty either way.
@@ -100,7 +103,7 @@ final class PanelFilter {
         let matchedIDs = matched.map(\.id)
         let chosen = state.resolveSelection(matched: matchedIDs, incoming: selection.chosenID)
         selection.retarget(to: matchedIDs, selecting: chosen)
-        surface.updateList(windows: matched, selecting: selection.chosenID, query: state.query)
+        surface.updateList(windows: matched, selecting: selection.chosenID, query: state.query, filterActive: isActive)
         lastSummary = FilterLogSummary(
             query: state.query,
             matchedCount: matched.count,

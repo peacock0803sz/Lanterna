@@ -12,7 +12,7 @@ struct SwitcherViewTests {
         let windows = SampleWindows.standard()
         let third = windows[2].id
         #expect(
-            SwitcherView(windows: windows, selectedID: third, appearanceToken: 0, query: "")
+            SwitcherView(windows: windows, selectedID: third, appearanceToken: 0, query: "", filterActive: false)
                 .selectedID == third
         )
     }
@@ -26,11 +26,12 @@ struct SwitcherViewTests {
                 windows: SampleWindows.standard(),
                 selectedID: nil,
                 appearanceToken: 0,
-                query: ""
+                query: "",
+                filterActive: false
             ).selectedID == nil
         )
         #expect(
-            SwitcherView(windows: [], selectedID: nil, appearanceToken: 1, query: "")
+            SwitcherView(windows: [], selectedID: nil, appearanceToken: 1, query: "", filterActive: false)
                 .selectedID == nil
         )
     }
