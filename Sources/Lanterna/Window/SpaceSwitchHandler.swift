@@ -9,14 +9,15 @@ import Darwin
 /// the polling loop nor the activation observer moves fast enough on its own:
 /// the first open after the switch would sort on the pre-switch memory until
 /// the next pass replaces it. The notification itself names no application,
-/// so handling asks for a fresh pass first and then reads the frontmost
-/// window, recording it the way an activation would — but only when the
-/// refreshed list actually holds it. A still-settling switch may name the
-/// previous application; such a guess must never become the newest record,
-/// so an identity the fresh enumeration did not see is left out while the
-/// refreshed list still lands. The single accessibility read is bounded by
-/// at most two timed reads (AXFocusedWindowReader.messagingTimeout each),
-/// the same bound the activation path accepts by running on the
+/// so handling records the frontmost window first — a press landing while
+/// the pass below is still running sorts the held list at once, and only a
+/// record written before the wait reaches that appearance. The read happens
+/// as found: a still-settling switch may name the previous application, so
+/// handling reads again after the pass and corrects to the settled window
+/// when it differs. A wrong optimistic record predates the snapshot, so the
+/// next show sweeps it away if the list never held it. Each read is bounded
+/// by at most two timed reads (AXFocusedWindowReader.messagingTimeout
+/// each), the same bound the activation path accepts by running on the
 /// notification turn.
 ///
 /// Overlapping notifications serialize on the MainActor and the panel sorts
@@ -47,34 +48,64 @@ struct SpaceSwitchHandler {
         self.writeLine = writeLine
     }
 
-    /// Handles one Space change: asks for a fresh pass first, then records
-    /// the frontmost window the way an activation would — but only when the
-    /// refreshed list holds it. The pass still runs when there is nothing
-    /// to record, because the list itself is stale from the switch either
-    /// way. Refreshing first also narrows the unsettled-switch race to the
-    /// read that follows the pass instead of the one preceding it.
+    /// Handles one Space change: records the frontmost window at once, then
+    /// asks for a fresh pass, then corrects to the settled window when the
+    /// re-read after the pass disagrees. The pass still runs when there is
+    /// nothing to record, because the list itself is stale from the switch
+    /// either way. Recording before the wait (rather than after it) is what
+    /// reaches a press that lands mid-pass; verifying after it is what keeps
+    /// an unsettled read from standing as the newest record.
     func handle() async {
         writeLine("space changed; refreshing window list")
+        let optimistic = recordFrontmost()
         await store.refreshEventually()
+        correctIfSettled(from: optimistic)
+    }
+
+    /// Reads the frontmost window and records it the way an activation
+    /// would, returning what was recorded so the correction below can tell
+    /// a settled switch from one that was still moving.
+    private func recordFrontmost() -> (owner: pid_t, windowID: CGWindowID)? {
         guard let frontmost = frontmostProcessIdentifier() else {
             writeLine("space changed; no frontmost application to record")
-            return
+            return nil
         }
         guard frontmost != ownProcessIdentifier else {
             writeLine("space changed; frontmost is this process")
-            return
+            return nil
         }
-        guard let windowID = reading.focusedWindowID(of: frontmost),
+        guard let windowID = reading.focusedWindowID(of: frontmost) else {
+            writeLine("space changed; frontmost window could not be read")
+            return nil
+        }
+        // Through the one outside entry, with the read identity riding a
+        // fixed reading: the echo guard still applies, and no second
+        // accessibility read can answer differently in between.
+        recordExternalActivation(
+            of: frontmost,
+            excluding: ownProcessIdentifier,
+            reading: FixedWindowReading(windowID: windowID),
+            into: tracker
+        )
+        return (frontmost, windowID)
+    }
+
+    /// Re-reads the frontmost window once the list is fresh and corrects the
+    /// optimistic record when the switch has settled elsewhere. An identity
+    /// the fresh enumeration never saw is left out rather than recorded; a
+    /// re-read matching the optimistic one records nothing further, so a
+    /// genuine activation that landed mid-pass keeps its place.
+    private func correctIfSettled(from optimistic: (owner: pid_t, windowID: CGWindowID)?) {
+        guard let frontmost = frontmostProcessIdentifier(), frontmost != ownProcessIdentifier,
+              let windowID = reading.focusedWindowID(of: frontmost),
+              optimistic.map({ $0.owner != frontmost || $0.windowID != windowID }) ?? true,
               store.snapshot?.items.contains(where: {
                   $0.id.windowID == windowID && $0.ownerProcessIdentifier == frontmost
               }) == true
         else {
-            writeLine("space changed; frontmost window not in the refreshed list")
             return
         }
-        // Through the one outside entry, with the verified identity riding
-        // a fixed reading: the echo guard still applies, and no second
-        // accessibility read can answer differently in between.
+        writeLine("space changed; settled on a different frontmost window")
         recordExternalActivation(
             of: frontmost,
             excluding: ownProcessIdentifier,

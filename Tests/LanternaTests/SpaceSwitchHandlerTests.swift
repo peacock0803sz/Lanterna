@@ -167,15 +167,18 @@ struct SpaceSwitchHandlerTests {
         #expect(tracker.newestSource == .none)
         #expect(store.snapshot != nil)
         #expect(log.lines.contains("space changed; refreshing window list"))
-        #expect(log.lines.contains("space changed; frontmost window not in the refreshed list"))
+        #expect(log.lines.contains("space changed; frontmost window could not be read"))
     }
 
-    /// A readable frontmost window the refreshed list does not hold is left
-    /// out: recording it would promote a use the enumeration never saw
-    /// (for example a window that closed mid-switch) to the newest record.
-    @Test func spaceChangeWithAbsentFrontmostRecordsNothing() async {
+    /// A first read naming a window the refreshed list never held is
+    /// corrected once the switch settles elsewhere: the optimistic record
+    /// stands only until the re-read after the pass disagrees, and the
+    /// settled window supersedes it as newest — and sorts first, which is
+    /// the user-visible property.
+    @Test func spaceChangeSettlingElsewhereCorrectsTheRecord() async {
+        let rows = [spaceRow(windowID: 8, owner: otherProcess)]
         let store = WindowListStore(
-            gather: { spaceSnapshot([spaceRow(windowID: 8, owner: otherProcess)]) },
+            gather: { spaceSnapshot(rows) },
             writeLine: { _ in }
         )
         let tracker = MRUTracker()
@@ -185,15 +188,41 @@ struct SpaceSwitchHandlerTests {
             tracker: tracker,
             ownProcessIdentifier: ownProcess,
             frontmostProcessIdentifier: { otherProcess },
-            reading: FakeFocusedReading(windowID: 7),
+            reading: SequencedReading([7, 8]),
             writeLine: log.write
         )
 
         await handler.handle()
 
-        #expect(tracker.newestSource == .none)
+        #expect(tracker.newestSource == .external)
+        #expect(tracker.ordered(rows).map(\.id.windowID) == [8])
+        #expect(log.lines.contains("space changed; settled on a different frontmost window"))
+    }
+
+    /// A re-read that fails leaves the optimistic record standing: nothing
+    /// newer proved it wrong, and the next show sweeps it if the list never
+    /// held it.
+    @Test func spaceChangeWithFailedReReadKeepsTheOptimisticRecord() async {
+        let store = WindowListStore(
+            gather: { spaceSnapshot([spaceRow(windowID: 7, owner: otherProcess)]) },
+            writeLine: { _ in }
+        )
+        let tracker = MRUTracker()
+        let log = DiagnosticsLog()
+        let handler = SpaceSwitchHandler(
+            store: store,
+            tracker: tracker,
+            ownProcessIdentifier: ownProcess,
+            frontmostProcessIdentifier: { otherProcess },
+            reading: SequencedReading([7, nil]),
+            writeLine: log.write
+        )
+
+        await handler.handle()
+
+        #expect(tracker.newestSource == .external)
         #expect(store.snapshot != nil)
-        #expect(log.lines.contains("space changed; frontmost window not in the refreshed list"))
+        #expect(!log.lines.contains("space changed; settled on a different frontmost window"))
     }
 
     /// An update arriving during an in-flight polling pass queues one
@@ -201,11 +230,11 @@ struct SpaceSwitchHandlerTests {
     /// until that pass lands (#44). The first pass is held open, the handler
     /// runs inside it, and both passes are then released: two gathers with
     /// two summary lines, the external record kept, and no "skipped" line.
-    /// The wait is a fixed settle because handling parks with no observable
-    /// side effect first (the record lands only at the end now); both arrival
-    /// orders satisfy the assertions below — a late handler runs its own
-    /// pass, an early one is drained — so the settle cannot flake the
-    /// outcome, only delay it past the time limit on a real regression.
+    /// The wait is a fixed settle because handling queues with no observable
+    /// side effect first; both arrival orders satisfy the assertions below —
+    /// a late handler runs its own pass, an early one is drained — so the
+    /// settle cannot flake the outcome, only delay it past the time limit
+    /// on a real regression.
     @Test(.timeLimit(.minutes(1))) func spaceChangeDuringAPassQueuesAnotherPass() async {
         let answer = spaceSnapshot(
             [spaceRow(windowID: 7, owner: otherProcess)] + SampleWindows.make(count: 4)
@@ -242,6 +271,22 @@ struct SpaceSwitchHandlerTests {
         #expect(!storeLog.lines.contains("refresh skipped (previous pass still running)"))
         #expect(tracker.newestSource == .external)
         #expect(handlerLog.lines.contains("space changed; refreshing window list"))
+    }
+}
+
+/// Answers window identities in order, so a test can stage a switch that
+/// settles: the first read names the previous window, the second the new
+/// one. A missing answer stages a failed read. Test-only confinement like
+/// the sibling suites' fakes: built, read, and discarded on the main actor.
+private final class SequencedReading: FocusedWindowReading, @unchecked Sendable {
+    private var answers: [CGWindowID?]
+    init(_ answers: [CGWindowID?]) {
+        self.answers = answers
+    }
+
+    func focusedWindowID(of _: pid_t) -> CGWindowID? {
+        guard !answers.isEmpty else { return nil }
+        return answers.removeFirst()
     }
 }
 
