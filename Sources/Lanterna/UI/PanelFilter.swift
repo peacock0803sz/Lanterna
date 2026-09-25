@@ -56,8 +56,11 @@ final class PanelFilter {
         apply()
     }
 
-    /// Shortens the query by one character.
+    /// Shortens the query by one character, and does nothing when already
+    /// empty: there is nothing to narrow back to that the panel is not
+    /// already showing.
     func removeLast() {
+        guard isFiltering else { return }
         state.removeLast()
         apply()
     }
