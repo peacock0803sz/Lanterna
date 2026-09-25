@@ -229,3 +229,85 @@ struct PanelKeyChannelTests {
         #expect(channel.isDelivering)
     }
 }
+
+/// The two new rows of the meaning table, driven from the end a real monitor
+/// would deliver from: a key, what was held with it, and the string the
+/// keyboard produced.
+///
+/// A press as the channel makes it, carrying the produced string.
+private func aTypedPress(
+    _ keyCode: Int,
+    _ modifiers: NSEvent.ModifierFlags = [],
+    characters: String,
+    repeating: Bool = false
+) -> PanelKeystroke {
+    PanelKeystroke(
+        keyCode: UInt16(keyCode),
+        modifiers: modifiers,
+        isARepeat: repeating,
+        characters: characters
+    )
+}
+
+@MainActor
+struct FilterKeyMeaningTests {
+    /// A letter narrows the list, whether or not Command is still down.
+    @Test(arguments: [NSEvent.ModifierFlags(), .command])
+    func lettersBecomeFilterTextWhateverIsHeldWithThem(modifiers: NSEvent.ModifierFlags) {
+        #expect(
+            PanelKeyInput.action(for: aTypedPress(kVK_ANSI_A, modifiers, characters: "a"))
+                == .filterText("a")
+        )
+    }
+
+    /// A directly typed symbol is not a query; it is swallowed like before.
+    @Test func symbolsAreAbsorbedRatherThanFiltering() {
+        #expect(
+            PanelKeyInput.action(for: aTypedPress(kVK_ANSI_Minus, characters: "-"))
+                == .absorb
+        )
+    }
+
+    /// A confirmed string is taken verbatim, modifiers aside.
+    @Test func confirmedStringsAreTakenVerbatim() {
+        #expect(
+            PanelKeyInput.action(for: aTypedPress(kVK_ANSI_A, .command, characters: "あ"))
+                == .filterText("あ")
+        )
+    }
+
+    /// Backspace edits the query, whether or not Command is still down.
+    @Test(arguments: [NSEvent.ModifierFlags(), .command])
+    func backspaceEditsTheQueryWhateverIsHeldWithIt(modifiers: NSEvent.ModifierFlags) {
+        #expect(
+            PanelKeyInput.action(for: aTypedPress(kVK_Delete, modifiers, characters: ""))
+                == .filterBackspace
+        )
+    }
+
+    /// Holding a letter or Backspace down repeats the narrowing, as holding
+    /// an arrow repeats the moving. Committing or cancelling twice stays
+    /// unasked for.
+    @Test func holdingALetterOrBackspaceRepeatsTheFiltering() {
+        #expect(
+            PanelKeyInput.action(for: aTypedPress(kVK_ANSI_A, characters: "a", repeating: true))
+                == .filterText("a")
+        )
+        #expect(
+            PanelKeyInput.action(for: aTypedPress(kVK_Delete, characters: "", repeating: true))
+                == .filterBackspace
+        )
+        #expect(
+            PanelKeyInput.action(for: aTypedPress(kVK_Escape, characters: "", repeating: true))
+                == .absorb
+        )
+    }
+
+    /// The reserved combination still wins over the character it would type.
+    @Test func commandPeriodStillCancels() {
+        #expect(
+            PanelKeyInput.action(for: aTypedPress(kVK_ANSI_Period, .command, characters: "."))
+                == .cancel(.commandPeriod)
+        )
+    }
+}
