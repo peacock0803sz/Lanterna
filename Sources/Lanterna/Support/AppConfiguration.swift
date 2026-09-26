@@ -199,7 +199,8 @@ extension AppConfiguration {
             return .failure(.notJSONObject)
         }
         guard let dict = raw as? [String: Any] else { return .failure(.notJSONObject) }
-        for key in dict.keys where !knownKeys.contains(key) {
+        // Sorted so the reported key is stable across runs.
+        for key in dict.keys.sorted() where !knownKeys.contains(key) {
             return .failure(.unknownKey(key))
         }
         return .success(dict)
