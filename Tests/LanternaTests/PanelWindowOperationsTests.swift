@@ -54,17 +54,18 @@ struct PanelWindowOperationsTests {
     }
 
     /// A sent request the refresh still lists is an interruption: the panel
-    /// closes on it, writing one line that says the row is still there.
+    /// closes on it, writing one line that says the change was not confirmed.
     @Test func aRemainingRowAfterSendingClosesThePanel() async {
         let made = makeOperations(rows: rows, refreshed: rows)
         await made.operations.operate(.closeWindow, naming: rows[0].id)
         #expect(made.counts.interruptions == 1)
-        #expect(made.log.lines.contains { $0.contains("is still open") })
+        #expect(made.log.lines.contains { $0.contains("Safari/Tabs not confirmed") })
     }
 
     /// A pass that could not read the operated row's application decides
     /// nothing: its missing row is not a closed window, so no success is
-    /// written and the row outliving every pass reads as an interruption.
+    /// written and a row undecided through every pass reads as an
+    /// interruption.
     @Test func aSkippedApplicationIsNotReadAsDone() async {
         let made = makeOperations(rows: rows, refreshed: [rows[2]], skipped: [123])
         await made.operations.operate(.closeWindow, naming: rows[0].id)
