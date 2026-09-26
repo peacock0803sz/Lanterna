@@ -41,6 +41,28 @@ struct SwitcherView: View {
     /// header) belongs on screen. Off draws neither, whatever the query is.
     var filterActive: Bool
 
+    /// The rows in use, in the order they arrived. Parked rows — minimised
+    /// or hidden — draw below the separator instead of vanishing, so they
+    /// can be chosen back to life.
+    private var ordinaryRows: [WindowItem] {
+        windows.filter { !$0.isParked }
+    }
+
+    private var parkedRows: [WindowItem] {
+        windows.filter(\.isParked)
+    }
+
+    private func row(_ window: WindowItem) -> some View {
+        WindowRow(window: window, isSelected: window.id == selectedID, query: query)
+            // Vertical insets and separators are removed so the List
+            // adds nothing to WindowRow's fixed height; the horizontal
+            // insets stay.
+            .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .id(window.id)
+    }
+
     var body: some View {
         // The query and the header stack over the list, so the first rows
         // keep their order while the panel grows down from its top edge.
@@ -69,15 +91,17 @@ struct SwitcherView: View {
             }
             ScrollViewReader { proxy in
                 List {
-                    ForEach(windows) { window in
-                        WindowRow(window: window, isSelected: window.id == selectedID, query: query)
-                            // Vertical insets and separators are removed so the List
-                            // adds nothing to WindowRow's fixed height; the horizontal
-                            // insets stay.
-                            .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
+                    ForEach(ordinaryRows) { window in
+                        row(window)
+                    }
+                    if !parkedRows.isEmpty {
+                        Divider()
+                            .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
-                            .id(window.id)
+                        ForEach(parkedRows) { window in
+                            row(window)
+                        }
                     }
                 }
                 .listStyle(.plain)
