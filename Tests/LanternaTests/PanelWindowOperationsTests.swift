@@ -288,6 +288,17 @@ struct PanelWindowOperationsTests {
         #expect(made.surface.currentNotice == nil)
     }
 
+    /// Operating while narrowed keeps the query over the reconciled list.
+    @Test func operatingWhileNarrowedKeepsTheQuery() async {
+        let made = makeOperations(rows: rows, refreshed: [rows[1], rows[2]])
+        made.filter.activate()
+        made.filter.append("a")
+        made.selection.retarget(to: rows.map(\.id), selecting: rows[0].id)
+        await made.operations.operate(.closeWindow, naming: rows[0].id)
+        #expect(made.surface.updatedQueries.last == "a")
+        #expect(made.selection.chosenID == rows[1].id)
+    }
+
     /// Asking after what is already parked is not a failure: nothing
     /// happens, and no line says anything.
     @Test func minimizingAParkedRowDoesNothing() async {
