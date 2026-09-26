@@ -147,8 +147,8 @@ struct DisplayModeTests {
     }
 
     @Test func otherSpaceKindsObeyTheirMode() {
-        // Without the per-window Space information every row reads as on
-        // this Space, so everything stays ordinary no matter the mode.
+        // A row not known to be on another Space stays ordinary no matter
+        // the mode; unknown never hides.
         #expect(placement(of: item(), modes: modes(otherSpace: .hide)) == .ordinary)
         let row = item(isOnOtherSpace: true)
         #expect(placement(of: row, modes: modes(otherSpace: .show)) == .ordinary)
