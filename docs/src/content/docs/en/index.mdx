@@ -1,5 +1,39 @@
 ---
-title: Home
+title: Lanterna
+description: A list-style window switcher for macOS
+template: splash
+hero:
+  title: Lanterna
+  tagline: A list-style window switcher for macOS
+  image:
+    file: ../../assets/eyecatch.png
+    alt: Screenshot of the Lanterna switcher panel
+  actions:
+    - text: Download
+      link: https://github.com/peacock0803sz/Lanterna/releases
+      variant: primary
+    - text: See usage
+      link: /en/usage/
+      variant: minimal
 ---
 
-Coming soon.
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## What is Lanterna
+
+Unlike the system switcher, Lanterna lists windows without thumbnails. It appears instantly and uses almost no memory.
+
+<CardGrid>
+  <Card title="Thumbnail-free list" icon="list-format">
+    A Contexts-style list of app icon and window title only, so the switcher appears at once.
+  </Card>
+  <Card title="Window-level switching" icon="random">
+    Switches at window level in most-recently-used order, with type-to-filter search.
+  </Card>
+  <Card title="Two permissions only" icon="approve-check">
+    Uses Accessibility and Input Monitoring only. No Screen Recording needed.
+  </Card>
+  <Card title="Apple Silicon and Liquid Glass" icon="rocket">
+    Apple Silicon only, with Liquid Glass on Tahoe, living in the menu bar.
+  </Card>
+</CardGrid>
