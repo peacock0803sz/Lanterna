@@ -8,6 +8,7 @@ final class PanelPresenter {
     let surface: any SwitcherSurface
     /// Where the rows come from: already gathered, in the ordinary case.
     let store: WindowListStore
+    let displayModes: DisplayModes
     let ownProcessIdentifier: pid_t
     /// Handed on to the way out, built beside the presenter.
     let now: @MainActor () -> ContinuousClock.Instant
@@ -123,6 +124,7 @@ final class PanelPresenter {
         surface: surface,
         selection: selection,
         wayOut: wayOut,
+        displayModes: displayModes,
         now: now,
         operate: { [weak self] operation, chosen in
             self?.startOperation(operation, naming: chosen)
@@ -136,6 +138,7 @@ final class PanelPresenter {
     init(
         surface: any SwitcherSurface,
         store: WindowListStore,
+        displayModes: DisplayModes = .defaults,
         ownProcessIdentifier: pid_t = getpid(),
         now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
         writeLine: @escaping @MainActor (String) -> Void = Diagnostics.writeLine,
@@ -151,6 +154,7 @@ final class PanelPresenter {
         self.surface = surface
         selection = PanelSelection(surface: surface)
         self.store = store
+        self.displayModes = displayModes
         self.ownProcessIdentifier = ownProcessIdentifier
         self.now = now
         self.writeLine = writeLine

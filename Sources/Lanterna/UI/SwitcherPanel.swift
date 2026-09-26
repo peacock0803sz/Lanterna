@@ -25,9 +25,13 @@ final class SwitcherPanel: NSPanel {
     /// in it. `update(windows:)` decides it again for a swapped-in list; the
     /// two cannot disagree, because both take their numbers from
     /// `PanelMetrics`. The initial content is the empty, unfiltered list.
-    init(content: SwitcherView = SwitcherView(
-        windows: [], selectedID: nil, appearanceToken: 0, query: "", filterActive: false
-    )) {
+    init(
+        content: SwitcherView = SwitcherView(
+            windows: [], selectedID: nil, appearanceToken: 0, query: "", filterActive: false
+        ),
+        displayModes: DisplayModes = .defaults
+    ) {
+        self.displayModes = displayModes
         hostingView = NSHostingView(rootView: content)
         super.init(
             contentRect: NSRect(

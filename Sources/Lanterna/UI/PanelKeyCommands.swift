@@ -32,6 +32,7 @@ final class PanelKeyCommands {
         surface: any SwitcherSurface,
         selection: PanelSelection,
         wayOut: PanelExit,
+        displayModes: DisplayModes = .defaults,
         now: @escaping @MainActor () -> ContinuousClock.Instant,
         operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)? = nil
     ) {
@@ -39,6 +40,7 @@ final class PanelKeyCommands {
         self.selection = selection
         self.wayOut = wayOut
         filter = PanelFilter(selection: selection, surface: surface)
+        filter.displayModes = displayModes
         self.now = now
         self.operate = operate
     }
