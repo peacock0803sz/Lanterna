@@ -13,11 +13,16 @@ enum DisplayMode: String, Sendable {
 }
 
 /// One row's subgroup below the separator, in drawing order.
-enum DisplaySubgroup: Sendable {
+enum DisplaySubgroup: Sendable, Hashable {
     case otherSpace
     case hiddenApp
     case minimized
     case fullscreen
+
+    /// The subgroups in the order they draw.
+    static let drawingOrder: [DisplaySubgroup] = [
+        .otherSpace, .hiddenApp, .minimized, .fullscreen,
+    ]
 }
 
 /// Where one row goes: the ordinary rows, out of the list, or one subgroup.
@@ -101,17 +106,16 @@ struct DisplayModes: Equatable, Sendable {
         )
     }
 
-    /// The rows in the order the panel draws them: the ordinary rows, then
-    /// the subgroups in drawing order, each in the order it arrived in.
-    /// Hidden rows are left out; callers narrow first.
-    static func displayOrdered(
-        _ rows: [WindowItem],
+    /// The rows split for drawing: the ordinary rows, then each non-empty
+    /// subgroup in drawing order, each in the order it arrived in.
+    static func sections(
+        of rows: [WindowItem],
         modes: DisplayModes,
         queryIsEmpty: Bool,
         matches: Set<WindowItem.Identifier>
-    ) -> [WindowItem] {
+    ) -> (ordinary: [WindowItem], subgroups: [(DisplaySubgroup, [WindowItem])]) {
         var ordinary: [WindowItem] = []
-        var subgroups: [DisplaySubgroup: [WindowItem]] = [:]
+        var grouped: [DisplaySubgroup: [WindowItem]] = [:]
         for row in rows {
             switch placement(
                 of: row,
@@ -124,13 +128,30 @@ struct DisplayModes: Equatable, Sendable {
             case .hidden:
                 continue
             case let .separated(subgroup):
-                subgroups[subgroup, default: []].append(row)
+                grouped[subgroup, default: []].append(row)
             }
         }
-        return ordinary
-            + (subgroups[.otherSpace] ?? [])
-            + (subgroups[.hiddenApp] ?? [])
-            + (subgroups[.minimized] ?? [])
-            + (subgroups[.fullscreen] ?? [])
+        let subgroups = DisplaySubgroup.drawingOrder.compactMap { subgroup in
+            grouped[subgroup].map { (subgroup, $0) }
+        }
+        return (ordinary, subgroups)
+    }
+
+    /// The rows in the order the panel draws them: the ordinary rows, then
+    /// the subgroups in drawing order, each in the order it arrived in.
+    /// Hidden rows are left out; callers narrow first.
+    static func displayOrdered(
+        _ rows: [WindowItem],
+        modes: DisplayModes,
+        queryIsEmpty: Bool,
+        matches: Set<WindowItem.Identifier>
+    ) -> [WindowItem] {
+        let (ordinary, subgroups) = sections(
+            of: rows,
+            modes: modes,
+            queryIsEmpty: queryIsEmpty,
+            matches: matches
+        )
+        return ordinary + subgroups.flatMap(\.1)
     }
 }

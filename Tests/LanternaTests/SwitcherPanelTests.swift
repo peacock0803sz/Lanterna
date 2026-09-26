@@ -63,14 +63,15 @@ struct SwitcherPanelTests {
     }
 
     /// A list with parked rows draws the separator above them as a row of
-    /// its own, and the height makes room for it, so the last parked row
-    /// is not cut off below the panel's edge.
+    /// its own, with one heading row for the subgroup, and the height makes
+    /// room for both, so the last parked row is not cut off below the
+    /// panel's edge.
     @Test func aParkedGroupMakesRoomForItsSeparator() {
         let panel = panel(rowCount: 5)
         let windows = SampleWindows.make(count: 3)
         panel.update(windows: [windows[0], windows[1], windows[2].settingHidden(true)])
         let contentRect = panel.contentRect(forFrameRect: panel.frame)
-        #expect(contentRect.height == PanelMetrics.height(rowCount: 4))
+        #expect(contentRect.height == PanelMetrics.height(rowCount: 5))
     }
 
     /// A list swapped in while the panel is up makes the same room for the
@@ -82,11 +83,11 @@ struct SwitcherPanelTests {
             windows: [windows[0], windows[1], windows[2].settingHidden(true)],
             selecting: nil, query: "", filterActive: false
         )
-        #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 4))
+        #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 5))
         panel.showNotice("Couldn't minimize")
         #expect(
             panel.contentRect(forFrameRect: panel.frame).height
-                == PanelMetrics.height(rowCount: 4) + PanelMetrics.noticeHeight
+                == PanelMetrics.height(rowCount: 5) + PanelMetrics.noticeHeight
         )
     }
 

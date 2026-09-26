@@ -74,6 +74,10 @@ final class SwitcherPanel: NSPanel {
         }
     }
 
+    /// How the special kinds show, read at launch from the config file.
+    /// Kept here so the height counts what the view draws.
+    var displayModes = DisplayModes.defaults
+
     /// Whether the panel is currently on screen.
     var isPresented: Bool {
         isVisible
@@ -103,14 +107,15 @@ final class SwitcherPanel: NSPanel {
             selectedID: hostingView.rootView.selectedID,
             appearanceToken: hostingView.rootView.appearanceToken,
             query: hostingView.rootView.query,
-            filterActive: hostingView.rootView.filterActive
+            filterActive: hostingView.rootView.filterActive,
+            modes: displayModes
         )
         // The height is pushed down from the window, because the hosting view
         // has no sizing options and so cannot push one up.
         setContentSize(
             NSSize(
                 width: PanelMetrics.width,
-                height: PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(windows))
+                height: PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(windows, modes: displayModes))
             )
         )
         centerOnMainDisplay()
@@ -195,10 +200,11 @@ final class SwitcherPanel: NSPanel {
             selectedID: selecting,
             appearanceToken: hostingView.rootView.appearanceToken,
             query: query,
-            filterActive: filterActive
+            filterActive: filterActive,
+            modes: displayModes
         )
         let height = min(
-            PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(windows))
+            PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(windows, modes: displayModes))
                 + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
             PanelMetrics.maximumHeight
         )
