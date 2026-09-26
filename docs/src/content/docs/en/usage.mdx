@@ -1,0 +1,68 @@
+---
+title: Usage
+description: Basic operation, links, and troubleshooting
+---
+
+import LinkList from "../../../components/LinkList.astro";
+import PillLink from "../../../components/PillLink.astro";
+import SwitchSequence from "../../../components/SwitchSequence.astro";
+
+## Basic operation
+
+<SwitchSequence
+  steps={[
+    { label: "Hold", keys: ["⌘"], text: "Keep holding Cmd" },
+    {
+      label: "Step",
+      keys: ["Tab"],
+      repeat: true,
+      text: "Press Tab for the next window",
+    },
+    { label: "Release", keys: ["⌘"], text: "Release Cmd to switch" },
+  ]}
+/>
+
+|                                        |                                                                                               |
+| -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| <kbd>⌘</kbd><kbd>Tab</kbd>             | Shows the switcher. Keep holding `Cmd` and press `Tab` to move, then release `Cmd` to switch. |
+| <kbd>⇧</kbd><kbd>⌘</kbd><kbd>Tab</kbd> | Moves in the reverse direction.                                                               |
+| <kbd>A–Z</kbd>                         | Type to filter the window list.                                                               |
+
+## Links
+
+<LinkList
+  links={[
+    {
+      key: "Repo",
+      label: "GitHub repository",
+      href: "https://github.com/peacock0803sz/Lanterna",
+      display: "github.com/peacock0803sz/Lanterna",
+    },
+    {
+      key: "Releases",
+      label: "Releases",
+      href: "https://github.com/peacock0803sz/Lanterna/releases",
+      display: "…/Lanterna/releases",
+    },
+    {
+      key: "License",
+      label: "LICENSE",
+      href: "https://github.com/peacock0803sz/Lanterna/blob/main/LICENSE",
+      display: "…/blob/main/LICENSE",
+    },
+    {
+      key: "Contributing",
+      label: "CONTRIBUTING",
+      href: "https://github.com/peacock0803sz/Lanterna/blob/main/CONTRIBUTING.md",
+      display: "…/blob/main/CONTRIBUTING.md",
+    },
+  ]}
+/>
+
+## Troubleshooting
+
+The troubleshooting steps live in the README, not on this page.
+
+<PillLink href="https://github.com/peacock0803sz/Lanterna#troubleshooting">
+  README troubleshooting
+</PillLink>

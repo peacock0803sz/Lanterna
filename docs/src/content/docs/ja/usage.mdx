@@ -1,0 +1,68 @@
+---
+title: 使い方
+description: 基本操作、リンク、トラブルシューティング
+---
+
+import LinkList from "../../../components/LinkList.astro";
+import PillLink from "../../../components/PillLink.astro";
+import SwitchSequence from "../../../components/SwitchSequence.astro";
+
+## 基本操作
+
+<SwitchSequence
+  steps={[
+    { label: "Hold", keys: ["⌘"], text: "Cmdを押したまま" },
+    {
+      label: "Step",
+      keys: ["Tab"],
+      repeat: true,
+      text: "Tabで次のウィンドウへ",
+    },
+    { label: "Release", keys: ["⌘"], text: "Cmdを離すと切り替わる" },
+  ]}
+/>
+
+|                                        |                                                                                   |
+| -------------------------------------- | --------------------------------------------------------------------------------- |
+| <kbd>⌘</kbd><kbd>Tab</kbd>             | 切り替え画面を表示します。Cmdを押したままTabで移動し、Cmdを離すと切り替わります。 |
+| <kbd>⇧</kbd><kbd>⌘</kbd><kbd>Tab</kbd> | 逆方向に移動します。                                                              |
+| <kbd>A–Z</kbd>                         | 文字を入力すると一覧を絞り込めます。                                              |
+
+## リンク
+
+<LinkList
+  links={[
+    {
+      key: "Repo",
+      label: "GitHubリポジトリ",
+      href: "https://github.com/peacock0803sz/Lanterna",
+      display: "github.com/peacock0803sz/Lanterna",
+    },
+    {
+      key: "Releases",
+      label: "Releases",
+      href: "https://github.com/peacock0803sz/Lanterna/releases",
+      display: "…/Lanterna/releases",
+    },
+    {
+      key: "License",
+      label: "LICENSE",
+      href: "https://github.com/peacock0803sz/Lanterna/blob/main/LICENSE",
+      display: "…/blob/main/LICENSE",
+    },
+    {
+      key: "Contributing",
+      label: "CONTRIBUTING",
+      href: "https://github.com/peacock0803sz/Lanterna/blob/main/CONTRIBUTING.md",
+      display: "…/blob/main/CONTRIBUTING.md",
+    },
+  ]}
+/>
+
+## トラブルシューティング
+
+対処手順はREADMEのトラブルシューティングにまとめてあり、このページには載せていません。
+
+<PillLink href="https://github.com/peacock0803sz/Lanterna#troubleshooting">
+  READMEのトラブルシューティング
+</PillLink>
