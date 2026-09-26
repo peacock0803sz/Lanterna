@@ -172,6 +172,16 @@ final class MRUTracker {
     /// missing because the look missed, not because the windows closed.
     func ordered(_ items: [WindowItem], skipping skippedOwners: Set<pid_t> = []) -> [WindowItem] {
         prune(to: items, sparing: skippedOwners)
+        return arranged(items)
+    }
+
+    /// The given rows newest first, sweeping nothing.
+    ///
+    /// For putting a list read while an appearance is up — reconciling an
+    /// operation — into the order that appearance draws. What counts as gone
+    /// is decided against the snapshot the appearance was given, so a list
+    /// read in the middle of one sorts without sweeping.
+    func arranged(_ items: [WindowItem]) -> [WindowItem] {
         var recorded: [(item: WindowItem, sequence: UInt64)] = []
         var unrecorded: [WindowItem] = []
         for item in items {

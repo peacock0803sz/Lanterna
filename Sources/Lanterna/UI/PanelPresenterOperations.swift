@@ -77,9 +77,11 @@ extension PanelPresenter {
         )
     }
 
-    /// The freshest list, waiting out the reconciling pass for it.
+    /// The freshest list in the order the appearance draws, waiting out the
+    /// reconciling pass for it. Sorted without sweeping: the appearance
+    /// already swept against its own snapshot.
     func freshList() async -> [WindowItem] {
         await store.refreshEventually()
-        return store.snapshot?.items ?? []
+        return tracker.arranged(store.snapshot?.items ?? [])
     }
 }
