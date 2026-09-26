@@ -258,7 +258,8 @@ struct AXApplicationWindowReaderMessagingTests {
     /// The id fetch shares that measurement.
     @Test func aQuickRefusalOfTheWindowIDLateInTheBudgetIsStillARefusal() {
         let application = FakeApplication(windowCount: 1)
-        // The six reads take 900 ms; the id fetch is then refused at once.
+        // The attribute reads spend most of the budget; the id fetch is
+        // then refused at once.
         application.costPerMessage = .milliseconds(150)
         application.windowIDResult = { _ in (.cannotComplete, 0) }
         application.windowIDCostOverride = { _ in .zero }

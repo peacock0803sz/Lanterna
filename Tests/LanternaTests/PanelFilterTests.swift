@@ -102,7 +102,8 @@ struct PanelFilterTests {
         #expect(made.surface.updatedLists.last?.map(\.id) == made.rows.map(\.id))
     }
 
-    /// A hidden row matching the query returns below the separator.
+    /// A row its mode hides comes back into the list when the query
+    /// matches it.
     @Test func hiddenRowsReturnOnAMatchingQuery() {
         let made = makeFilter()
         made.filter.displayModes = DisplayModes(
@@ -122,6 +123,8 @@ struct PanelFilterTests {
         #expect(made.surface.updatedLists.last?.map(\.id) == [minimized.id])
     }
 
+    /// Typing narrows the rows on screen one keystroke at a time, keeping
+    /// the choice while it still matches.
     @Test func typingNarrowsTheRowsProgressively() {
         let made = makeFilter()
         made.filter.append("s")
