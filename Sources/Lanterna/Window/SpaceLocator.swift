@@ -10,6 +10,15 @@ protocol SpaceLocating: Sendable {
     /// The ids among `windowIDs` known to be on another Space. A window the
     /// answer says nothing about is left out: unknown never hides.
     func windowsOnOtherSpaces(among windowIDs: [CGWindowID]) -> Set<CGWindowID>
+    /// The ids among `windowIDs` known to sit only on fullscreen Spaces.
+    /// Default empty so fakes naming only other-Space windows keep working.
+    func fullscreenWindows(among windowIDs: [CGWindowID]) -> Set<CGWindowID>
+}
+
+extension SpaceLocating {
+    func fullscreenWindows(among _: [CGWindowID]) -> Set<CGWindowID> {
+        []
+    }
 }
 
 /// The decision itself, apart from the window server that feeds it.
@@ -27,6 +36,30 @@ enum SpacePlacement {
             return false
         }
         return currentSpaces.isDisjoint(with: windowSpaces)
+    }
+
+    /// Whether a window is natively fullscreen: it is on at least one Space,
+    /// and every Space it is on is a fullscreen Space. An empty answer or no
+    /// known fullscreen Space reads false.
+    static func isFullscreen(
+        windowSpaces: [CGSSpaceID],
+        fullscreenSpaces: Set<CGSSpaceID>
+    ) -> Bool {
+        guard !windowSpaces.isEmpty, !fullscreenSpaces.isEmpty else {
+            return false
+        }
+        return Set(windowSpaces).isSubset(of: fullscreenSpaces)
+    }
+
+    /// The fullscreen Spaces, read from the per-display Space lists
+    /// `CGSCopyManagedDisplaySpaces` answers with. Type 4 is fullscreen.
+    static func fullscreenSpaces(from displays: [[String: Any]]) -> Set<CGSSpaceID> {
+        Set(displays.flatMap { display in
+            ((display["Spaces"] as? [[String: Any]]) ?? []).compactMap { space in
+                guard (space["type"] as? NSNumber)?.intValue == 4 else { return nil }
+                return (space["id64"] as? NSNumber)?.uint64Value
+            }
+        })
     }
 
     /// The Space each display is showing, read from the per-display
@@ -65,6 +98,26 @@ struct WindowServerSpaceLocator: SpaceLocating {
             SpacePlacement.isOnOtherSpace(
                 windowSpaces: Self.spaces(of: windowID, connection: connection),
                 currentSpaces: currentSpaces
+            )
+        })
+    }
+
+    func fullscreenWindows(among windowIDs: [CGWindowID]) -> Set<CGWindowID> {
+        guard !windowIDs.isEmpty else {
+            return []
+        }
+        let connection = CGSMainConnectionID()
+        let displays: CFArray? = CGSCopyManagedDisplaySpaces(connection)
+        let fullscreenSpaces = SpacePlacement.fullscreenSpaces(
+            from: displays as? [[String: Any]] ?? []
+        )
+        guard !fullscreenSpaces.isEmpty else {
+            return []
+        }
+        return Set(windowIDs.filter { windowID in
+            SpacePlacement.isFullscreen(
+                windowSpaces: Self.spaces(of: windowID, connection: connection),
+                fullscreenSpaces: fullscreenSpaces
             )
         })
     }

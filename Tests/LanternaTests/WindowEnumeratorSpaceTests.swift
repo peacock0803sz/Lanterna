@@ -58,6 +58,27 @@ struct WindowEnumeratorSpaceTests {
         #expect(snapshot.items.map(\.isOnOtherSpace) == [false, true, true])
     }
 
+    @Test func rowsTheLocatorNamesAsFullscreenReadFullscreen() {
+        let enumerator = WindowEnumerator(
+            reader: FakeReader(reads),
+            locator: FakeSpaceLocator(fullscreen: [11])
+        )
+        let snapshot = enumerator.enumerate(applications: applications, startedAt: .now)
+        #expect(snapshot.items.map(\.isFullscreen) == [false, true, false])
+    }
+
+    @Test func anAXFullscreenFlagSurvivesALocatorThatKnowsNothing() {
+        let axReads: [pid_t: Result<ApplicationRead, ReadFailure>] = [
+            100: read([record(10, isFullscreen: true)]),
+        ]
+        let enumerator = WindowEnumerator(
+            reader: FakeReader(axReads),
+            locator: FakeSpaceLocator()
+        )
+        let snapshot = enumerator.enumerate(applications: [application(100)], startedAt: .now)
+        #expect(snapshot.items.map(\.isFullscreen) == [true])
+    }
+
     /// A locator that knows nothing leaves every row in view.
     @Test func anEmptyAnswerLeavesEveryRowInView() {
         let enumerator = WindowEnumerator(reader: FakeReader(reads), locator: FakeSpaceLocator())

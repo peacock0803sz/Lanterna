@@ -19,9 +19,14 @@ struct FakeReader: ApplicationWindowReading {
 /// window server about ids it made up.
 struct FakeSpaceLocator: SpaceLocating {
     var onOtherSpace: Set<CGWindowID> = []
+    var fullscreen: Set<CGWindowID> = []
 
     func windowsOnOtherSpaces(among windowIDs: [CGWindowID]) -> Set<CGWindowID> {
         onOtherSpace.intersection(windowIDs)
+    }
+
+    func fullscreenWindows(among windowIDs: [CGWindowID]) -> Set<CGWindowID> {
+        fullscreen.intersection(windowIDs)
     }
 }
 
