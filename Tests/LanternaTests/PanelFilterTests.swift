@@ -247,8 +247,9 @@ struct PanelFilterTests {
         #expect(made.selection.chosenID == renewed[0].id)
     }
 
-    /// A swap keeps the remembered row: a row the query still hides after
-    /// the swap is chosen again when a later shortening brings it back.
+    /// A swap that keeps the chosen row keeps the remembered row: a row the
+    /// query still hides after the swap is chosen again when a later
+    /// shortening brings it back.
     @Test func aSwapKeepsTheMemoryForALaterShortening() {
         let made = makeFilter()
         made.filter.append("update")

@@ -140,8 +140,8 @@ struct PanelWindowOperationsLifetimeTests {
     }
 
     /// An operation from an ended appearance that ends after the next
-    /// appearance's operation started leaves that one in flight: a third
-    /// press is still dropped while the second reconciles.
+    /// appearance's operation started leaves that one in flight: a later
+    /// press is still dropped while that one reconciles.
     @Test(.timeLimit(.minutes(1))) func anEndedAppearancesOperationKeepsTheNextOnesInFlight() async {
         let rows = rows
         let held = HeldRefresh()
