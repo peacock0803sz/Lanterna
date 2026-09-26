@@ -82,4 +82,40 @@ struct WindowItemTests {
     func displayTitleIsNeverEmpty(title: String) {
         #expect(!item(appName: "Ghostty", windowTitle: title).displayTitle.isEmpty)
     }
+
+    /// The defaults keep the long-standing arrangement: ordinary rows in
+    /// arrival order, then the hidden-app subgroup, then minimized.
+    @Test func defaultModesKeepTheLongStandingArrangement() {
+        let rows = [
+            item(windowTitle: "min-one", windowID: 1, isMinimized: true),
+            item(windowTitle: "plain-one", windowID: 2),
+            item(windowTitle: "hidden-one", windowID: 3, isHidden: true),
+            item(windowTitle: "plain-two", windowID: 4),
+            item(windowTitle: "min-two", windowID: 5, isMinimized: true),
+            item(windowTitle: "hidden-two", windowID: 6, isHidden: true),
+        ]
+        let ordered = DisplayModes.displayOrdered(
+            rows,
+            modes: .defaults,
+            queryIsEmpty: true,
+            matches: Set(rows.map(\.id))
+        )
+        #expect(ordered.map(\.id.windowID) == [2, 4, 3, 6, 1, 5])
+    }
+
+    /// With a single parked kind the new ordering agrees with `parkedLast`.
+    @Test func defaultModesAgreeWithParkedLastForOneParkedKind() {
+        let rows = [
+            item(windowTitle: "min-one", windowID: 1, isMinimized: true),
+            item(windowTitle: "plain-one", windowID: 2),
+            item(windowTitle: "min-two", windowID: 3, isMinimized: true),
+        ]
+        let ordered = DisplayModes.displayOrdered(
+            rows,
+            modes: .defaults,
+            queryIsEmpty: true,
+            matches: Set(rows.map(\.id))
+        )
+        #expect(ordered.map(\.id) == WindowItem.parkedLast(rows).map(\.id))
+    }
 }
