@@ -75,11 +75,15 @@ struct PanelWindowOperationsLifetimeTests {
     }
 
     /// A second operation while one is still reconciling is dropped with a
-    /// line rather than sent: only the first reaches its application.
+    /// line rather than sent: only the first is sent and reconciled.
     @Test func aSecondOperationWhileOneRunsIsDropped() async {
         let rows = rows
         let held = HeldRefresh()
-        let made = makeOperations(rows: rows, held: held)
+        let closes = SentCount()
+        let made = makeOperations(rows: rows, held: held, close: { _ in
+            closes.add()
+            return nil
+        })
         let running = made.operations.start(.closeWindow, naming: rows[0].id)
         await held.waitUntilAsked()
         await made.operations.operate(.closeWindow, naming: rows[1].id)
@@ -87,6 +91,7 @@ struct PanelWindowOperationsLifetimeTests {
         held.finish(with: Array(rows.dropFirst()))
         await running?.value
         #expect(held.askedCount == 1)
+        #expect(closes.value == 1)
         #expect(made.log.lines.contains { $0.contains("window operation (close Safari/Tabs)") })
         #expect(!made.log.lines.contains { $0.contains("Safari/Downloads") })
     }
