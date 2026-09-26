@@ -16,9 +16,9 @@ protocol SpaceLocating: Sendable {
 enum SpacePlacement {
     /// Whether a window is on another Space: it is on at least one Space, and
     /// none of them is being shown by any display. A window on every Space
-    /// lists the shown ones among its Spaces and so is never elsewhere. An
-    /// empty list is no answer, and no known current Space means nothing
-    /// can be compared; both read false.
+    /// lists its display's shown Space among its Spaces, so it reads as in
+    /// view. An empty list is no answer, and no known current Space means
+    /// nothing can be compared; both read false.
     static func isOnOtherSpace(
         windowSpaces: [CGSSpaceID],
         currentSpaces: Set<CGSSpaceID>

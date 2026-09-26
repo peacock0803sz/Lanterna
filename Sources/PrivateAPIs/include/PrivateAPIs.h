@@ -76,8 +76,8 @@ typedef uint64_t CGSSpaceID;
 
 /// Which of a window's Spaces `CGSCopySpacesForWindows` answers with. Only
 /// "all" is declared: asked for current Spaces only, a window on another
-/// Space would answer with an empty list, which is also what an unknown
-/// window answers, so "elsewhere" could not be told from "no answer".
+/// Space would presumably answer with an empty list, which is also what an
+/// unknown window answers, so "elsewhere" could not be told from "no answer".
 enum {
     kCGSSpaceMaskAll = 0x7,
 };
@@ -107,7 +107,8 @@ extern CFArrayRef CGSCopyManagedDisplaySpaces(CGSConnectionID connection) CF_RET
 /// from, so a caller that needs a per-window answer passes one window at a
 /// time. A window on every Space answers with more than one id; a window the
 /// server has no record of answers with an empty list, the same as a window
-/// on no Space at all.
+/// on no Space at all. So does an inactive tab of a native tab group, which
+/// therefore reads as in view wherever its group is.
 ///
 /// Undocumented, re-exported from CoreGraphics, and passes the same test:
 /// no public API places a window on a Space.
