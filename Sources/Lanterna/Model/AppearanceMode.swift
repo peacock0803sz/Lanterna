@@ -1,3 +1,5 @@
+import SwiftUI
+
 /// Which appearance the panel and the guide windows use.
 ///
 /// Mirrors the config file values (`"system"`, `"light"`, `"dark"`).
@@ -16,5 +18,15 @@ enum AppearanceMode: String, Sendable {
     /// following the system.
     static func effective(from config: ValidConfiguration) -> AppearanceMode {
         config.appearanceMode ?? .system
+    }
+
+    /// The scheme the hosted views are told to use. `nil` leaves the
+    /// system in charge, which is what `system` means.
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
     }
 }
