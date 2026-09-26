@@ -371,13 +371,11 @@ struct PanelExitTests {
     /// again — because each step has somewhere it could leave the next one
     /// stuck, and only walking it end to end puts them in that order.
     ///
-    /// This does not hold the giving up of the choice, and no case can. Every
-    /// appearance rebuilds the cursor from the list it is handed before the
-    /// panel is told anything, so a second one opens on its first row whether
-    /// or not the first gave its choice up. That line is kept for the reason
-    /// the one beside it in `dismissPanel` is kept, and its own comment says
-    /// so: nothing reads the choice while the panel is down, so no sequence
-    /// of calls can tell whether it was cleared.
+    /// This does not hold the giving up of the choice. Every appearance
+    /// rebuilds the cursor from the list it is handed before the panel is
+    /// told anything, so a second one opens on its own second row whether or
+    /// not the first gave its choice up. The choice is read directly after
+    /// the panel goes, beside the list the way out gives up with it.
     @Test func thePanelAfterACancellationOpensOnItsOwnSecondRowAgain() {
         let fixture = runningWithAMonitor()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
