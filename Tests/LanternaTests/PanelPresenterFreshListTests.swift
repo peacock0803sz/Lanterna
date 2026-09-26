@@ -69,4 +69,22 @@ struct PanelPresenterFreshListTests {
         #expect(tracker.newestSource == .external)
         #expect(tracker.arranged([rows[1], rows[0]]).map(\.id) == [rows[0].id, rows[1].id])
     }
+
+    /// Reading a fresh list sweeps nothing either: a record the pass leaves
+    /// out, old enough for a sweep to take, is still there after.
+    @Test func aFreshListSweepsNothing() async {
+        let rows = rows
+        let tracker = MRUTracker(now: SteppingClock(step: .seconds(4)).read)
+        tracker.record(rows[0].id, ownerProcessIdentifier: rows[0].ownerProcessIdentifier, origin: .external)
+        let presenter = PanelPresenter(
+            surface: FakeSurface(),
+            store: WindowListStore(gather: { passFinding([rows[1]]) }, writeLine: { _ in }),
+            writeLine: { _ in },
+            tracker: tracker
+        )
+        let fresh = await presenter.freshList(carrying: [])
+        #expect(fresh?.windows.map(\.id) == [rows[1].id])
+        #expect(tracker.newestSource == .external)
+        #expect(tracker.arranged([rows[1], rows[0]]).map(\.id) == [rows[0].id, rows[1].id])
+    }
 }
