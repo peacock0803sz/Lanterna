@@ -181,8 +181,8 @@ extension AppConfiguration {
 
     /// The values this run uses. The command line wins where it says
     /// anything; the file covers the rest. The command line never reaches
-    /// the file. Display modes have no flag, so the file always covers
-    /// them.
+    /// the file. Display modes and the appearance mode have no flag, so
+    /// the file always covers them.
     static func effectiveOptions(
         file: ValidConfiguration,
         cli: LaunchArguments.Options
@@ -191,7 +191,8 @@ extension AppConfiguration {
             sampleCount: cli.sampleCount ?? file.sampleCount,
             stopMonitorEvery: cli.stopMonitorEvery
                 ?? file.stopMonitorEverySeconds.map { .seconds($0) },
-            displayModes: DisplayModes.effective(from: file)
+            displayModes: DisplayModes.effective(from: file),
+            appearanceMode: AppearanceMode.effective(from: file)
         )
     }
 
