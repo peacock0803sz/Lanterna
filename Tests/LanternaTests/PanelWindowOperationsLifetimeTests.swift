@@ -20,6 +20,10 @@ private final class SentCount: @unchecked Sendable {
 /// An operation outlives the keystroke that started it: its reconciling
 /// waits for a fresh list, and the panel can go, or a later one come up,
 /// before that list arrives.
+///
+/// The cases that hold the refresh carry a time limit, which is not about
+/// slowness: they wait for the operation to ask for its list, and a run
+/// that never asks would hang the suite rather than fail it.
 @MainActor
 struct PanelWindowOperationsLifetimeTests {
     private var rows: [WindowItem] {
@@ -33,18 +37,21 @@ struct PanelWindowOperationsLifetimeTests {
     /// The panel going while the list is awaited leaves the resumed
     /// reconciling touching nothing: no list swapped in, no choice made
     /// again, no closing, and one line saying it went unreconciled.
-    @Test func aPanelGoneMidReconcilingIsLeftAlone() async {
+    @Test(.timeLimit(.minutes(1))) func aPanelGoneMidReconcilingIsLeftAlone() async {
         let rows = rows
         let held = HeldRefresh()
         let made = makeOperations(rows: rows, held: held)
-        let running = made.operations.start(.closeWindow, naming: rows[0].id)
+        guard let running = made.operations.start(.closeWindow, naming: rows[0].id) else {
+            Issue.record("the operation was dropped")
+            return
+        }
         await held.waitUntilAsked()
         made.operations.end()
         made.selection.end()
         made.filter.reset()
         let swapsBefore = made.surface.updatedLists.count
         held.finish(with: Array(rows.dropFirst()))
-        await running?.value
+        await running.value
         #expect(made.surface.updatedLists.count == swapsBefore)
         #expect(made.selection.chosenID == nil)
         #expect(made.counts.interruptions == 0)
@@ -55,11 +62,14 @@ struct PanelWindowOperationsLifetimeTests {
 
     /// A later appearance up by the time the list arrives is not the one
     /// the operation set out in, and its rows and choice stay its own.
-    @Test func aLaterAppearanceIsLeftAlone() async {
+    @Test(.timeLimit(.minutes(1))) func aLaterAppearanceIsLeftAlone() async {
         let rows = rows
         let held = HeldRefresh()
         let made = makeOperations(rows: rows, held: held)
-        let running = made.operations.start(.closeWindow, naming: rows[0].id)
+        guard let running = made.operations.start(.closeWindow, naming: rows[0].id) else {
+            Issue.record("the operation was dropped")
+            return
+        }
         await held.waitUntilAsked()
         made.operations.end()
         let later = [rows[2], rows[1]]
@@ -68,7 +78,7 @@ struct PanelWindowOperationsLifetimeTests {
         made.operations.begin(windows: later)
         let swapsBefore = made.surface.updatedLists.count
         held.finish(with: [rows[2]])
-        await running?.value
+        await running.value
         #expect(made.surface.updatedLists.count == swapsBefore)
         #expect(made.selection.chosenID == rows[1].id)
         #expect(made.counts.interruptions == 0)
@@ -76,7 +86,7 @@ struct PanelWindowOperationsLifetimeTests {
 
     /// A second operation while one is still reconciling is dropped with a
     /// line rather than sent: only the first is sent and reconciled.
-    @Test func aSecondOperationWhileOneRunsIsDropped() async {
+    @Test(.timeLimit(.minutes(1))) func aSecondOperationWhileOneRunsIsDropped() async {
         let rows = rows
         let held = HeldRefresh()
         let closes = SentCount()
@@ -84,12 +94,15 @@ struct PanelWindowOperationsLifetimeTests {
             closes.add()
             return nil
         })
-        let running = made.operations.start(.closeWindow, naming: rows[0].id)
+        guard let running = made.operations.start(.closeWindow, naming: rows[0].id) else {
+            Issue.record("the operation was dropped")
+            return
+        }
         await held.waitUntilAsked()
         await made.operations.operate(.closeWindow, naming: rows[1].id)
         #expect(made.log.lines.contains { $0.contains("window operation dropped (close") })
         held.finish(with: Array(rows.dropFirst()))
-        await running?.value
+        await running.value
         #expect(held.askedCount == 1)
         #expect(closes.value == 1)
         #expect(made.log.lines.contains { $0.contains("window operation (close Safari/Tabs)") })
@@ -129,22 +142,28 @@ struct PanelWindowOperationsLifetimeTests {
     /// An operation from an ended appearance that ends after the next
     /// appearance's operation started leaves that one in flight: a third
     /// press is still dropped while the second reconciles.
-    @Test func anEndedAppearancesOperationKeepsTheNextOnesInFlight() async {
+    @Test(.timeLimit(.minutes(1))) func anEndedAppearancesOperationKeepsTheNextOnesInFlight() async {
         let rows = rows
         let held = HeldRefresh()
         let made = makeOperations(rows: rows, held: held)
-        let first = made.operations.start(.closeWindow, naming: rows[0].id)
+        guard let first = made.operations.start(.closeWindow, naming: rows[0].id) else {
+            Issue.record("the operation was dropped")
+            return
+        }
         await held.waitUntilAsked()
         made.operations.end()
         made.operations.begin(windows: rows)
         held.finish(with: Array(rows.dropFirst()))
-        let second = made.operations.start(.closeWindow, naming: rows[1].id)
-        await first?.value
+        guard let second = made.operations.start(.closeWindow, naming: rows[1].id) else {
+            Issue.record("the next appearance's operation was dropped")
+            return
+        }
+        await first.value
         await held.waitUntilAsked(count: 2)
         await made.operations.operate(.closeWindow, naming: rows[2].id)
         #expect(made.log.lines.contains { $0.contains("window operation dropped (close") })
         held.finish(with: [rows[0], rows[2]])
-        await second?.value
+        await second.value
     }
 
     /// An operation that found nothing to act on leaves the appearance
