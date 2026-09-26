@@ -90,8 +90,7 @@ final class HeldRefresh {
 
     func refresh() async -> [WindowItem] {
         askedCount += 1
-        asked?.resume()
-        asked = nil
+        resumeWaiter()
         guard release == nil else {
             Issue.record("a refresh was asked while another was held")
             return []
@@ -100,11 +99,26 @@ final class HeldRefresh {
     }
 
     /// Returns once the refresh has been asked for the given number of
-    /// times in all, at once when it already has.
+    /// times in all, at once when it already has, or once the case's task
+    /// is cancelled, as its time limit does, so the wait does not outlast
+    /// a case whose refresh is never asked.
     func waitUntilAsked(count: Int = 1) async {
-        while askedCount < count {
-            await withCheckedContinuation { asked = $0 }
+        while askedCount < count, !Task.isCancelled {
+            await withTaskCancellationHandler {
+                await withCheckedContinuation { asked = $0 }
+            } onCancel: {
+                // Hops to the main actor, which runs this only once the
+                // waiter has suspended and stored its continuation.
+                Task { @MainActor in self.resumeWaiter() }
+            }
         }
+    }
+
+    /// Resumes the pending wait, if any, and forgets it, so neither an ask
+    /// nor a cancellation resumes one twice.
+    private func resumeWaiter() {
+        asked?.resume()
+        asked = nil
     }
 
     func finish(with windows: [WindowItem]) {

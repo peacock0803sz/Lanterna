@@ -7,8 +7,9 @@ import Testing
 /// before that list arrives.
 ///
 /// The cases that hold the refresh carry a time limit, which is not about
-/// slowness: they wait for the operation to ask for its list, and a run
-/// that never asks would hang the suite rather than fail it.
+/// slowness: they wait for the operation to ask for its list, and on a run
+/// that never asks, the limit fails the case and cancels it, which ends
+/// that wait.
 @MainActor
 struct PanelWindowOperationsLifetimeTests {
     private var rows: [WindowItem] {
