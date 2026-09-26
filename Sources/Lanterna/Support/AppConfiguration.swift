@@ -1,7 +1,9 @@
 import Foundation
 
-// Generated from ConfigSchema.pkl. Do not edit by hand; change the schema
-// and regenerate instead, so the three (schema, types, scaffold) stay as one.
+// Mirrors ConfigSchema.pkl in Swift. Change the schema first, then mirror
+// it here, and keep the three (schema, types, scaffold) as one. CI checks
+// the schema's rendering against config/schema-snapshot.json, which is the
+// mechanical part of the sync; the mirroring itself is by hand.
 //
 // The runtime never evaluates Pkl. This file carries the schema's shape,
 // defaults and validation into Swift, where the strictness lives.
