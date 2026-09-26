@@ -169,6 +169,26 @@ struct PanelWindowOperationsTests {
         #expect(made.selection.chosenID == mixed[4].id)
     }
 
+    /// Operating on a shown row in the middle counts its place among the
+    /// shown rows: the next shown row takes the choice, not the row at the
+    /// same place in the whole list.
+    @Test func operatingOnAMiddleShownRowCountsAmongShownRows() async {
+        let mixed = [
+            operationRow(appName: "Safari", windowTitle: "Tabs", windowID: 1),
+            operationRow(appName: "Mail", windowTitle: "Inbox", windowID: 2),
+            operationRow(appName: "Safari", windowTitle: "Downloads", windowID: 3),
+            operationRow(appName: "Mail", windowTitle: "Drafts", windowID: 4),
+            operationRow(appName: "Safari", windowTitle: "History", windowID: 5),
+        ]
+        let made = makeOperations(rows: mixed, refreshed: [mixed[0], mixed[1], mixed[3], mixed[4]])
+        made.filter.activate()
+        made.filter.append("safari")
+        made.selection.retarget(to: [mixed[0].id, mixed[2].id, mixed[4].id], selecting: mixed[2].id)
+        await made.operations.operate(.closeWindow, naming: mixed[2].id)
+        #expect(made.surface.updatedLists.last?.map(\.id) == [mixed[0].id, mixed[4].id])
+        #expect(made.selection.chosenID == mixed[4].id)
+    }
+
     /// Asking after what is already parked is not a failure: nothing
     /// happens, and no line says anything.
     @Test func minimizingAParkedRowDoesNothing() async {
