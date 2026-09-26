@@ -16,6 +16,10 @@ enum PanelMetrics {
         return query.isEmpty ? header : header + 34
     }
 
+    /// Extra height for the failure note. An estimate, for the reason the
+    /// filter chrome's is.
+    static let noticeHeight: CGFloat = 22
+
     /// Height for a given number of rows. The panel grows with its content until
     /// the cap, past which the list scrolls instead of the panel growing.
     static func height(rowCount: Int) -> CGFloat {

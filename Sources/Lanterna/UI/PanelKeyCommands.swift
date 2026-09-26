@@ -114,6 +114,9 @@ final class PanelKeyCommands {
         // asking anything.
         let startedAt = now()
         guard surface.isPresented else { return .passedThrough }
+        // A new press answers the old failure: the note goes before
+        // anything the press means is done.
+        surface.clearNotice()
         switch PanelKeyInput.action(for: keystroke) {
         case .selectNext:
             selection.moveToNext()

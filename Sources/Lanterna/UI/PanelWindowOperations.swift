@@ -258,6 +258,7 @@ final class PanelWindowOperations {
         replaceList(snapshot)
         selection.retarget(to: snapshot.map(\.id), selecting: id)
         surface.showSelection(id)
+        surface.showNotice("Couldn't \(operation.logName) \(row.displayTitle)")
         writeLine(
             "window operation failed (\(operation.logName) "
                 + "\(row.appName)/\(row.displayTitle): \(failure.logDescription))"

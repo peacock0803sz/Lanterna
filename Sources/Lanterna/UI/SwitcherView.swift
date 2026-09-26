@@ -41,6 +41,11 @@ struct SwitcherView: View {
     /// header) belongs on screen. Off draws neither, whatever the query is.
     var filterActive: Bool
 
+    /// A small failure note, drawn under the list. Nil draws nothing: an
+    /// appearance that never fails looks exactly as it did before any of
+    /// this existed.
+    var notice: String?
+
     /// The rows in use, in the order they arrived. Parked rows — minimised
     /// or hidden — draw below the separator instead of vanishing, so they
     /// can be chosen back to life.
@@ -49,7 +54,7 @@ struct SwitcherView: View {
     }
 
     private var parkedRows: [WindowItem] {
-        windows.filter(\.isParked)
+        windows.filter { $0.isParked }
     }
 
     private func row(_ window: WindowItem) -> some View {
@@ -132,6 +137,13 @@ struct SwitcherView: View {
                         proxy.scrollTo(id, anchor: nil)
                     }
                 }
+            }
+            if let notice {
+                Text(notice)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 4)
             }
         }
         // The glass covers the whole stack, not the list alone: the query

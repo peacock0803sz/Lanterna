@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 @testable import Lanterna
 import Testing
 
@@ -221,6 +222,7 @@ struct PanelWindowOperationsTests {
                 $0.contains("window operation failed (close Safari/Tabs: window gone)")
             }
         )
+        #expect(made.surface.notices.last?.contains("Couldn't close") == true)
     }
 
     /// A sent request the refresh still lists is an interruption: the panel
@@ -240,6 +242,50 @@ struct PanelWindowOperationsTests {
         await made.operations.operate(.closeWindow, naming: own.id)
         #expect(made.surface.updatedLists.isEmpty)
         #expect(made.log.lines.isEmpty)
+    }
+
+    /// The next keystroke clears the failure note.
+    @Test func theNextKeystrokeClearsTheNotice() async {
+        let made = makeOperations(
+            rows: rows,
+            refreshed: [],
+            close: { _ in .windowGone },
+            ownProcessIdentifier: 999
+        )
+        made.selection.retarget(to: rows.map(\.id), selecting: rows[0].id)
+        await made.operations.operate(.closeWindow, naming: rows[0].id)
+        #expect(made.surface.notices.isEmpty == false)
+        let commands = PanelKeyCommands(
+            surface: made.surface,
+            selection: made.selection,
+            wayOut: made.wayOut,
+            now: { ContinuousClock.now }
+        )
+        commands.beginFiltering(fullWindows: rows, filtering: false)
+        let down = PanelKeystroke(
+            keyCode: UInt16(kVK_DownArrow),
+            modifiers: [],
+            isARepeat: false,
+            characters: ""
+        )
+        #expect(commands.handle(down) == .absorbed)
+        #expect(made.surface.clearedNotices == 1)
+        #expect(made.surface.currentNotice == nil)
+    }
+
+    /// Swapping the list clears the failure note.
+    @Test func swappingTheListClearsTheNotice() async {
+        let made = makeOperations(
+            rows: rows,
+            refreshed: [],
+            close: { _ in .windowGone },
+            ownProcessIdentifier: 999
+        )
+        made.selection.retarget(to: rows.map(\.id), selecting: rows[0].id)
+        await made.operations.operate(.closeWindow, naming: rows[0].id)
+        #expect(made.surface.notices.isEmpty == false)
+        made.filter.replace(fullWindows: rows)
+        #expect(made.surface.currentNotice == nil)
     }
 
     /// Asking after what is already parked is not a failure: nothing
