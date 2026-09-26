@@ -1,3 +1,4 @@
+import CoreGraphics
 import Dispatch
 import Synchronization
 
@@ -10,9 +11,21 @@ import Synchronization
 @MainActor
 struct WindowEnumerator {
     private let reader: any ApplicationWindowReading
+    private let locator: any SpaceLocating
 
-    init(reader: any ApplicationWindowReading = AXApplicationWindowReader()) {
+    init(
+        reader: any ApplicationWindowReading = AXApplicationWindowReader(),
+        locator: any SpaceLocating = WindowServerSpaceLocator()
+    ) {
         self.reader = reader
+        self.locator = locator
+    }
+
+    /// What the worker side of a pass hands back: one read per application,
+    /// in input order, and the windows found to be on another Space.
+    private struct Gathered: Sendable {
+        let results: [Result<ApplicationRead, ReadFailure>]
+        let onOtherSpace: Set<CGWindowID>
     }
 
     /// Reads every application at once and assembles the rows in a fixed order.
@@ -31,7 +44,7 @@ struct WindowEnumerator {
         let ordered = applications.sorted { $0.processIdentifier < $1.processIdentifier }
         return assemble(
             ordered,
-            Self.read(ordered.map(\.processIdentifier), using: reader),
+            Self.gather(ordered.map(\.processIdentifier), using: reader, locator: locator),
             startedAt: startedAt
         )
     }
@@ -61,12 +74,13 @@ struct WindowEnumerator {
         let ordered = applications.sorted { $0.processIdentifier < $1.processIdentifier }
         let identifiers = ordered.map(\.processIdentifier)
         let reader = reader
-        let results = await withCheckedContinuation { continuation in
+        let locator = locator
+        let gathered = await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                continuation.resume(returning: Self.read(identifiers, using: reader))
+                continuation.resume(returning: Self.gather(identifiers, using: reader, locator: locator))
             }
         }
-        return assemble(ordered, results, startedAt: startedAt)
+        return assemble(ordered, gathered, startedAt: startedAt)
     }
 
     /// Every running application that shows in the Dock, and its windows, with
@@ -93,13 +107,13 @@ struct WindowEnumerator {
     /// where the names and icons are attached.
     private func assemble(
         _ ordered: [RunningApplicationInfo],
-        _ results: [Result<ApplicationRead, ReadFailure>],
+        _ gathered: Gathered,
         startedAt: ContinuousClock.Instant
     ) -> WindowListSnapshot {
         var items: [WindowItem] = []
         var skipped: [WindowListSnapshot.SkippedApplication] = []
         var droppedWithoutID = 0
-        for (application, result) in zip(ordered, results) {
+        for (application, result) in zip(ordered, gathered.results) {
             switch result {
             case let .failure(reason):
                 skipped.append(
@@ -114,7 +128,13 @@ struct WindowEnumerator {
                 items.append(
                     contentsOf: read.records
                         .sorted { $0.windowID < $1.windowID }
-                        .map { item(for: $0, of: application) }
+                        .map { record in
+                            item(
+                                for: record,
+                                of: application,
+                                isOnOtherSpace: gathered.onOtherSpace.contains(record.windowID)
+                            )
+                        }
                 )
             }
         }
@@ -131,7 +151,8 @@ struct WindowEnumerator {
 
     private func item(
         for record: WindowRecord,
-        of application: RunningApplicationInfo
+        of application: RunningApplicationInfo,
+        isOnOtherSpace: Bool
     ) -> WindowItem {
         WindowItem(
             id: WindowItem.Identifier(windowID: record.windowID),
@@ -142,8 +163,28 @@ struct WindowEnumerator {
             kind: record.kind,
             isMinimized: record.isMinimized,
             isHidden: application.isHidden,
+            isOnOtherSpace: isOnOtherSpace,
             isFullscreen: record.isFullscreen,
             icon: application.icon
+        )
+    }
+
+    /// The blocking half of a pass: the reads, then one Space query for
+    /// every window they found. Shared by both paths, and run wherever the
+    /// reading runs, so the window-server calls stay off the main thread
+    /// whenever the reading does.
+    private nonisolated static func gather(
+        _ identifiers: [pid_t],
+        using reader: any ApplicationWindowReading,
+        locator: any SpaceLocating
+    ) -> Gathered {
+        let results = read(identifiers, using: reader)
+        let windowIDs = results.flatMap { result in
+            (try? result.get())?.records.map(\.windowID) ?? []
+        }
+        return Gathered(
+            results: results,
+            onOtherSpace: locator.windowsOnOtherSpaces(among: windowIDs)
         )
     }
 

@@ -28,8 +28,10 @@ struct WindowItem: Identifiable {
     /// Whether the owning application is hidden. Read with the names and
     /// icons, on the main thread, never by the parallel reading.
     let isHidden: Bool
-    /// Whether the window lives on another Space. Nothing reads per-window
-    /// Space yet, so live rows carry false; false never hides.
+    /// Whether the window lives on a Space no display is showing. Asked of
+    /// the window server with each pass, off the main thread; a window on
+    /// every Space, or one the server says nothing about, reads false, and
+    /// false never hides.
     let isOnOtherSpace: Bool
     /// Whether the window is natively fullscreen. Read as one AX attribute;
     /// a manually zoomed window is not fullscreen.
@@ -104,23 +106,6 @@ struct WindowItem: Identifiable {
             isMinimized: isMinimized,
             isHidden: hidden,
             isOnOtherSpace: isOnOtherSpace,
-            isFullscreen: isFullscreen,
-            icon: icon
-        )
-    }
-
-    /// The same row, marked on another Space or not.
-    func settingOnOtherSpace(_ onOtherSpace: Bool) -> WindowItem {
-        WindowItem(
-            id: id,
-            ownerProcessIdentifier: ownerProcessIdentifier,
-            appName: appName,
-            bundleIdentifier: bundleIdentifier,
-            windowTitle: windowTitle,
-            kind: kind,
-            isMinimized: isMinimized,
-            isHidden: isHidden,
-            isOnOtherSpace: onOtherSpace,
             isFullscreen: isFullscreen,
             icon: icon
         )
