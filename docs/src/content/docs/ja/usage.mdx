@@ -4,7 +4,6 @@ description: 基本操作、絞り込み、ウィンドウ操作、リンク、�
 ---
 
 import LinkList from "../../../components/LinkList.astro";
-import PillLink from "../../../components/PillLink.astro";
 import SwitchSequence from "../../../components/SwitchSequence.astro";
 
 ## 基本操作
@@ -96,8 +95,28 @@ Lanternaの起動中はSpotlightのCmd+Spaceが無効になり、Lanternaを終�
 
 ## トラブルシューティング
 
-対処手順はREADMEのトラブルシューティングにまとめてあり、このページには載せていません。
+### クラッシュ後にCmd+Tabが戻らない
 
-<PillLink href="https://github.com/peacock0803sz/Lanterna#troubleshooting">
-  READMEのトラブルシューティング
-</PillLink>
+Lanternaは起動中にCmd+TabとShift+Cmd+Tabをシステムから預かり、終了時に返却します。`kill -9`やクラッシュで終了すると返却できないため、両方のショートカットが無効のまま残ります。
+
+他にできることがある前に、Lanternaが起動していないことを確認してください。復旧処理は現在の状態を読まずにショートカットを有効化するため、別のLanternaが起動したまま実行すると、そのプロセスからショートカットを奪ってしまいます。同時に複数起動することはサポートしていません。
+
+```bash
+pgrep -x Lanterna # 何も出なければOK。出る場合は先に `pkill Lanterna` を実行する
+```
+
+次にLanternaを起動して正常に終了し直し、終了時の復旧処理でショートカットを戻します。
+
+```bash
+/Applications/Lanterna.app/Contents/MacOS/Lanterna &
+sleep 1
+pkill Lanterna
+```
+
+それでも戻らない場合は一度ログアウトして入り直してください。システムのショートカット割り当てはログインセッション単位です。
+
+### ウィンドウが表示されない
+
+アクセシビリティと入力監視の2つの権限が許可されていることを確認し(ガイド参照)、Lanternaを再起動してください。
+
+これで解決しない場合は、[バグ報告テンプレート](https://github.com/peacock0803sz/Lanterna/issues/new?template=bug_report.yml)を使って報告してください。

@@ -66,29 +66,7 @@ Under Privacy & Security in System Settings, confirm that only these two entries
 
 ## Troubleshooting
 
-### Cmd+Tab shortcuts are not restored after a crash
-
-Lanterna takes Cmd+Tab and Shift+Cmd+Tab away from the system while it runs and gives them back when it exits. After `kill -9` or a crash it cannot give them back, so both shortcuts stay off until something else restores them.
-
-Check that no Lanterna is running before doing anything else. Restoring turns the shortcuts back on without reading their current state, so running this while another Lanterna is up takes the shortcuts away from that process. Running more than one at a time is not supported.
-
-```bash
-pgrep -x Lanterna    # expect no output; run `pkill Lanterna` first if there is any
-```
-
-Then start Lanterna again and stop it cleanly, so its shutdown restores the shortcuts.
-
-```bash
-/Applications/Lanterna.app/Contents/MacOS/Lanterna &
-sleep 1
-pkill Lanterna
-```
-
-If the shortcuts are still off after that, log out and back in. The system's assignment is per login session.
-
-### Windows do not appear
-
-Check that the two permissions above are granted, then relaunch Lanterna.
+See the [troubleshooting guide](https://lanterna.p3ac0ck.net/en/usage/#troubleshooting) on the website. To report a bug, [open a bug report](https://github.com/peacock0803sz/Lanterna/issues/new?template=bug_report.yml) using the Bug report template.
 
 ## For developers
 
