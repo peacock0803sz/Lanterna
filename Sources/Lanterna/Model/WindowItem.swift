@@ -61,6 +61,22 @@ struct WindowItem: Identifiable {
         isMinimized || isHidden
     }
 
+    /// The same row, marked minimized or not. The optimistic look moves
+    /// rows before the reconciling pass confirms them.
+    func settingMinimized(_ minimized: Bool) -> WindowItem {
+        WindowItem(
+            id: id,
+            ownerProcessIdentifier: ownerProcessIdentifier,
+            appName: appName,
+            bundleIdentifier: bundleIdentifier,
+            windowTitle: windowTitle,
+            kind: kind,
+            isMinimized: minimized,
+            isHidden: isHidden,
+            icon: icon
+        )
+    }
+
     /// The same row, marked hidden or shown. The optimistic look moves rows
     /// before the reconciling pass confirms them.
     func settingHidden(_ hidden: Bool) -> WindowItem {

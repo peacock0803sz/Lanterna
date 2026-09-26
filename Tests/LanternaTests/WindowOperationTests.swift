@@ -40,6 +40,12 @@ private struct FakeControllableApplication: ControllableApplication {
     }
 }
 
+/// A box so scripted minimize writes cross into sendable closures.
+private final class MinimizeBox: @unchecked Sendable {
+    let window = AXUIElementCreateApplication(1)
+    var writes: [(AXUIElement, Bool)] = []
+}
+
 /// A box so scripted elements cross into sendable closures.
 private final class ElementBox: @unchecked Sendable {
     let windows: [AXUIElement]
@@ -139,6 +145,31 @@ struct WindowOperationTests {
             windowIDs: [ObjectIdentifier(window): 7]
         )
         #expect(made.closeWindow(target()) == .other(reason: "error -25200"))
+    }
+
+    /// Minimizing writes the flag, and a refused write is a failure.
+    @Test func minimizingWritesTheFlag() {
+        let box = MinimizeBox()
+        let minimizer = LiveWindowMinimizer(
+            copyWindows: { _ in (.success, [box.window]) },
+            copyWindowID: { _ in (.success, 7) },
+            setMinimized: { element, minimized in
+                box.writes.append((element, minimized))
+                return .success
+            }
+        )
+        #expect(minimizer.minimizeWindow(target()) == nil)
+        #expect(box.writes.count == 1)
+        #expect(box.writes.first?.1 == true)
+    }
+
+    @Test func aRefusedMinimizeFails() {
+        let minimizer = LiveWindowMinimizer(
+            copyWindows: { _ in (.success, []) },
+            copyWindowID: { _ in (.success, 0) },
+            setMinimized: { _, _ in .failure }
+        )
+        #expect(minimizer.minimizeWindow(target()) == .windowGone)
     }
 
     /// A target no application still lists is gone, not broken.
