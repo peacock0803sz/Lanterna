@@ -72,7 +72,41 @@ struct DecodedConfiguration: Equatable, Sendable {
     var assumedVersion: Bool
 }
 
+// What the launch-time load found.
+
+enum ConfigLoadOutcome: Equatable, Sendable {
+    case loaded(DecodedConfiguration)
+    case created
+    case failed(reason: String)
+}
+
 extension AppConfiguration {
+    /// Loads the file or scaffolds it when missing.
+    ///
+    /// The only place that touches the file besides the scaffold write:
+    /// existing files are read and never written (FR-013). Returns the
+    /// outcome with the file URL so callers can say where in diagnostics.
+    static func loadOrScaffold(applicationSupport: URL) -> (ConfigLoadOutcome, URL) {
+        let url = configFileURL(applicationSupport: applicationSupport)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            do {
+                try writeScaffold(to: url)
+                return (.created, url)
+            } catch {
+                return (.failed(reason: "cannot create file"), url)
+            }
+        }
+        guard let data = try? Data(contentsOf: url) else {
+            return (.failed(reason: "cannot read file"), url)
+        }
+        switch decode(data) {
+        case let .success(decoded):
+            return (.loaded(decoded), url)
+        case let .failure(error):
+            return (.failed(reason: error.reason), url)
+        }
+    }
+
     /// Reads the file's bytes into validated settings.
     ///
     /// A pure function over bytes so every accepted and rejected shape is
