@@ -121,6 +121,24 @@ struct DisplayModes: Equatable, Sendable {
         return (ordinary, subgroups)
     }
 
+    /// The rows the panel draws for a query, split as above: the rows the
+    /// query matches, less the ones the modes keep out. The filter, the
+    /// view and the height all ask this, so what is kept out is decided
+    /// one way wherever it is asked.
+    static func sections(
+        of rows: [WindowItem],
+        modes: DisplayModes,
+        query: String
+    ) -> (ordinary: [WindowItem], subgroups: [(DisplaySubgroup, [WindowItem])]) {
+        let matched = WindowFilter.matching(query, against: rows)
+        return sections(
+            of: matched,
+            modes: modes,
+            queryIsEmpty: query.isEmpty,
+            matches: Set(matched.map(\.id))
+        )
+    }
+
     /// The rows in the order the panel draws them: the ordinary rows, then
     /// the subgroups in drawing order, each in the order it arrived in.
     /// Hidden rows are left out; callers narrow first.

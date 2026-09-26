@@ -51,6 +51,11 @@ final class PanelKeyCommands {
         filter.begin(fullWindows: fullWindows, filtering: filtering)
     }
 
+    /// The rows on screen, which the choice and the panel open on.
+    var shownWindows: [WindowItem] {
+        filter.shownWindows
+    }
+
     /// Gives the appearance up; the next one starts empty either way.
     func endFiltering() {
         filter.reset()

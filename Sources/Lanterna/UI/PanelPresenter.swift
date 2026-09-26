@@ -292,9 +292,11 @@ final class PanelPresenter {
         // The list is ordered first, so everything this appearance shows,
         // names, and measures reads off one value no later refresh can move.
         //
-        // The cursor is made next, so that what the panel is told to draw is
-        // read off it. The filter starts beside it, over the same ordered
-        // list, so the first keystroke narrows what the panel was shown.
+        // The filter starts next, over the whole ordered list, and the
+        // cursor and the panel open on the rows it shows: the display modes
+        // narrow the list before either is fed, and the first keystroke
+        // narrows what the panel was shown. What the panel is told to draw
+        // is read off the cursor.
         //
         // Keys are asked for after the panel is up and before the reading:
         // a window that is not on screen cannot become the key window, and
@@ -304,20 +306,21 @@ final class PanelPresenter {
         // position is free: it has to happen before the panel can go.
         tracker.noteSnapshotObserved(store.snapshot?.gatheredAt ?? now())
         let ordered = tracker.ordered(windows, skipping: store.snapshot?.skippedOwners ?? [])
-        selection.beginSecond(ordered.map(\.id))
         keyCommands.beginFiltering(fullWindows: ordered, filtering: combination == .filter)
+        let shown = keyCommands.shownWindows
+        selection.beginSecond(shown.map(\.id))
         operations.begin(windows: ordered)
-        surface.present(windows: ordered, selecting: selection.chosenID)
+        surface.present(windows: shown, selecting: selection.chosenID)
         let becameKey = surface.takeKeys()
         wayOut.nowShowing(ordered, startedAt: startedAt)
         let measurement = HotkeyMeasurement(
             combination: combination,
             elapsed: now() - startedAt,
-            entryCount: ordered.count,
+            entryCount: shown.count,
             deliveryDelay: deliveryDelay,
             gatheredOnDemand: gatheredOnDemand,
             becameKey: becameKey,
-            mru: MRUSummary(firstID: ordered.first?.id, source: tracker.newestSource)
+            mru: MRUSummary(firstID: shown.first?.id, source: tracker.newestSource)
         )
         writeLine(measurement.summaryLine)
 

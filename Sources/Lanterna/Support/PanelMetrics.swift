@@ -20,23 +20,21 @@ enum PanelMetrics {
     /// filter chrome's is.
     static let noticeHeight: CGFloat = 22
 
-    /// How many rows the list draws for these windows: one for each, one
-    /// more for the separator when ordinary rows stand above non-empty
-    /// subgroups, and one heading row for each non-empty subgroup. The
-    /// separator is a row of the list like the others, and the list gives
-    /// every row at least `rowHeight`.
-    static func drawnRowCount(_ windows: [WindowItem], modes: DisplayModes = .defaults) -> Int {
-        // The panel holds narrowed rows, so every row on hand counts as
-        // matching: hidden rows here are the ones a query brought back,
-        // and they belong in their subgroups.
-        let (ordinary, subgroups) = DisplayModes.sections(
-            of: windows,
-            modes: modes,
-            queryIsEmpty: false,
-            matches: Set(windows.map(\.id))
-        )
+    /// How many rows the list draws for these windows under this query:
+    /// one for each row it draws, one more for the separator when ordinary
+    /// rows stand above non-empty subgroups, and one heading row for each
+    /// non-empty subgroup. Split the way the view splits them, so a row the
+    /// modes keep out takes no height. The separator is a row of the list
+    /// like the others, and the list gives every row at least `rowHeight`.
+    static func drawnRowCount(
+        _ windows: [WindowItem],
+        modes: DisplayModes = .defaults,
+        query: String = ""
+    ) -> Int {
+        let (ordinary, subgroups) = DisplayModes.sections(of: windows, modes: modes, query: query)
         let separator = (!ordinary.isEmpty && !subgroups.isEmpty) ? 1 : 0
-        return windows.count + separator + subgroups.count
+        let subgroupRows = subgroups.reduce(0) { $0 + $1.1.count }
+        return ordinary.count + subgroupRows + separator + subgroups.count
     }
 
     /// Height for a given number of rows. The panel grows with its content until

@@ -43,12 +43,22 @@ final class PanelFilter {
 
     /// Starts an appearance over the whole ordered list, remembering nothing.
     /// Filtering answers keystrokes only when the appearance asked for it.
+    /// Draws nothing: the caller opens the choice and the panel on
+    /// `shownWindows`, so the modes narrow the list before either sees it.
     func begin(fullWindows: [WindowItem], filtering: Bool = false) {
         self.fullWindows = fullWindows
         state = FilterState()
-        state.previousMatchedIDs = Set(fullWindows.map(\.id))
-        lastSummary = FilterLogSummary(query: "", matchedCount: fullWindows.count, totalCount: fullWindows.count)
+        let shown = shownWindows
+        state.previousMatchedIDs = Set(shown.map(\.id))
+        lastSummary = FilterLogSummary(query: "", matchedCount: shown.count, totalCount: fullWindows.count)
         isActive = filtering
+    }
+
+    /// The rows on screen: the whole list narrowed by the query and the
+    /// display modes. The whole list stays underneath, so a query can
+    /// still bring back a row the modes keep out.
+    var shownWindows: [WindowItem] {
+        shown(in: fullWindows)
     }
 
     /// Switches filtering on for the panel that is up, drawing at once: the
@@ -66,7 +76,7 @@ final class PanelFilter {
     /// it back: that happens with shortening, not with a swap.
     func replace(fullWindows: [WindowItem]) {
         self.fullWindows = fullWindows
-        state.takeSwappedIn(matched: WindowFilter.matching(state.query, against: fullWindows).map(\.id))
+        state.takeSwappedIn(matched: shownWindows.map(\.id))
         apply()
     }
 
@@ -80,8 +90,8 @@ final class PanelFilter {
     /// that was not shown, or a list that shows nothing, leaves the choice
     /// to the usual resolving.
     func replace(fullWindows: [WindowItem], choosingWhere anchor: ChoiceAnchor) {
-        let before = WindowFilter.matching(state.query, against: anchor.stoodIn).map(\.id)
-        let after = WindowFilter.matching(state.query, against: fullWindows).map(\.id)
+        let before = shown(in: anchor.stoodIn).map(\.id)
+        let after = shown(in: fullWindows).map(\.id)
         if let index = before.firstIndex(of: anchor.id), let last = after.indices.last {
             selection.retarget(to: after, selecting: after[min(index, last)])
         }
@@ -135,23 +145,21 @@ final class PanelFilter {
         return true
     }
 
+    /// The rows one list shows under the current query and modes. Every
+    /// entry narrows through here, so the modes keep a row out the same
+    /// way whether the panel opened, a keystroke arrived, or a list was
+    /// swapped in.
+    private func shown(in windows: [WindowItem]) -> [WindowItem] {
+        let (ordinary, subgroups) = DisplayModes.sections(of: windows, modes: displayModes, query: state.query)
+        let kept = Set((ordinary + subgroups.flatMap(\.1)).map(\.id))
+        return windows.filter { kept.contains($0.id) }
+    }
+
     /// Narrows the rows, follows the choice onto them, and tells the panel,
     /// drawing once. The exits resolve off the whole shown list: identities
     /// are unique, so a narrowed row reads back as itself either way.
-    ///
-    /// Policy runs here alone: `begin` and both `replace` variants only keep
-    /// the whole list, so hiding applies exactly once no matter the entry.
     private func apply() {
-        let matchedIDs = Set(WindowFilter.matching(state.query, against: fullWindows).map(\.id))
-        let candidates = fullWindows.filter { row in
-            DisplayModes.placement(
-                of: row,
-                modes: displayModes,
-                queryIsEmpty: state.query.isEmpty,
-                matchesQuery: matchedIDs.contains(row.id)
-            ) != .hidden
-        }
-        let matched = WindowFilter.matching(state.query, against: candidates)
+        let matched = shownWindows
         let matchedList = matched.map(\.id)
         let chosen = state.resolveSelection(matched: matchedList, incoming: selection.chosenID)
         selection.retarget(to: matchedList, selecting: chosen)

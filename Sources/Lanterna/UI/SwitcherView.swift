@@ -48,11 +48,6 @@ struct SwitcherView: View {
     /// How the special kinds show, read at launch from the config file.
     var modes: DisplayModes = .defaults
 
-    /// The rows matching the query, deciding which hidden rows return.
-    private var matches: Set<WindowItem.Identifier> {
-        Set(WindowFilter.matching(query, against: windows).map(\.id))
-    }
-
     /// The ordinary rows, drawing first and in the order they arrived.
     private var ordinaryRows: [WindowItem] {
         sections.ordinary
@@ -67,12 +62,7 @@ struct SwitcherView: View {
     /// the narrowed order beside this one, so every row draws in the order
     /// it arrived within its section.
     private var sections: (ordinary: [WindowItem], subgroups: [(DisplaySubgroup, [WindowItem])]) {
-        DisplayModes.sections(
-            of: windows,
-            modes: modes,
-            queryIsEmpty: query.isEmpty,
-            matches: matches
-        )
+        DisplayModes.sections(of: windows, modes: modes, query: query)
     }
 
     /// The heading over one subgroup. Plain words, settled separately.

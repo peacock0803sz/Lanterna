@@ -91,6 +91,30 @@ struct SwitcherPanelTests {
         )
     }
 
+    /// A row its mode keeps out takes no height: no row, no separator and
+    /// no heading for it. A query that matches it brings all three back.
+    @Test func aRowItsModeKeepsOutTakesNoHeight() {
+        let panel = panel(rowCount: 5)
+        panel.displayModes = DisplayModes(
+            otherSpace: .show,
+            hiddenApp: .separateAtBottom,
+            minimized: .hide,
+            fullscreen: .show
+        )
+        let windows = SampleWindows.make(count: 3)
+        let rows = [windows[0], windows[1], windows[2].settingMinimized(true)]
+        panel.updateList(windows: rows, selecting: nil, query: "", filterActive: false)
+        #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 2))
+        panel.update(windows: rows)
+        #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 2))
+        panel.updateList(windows: [rows[2]], selecting: nil, query: rows[2].appName, filterActive: true)
+        #expect(
+            panel.contentRect(forFrameRect: panel.frame).height
+                == PanelMetrics.height(rowCount: 2)
+                + PanelMetrics.filterChromeHeight(query: rows[2].appName, filterActive: true)
+        )
+    }
+
     /// Swapping the list must not cost a new hosting view: rebuilding the view
     /// tree on every appearance is exactly what keeping one panel avoids.
     @Test func updateKeepsTheHostingViewItAlreadyHas() {
