@@ -15,7 +15,7 @@ snapshot="config/schema-snapshot.json"
 tmp="${TMPDIR:-/tmp}/lanterna-schema-$$"
 trap 'rm -f "$tmp"' EXIT
 
-pkl eval --format json Sources/Lanterna/Support/ConfigSchema.pkl > "$tmp"
+pkl eval --format json config/ConfigSchema.pkl > "$tmp"
 
 if [ "$mode" = "--check" ]; then
     if [ ! -f "$snapshot" ]; then
