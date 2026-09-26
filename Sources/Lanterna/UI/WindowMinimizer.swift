@@ -5,9 +5,9 @@ import PrivateAPIs
 ///
 /// `nil` means the request was sent — whether it landed is what the
 /// reconciling pass after it is for. A failure names why the request did
-/// not go through. A time-out on writing the flag itself is the one failure
-/// that may have reached the application, which may still act on a write
-/// it was slow to answer; a time-out while finding the window comes before
+/// not go through. A time-out on writing the flag itself can come after
+/// the application received the write, and it may still act on a write it
+/// was slow to answer; a time-out while finding the window comes before
 /// anything is written.
 protocol WindowMinimizing: Sendable {
     func minimizeWindow(_ target: ActivationTarget) -> ActivationFailure?

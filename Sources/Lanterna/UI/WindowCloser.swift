@@ -5,8 +5,8 @@ import PrivateAPIs
 ///
 /// `nil` means the request was sent — whether it landed is what the
 /// reconciling pass after it is for. A failure names why the request did
-/// not go through. A time-out on the press itself is the one failure that
-/// may have reached the application, which may still act on a press it was
+/// not go through. A time-out on the press itself can come after the
+/// application received the press, and it may still act on a press it was
 /// slow to answer; a time-out while finding the window or its close button
 /// comes before anything is pressed.
 protocol WindowClosing: Sendable {
