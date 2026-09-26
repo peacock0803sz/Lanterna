@@ -6,6 +6,15 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Lanterna',
+      head: [
+        {
+          tag: 'meta',
+          attrs: {
+            property: 'og:image',
+            content: 'https://img.p3ac0ck.net/figs/Lanterna.png',
+          },
+        },
+      ],
       defaultLocale: 'en',
       locales: {
         en: { label: 'English' },
