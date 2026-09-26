@@ -138,8 +138,9 @@ struct AXApplicationWindowReaderMessagingTests {
     /// answers would vanish from the panel as timed out.
     @Test func aReadWhoseLastMessageStartsUnderTheLineSucceeds() {
         let application = FakeApplication(windowCount: 1)
-        // Seven messages start at 0, 140, …, 840 ms; the last one ends at 980 ms.
-        application.costPerMessage = .milliseconds(140)
+        // The last message, the id fetch, starts under the line and ends
+        // past it.
+        application.costPerMessage = .milliseconds(160)
         let read = try? application.read().get()
         #expect(read?.records.map(\.windowID) == [100])
         #expect(application.windowIDReads == [0])
