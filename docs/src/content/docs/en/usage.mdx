@@ -1,6 +1,6 @@
 ---
 title: Usage
-description: Basic operation, filtering, links, and troubleshooting
+description: Basic operation, filtering, window actions, links, and troubleshooting
 ---
 
 import LinkList from "../../../components/LinkList.astro";
@@ -49,6 +49,19 @@ import SwitchSequence from "../../../components/SwitchSequence.astro";
 :::note
 While Lanterna runs, the Spotlight `Cmd+Space` shortcut is off. It comes back when you quit Lanterna.
 :::
+
+## Window actions
+
+While the switcher is up, hold `Cmd` and press one of these keys to act on the chosen row. The switcher stays up and the list updates in place.
+
+|                          |                       |
+| ------------------------ | --------------------- |
+| <kbd>⌘</kbd><kbd>W</kbd> | Closes the window.    |
+| <kbd>⌘</kbd><kbd>Q</kbd> | Quits the app.        |
+| <kbd>⌘</kbd><kbd>H</kbd> | Hides the app.        |
+| <kbd>⌘</kbd><kbd>M</kbd> | Minimizes the window. |
+
+Hidden apps and minimized windows move below a separator in the list. If an action fails, the list goes back to how it was and a short note appears. You cannot act on Lanterna's own row.
 
 ## Links
 
