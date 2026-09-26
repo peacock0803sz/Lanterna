@@ -45,6 +45,14 @@ private struct FakeHider: ApplicationHiding, Sendable {
     }
 }
 
+/// A scripted minimizer.
+private struct FakeMinimizer: WindowMinimizing, Sendable {
+    let minimize: @Sendable (ActivationTarget) -> ActivationFailure?
+    func minimizeWindow(_ target: ActivationTarget) -> ActivationFailure? {
+        minimize(target)
+    }
+}
+
 /// A box so the harness counts refreshes, interruptions and empty closes.
 private final class OperationCounts {
     var refreshes = 0
@@ -60,6 +68,7 @@ private struct OperationHarness {
     let selection: PanelSelection
     let filter: PanelFilter
     let wayOut: PanelExit
+    let switcher: FakeWindowSwitcher
     let log: DiagnosticsLog
     let counts: OperationCounts
     let rows: [WindowItem]
@@ -74,19 +83,34 @@ private struct FilterStack {
 }
 
 @MainActor
-private func makeStack(surface: FakeSurface, log: DiagnosticsLog) -> FilterStack {
+private func makeStack(surface: FakeSurface, log: DiagnosticsLog, switcher: FakeWindowSwitcher) -> FilterStack {
     let selection = PanelSelection(surface: surface)
     let wayOut = PanelExit(
         surface: surface,
         now: { ContinuousClock.now },
         writeLine: log.write,
-        switcher: FakeWindowSwitcher(),
+        switcher: switcher,
         recordCommit: { _, _ in },
         noteSwitchReturned: {},
         onPanelGone: {}
     )
     let filter = PanelFilter(selection: selection, surface: surface)
     return FilterStack(selection: selection, wayOut: wayOut, filter: filter)
+}
+
+/// Starts one appearance over the rows on every keeper of them.
+@MainActor
+private func beginAppearance(
+    selection: PanelSelection,
+    wayOut: PanelExit,
+    filter: PanelFilter,
+    operations: PanelWindowOperations,
+    rows: [WindowItem]
+) {
+    selection.beginSecond(rows.map(\.id))
+    wayOut.nowShowing(rows, startedAt: ContinuousClock.now)
+    filter.begin(fullWindows: rows)
+    operations.begin(windows: rows)
 }
 
 @MainActor
@@ -96,12 +120,14 @@ private func makeOperations(
     close: @escaping @Sendable (ActivationTarget) -> ActivationFailure? = { _ in nil },
     quit: @escaping @Sendable (pid_t) -> ActivationFailure? = { _ in nil },
     hide: @escaping @Sendable (pid_t) -> ActivationFailure? = { _ in nil },
+    minimize: @escaping @Sendable (ActivationTarget) -> ActivationFailure? = { _ in nil },
     ownProcessIdentifier: pid_t = 999
 ) -> OperationHarness {
     let surface = FakeSurface()
     surface.isPresented = true
     let log = DiagnosticsLog()
-    let stack = makeStack(surface: surface, log: log)
+    let switcher = FakeWindowSwitcher()
+    let stack = makeStack(surface: surface, log: log, switcher: switcher)
     let selection = stack.selection
     let wayOut = stack.wayOut
     let filter = stack.filter
@@ -121,6 +147,7 @@ private func makeOperations(
         closer: FakeCloser(close: close),
         quitter: FakeQuitter(quit: quit),
         hider: FakeHider(hide: hide),
+        minimizer: FakeMinimizer(minimize: minimize),
         ownProcessIdentifier: ownProcessIdentifier,
         writeLine: log.write,
         closeAfterEmptied: { counts.emptied += 1 },
@@ -133,16 +160,14 @@ private func makeOperations(
             )
         }
     )
-    selection.beginSecond(rows.map(\.id))
-    wayOut.nowShowing(rows, startedAt: ContinuousClock.now)
-    filter.begin(fullWindows: rows)
-    operations.begin(windows: rows)
+    beginAppearance(selection: selection, wayOut: wayOut, filter: filter, operations: operations, rows: rows)
     return OperationHarness(
         operations: operations,
         surface: surface,
         selection: selection,
         filter: filter,
         wayOut: wayOut,
+        switcher: switcher,
         log: log,
         counts: counts,
         rows: rows
@@ -217,9 +242,11 @@ struct PanelWindowOperationsTests {
         #expect(made.log.lines.isEmpty)
     }
 
-    /// Operations with no body yet are swallowed without a trace.
-    @Test func unownedOperationsDoNothing() async {
-        let made = makeOperations(rows: rows, refreshed: rows)
+    /// Asking after what is already parked is not a failure: nothing
+    /// happens, and no line says anything.
+    @Test func minimizingAParkedRowDoesNothing() async {
+        let parked = [rows[0].settingMinimized(true), rows[1], rows[2]]
+        let made = makeOperations(rows: parked, refreshed: parked)
         await made.operations.operate(.minimizeWindow, naming: rows[0].id)
         #expect(made.surface.updatedLists.isEmpty)
         #expect(made.log.lines.isEmpty)
@@ -266,6 +293,33 @@ struct PanelWindowOperationsTests {
         let made = makeOperations(rows: alone, refreshed: [])
         await made.operations.operate(.quitApplication, naming: twoApps[0].id)
         #expect(made.counts.emptied == 1)
+    }
+
+    /// Minimizing parks the row below the separator.
+    @Test func minimizingParksTheRow() async {
+        let parked = [rows[0].settingMinimized(true), rows[1], rows[2]]
+        let made = makeOperations(rows: rows, refreshed: parked)
+        made.selection.retarget(to: rows.map(\.id), selecting: rows[0].id)
+        await made.operations.operate(.minimizeWindow, naming: rows[0].id)
+        let shown = made.surface.updatedLists.last ?? []
+        #expect(shown.first?.isMinimized == true)
+        #expect(made.selection.chosenID == rows[0].id)
+        #expect(made.log.lines.contains { $0.contains("window operation (minimize Safari/Tabs)") })
+    }
+
+    /// A parked row commits through the swapped list: the exit names the
+    /// row the panel last showed, so restoring takes the existing path.
+    @Test func aParkedRowCommitsThroughTheSwappedList() async {
+        let parked = twoApps.map { $0.ownerProcessIdentifier == 123 ? $0.settingHidden(true) : $0 }
+        let made = makeOperations(rows: twoApps, refreshed: parked)
+        await made.operations.operate(.hideApplication, naming: twoApps[0].id)
+        made.wayOut.commit(
+            by: .returnKey,
+            naming: twoApps[0].id,
+            since: ContinuousClock.now
+        )
+        #expect(made.switcher.targets.map(\.id) == [twoApps[0].id])
+        #expect(made.log.lines.contains { $0.contains("Tabs") })
     }
 
     @Test func hidingEverythingKeepsThePanelOpen() async {

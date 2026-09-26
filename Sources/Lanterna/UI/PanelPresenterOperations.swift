@@ -43,6 +43,7 @@ extension PanelPresenter {
             closer: LiveWindowCloser(),
             quitter: LiveApplicationQuitter(),
             hider: LiveApplicationHider(),
+            minimizer: LiveWindowMinimizer(),
             ownProcessIdentifier: ownProcessIdentifier,
             writeLine: writeLine,
             closeAfterEmptied: { [weak self] in self?.wayOut.closeAfterEmptiedList(operation: .quitApplication) },

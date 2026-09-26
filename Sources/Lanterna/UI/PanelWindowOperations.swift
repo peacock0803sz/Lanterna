@@ -16,6 +16,7 @@ final class PanelWindowOperations {
     private let closer: any WindowClosing
     private let quitter: any ApplicationQuitting
     private let hider: any ApplicationHiding
+    private let minimizer: any WindowMinimizing
     private let ownProcessIdentifier: pid_t
     private let writeLine: @MainActor (String) -> Void
     private let closeAfterEmptied: @MainActor () -> Void
@@ -30,6 +31,7 @@ final class PanelWindowOperations {
         closer: any WindowClosing,
         quitter: any ApplicationQuitting,
         hider: any ApplicationHiding,
+        minimizer: any WindowMinimizing,
         ownProcessIdentifier: pid_t,
         writeLine: @escaping @MainActor (String) -> Void,
         closeAfterEmptied: @escaping @MainActor () -> Void,
@@ -42,6 +44,7 @@ final class PanelWindowOperations {
         self.closer = closer
         self.quitter = quitter
         self.hider = hider
+        self.minimizer = minimizer
         self.ownProcessIdentifier = ownProcessIdentifier
         self.writeLine = writeLine
         self.closeAfterEmptied = closeAfterEmptied
@@ -69,9 +72,7 @@ final class PanelWindowOperations {
         case .hideApplication:
             await hide(naming: id)
         case .minimizeWindow:
-            // Its story lands next. Until then the press is swallowed
-            // without a trace.
-            break
+            await minimize(naming: id)
         }
     }
 
@@ -157,6 +158,32 @@ final class PanelWindowOperations {
                 send: { [hider] in hider.hideApplication(processIdentifier: pid) },
                 isDone: { fresh in
                     !fresh.contains(where: { $0.ownerProcessIdentifier == pid && !$0.isHidden })
+                },
+                closesWhenEmpty: false
+            )
+        )
+    }
+
+    private func minimize(naming id: WindowItem.Identifier?) async {
+        guard let (index, row) = resolve(id, for: .minimizeWindow) else {
+            return
+        }
+        let target = ActivationTarget(
+            id: row.id,
+            ownerProcessIdentifier: row.ownerProcessIdentifier,
+            appName: row.appName,
+            displayTitle: row.displayTitle
+        )
+        let optimistic = presented.map { $0.id == row.id ? $0.settingMinimized(true) : $0 }
+        await sendAndReconcile(
+            Reconciliation(
+                operation: .minimizeWindow,
+                row: row,
+                index: index,
+                optimistic: optimistic,
+                send: { [minimizer] in minimizer.minimizeWindow(target) },
+                isDone: { fresh in
+                    fresh.first(where: { $0.id == row.id })?.isMinimized != false
                 },
                 closesWhenEmpty: false
             )
