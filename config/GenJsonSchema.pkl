@@ -10,8 +10,17 @@ local props = reflect.Module(schema).moduleClass.properties
 local function minimumOf(prop: reflect.Property): Int? =
   prop.annotations.filter((it) -> it is schema.Minimum).firstOrNull?.value
 
+local function allowedOf(prop: reflect.Property): Listing<String>? =
+  prop.annotations.filter((it) -> it is schema.Allowed).firstOrNull?.values
+
 local function fragment(prop: reflect.Property): Dynamic =
-  if (minimumOf(prop) == null)
+  if (allowedOf(prop) != null)
+    new {
+      ["type"] = "string"
+      ["enum"] = allowedOf(prop)
+      description = prop.docComment
+    }
+  else if (minimumOf(prop) == null)
     new {
       ["type"] = "integer"
       description = prop.docComment

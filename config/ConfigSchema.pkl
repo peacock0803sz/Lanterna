@@ -17,6 +17,32 @@ open class Minimum extends Annotation {
 /// Schema generation. Stays 1 for this revision.
 version: Int = 1
 
+/// The allowed string values declared for one key.
+///
+/// Read by config/GenJsonSchema.pkl and mirrored by the Swift validation.
+open class Allowed extends Annotation {
+  values: Listing<String>
+}
+
+/// How one special window kind is shown: mixed in, hidden, or parked below.
+typealias DisplayMode = "show"|"hide"|"separateAtBottom"
+
+/// Windows on other Spaces. Absent means "show".
+@Allowed { values { "show" "hide" "separateAtBottom" } }
+otherSpaceMode: DisplayMode? = null
+
+/// Windows of hidden applications. Absent means "separateAtBottom".
+@Allowed { values { "show" "hide" "separateAtBottom" } }
+hiddenAppMode: DisplayMode? = null
+
+/// Minimized windows. Absent means "separateAtBottom".
+@Allowed { values { "show" "hide" "separateAtBottom" } }
+minimizedMode: DisplayMode? = null
+
+/// Native fullscreen windows. Absent means "show".
+@Allowed { values { "show" "hide" "separateAtBottom" } }
+fullscreenMode: DisplayMode? = null
+
 /// Fixture entries to show instead of live windows.
 /// Absent means live windows. Must be zero or more when present.
 @Minimum { value = 0 }
