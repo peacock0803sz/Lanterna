@@ -6,7 +6,7 @@ import Testing
 /// is pinned down here.
 @MainActor
 struct WindowListSnapshotTests {
-    private func item(_ windowID: CGWindowID) -> WindowItem {
+    private func item(_ windowID: CGWindowID, isOnOtherSpace: Bool = false) -> WindowItem {
         WindowItem(
             id: WindowItem.Identifier(windowID: windowID),
             ownerProcessIdentifier: 0,
@@ -15,19 +15,22 @@ struct WindowListSnapshotTests {
             windowTitle: "Downloads",
             kind: .standard,
             isMinimized: false,
+            isOnOtherSpace: isOnOtherSpace,
             icon: NSImage()
         )
     }
 
+    /// The first `onOtherSpace` of the windows are on another Space.
     private func snapshot(
         windowCount: Int = 9,
+        onOtherSpace: Int = 0,
         applicationCount: Int = 11,
         duration: Duration = .milliseconds(71.2),
         skipped: [WindowListSnapshot.SkippedApplication] = [],
         droppedWithoutID: Int = 0
     ) -> WindowListSnapshot {
         WindowListSnapshot(
-            items: (0 ..< windowCount).map { item(CGWindowID($0)) },
+            items: (0 ..< windowCount).map { item(CGWindowID($0), isOnOtherSpace: $0 < onOtherSpace) },
             applicationCount: applicationCount,
             gatheringDuration: duration,
             skipped: skipped,
@@ -92,6 +95,24 @@ struct WindowListSnapshotTests {
         #expect(line == "listed 9 windows from 11 applications in 71.2 ms"
             + "; skipped TextEdit (timed out)"
             + "; dropped 1 elements without a window id")
+    }
+
+    /// Rows on another Space are counted straight after the totals, ahead of
+    /// anything that went wrong.
+    @Test func rowsOnOtherSpacesComeBeforeSkippedApplications() {
+        let line = snapshot(
+            onOtherSpace: 2,
+            skipped: [
+                WindowListSnapshot.SkippedApplication(
+                    name: "TextEdit",
+                    reason: .timedOut,
+                    processIdentifier: 101
+                ),
+            ]
+        ).summaryLine
+        #expect(line == "listed 9 windows from 11 applications in 71.2 ms"
+            + "; 2 on other Spaces"
+            + "; skipped TextEdit (timed out)")
     }
 
     /// A title never reaches the log, whatever went wrong.

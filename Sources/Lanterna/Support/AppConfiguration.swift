@@ -18,7 +18,10 @@ enum AppConfiguration {
     static let currentVersion = 1
 
     /// Every key there is. Anything else in the file is an unknown key.
-    static let knownKeys: Set<String> = ["version", "sampleCount", "stopMonitorEvery"]
+    static let knownKeys: Set<String> = [
+        "version", "sampleCount", "stopMonitorEvery",
+        "otherSpaceMode", "hiddenAppMode", "minimizedMode", "fullscreenMode",
+    ]
 
     /// The scaffold written when no file exists (FR-012).
     ///
@@ -35,6 +38,28 @@ struct ValidConfiguration: Equatable, Sendable {
     var version: Int
     var sampleCount: Int?
     var stopMonitorEverySeconds: Int?
+    var otherSpaceMode: DisplayMode?
+    var hiddenAppMode: DisplayMode?
+    var minimizedMode: DisplayMode?
+    var fullscreenMode: DisplayMode?
+
+    init(
+        version: Int,
+        sampleCount: Int?,
+        stopMonitorEverySeconds: Int?,
+        otherSpaceMode: DisplayMode? = nil,
+        hiddenAppMode: DisplayMode? = nil,
+        minimizedMode: DisplayMode? = nil,
+        fullscreenMode: DisplayMode? = nil
+    ) {
+        self.version = version
+        self.sampleCount = sampleCount
+        self.stopMonitorEverySeconds = stopMonitorEverySeconds
+        self.otherSpaceMode = otherSpaceMode
+        self.hiddenAppMode = hiddenAppMode
+        self.minimizedMode = minimizedMode
+        self.fullscreenMode = fullscreenMode
+    }
 }
 
 /// Why a file could not be used. The text after each case is the reason
@@ -130,34 +155,30 @@ extension AppConfiguration {
             return .failure(error)
         }
         let sampleCount: Int?
-        switch checkedOptionalInt(dict, key: "sampleCount", minimum: 0) {
-        case let .success(found):
-            sampleCount = found
-        case let .failure(error):
-            return .failure(error)
-        }
         let stopMonitorEvery: Int?
-        switch checkedOptionalInt(dict, key: "stopMonitorEvery", minimum: 1) {
+        switch checkedCountOptions(dict) {
         case let .success(found):
-            stopMonitorEvery = found
+            (sampleCount, stopMonitorEvery) = found
         case let .failure(error):
             return .failure(error)
         }
-        return .success(
-            DecodedConfiguration(
-                config: ValidConfiguration(
-                    version: version,
-                    sampleCount: sampleCount,
-                    stopMonitorEverySeconds: stopMonitorEvery
-                ),
-                assumedVersion: assumed
-            )
-        )
+        switch checkedConfiguration(
+            dict,
+            version: version,
+            sampleCount: sampleCount,
+            stopMonitorEverySeconds: stopMonitorEvery
+        ) {
+        case let .success(config):
+            return .success(DecodedConfiguration(config: config, assumedVersion: assumed))
+        case let .failure(error):
+            return .failure(error)
+        }
     }
 
     /// The values this run uses. The command line wins where it says
-    /// anything; the file covers the rest (FR-010). The command line never
-    /// reaches the file.
+    /// anything; the file covers the rest. The command line never reaches
+    /// the file. Display modes have no flag, so the file always covers
+    /// them.
     static func effectiveOptions(
         file: ValidConfiguration,
         cli: LaunchArguments.Options
@@ -165,7 +186,8 @@ extension AppConfiguration {
         LaunchArguments.Options(
             sampleCount: cli.sampleCount ?? file.sampleCount,
             stopMonitorEvery: cli.stopMonitorEvery
-                ?? file.stopMonitorEverySeconds.map { .seconds($0) }
+                ?? file.stopMonitorEverySeconds.map { .seconds($0) },
+            displayModes: DisplayModes.effective(from: file)
         )
     }
 
@@ -227,6 +249,69 @@ extension AppConfiguration {
             return .failure(.invalidValue(key: key))
         }
         return .success(value)
+    }
+
+    /// Reads the count keys together, so `decode` stays small.
+    private static func checkedCountOptions(_ dict: [String: Any]) -> Result<
+        (Int?, Int?), ConfigDecodeError
+    > {
+        let sampleCount: Int?
+        switch checkedOptionalInt(dict, key: "sampleCount", minimum: 0) {
+        case let .success(found):
+            sampleCount = found
+        case let .failure(error):
+            return .failure(error)
+        }
+        let stopMonitorEvery: Int?
+        switch checkedOptionalInt(dict, key: "stopMonitorEvery", minimum: 1) {
+        case let .success(found):
+            stopMonitorEvery = found
+        case let .failure(error):
+            return .failure(error)
+        }
+        return .success((sampleCount, stopMonitorEvery))
+    }
+
+    /// Assembles the validated configuration, reading the display modes last.
+    private static func checkedConfiguration(
+        _ dict: [String: Any],
+        version: Int,
+        sampleCount: Int?,
+        stopMonitorEverySeconds: Int?
+    ) -> Result<ValidConfiguration, ConfigDecodeError> {
+        var config = ValidConfiguration(
+            version: version,
+            sampleCount: sampleCount,
+            stopMonitorEverySeconds: stopMonitorEverySeconds
+        )
+        let keys: [(String, WritableKeyPath<ValidConfiguration, DisplayMode?>)] = [
+            ("otherSpaceMode", \.otherSpaceMode),
+            ("hiddenAppMode", \.hiddenAppMode),
+            ("minimizedMode", \.minimizedMode),
+            ("fullscreenMode", \.fullscreenMode),
+        ]
+        for (key, path) in keys {
+            switch checkedOptionalMode(dict, key: key) {
+            case let .success(found):
+                config[keyPath: path] = found
+            case let .failure(error):
+                return .failure(error)
+            }
+        }
+        return .success(config)
+    }
+
+    /// Reads one optional display-mode key. Anything but a `DisplayMode`
+    /// word invalidates the whole file, like any other bad value.
+    private static func checkedOptionalMode(
+        _ dict: [String: Any],
+        key: String
+    ) -> Result<DisplayMode?, ConfigDecodeError> {
+        guard let rawValue = dict[key] else { return .success(nil) }
+        guard let text = rawValue as? String, let mode = DisplayMode(rawValue: text) else {
+            return .failure(.invalidValue(key: key))
+        }
+        return .success(mode)
     }
 
     /// A JSON integer and nothing else.

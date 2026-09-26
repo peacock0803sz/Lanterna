@@ -1,6 +1,12 @@
 import ApplicationServices
 import PrivateAPIs
 
+/// The accessibility name of the fullscreen flag. Not in the SDK headers,
+/// so it travels as a string: a window that does not know the name answers
+/// unsupported or no value, both of which read as nil and so as not
+/// fullscreen.
+let fullscreenAttributeName = "AXFullScreen"
+
 /// One window of one application, in a shape that can cross threads.
 ///
 /// Deliberately free of AppKit types: the name and icon of the owning
@@ -10,17 +16,21 @@ struct WindowRecord: Sendable, Equatable {
     let title: String
     let kind: WindowKind
     let isMinimized: Bool
+    /// Native fullscreen only; a manually zoomed window reads false.
+    /// Unreadable reads false: unknown never hides.
+    let isFullscreen: Bool
 
     /// Zero is what the id fetch reports for "none", and a row's identity is
     /// built from this value. `AXApplicationWindowReader.outcome` counts such
     /// an element as dropped before a record exists, so one getting this far
     /// is a programming error.
-    init(windowID: CGWindowID, title: String, kind: WindowKind, isMinimized: Bool) {
+    init(windowID: CGWindowID, title: String, kind: WindowKind, isMinimized: Bool, isFullscreen: Bool = false) {
         precondition(windowID != 0, "a window record needs a window-server id")
         self.windowID = windowID
         self.title = title
         self.kind = kind
         self.isMinimized = isMinimized
+        self.isFullscreen = isFullscreen
     }
 }
 
@@ -176,6 +186,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
         subrole: String?,
         title: String,
         isMinimized: Bool,
+        isFullscreen: Bool = false,
         windowID: CGWindowID?
     ) -> ElementOutcome {
         guard let kind = WindowKind.classify(role: role, subrole: subrole) else {
@@ -185,7 +196,13 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
             return .droppedWithoutID
         }
         return .record(
-            WindowRecord(windowID: windowID, title: title, kind: kind, isMinimized: isMinimized)
+            WindowRecord(
+                windowID: windowID,
+                title: title,
+                kind: kind,
+                isMinimized: isMinimized,
+                isFullscreen: isFullscreen
+            )
         )
     }
 
@@ -267,6 +284,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
             subrole: subrole,
             title: attribute(window, kAXTitleAttribute, within: budget) as? String ?? "",
             isMinimized: attribute(window, kAXMinimizedAttribute, within: budget) as? Bool ?? false,
+            isFullscreen: attribute(window, fullscreenAttributeName, within: budget) as? Bool ?? false,
             windowID: windowID(of: window, within: budget)
         )
     }

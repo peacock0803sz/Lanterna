@@ -25,16 +25,22 @@ final class SwitcherPanel: NSPanel {
     /// in it. `update(windows:)` decides it again for a swapped-in list; the
     /// two cannot disagree, because both take their numbers from
     /// `PanelMetrics`. The initial content is the empty, unfiltered list.
-    init(content: SwitcherView = SwitcherView(
-        windows: [], selectedID: nil, appearanceToken: 0, query: "", filterActive: false
-    )) {
+    init(
+        content: SwitcherView = SwitcherView(
+            windows: [], selectedID: nil, appearanceToken: 0, query: "", filterActive: false
+        ),
+        displayModes: DisplayModes = .defaults
+    ) {
+        self.displayModes = displayModes
         hostingView = NSHostingView(rootView: content)
         super.init(
             contentRect: NSRect(
                 x: 0,
                 y: 0,
                 width: PanelMetrics.width,
-                height: PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(content.windows))
+                height: PanelMetrics.height(
+                    rowCount: PanelMetrics.drawnRowCount(content.windows, modes: displayModes, query: content.query)
+                )
             ),
             // Borderless is the absence of `.titled`, so it needs no flag.
             styleMask: [.nonactivatingPanel],
@@ -74,6 +80,10 @@ final class SwitcherPanel: NSPanel {
         }
     }
 
+    /// How the special kinds show, read at launch from the config file.
+    /// Kept here so the height counts what the view draws.
+    var displayModes = DisplayModes.defaults
+
     /// Whether the panel is currently on screen.
     var isPresented: Bool {
         isVisible
@@ -103,14 +113,22 @@ final class SwitcherPanel: NSPanel {
             selectedID: hostingView.rootView.selectedID,
             appearanceToken: hostingView.rootView.appearanceToken,
             query: hostingView.rootView.query,
-            filterActive: hostingView.rootView.filterActive
+            filterActive: hostingView.rootView.filterActive,
+            modes: displayModes
         )
         // The height is pushed down from the window, because the hosting view
         // has no sizing options and so cannot push one up.
+        let query = hostingView.rootView.query
+        let filterActive = hostingView.rootView.filterActive
         setContentSize(
             NSSize(
                 width: PanelMetrics.width,
-                height: PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(windows))
+                height: min(
+                    PanelMetrics.height(
+                        rowCount: PanelMetrics.drawnRowCount(windows, modes: displayModes, query: query)
+                    ) + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
+                    PanelMetrics.maximumHeight
+                )
             )
         )
         centerOnMainDisplay()
@@ -129,9 +147,17 @@ final class SwitcherPanel: NSPanel {
     /// on the first row. `shownSelection` reads the drawn choice back off the
     /// view, which is what lets the tests of this class put a real panel up
     /// twice and hold the second appearance to the row it was given.
-    func present(windows: [WindowItem], selecting: WindowItem.Identifier?) {
+    ///
+    /// The query and the chrome are set before the swap for the same
+    /// reason: the swap carries them over too, and a query left from the
+    /// last appearance would keep narrowing the rows drawn while the
+    /// choice steps through all of them. Every appearance opens on an
+    /// empty query, with the chrome on only when it opened filtering.
+    func present(windows: [WindowItem], selecting: WindowItem.Identifier?, filterActive: Bool = false) {
         appearances += 1
         notice = nil
+        hostingView.rootView.query = ""
+        hostingView.rootView.filterActive = filterActive
         update(windows: windows)
         hostingView.rootView.appearanceToken = appearances
         showSelection(selecting)
@@ -195,10 +221,11 @@ final class SwitcherPanel: NSPanel {
             selectedID: selecting,
             appearanceToken: hostingView.rootView.appearanceToken,
             query: query,
-            filterActive: filterActive
+            filterActive: filterActive,
+            modes: displayModes
         )
         let height = min(
-            PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(windows))
+            PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(windows, modes: displayModes, query: query))
                 + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
             PanelMetrics.maximumHeight
         )

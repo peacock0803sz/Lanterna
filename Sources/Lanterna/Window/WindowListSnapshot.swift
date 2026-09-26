@@ -63,10 +63,16 @@ struct WindowListSnapshot {
     }
 
     /// The one line written after a pass. Counts, timings and skipped
-    /// application names only — never a window title.
+    /// application names only — never a window title. Rows on another
+    /// Space are counted only when there are some, so a pass with every
+    /// window in view reads as it always has.
     var summaryLine: String {
         var line = "listed \(items.count) windows from \(applicationCount) applications "
             + "in \(Diagnostics.millisecondsText(gatheringDuration)) ms"
+        let onOtherSpace = items.count(where: \.isOnOtherSpace)
+        if onOtherSpace > 0 {
+            line += "; \(onOtherSpace) on other Spaces"
+        }
         if !skipped.isEmpty {
             let reasons = skipped.map { "\($0.name) (\($0.reason))" }
             line += "; skipped " + reasons.joined(separator: ", ")

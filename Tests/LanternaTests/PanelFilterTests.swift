@@ -5,7 +5,12 @@ import Testing
 
 /// Rows with distinct names, so which rows match is decided by the test.
 @MainActor
-private func filterListRow(appName: String, windowTitle: String, windowID: CGWindowID) -> WindowItem {
+private func filterListRow(
+    appName: String,
+    windowTitle: String,
+    windowID: CGWindowID,
+    isMinimized: Bool = false
+) -> WindowItem {
     WindowItem(
         id: WindowItem.Identifier(windowID: windowID),
         ownerProcessIdentifier: 0,
@@ -13,7 +18,7 @@ private func filterListRow(appName: String, windowTitle: String, windowID: CGWin
         bundleIdentifier: nil,
         windowTitle: windowTitle,
         kind: .standard,
-        isMinimized: false,
+        isMinimized: isMinimized,
         icon: NSImage(size: NSSize(width: 1, height: 1))
     )
 }
@@ -75,6 +80,47 @@ struct PanelFilterTests {
             wayOut: wayOut,
             rows: rows
         )
+    }
+
+    /// A minimized row stays out of the list without a query when its mode
+    /// is hide.
+    @Test func hiddenModeKeepsMinimizedRowsOutWithoutAQuery() {
+        let made = makeFilter()
+        made.filter.displayModes = DisplayModes(
+            otherSpace: .show,
+            hiddenApp: .separateAtBottom,
+            minimized: .hide,
+            fullscreen: .show
+        )
+        let minimized = filterListRow(
+            appName: "Preview",
+            windowTitle: "Buried notes",
+            windowID: 9,
+            isMinimized: true
+        )
+        made.filter.replace(fullWindows: made.rows + [minimized])
+        #expect(made.surface.updatedLists.last?.map(\.id) == made.rows.map(\.id))
+    }
+
+    /// A row its mode hides comes back into the list when the query
+    /// matches it.
+    @Test func hiddenRowsReturnOnAMatchingQuery() {
+        let made = makeFilter()
+        made.filter.displayModes = DisplayModes(
+            otherSpace: .show,
+            hiddenApp: .separateAtBottom,
+            minimized: .hide,
+            fullscreen: .show
+        )
+        let minimized = filterListRow(
+            appName: "Preview",
+            windowTitle: "Buried notes",
+            windowID: 9,
+            isMinimized: true
+        )
+        made.filter.replace(fullWindows: made.rows + [minimized])
+        made.filter.append("buried")
+        #expect(made.surface.updatedLists.last?.map(\.id) == [minimized.id])
     }
 
     /// Typing narrows the rows on screen one keystroke at a time, keeping

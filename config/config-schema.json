@@ -9,6 +9,42 @@
       "description": "Schema generation. Stays 1 for this revision.",
       "type": "integer"
     },
+    "otherSpaceMode": {
+      "description": "Windows on other Spaces. Absent means \"show\".",
+      "type": "string",
+      "enum": [
+        "show",
+        "hide",
+        "separateAtBottom"
+      ]
+    },
+    "hiddenAppMode": {
+      "description": "Windows of hidden applications. Absent means \"separateAtBottom\".",
+      "type": "string",
+      "enum": [
+        "show",
+        "hide",
+        "separateAtBottom"
+      ]
+    },
+    "minimizedMode": {
+      "description": "Minimized windows. Absent means \"separateAtBottom\".",
+      "type": "string",
+      "enum": [
+        "show",
+        "hide",
+        "separateAtBottom"
+      ]
+    },
+    "fullscreenMode": {
+      "description": "Native fullscreen windows. Absent means \"show\".",
+      "type": "string",
+      "enum": [
+        "show",
+        "hide",
+        "separateAtBottom"
+      ]
+    },
     "sampleCount": {
       "description": "Fixture entries to show instead of live windows.\nAbsent means live windows. Must be zero or more when present.",
       "type": "integer",

@@ -45,19 +45,39 @@ struct SwitcherView: View {
     /// takes no height.
     var notice: String?
 
-    /// The rows before the first parked one. Parked rows — minimised or
-    /// hidden — draw below the separator instead of vanishing, so they can
-    /// be chosen back to life. The list arrives with them already last
-    /// (`WindowItem.parkedLast`), and every row draws in the order it
-    /// arrived: the choice and the arrows step through that same order, so
-    /// sorting here would draw one order and step through another.
-    private var ordinaryRows: ArraySlice<WindowItem> {
-        windows.prefix { !$0.isParked }
+    /// How the special kinds show, read at launch from the config file.
+    var modes: DisplayModes = .defaults
+
+    /// The ordinary rows, drawing first and in the order they arrived.
+    private var ordinaryRows: [WindowItem] {
+        sections.ordinary
     }
 
-    /// The rows from the first parked one on, drawn below the separator.
-    private var parkedRows: ArraySlice<WindowItem> {
-        windows.dropFirst(ordinaryRows.count)
+    /// The non-empty subgroups below the separator, in drawing order.
+    private var subgroupRows: [(DisplaySubgroup, [WindowItem])] {
+        sections.subgroups
+    }
+
+    /// The list split for drawing. The rows arrive in the order the filter
+    /// hands the choice (`DisplayModes.displayOrdered`), and splitting keeps
+    /// each row's place within its section, so the rows draw in the order
+    /// the arrows step through them.
+    private var sections: (ordinary: [WindowItem], subgroups: [(DisplaySubgroup, [WindowItem])]) {
+        DisplayModes.sections(of: windows, modes: modes, query: query)
+    }
+
+    /// The heading over one subgroup, in plain words.
+    private func heading(for subgroup: DisplaySubgroup) -> String {
+        switch subgroup {
+        case .otherSpace:
+            "Other Spaces"
+        case .hiddenApp:
+            "Hidden Apps"
+        case .minimized:
+            "Minimized"
+        case .fullscreen:
+            "Fullscreen"
+        }
     }
 
     private func row(_ window: WindowItem) -> some View {
@@ -102,17 +122,28 @@ struct SwitcherView: View {
                     ForEach(ordinaryRows) { window in
                         row(window)
                     }
-                    if !parkedRows.isEmpty {
-                        Divider()
-                            // A row like the others, on every OS: without an
-                            // explicit height the list's default decides, and
-                            // that default is not the same on every macOS.
-                            .frame(height: PanelMetrics.rowHeight)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                        ForEach(parkedRows) { window in
-                            row(window)
+                    if !subgroupRows.isEmpty {
+                        if !ordinaryRows.isEmpty {
+                            Divider()
+                                // A row like the others, on every OS: without an
+                                // explicit height the list's default decides, and
+                                // that default is not the same on every macOS.
+                                .frame(height: PanelMetrics.rowHeight)
+                                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                        }
+                        ForEach(subgroupRows, id: \.0) { subgroup, rows in
+                            Text(heading(for: subgroup))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .frame(height: PanelMetrics.rowHeight)
+                                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                            ForEach(rows) { window in
+                                row(window)
+                            }
                         }
                     }
                 }

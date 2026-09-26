@@ -125,6 +125,7 @@ struct AXApplicationWindowReaderMessagingTests {
 
         let messagesInOrder = [
             kAXWindowsAttribute, kAXRoleAttribute, kAXSubroleAttribute, kAXTitleAttribute, kAXMinimizedAttribute,
+            fullscreenAttributeName,
         ]
         #expect(application.read() == .failure(.timedOut))
         #expect(application.attributesRead == Array(messagesInOrder.prefix(messagesSent)))
@@ -137,8 +138,9 @@ struct AXApplicationWindowReaderMessagingTests {
     /// answers would vanish from the panel as timed out.
     @Test func aReadWhoseLastMessageStartsUnderTheLineSucceeds() {
         let application = FakeApplication(windowCount: 1)
-        // Six messages start at 0, 199, …, 995 ms; the last one ends at 1194 ms.
-        application.costPerMessage = .milliseconds(199)
+        // The last message, the id fetch, starts under the line and ends
+        // past it.
+        application.costPerMessage = .milliseconds(160)
         let read = try? application.read().get()
         #expect(read?.records.map(\.windowID) == [100])
         #expect(application.windowIDReads == [0])
@@ -200,6 +202,7 @@ struct AXApplicationWindowReaderMessagingTests {
         #expect(application.attributesRead(of: 0) == [kAXRoleAttribute, kAXSubroleAttribute])
         #expect(application.attributesRead(of: 1) == [
             kAXRoleAttribute, kAXSubroleAttribute, kAXTitleAttribute, kAXMinimizedAttribute,
+            fullscreenAttributeName,
         ])
         #expect(application.windowIDReads == [1])
     }
@@ -255,9 +258,9 @@ struct AXApplicationWindowReaderMessagingTests {
     /// The id fetch shares that measurement.
     @Test func aQuickRefusalOfTheWindowIDLateInTheBudgetIsStillARefusal() {
         let application = FakeApplication(windowCount: 1)
-        // The five attribute reads take 900 ms; the id fetch is then refused
-        // at once.
-        application.costPerMessage = .milliseconds(180)
+        // The attribute reads spend most of the budget; the id fetch is
+        // then refused at once.
+        application.costPerMessage = .milliseconds(150)
         application.windowIDResult = { _ in (.cannotComplete, 0) }
         application.windowIDCostOverride = { _ in .zero }
         #expect(application.read() == .failure(.unavailable(.cannotComplete)))

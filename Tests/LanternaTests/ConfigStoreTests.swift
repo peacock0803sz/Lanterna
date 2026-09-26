@@ -56,6 +56,29 @@ struct ConfigStoreTests {
         #expect(effective.stopMonitorEvery == .seconds(7))
     }
 
+    /// The display modes come from the file, present keys winning and
+    /// absent ones falling back to the defaults, whatever the command
+    /// line says.
+    @Test func displayModesComeFromTheFile() throws {
+        let file = ValidConfiguration(
+            version: 1,
+            sampleCount: nil,
+            stopMonitorEverySeconds: nil,
+            hiddenAppMode: .show,
+            fullscreenMode: .hide
+        )
+        let cli = try LaunchArguments.parse(["Lanterna", "--sample-count", "5"])
+        let effective = AppConfiguration.effectiveOptions(file: file, cli: cli)
+        #expect(
+            effective.displayModes == DisplayModes(
+                otherSpace: DisplayModes.defaults.otherSpace,
+                hiddenApp: .show,
+                minimized: DisplayModes.defaults.minimized,
+                fullscreen: .hide
+            )
+        )
+    }
+
     @Test func configFileURLLivesUnderLanterna() {
         let base = URL(fileURLWithPath: "/tmp/ConfigStoreTests", isDirectory: true)
         #expect(
@@ -135,6 +158,66 @@ struct ConfigStoreTests {
         #expect(written == AppConfiguration.scaffoldJSON)
         let decoded = try #require(AppConfiguration.decode(Data(written.utf8)).successValue)
         #expect(decoded.config == ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil))
+    }
+
+    @Test func displayModesAreAbsentByDefault() throws {
+        let decoded = try #require(decode("{\"version\": 1}").successValue)
+        #expect(decoded.config.otherSpaceMode == nil)
+        #expect(decoded.config.hiddenAppMode == nil)
+        #expect(decoded.config.minimizedMode == nil)
+        #expect(decoded.config.fullscreenMode == nil)
+    }
+
+    @Test func displayModesDecodeWhenPresent() throws {
+        let decoded = try #require(
+            decode(
+                "{\"version\": 1, \"otherSpaceMode\": \"hide\", "
+                    + "\"hiddenAppMode\": \"show\", \"minimizedMode\": \"separateAtBottom\", "
+                    + "\"fullscreenMode\": \"hide\"}"
+            ).successValue
+        )
+        #expect(decoded.config.otherSpaceMode == .hide)
+        #expect(decoded.config.hiddenAppMode == .show)
+        #expect(decoded.config.minimizedMode == .separateAtBottom)
+        #expect(decoded.config.fullscreenMode == .hide)
+    }
+
+    @Test func partialDisplayModesAreValid() throws {
+        let decoded = try #require(
+            decode("{\"version\": 1, \"minimizedMode\": \"hide\"}").successValue
+        )
+        #expect(decoded.config.minimizedMode == .hide)
+        #expect(decoded.config.otherSpaceMode == nil)
+    }
+
+    @Test func invalidDisplayModesFallBackAsAWhole() {
+        let cases: [(String, ConfigDecodeError)] = [
+            ("{\"version\": 1, \"minimizedMode\": \"HIDE\"}", .invalidValue(key: "minimizedMode")),
+            ("{\"version\": 1, \"minimizedMode\": \"separate-at-bottom\"}", .invalidValue(key: "minimizedMode")),
+            ("{\"version\": 1, \"minimizedMode\": 1}", .invalidValue(key: "minimizedMode")),
+            ("{\"version\": 1, \"minimizedMode\": true}", .invalidValue(key: "minimizedMode")),
+            ("{\"version\": 1, \"otherSpaceMode\": \"hide\", \"mysteryMode\": \"show\"}", .unknownKey("mysteryMode")),
+        ]
+        for (text, expected) in cases {
+            #expect(decode(text).failureValue == expected, "for \(text)")
+        }
+    }
+
+    @Test func absentDisplayModesMeanDefaults() {
+        let config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+        let modes = DisplayModes.effective(from: config)
+        #expect(modes == DisplayModes.defaults)
+    }
+
+    @Test func presentDisplayModesOverrideDefaults() {
+        var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+        config.minimizedMode = .hide
+        config.fullscreenMode = .separateAtBottom
+        let modes = DisplayModes.effective(from: config)
+        #expect(modes.minimized == .hide)
+        #expect(modes.fullscreen == .separateAtBottom)
+        #expect(modes.otherSpace == .show)
+        #expect(modes.hiddenApp == .separateAtBottom)
     }
 }
 

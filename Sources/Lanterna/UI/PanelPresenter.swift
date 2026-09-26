@@ -8,6 +8,7 @@ final class PanelPresenter {
     let surface: any SwitcherSurface
     /// Where the rows come from: already gathered, in the ordinary case.
     let store: WindowListStore
+    let displayModes: DisplayModes
     let ownProcessIdentifier: pid_t
     /// Handed on to the way out, built beside the presenter.
     let now: @MainActor () -> ContinuousClock.Instant
@@ -18,7 +19,8 @@ final class PanelPresenter {
     ///
     /// `lazy` for the reason the watch below is: what it waits on and what it
     /// does when the waiting is over are both this object's.
-    private lazy var pendingPress = PendingPressHold(
+    /// The activation handling, kept beside the presenter, calls it off.
+    lazy var pendingPress = PendingPressHold(
         listWhenGathered: { [store] in await store.listWhenGathered() },
         show: { [weak self] items, combination, deliveryDelay, startedAt in
             self?.show(
@@ -123,6 +125,7 @@ final class PanelPresenter {
         surface: surface,
         selection: selection,
         wayOut: wayOut,
+        displayModes: displayModes,
         now: now,
         operate: { [weak self] operation, chosen in
             self?.startOperation(operation, naming: chosen)
@@ -136,6 +139,7 @@ final class PanelPresenter {
     init(
         surface: any SwitcherSurface,
         store: WindowListStore,
+        displayModes: DisplayModes = .defaults,
         ownProcessIdentifier: pid_t = getpid(),
         now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
         writeLine: @escaping @MainActor (String) -> Void = Diagnostics.writeLine,
@@ -151,6 +155,7 @@ final class PanelPresenter {
         self.surface = surface
         selection = PanelSelection(surface: surface)
         self.store = store
+        self.displayModes = displayModes
         self.ownProcessIdentifier = ownProcessIdentifier
         self.now = now
         self.writeLine = writeLine
@@ -281,15 +286,17 @@ final class PanelPresenter {
         startedAt: ContinuousClock.Instant,
         gatheredOnDemand: Bool
     ) {
-        // Five orderings below are load-bearing, and the statements they
-        // hold apart are named one pair at a time rather than counted.
+        // The orderings below are load-bearing, and the statements they
+        // hold apart are named one pair at a time.
         //
         // The list is ordered first, so everything this appearance shows,
         // names, and measures reads off one value no later refresh can move.
         //
-        // The cursor is made next, so that what the panel is told to draw is
-        // read off it. The filter starts beside it, over the same ordered
-        // list, so the first keystroke narrows what the panel was shown.
+        // The filter starts next, over the whole ordered list, and the
+        // cursor and the panel open on the rows it shows: the display modes
+        // narrow the list before either is fed, and the first keystroke
+        // narrows what the panel was shown. What the panel is told to draw
+        // is read off the cursor.
         //
         // Keys are asked for after the panel is up and before the reading:
         // a window that is not on screen cannot become the key window, and
@@ -299,20 +306,21 @@ final class PanelPresenter {
         // position is free: it has to happen before the panel can go.
         tracker.noteSnapshotObserved(store.snapshot?.gatheredAt ?? now())
         let ordered = tracker.ordered(windows, skipping: store.snapshot?.skippedOwners ?? [])
-        selection.beginSecond(ordered.map(\.id))
         keyCommands.beginFiltering(fullWindows: ordered, filtering: combination == .filter)
+        let shown = keyCommands.shownWindows
+        selection.beginSecond(shown.map(\.id))
         operations.begin(windows: ordered)
-        surface.present(windows: ordered, selecting: selection.chosenID)
+        surface.present(windows: shown, selecting: selection.chosenID, filterActive: keyCommands.isFilteringActive)
         let becameKey = surface.takeKeys()
         wayOut.nowShowing(ordered, startedAt: startedAt)
         let measurement = HotkeyMeasurement(
             combination: combination,
             elapsed: now() - startedAt,
-            entryCount: ordered.count,
+            entryCount: shown.count,
             deliveryDelay: deliveryDelay,
             gatheredOnDemand: gatheredOnDemand,
             becameKey: becameKey,
-            mru: MRUSummary(firstID: ordered.first?.id, source: tracker.newestSource)
+            mru: MRUSummary(firstID: shown.first?.id, source: tracker.newestSource)
         )
         writeLine(measurement.summaryLine)
 
@@ -324,50 +332,6 @@ final class PanelPresenter {
         if closesOnCommandRelease(), !keyCommands.isFilteringActive {
             commandWatch.start()
         }
-    }
-
-    /// Takes the panel down when an application other than this one comes to
-    /// the front, which is the user having moved on to something else.
-    ///
-    /// Every activation is announced, so most calls arrive with no panel up
-    /// and must do nothing at all.
-    ///
-    /// This process is ruled out rather than assumed absent. The panel can
-    /// take key status now, which is the part of this that changed, and
-    /// taking it was measured not to bring the application forward: over
-    /// twenty appearances no notification named this process, the frontmost
-    /// application never changed, and the application never reported itself
-    /// active. The reading is not an instrument that failed to fire, because
-    /// a control that brought another application forward on purpose was
-    /// announced both times.
-    ///
-    /// So a notification naming this process is not expected — and it is
-    /// still compared for, because acting on one that did arrive would take a
-    /// panel down the moment it appeared, or throw away a press still on its
-    /// way to becoming one. One comparison is a cheap way never to find out
-    /// the hard way.
-    func handleActivation(of processIdentifier: pid_t) {
-        guard processIdentifier != ownProcessIdentifier else { return }
-        if pendingPress.isWaiting {
-            // Nothing is on screen to take down. What has to stop is the
-            // panel still on its way, which would otherwise appear over
-            // whatever the user has just turned to. The line is for the press
-            // and not for the panel: the press is what the user did, and one
-            // that disappeared without a word could not be told from one that
-            // never arrived at all. Written plainly rather than measured,
-            // because every figure in these lines runs from something the
-            // user did to this process answering it — a release, or one of
-            // the keys that end an appearance — and nothing of the kind
-            // happened here. The frontmost application changed on its own.
-            pendingPress.callOff()
-            writeLine(
-                "called off the press waiting for its first list; "
-                    + "the frontmost application changed"
-            )
-            return
-        }
-        guard surface.isPresented else { return }
-        wayOut.takeDown(because: "frontmost application changed")
     }
 
     /// Hands a key press to the one place that decides what becomes of it,

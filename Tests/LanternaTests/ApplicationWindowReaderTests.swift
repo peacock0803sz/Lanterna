@@ -79,6 +79,20 @@ struct ApplicationWindowReaderTests {
         #expect(outcome == .droppedWithoutID)
     }
 
+    @Test func aFullscreenWindowKeepsItsState() {
+        let outcome = Reader.outcome(
+            role: kAXWindowRole,
+            subrole: kAXStandardWindowSubrole,
+            title: "Downloads",
+            isMinimized: false,
+            isFullscreen: true,
+            windowID: 42
+        )
+        #expect(outcome == .record(
+            WindowRecord(windowID: 42, title: "Downloads", kind: .standard, isMinimized: false, isFullscreen: true)
+        ))
+    }
+
     @Test func aMinimizedWindowKeepsItsState() {
         let outcome = Reader.outcome(
             role: kAXWindowRole,

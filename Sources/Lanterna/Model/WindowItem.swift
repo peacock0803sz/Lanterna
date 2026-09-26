@@ -22,12 +22,20 @@ struct WindowItem: Identifiable {
     /// nothing but whitespace.
     let windowTitle: String
     let kind: WindowKind
-    /// Whether the window is minimised: one of the ways a row parks below
-    /// the separator (`isParked`), and what reconciling a minimize reads.
+    /// Whether the window is minimised: one of the facts the display modes
+    /// place a row by, and what reconciling a minimize reads.
     let isMinimized: Bool
     /// Whether the owning application is hidden. Read with the names and
     /// icons, on the main thread, never by the parallel reading.
     let isHidden: Bool
+    /// Whether the window lives on a Space no display is showing. Asked of
+    /// the window server with each pass, off the main thread; a window on
+    /// every Space, or one the server says nothing about, reads false, and
+    /// false never hides.
+    let isOnOtherSpace: Bool
+    /// Whether the window is natively fullscreen. Read as one AX attribute;
+    /// a manually zoomed window is not fullscreen.
+    let isFullscreen: Bool
     let icon: NSImage
 
     /// The enumerator's name fallback (`RunningApplicationInfo.displayName`)
@@ -42,6 +50,8 @@ struct WindowItem: Identifiable {
         kind: WindowKind,
         isMinimized: Bool,
         isHidden: Bool = false,
+        isOnOtherSpace: Bool = false,
+        isFullscreen: Bool = false,
         icon: NSImage
     ) {
         precondition(!appName.isEmpty, "appName must not be empty")
@@ -53,21 +63,16 @@ struct WindowItem: Identifiable {
         self.kind = kind
         self.isMinimized = isMinimized
         self.isHidden = isHidden
+        self.isOnOtherSpace = isOnOtherSpace
+        self.isFullscreen = isFullscreen
         self.icon = icon
     }
 
-    /// Whether the row parks below the separator: minimised or hidden.
+    /// Whether the row is minimised or its application hidden. The hide and
+    /// minimize operations leave such a row alone. Where it draws is up to
+    /// the display modes, not this flag.
     var isParked: Bool {
         isMinimized || isHidden
-    }
-
-    /// The rows in the order the panel draws them: the rows in use, then the
-    /// parked rows, each group in the order it arrived in. The panel draws
-    /// the parked group below the separator, and the choice and the arrows
-    /// step through this same order, so a place on screen and a place in
-    /// the list are one place.
-    static func parkedLast(_ rows: [WindowItem]) -> [WindowItem] {
-        rows.filter { !$0.isParked } + rows.filter(\.isParked)
     }
 
     /// The same row, marked minimized or not. The optimistic look moves
@@ -82,6 +87,8 @@ struct WindowItem: Identifiable {
             kind: kind,
             isMinimized: minimized,
             isHidden: isHidden,
+            isOnOtherSpace: isOnOtherSpace,
+            isFullscreen: isFullscreen,
             icon: icon
         )
     }
@@ -98,6 +105,25 @@ struct WindowItem: Identifiable {
             kind: kind,
             isMinimized: isMinimized,
             isHidden: hidden,
+            isOnOtherSpace: isOnOtherSpace,
+            isFullscreen: isFullscreen,
+            icon: icon
+        )
+    }
+
+    /// The same row, marked fullscreen or not.
+    func settingFullscreen(_ fullscreen: Bool) -> WindowItem {
+        WindowItem(
+            id: id,
+            ownerProcessIdentifier: ownerProcessIdentifier,
+            appName: appName,
+            bundleIdentifier: bundleIdentifier,
+            windowTitle: windowTitle,
+            kind: kind,
+            isMinimized: isMinimized,
+            isHidden: isHidden,
+            isOnOtherSpace: isOnOtherSpace,
+            isFullscreen: fullscreen,
             icon: icon
         )
     }

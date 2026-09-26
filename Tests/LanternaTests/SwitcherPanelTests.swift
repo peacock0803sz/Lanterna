@@ -1,5 +1,6 @@
 import AppKit
 @testable import Lanterna
+import SwiftUI
 import Testing
 
 /// `defer: true` means no window-server window is created, so an instance can
@@ -63,14 +64,15 @@ struct SwitcherPanelTests {
     }
 
     /// A list with parked rows draws the separator above them as a row of
-    /// its own, and the height makes room for it, so the last parked row
-    /// is not cut off below the panel's edge.
+    /// its own, with one heading row for the subgroup, and the height makes
+    /// room for both, so the last parked row is not cut off below the
+    /// panel's edge.
     @Test func aParkedGroupMakesRoomForItsSeparator() {
         let panel = panel(rowCount: 5)
         let windows = SampleWindows.make(count: 3)
         panel.update(windows: [windows[0], windows[1], windows[2].settingHidden(true)])
         let contentRect = panel.contentRect(forFrameRect: panel.frame)
-        #expect(contentRect.height == PanelMetrics.height(rowCount: 4))
+        #expect(contentRect.height == PanelMetrics.height(rowCount: 5))
     }
 
     /// A list swapped in while the panel is up makes the same room for the
@@ -82,11 +84,53 @@ struct SwitcherPanelTests {
             windows: [windows[0], windows[1], windows[2].settingHidden(true)],
             selecting: nil, query: "", filterActive: false
         )
-        #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 4))
+        #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 5))
         panel.showNotice("Couldn't minimize")
         #expect(
             panel.contentRect(forFrameRect: panel.frame).height
-                == PanelMetrics.height(rowCount: 4) + PanelMetrics.noticeHeight
+                == PanelMetrics.height(rowCount: 5) + PanelMetrics.noticeHeight
+        )
+    }
+
+    /// A row its mode keeps out takes no height: no row, no separator and
+    /// no heading for it. A query that matches it brings its row and its
+    /// heading back.
+    @Test func aRowItsModeKeepsOutTakesNoHeight() {
+        let panel = panel(rowCount: 5)
+        panel.displayModes = DisplayModes(
+            otherSpace: .show,
+            hiddenApp: .separateAtBottom,
+            minimized: .hide,
+            fullscreen: .show
+        )
+        let windows = SampleWindows.make(count: 3)
+        let rows = [windows[0], windows[1], windows[2].settingMinimized(true)]
+        panel.updateList(windows: rows, selecting: nil, query: "", filterActive: false)
+        #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 2))
+        panel.update(windows: rows)
+        #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 2))
+        panel.updateList(windows: [rows[2]], selecting: nil, query: rows[2].appName, filterActive: true)
+        #expect(
+            panel.contentRect(forFrameRect: panel.frame).height
+                == PanelMetrics.height(rowCount: 2)
+                + PanelMetrics.filterChromeHeight(query: rows[2].appName, filterActive: true)
+        )
+    }
+
+    /// A query typed in one appearance is gone when the next one opens:
+    /// the view draws every row it is handed, and the height counts them
+    /// all. The chrome follows what the appearance says, not the last one.
+    @Test func anAppearanceOpensOnAnEmptyQuery() {
+        let panel = panel(rowCount: 5)
+        let rows = SampleWindows.make(count: 3)
+        panel.updateList(windows: [], selecting: nil, query: "x", filterActive: true)
+        panel.present(windows: rows, selecting: rows[1].id)
+        let view = (panel.contentView as? NSHostingView<SwitcherView>)?.rootView
+        #expect(view?.query == "")
+        #expect(view?.filterActive == false)
+        #expect(
+            panel.contentRect(forFrameRect: panel.frame).height
+                == PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(rows, query: ""))
         )
     }
 

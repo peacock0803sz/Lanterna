@@ -233,7 +233,7 @@ struct PanelWindowOperationsTests {
     /// now standing there takes it.
     @Test func hidingParksTheWholeApplication() async {
         let parked = twoApps.map { $0.ownerProcessIdentifier == 123 ? $0.settingHidden(true) : $0 }
-        let made = makeOperations(rows: twoApps, refreshed: WindowItem.parkedLast(parked))
+        let made = makeOperations(rows: twoApps, refreshed: parked)
         made.selection.retarget(to: twoApps.map(\.id), selecting: twoApps[0].id)
         await made.operations.operate(.hideApplication, naming: twoApps[0].id)
         let shown = made.surface.updatedLists.last ?? []

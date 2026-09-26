@@ -3,53 +3,6 @@ import AppKit
 import Synchronization
 import Testing
 
-/// Answers from a table keyed by process identifier, so a test states what
-/// each application replies and nothing else.
-private struct FakeReader: ApplicationWindowReading {
-    let reads: [pid_t: Result<ApplicationRead, ReadFailure>]
-
-    init(_ reads: [pid_t: Result<ApplicationRead, ReadFailure>]) {
-        self.reads = reads
-    }
-
-    func read(processIdentifier: pid_t) -> Result<ApplicationRead, ReadFailure> {
-        reads[processIdentifier] ?? .success(ApplicationRead(records: [], droppedWithoutID: 0))
-    }
-}
-
-/// The fixtures sit at file scope so both suites below can reach them, which
-/// is also what keeps either suite's body inside the length the linter allows.
-@MainActor
-private func application(
-    _ processIdentifier: pid_t,
-    name: String = "Finder",
-    isHidden: Bool = false
-) -> RunningApplicationInfo {
-    RunningApplicationInfo(
-        processIdentifier: processIdentifier,
-        name: name,
-        bundleIdentifier: nil,
-        isHidden: isHidden,
-        icon: NSImage()
-    )
-}
-
-private func record(
-    _ windowID: CGWindowID,
-    title: String = "Downloads",
-    kind: WindowKind = .standard,
-    isMinimized: Bool = false
-) -> WindowRecord {
-    WindowRecord(windowID: windowID, title: title, kind: kind, isMinimized: isMinimized)
-}
-
-private func read(
-    _ records: [WindowRecord],
-    droppedWithoutID: Int = 0
-) -> Result<ApplicationRead, ReadFailure> {
-    .success(ApplicationRead(records: records, droppedWithoutID: droppedWithoutID))
-}
-
 /// The assembly rules — grouping, ordering, fallbacks, isolation of a failing
 /// application — all live in the enumerator, and a fake reader exercises them
 /// without a live accessibility connection.
@@ -59,7 +12,7 @@ struct WindowEnumeratorTests {
         applications: [RunningApplicationInfo],
         reads: [pid_t: Result<ApplicationRead, ReadFailure>]
     ) -> WindowListSnapshot {
-        WindowEnumerator(reader: FakeReader(reads)).enumerate(
+        WindowEnumerator(reader: FakeReader(reads), locator: FakeSpaceLocator()).enumerate(
             applications: applications,
             startedAt: .now
         )
@@ -148,10 +101,11 @@ struct WindowEnumeratorTests {
     @Test func recordDetailReachesTheRow() {
         let result = snapshot(
             applications: [application(100)],
-            reads: [100: read([record(10, kind: .dialog, isMinimized: true)])]
+            reads: [100: read([record(10, kind: .dialog, isMinimized: true), record(11, isFullscreen: true)])]
         )
         #expect(result.items.first?.kind == .dialog)
-        #expect(result.items.first?.isMinimized == true)
+        #expect(result.items.map(\.isMinimized) == [true, false])
+        #expect(result.items.map(\.isFullscreen) == [false, true])
     }
 
     @Test func idsAreUniqueAcrossTheWholeList() {
@@ -333,7 +287,7 @@ struct WindowEnumeratorTests {
     /// that already ran, and the sweep must spare it.
     @Test func theSnapshotCarriesThePassStartTime() {
         let startedAt = ContinuousClock.now
-        let snapshot = WindowEnumerator(reader: FakeReader([:])).enumerate(
+        let snapshot = WindowEnumerator(reader: FakeReader([:]), locator: FakeSpaceLocator()).enumerate(
             applications: [],
             startedAt: startedAt
         )
@@ -368,7 +322,7 @@ struct WindowEnumeratorOffMainThreadTests {
     /// that thread must not be the one the panel is drawn on.
     @Test func theReadingRunsAwayFromTheMainThread() async {
         let reader = ThreadRecordingReader()
-        _ = await WindowEnumerator(reader: reader).enumerateOffMainThread(
+        _ = await WindowEnumerator(reader: reader, locator: FakeSpaceLocator()).enumerateOffMainThread(
             applications: [application(100), application(300)],
             startedAt: .now
         )
@@ -383,7 +337,7 @@ struct WindowEnumeratorOffMainThreadTests {
             300: read([record(9), record(4)]),
             100: read([record(7)], droppedWithoutID: 2),
         ]
-        let enumerator = WindowEnumerator(reader: FakeReader(reads))
+        let enumerator = WindowEnumerator(reader: FakeReader(reads), locator: FakeSpaceLocator())
         let expected = enumerator.enumerate(applications: applications, startedAt: .now)
         let actual = await enumerator.enumerateOffMainThread(
             applications: applications,

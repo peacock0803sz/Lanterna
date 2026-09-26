@@ -61,8 +61,8 @@ struct WindowItemTests {
         #expect(item(windowTitle: "  Downloads  ").displayTitle == "  Downloads  ")
     }
 
-    /// A minimized or hidden row parks below the separator; an ordinary
-    /// row does not.
+    /// A row is parked when it is minimized or its app is hidden; an
+    /// ordinary row is not.
     @Test func parkedRowsAreTheMinimizedOrHiddenOnes() {
         #expect(item().isParked == false)
         #expect(item(isMinimized: true).isParked == true)
@@ -81,5 +81,20 @@ struct WindowItemTests {
     @Test(arguments: ["Downloads", "", " ", "\n"])
     func displayTitleIsNeverEmpty(title: String) {
         #expect(!item(appName: "Ghostty", windowTitle: title).displayTitle.isEmpty)
+    }
+
+    /// With the defaults, ordinary rows come first in arrival order, then
+    /// the hidden-app subgroup, then the minimized one.
+    @Test func defaultModesDrawOrdinaryThenHiddenAppsThenMinimized() {
+        let rows = [
+            item(windowTitle: "min-one", windowID: 1, isMinimized: true),
+            item(windowTitle: "plain-one", windowID: 2),
+            item(windowTitle: "hidden-one", windowID: 3, isHidden: true),
+            item(windowTitle: "plain-two", windowID: 4),
+            item(windowTitle: "min-two", windowID: 5, isMinimized: true),
+            item(windowTitle: "hidden-two", windowID: 6, isHidden: true),
+        ]
+        let ordered = DisplayModes.displayOrdered(rows, modes: .defaults, query: "")
+        #expect(ordered.map(\.id.windowID) == [2, 4, 3, 6, 1, 5])
     }
 }

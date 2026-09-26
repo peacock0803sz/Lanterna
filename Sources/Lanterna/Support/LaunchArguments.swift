@@ -17,6 +17,8 @@ enum LaunchArguments {
         /// Stop the modifier monitor this often, so that it can be watched
         /// putting itself back. Absent in an ordinary run.
         var stopMonitorEvery: Duration?
+        /// How the special kinds show. No flag sets it; the file covers it.
+        var displayModes: DisplayModes = .defaults
     }
 
     /// What a flag will take, as one closed choice.

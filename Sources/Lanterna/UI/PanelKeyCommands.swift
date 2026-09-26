@@ -32,6 +32,7 @@ final class PanelKeyCommands {
         surface: any SwitcherSurface,
         selection: PanelSelection,
         wayOut: PanelExit,
+        displayModes: DisplayModes = .defaults,
         now: @escaping @MainActor () -> ContinuousClock.Instant,
         operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)? = nil
     ) {
@@ -39,6 +40,7 @@ final class PanelKeyCommands {
         self.selection = selection
         self.wayOut = wayOut
         filter = PanelFilter(selection: selection, surface: surface)
+        filter.displayModes = displayModes
         self.now = now
         self.operate = operate
     }
@@ -47,6 +49,11 @@ final class PanelKeyCommands {
     /// when the appearance asked for it.
     func beginFiltering(fullWindows: [WindowItem], filtering: Bool = false) {
         filter.begin(fullWindows: fullWindows, filtering: filtering)
+    }
+
+    /// The rows on screen, which the choice and the panel open on.
+    var shownWindows: [WindowItem] {
+        filter.shownWindows
     }
 
     /// Gives the appearance up; the next one starts empty either way.

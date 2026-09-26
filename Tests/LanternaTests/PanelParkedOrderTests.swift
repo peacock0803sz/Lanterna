@@ -42,8 +42,9 @@ struct PanelParkedOrderTests {
     }
 
     /// Minimizing moves the row below the separator at once, before any
-    /// pass confirms it, and the choice stays at the place the row left:
-    /// the next row in use takes it. It holds the refresh, so it carries a
+    /// pass confirms it, into the minimized subgroup under the hidden-app
+    /// one, and the choice stays at the place the row left: the next row
+    /// in use takes it. It holds the refresh, so it carries a
     /// time limit for a run that never asks for the list.
     @Test(.timeLimit(.minutes(1))) func minimizingMovesTheRowBelowAtOnce() async {
         let rows = rows
@@ -57,7 +58,7 @@ struct PanelParkedOrderTests {
         }
         await held.waitUntilAsked()
         let optimistic = made.surface.updatedLists.last ?? []
-        #expect(optimistic.map(\.id) == [rows[2].id, rows[0].id, rows[1].id])
+        #expect(optimistic.map(\.id) == [rows[2].id, rows[1].id, rows[0].id])
         #expect(optimistic.map(\.isParked) == [false, true, true])
         #expect(made.selection.chosenID == rows[2].id)
         held.finish(with: MRUTracker().arranged([rows[0].settingMinimized(true), rows[1], rows[2]]))
