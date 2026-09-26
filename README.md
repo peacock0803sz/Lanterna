@@ -66,7 +66,7 @@ Under Privacy & Security in System Settings, confirm that only these two entries
 
 ## Troubleshooting
 
-See the [troubleshooting guide](https://lanterna.p3ac0ck.net/en/usage/#troubleshooting) on the website.
+See the [troubleshooting guide](https://lanterna.p3ac0ck.net/en/usage/#troubleshooting) on the website. To report a bug, [open a bug report](https://github.com/peacock0803sz/Lanterna/issues/new?template=bug_report.yml) using the Bug report template.
 
 ## For developers
 
