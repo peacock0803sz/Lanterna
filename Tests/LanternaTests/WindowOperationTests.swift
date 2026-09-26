@@ -1,7 +1,129 @@
+import ApplicationServices
 @testable import Lanterna
 import Testing
 
+/// A box so scripted answers can be recorded through sendable closures.
+private final class ScriptBox: @unchecked Sendable {
+    struct Script {
+        var children: [ObjectIdentifier: [AXUIElement]] = [:]
+        var strings: [ObjectIdentifier: [String: String]] = [:]
+        var pressResults: [ObjectIdentifier: AXError] = [:]
+        var pressed: [AXUIElement] = []
+    }
+
+    var script: Script
+    init(_ script: Script) {
+        self.script = script
+    }
+}
+
+/// A box so scripted elements cross into sendable closures.
+private final class ElementBox: @unchecked Sendable {
+    let windows: [AXUIElement]
+    let windowIDs: [ObjectIdentifier: CGWindowID]
+    init(windows: [AXUIElement], windowIDs: [ObjectIdentifier: CGWindowID]) {
+        self.windows = windows
+        self.windowIDs = windowIDs
+    }
+}
+
 struct WindowOperationTests {
+    private func target(windowID: CGWindowID = 7, pid: pid_t = 123) -> ActivationTarget {
+        ActivationTarget(
+            id: WindowItem.Identifier(windowID: windowID),
+            ownerProcessIdentifier: pid,
+            appName: "TextEdit",
+            displayTitle: "Untitled"
+        )
+    }
+
+    private func closer(
+        script: ScriptBox.Script,
+        windows: [AXUIElement],
+        windowIDs: [ObjectIdentifier: CGWindowID],
+        listError: AXError = .success
+    ) -> (LiveWindowCloser, ScriptBox) {
+        let box = ScriptBox(script)
+        let elements = ElementBox(windows: windows, windowIDs: windowIDs)
+        let made = LiveWindowCloser(
+            copyWindows: { _ in (listError, elements.windows) },
+            copyWindowID: { element in
+                (.success, elements.windowIDs[ObjectIdentifier(element)] ?? 0)
+            },
+            copyChildren: { element in
+                (.success, box.script.children[ObjectIdentifier(element)])
+            },
+            attributeString: { element, name in
+                (.success, box.script.strings[ObjectIdentifier(element)]?[name])
+            },
+            press: { element in
+                box.script.pressed.append(element)
+                return box.script.pressResults[ObjectIdentifier(element)] ?? .success
+            }
+        )
+        return (made, box)
+    }
+
+    /// The close button one level down is pressed, and nothing else is.
+    @Test func pressingTheCloseButtonClosesTheWindow() {
+        let window = AXUIElementCreateApplication(1)
+        let button = AXUIElementCreateApplication(2)
+        let script = ScriptBox.Script(
+            children: [ObjectIdentifier(window): [button]],
+            strings: [
+                ObjectIdentifier(button): [
+                    kAXRoleAttribute as String: "AXButton",
+                    kAXSubroleAttribute as String: "AXCloseButton",
+                ],
+            ],
+            pressResults: [ObjectIdentifier(button): .success]
+        )
+        let (made, box) = closer(
+            script: script, windows: [window],
+            windowIDs: [ObjectIdentifier(window): 7]
+        )
+        #expect(made.closeWindow(target()) == nil)
+        #expect(box.script.pressed.count == 1)
+    }
+
+    /// No close button means a failure, not a silent pass.
+    @Test func aWindowWithNoCloseButtonFails() {
+        let window = AXUIElementCreateApplication(1)
+        let script = ScriptBox.Script(children: [ObjectIdentifier(window): []])
+        let (made, _) = closer(
+            script: script, windows: [window],
+            windowIDs: [ObjectIdentifier(window): 7]
+        )
+        #expect(made.closeWindow(target()) != nil)
+    }
+
+    /// A refused press is a failure carrying the error.
+    @Test func aRefusedPressFails() {
+        let window = AXUIElementCreateApplication(1)
+        let button = AXUIElementCreateApplication(2)
+        let script = ScriptBox.Script(
+            children: [ObjectIdentifier(window): [button]],
+            strings: [
+                ObjectIdentifier(button): [
+                    kAXRoleAttribute as String: "AXButton",
+                    kAXSubroleAttribute as String: "AXCloseButton",
+                ],
+            ],
+            pressResults: [ObjectIdentifier(button): .failure]
+        )
+        let (made, _) = closer(
+            script: script, windows: [window],
+            windowIDs: [ObjectIdentifier(window): 7]
+        )
+        #expect(made.closeWindow(target()) == .other(reason: "error -25200"))
+    }
+
+    /// A target no application still lists is gone, not broken.
+    @Test func aMissingTargetIsWindowGone() {
+        let (made, _) = closer(script: ScriptBox.Script(), windows: [], windowIDs: [:])
+        #expect(made.closeWindow(target()) == .windowGone)
+    }
+
     @Test func theFourOperationsAreDistinct() {
         let operations: [WindowOperation] = [
             .closeWindow, .quitApplication, .hideApplication, .minimizeWindow,
