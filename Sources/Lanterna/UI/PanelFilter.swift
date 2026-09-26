@@ -1,3 +1,11 @@
+/// Where the choice stood before a list was swapped: the row it stood on,
+/// and the whole list that row stood in. The filter counts the place among
+/// the rows it shows.
+struct ChoiceAnchor {
+    let id: WindowItem.Identifier
+    let stoodIn: [WindowItem]
+}
+
 /// What typing does to a panel that is up.
 ///
 /// Split from the commands, which decide what a press means in the large:
@@ -54,6 +62,21 @@ final class PanelFilter {
     func replace(fullWindows: [WindowItem]) {
         self.fullWindows = fullWindows
         apply()
+    }
+
+    /// Swaps the list underneath as above, moving the choice to the row now
+    /// standing where the anchor stood among the shown rows, or to the new
+    /// last shown row when it stood last. Counted among the shown rows and
+    /// not the whole list, so a narrowed panel never chooses a row it is not
+    /// showing. An anchor that was not shown leaves the choice to the usual
+    /// resolving.
+    func replace(fullWindows: [WindowItem], choosingWhere anchor: ChoiceAnchor) {
+        let before = WindowFilter.matching(state.query, against: anchor.stoodIn).map(\.id)
+        let after = WindowFilter.matching(state.query, against: fullWindows).map(\.id)
+        if let index = before.firstIndex(of: anchor.id), let last = after.indices.last {
+            selection.retarget(to: after, selecting: after[min(index, last)])
+        }
+        replace(fullWindows: fullWindows)
     }
 
     /// Gives the appearance up; the next one starts empty either way.

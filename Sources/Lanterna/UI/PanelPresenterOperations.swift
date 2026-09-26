@@ -36,9 +36,10 @@ extension PanelPresenter {
     /// `lazy` properties name each other.
     func makeOperations() -> PanelWindowOperations {
         PanelWindowOperations(
-            selection: selection,
             surface: surface,
-            replaceList: { [weak self] renewed in self?.replacePresentedList(renewed) },
+            replaceList: { [weak self] renewed, anchor in
+                self?.replacePresentedList(renewed, choosingWhere: anchor)
+            },
             refresh: { [weak self] in await self?.freshList() ?? [] },
             closer: LiveWindowCloser(),
             quitter: LiveApplicationQuitter(),
@@ -59,8 +60,8 @@ extension PanelPresenter {
     }
 
     /// Swaps the rows on screen for the reconciled list.
-    func replacePresentedList(_ windows: [WindowItem]) {
-        keyCommands.replacePresentedList(windows)
+    func replacePresentedList(_ windows: [WindowItem], choosingWhere anchor: ChoiceAnchor) {
+        keyCommands.replacePresentedList(windows, choosingWhere: anchor)
     }
 
     /// Takes the panel down for an interrupted operation.

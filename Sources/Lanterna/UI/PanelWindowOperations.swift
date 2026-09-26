@@ -10,9 +10,8 @@ import PrivateAPIs
 @MainActor
 final class PanelWindowOperations {
     /// Reached beside the operations, by the reconciling half.
-    let selection: PanelSelection
     let surface: any SwitcherSurface
-    let replaceList: @MainActor ([WindowItem]) -> Void
+    let replaceList: @MainActor ([WindowItem], ChoiceAnchor) -> Void
     let refresh: @MainActor () async -> [WindowItem]
     private let closer: any WindowClosing
     private let quitter: any ApplicationQuitting
@@ -27,9 +26,8 @@ final class PanelWindowOperations {
     var presented: [WindowItem] = []
 
     init(
-        selection: PanelSelection,
         surface: any SwitcherSurface,
-        replaceList: @escaping @MainActor ([WindowItem]) -> Void,
+        replaceList: @escaping @MainActor ([WindowItem], ChoiceAnchor) -> Void,
         refresh: @escaping @MainActor () async -> [WindowItem],
         closer: any WindowClosing,
         quitter: any ApplicationQuitting,
@@ -40,7 +38,6 @@ final class PanelWindowOperations {
         closeAfterEmptied: @escaping @MainActor () -> Void,
         closeForInterruption: @escaping @MainActor (WindowOperation, String, String) -> Void
     ) {
-        self.selection = selection
         self.surface = surface
         self.replaceList = replaceList
         self.refresh = refresh
@@ -116,7 +113,6 @@ final class PanelWindowOperations {
             Reconciliation(
                 operation: .closeWindow,
                 row: row,
-                index: index,
                 optimistic: optimistically,
                 send: { [closer] in closer.closeWindow(target) },
                 isDone: { fresh in !fresh.contains(where: { $0.id == row.id }) },
@@ -126,7 +122,7 @@ final class PanelWindowOperations {
     }
 
     private func quit(naming id: WindowItem.Identifier?) async {
-        guard let (index, row) = resolve(id, for: .quitApplication) else {
+        guard let (_, row) = resolve(id, for: .quitApplication) else {
             return
         }
         let pid = row.ownerProcessIdentifier
@@ -135,7 +131,6 @@ final class PanelWindowOperations {
             Reconciliation(
                 operation: .quitApplication,
                 row: row,
-                index: index,
                 optimistic: optimistic,
                 send: { [quitter] in quitter.quitApplication(processIdentifier: pid) },
                 isDone: { fresh in !fresh.contains(where: { $0.ownerProcessIdentifier == pid }) },
@@ -145,7 +140,7 @@ final class PanelWindowOperations {
     }
 
     private func hide(naming id: WindowItem.Identifier?) async {
-        guard let (index, row) = resolve(id, for: .hideApplication) else {
+        guard let (_, row) = resolve(id, for: .hideApplication) else {
             return
         }
         let pid = row.ownerProcessIdentifier
@@ -156,7 +151,6 @@ final class PanelWindowOperations {
             Reconciliation(
                 operation: .hideApplication,
                 row: row,
-                index: index,
                 optimistic: optimistic,
                 send: { [hider] in hider.hideApplication(processIdentifier: pid) },
                 isDone: { fresh in
@@ -168,7 +162,7 @@ final class PanelWindowOperations {
     }
 
     private func minimize(naming id: WindowItem.Identifier?) async {
-        guard let (index, row) = resolve(id, for: .minimizeWindow) else {
+        guard let (_, row) = resolve(id, for: .minimizeWindow) else {
             return
         }
         let target = ActivationTarget(
@@ -182,7 +176,6 @@ final class PanelWindowOperations {
             Reconciliation(
                 operation: .minimizeWindow,
                 row: row,
-                index: index,
                 optimistic: optimistic,
                 send: { [minimizer] in minimizer.minimizeWindow(target) },
                 isDone: { fresh in

@@ -53,9 +53,10 @@ final class PanelKeyCommands {
     }
 
     /// Swaps the rows on screen for the reconciled list, keeping the query
-    /// and the commit's view of the appearance on the same rows.
-    func replacePresentedList(_ windows: [WindowItem]) {
-        filter.replace(fullWindows: windows)
+    /// and the commit's view of the appearance on the same rows, and moves
+    /// the choice to where the anchor stood among the shown rows.
+    func replacePresentedList(_ windows: [WindowItem], choosingWhere anchor: ChoiceAnchor) {
+        filter.replace(fullWindows: windows, choosingWhere: anchor)
         wayOut.replacePresented(windows)
     }
 

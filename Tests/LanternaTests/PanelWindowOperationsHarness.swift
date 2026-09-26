@@ -133,10 +133,9 @@ func makeOperations(
     let counts = OperationCounts()
     let fresh = refreshed ?? rows
     let operations = PanelWindowOperations(
-        selection: selection,
         surface: surface,
-        replaceList: { [weak filter, weak wayOut] renewed in
-            filter?.replace(fullWindows: renewed)
+        replaceList: { [weak filter, weak wayOut] renewed, anchor in
+            filter?.replace(fullWindows: renewed, choosingWhere: anchor)
             wayOut?.replacePresented(renewed)
         },
         refresh: {

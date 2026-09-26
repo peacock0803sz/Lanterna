@@ -7,11 +7,11 @@
 /// linter allows.
 extension PanelWindowOperations {
     /// One operation with everything reconciling it needs. A value rather
-    /// than seven parameters, which is where the linter draws its line.
+    /// than a parameter apiece, which is past where the linter draws its
+    /// line.
     struct Reconciliation {
         let operation: WindowOperation
         let row: WindowItem
-        let index: Int
         let optimistic: [WindowItem]
         let send: () -> ActivationFailure?
         let isDone: ([WindowItem]) -> Bool
@@ -23,15 +23,20 @@ extension PanelWindowOperations {
     /// most two passes: a slow but working application still answers by
     /// the second one, and only a row outliving both counts as interrupted.
     /// A failure winds the look back instead of waiting: nothing was sent.
+    ///
+    /// Every swap moves the choice to the row now standing where the
+    /// operated one stood among the rows shown before it, or to the new
+    /// last shown row when it stood last. The filter does the counting,
+    /// because only it knows which rows a query leaves on screen.
     func sendAndReconcile(_ reconciliation: Reconciliation) async {
         let snapshot = presented
+        let anchor = ChoiceAnchor(id: reconciliation.row.id, stoodIn: snapshot)
         presented = reconciliation.optimistic
-        replaceList(reconciliation.optimistic)
-        moveChoice(from: reconciliation.index, in: reconciliation.optimistic)
+        replaceList(reconciliation.optimistic, anchor)
         if let failure = reconciliation.send() {
             rewind(
                 to: snapshot,
-                selecting: reconciliation.row.id,
+                anchor: anchor,
                 operation: reconciliation.operation,
                 row: reconciliation.row,
                 failure: failure
@@ -42,8 +47,7 @@ extension PanelWindowOperations {
             let fresh = await refresh()
             if reconciliation.isDone(fresh) {
                 presented = fresh
-                replaceList(fresh)
-                moveChoice(from: reconciliation.index, in: fresh)
+                replaceList(fresh, anchor)
                 writeLine(
                     "window operation (\(reconciliation.operation.logName) "
                         + "\(reconciliation.row.appName)/\(reconciliation.row.displayTitle))"
@@ -62,31 +66,21 @@ extension PanelWindowOperations {
     }
 
     /// Winds the optimistic look back: the list and the choice are what
-    /// they were, and one line says why.
+    /// they were, and one line says why. The anchor stands in the list it
+    /// is wound back to, so the choice lands on the operated row again.
     private func rewind(
         to snapshot: [WindowItem],
-        selecting id: WindowItem.Identifier,
+        anchor: ChoiceAnchor,
         operation: WindowOperation,
         row: WindowItem,
         failure: ActivationFailure
     ) {
         presented = snapshot
-        replaceList(snapshot)
-        selection.retarget(to: snapshot.map(\.id), selecting: id)
-        surface.showSelection(id)
+        replaceList(snapshot, anchor)
         surface.showNotice("Couldn't \(operation.logName) \(row.displayTitle)")
         writeLine(
             "window operation failed (\(operation.logName) "
                 + "\(row.appName)/\(row.displayTitle): \(failure.logDescription))"
         )
-    }
-
-    /// The row now standing where the operated one stood, or the new last
-    /// row when the operated one was last.
-    private func moveChoice(from index: Int, in windows: [WindowItem]) {
-        let ids = windows.map(\.id)
-        let chosen: WindowItem.Identifier? = index < ids.count ? ids[index] : ids.last
-        selection.retarget(to: ids, selecting: chosen)
-        surface.showSelection(chosen)
     }
 }
