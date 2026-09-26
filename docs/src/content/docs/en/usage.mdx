@@ -1,6 +1,6 @@
 ---
 title: Usage
-description: Basic operation, links, and troubleshooting
+description: Basic operation, filtering, links, and troubleshooting
 ---
 
 import LinkList from "../../../components/LinkList.astro";
@@ -26,7 +26,29 @@ import SwitchSequence from "../../../components/SwitchSequence.astro";
 | -------------------------------------- | --------------------------------------------------------------------------------------------- |
 | <kbd>⌘</kbd><kbd>Tab</kbd>             | Shows the switcher. Keep holding `Cmd` and press `Tab` to move, then release `Cmd` to switch. |
 | <kbd>⇧</kbd><kbd>⌘</kbd><kbd>Tab</kbd> | Moves in the reverse direction.                                                               |
-| <kbd>A–Z</kbd>                         | Type to filter the window list.                                                               |
+
+## Filtering
+
+<SwitchSequence
+  steps={[
+    { label: "Open", keys: ["⌘", "Space"], text: "Open in filter mode" },
+    { label: "Type", keys: ["A–Z"], text: "Type to narrow the list" },
+    { label: "Switch", keys: ["↩"], text: "Switch to the chosen window" },
+  ]}
+/>
+
+|                              |                                                                                                                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <kbd>⌘</kbd><kbd>Space</kbd> | Shows the switcher in filter mode. In this mode, releasing `Cmd` does not close it. Pressing it in a switcher opened with `Cmd+Tab` switches that switcher to filter mode. |
+| <kbd>A–Z</kbd>               | Keeps only the rows whose app name or window title contains what you typed. Case is ignored.                                                                               |
+| <kbd>↑</kbd><kbd>↓</kbd>     | Moves the selection.                                                                                                                                                       |
+| <kbd>↩</kbd>                 | Switches to the chosen window.                                                                                                                                             |
+| <kbd>⌫</kbd>                 | Deletes one character.                                                                                                                                                     |
+| <kbd>esc</kbd>               | Clears what you typed. With nothing typed, closes the switcher.                                                                                                            |
+
+:::note
+While Lanterna runs, the Spotlight `Cmd+Space` shortcut is off. It comes back when you quit Lanterna.
+:::
 
 ## Links
 
