@@ -374,8 +374,9 @@ struct PanelExitTests {
     /// This does not hold the giving up of the choice. Every appearance
     /// rebuilds the cursor from the list it is handed before the panel is
     /// told anything, so a second one opens on its own second row whether or
-    /// not the first gave its choice up. The choice is read directly after
-    /// the panel goes, beside the list the way out gives up with it.
+    /// not the first gave its choice up. Another case reads the choice
+    /// directly after the panel goes, beside the list the way out gives up
+    /// with it.
     @Test func thePanelAfterACancellationOpensOnItsOwnSecondRowAgain() {
         let fixture = runningWithAMonitor()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
