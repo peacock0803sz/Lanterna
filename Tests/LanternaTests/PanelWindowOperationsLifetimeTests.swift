@@ -105,10 +105,13 @@ struct PanelWindowOperationsLifetimeTests {
             closes.add()
             return nil
         })
-        let running = made.operations.start(.closeWindow, naming: rows[0].id)
+        guard let running = made.operations.start(.closeWindow, naming: rows[0].id) else {
+            Issue.record("the operation was dropped")
+            return
+        }
         made.operations.end()
         made.operations.begin(windows: rows)
-        await running?.value
+        await running.value
         #expect(closes.value == 0)
         #expect(made.surface.updatedLists.isEmpty)
     }
