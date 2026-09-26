@@ -79,6 +79,20 @@ struct DisplayModeTests {
         )
     }
 
+    @Test func hiddenAppKindsObeyTheirMode() {
+        let row = item(isHidden: true)
+        #expect(placement(of: row, modes: modes(hiddenApp: .show)) == .ordinary)
+        #expect(placement(of: row, modes: modes(hiddenApp: .hide)) == .hidden)
+        #expect(
+            placement(
+                of: row,
+                modes: modes(hiddenApp: .hide),
+                queryIsEmpty: false,
+                matchesQuery: true
+            ) == .separated(.hiddenApp)
+        )
+    }
+
     @Test func separatedRowsParkBelow() {
         #expect(
             placement(of: item(isMinimized: true), modes: modes())
