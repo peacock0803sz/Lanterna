@@ -45,15 +45,19 @@ struct SwitcherView: View {
     /// takes no height.
     var notice: String?
 
-    /// The rows in use, in the order they arrived. Parked rows — minimised
-    /// or hidden — draw below the separator instead of vanishing, so they
-    /// can be chosen back to life.
-    private var ordinaryRows: [WindowItem] {
-        windows.filter { !$0.isParked }
+    /// The rows before the first parked one. Parked rows — minimised or
+    /// hidden — draw below the separator instead of vanishing, so they can
+    /// be chosen back to life. The list arrives with them already last
+    /// (`WindowItem.parkedLast`), and every row draws in the order it
+    /// arrived: the choice and the arrows step through that same order, so
+    /// sorting here would draw one order and step through another.
+    private var ordinaryRows: ArraySlice<WindowItem> {
+        windows.prefix { !$0.isParked }
     }
 
-    private var parkedRows: [WindowItem] {
-        windows.filter { $0.isParked }
+    /// The rows from the first parked one on, drawn below the separator.
+    private var parkedRows: ArraySlice<WindowItem> {
+        windows.dropFirst(ordinaryRows.count)
     }
 
     private func row(_ window: WindowItem) -> some View {

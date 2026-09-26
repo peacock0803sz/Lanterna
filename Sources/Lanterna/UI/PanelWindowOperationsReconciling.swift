@@ -52,8 +52,12 @@ extension PanelWindowOperations {
         let generation = appearance
         let snapshot = presented
         let anchor = ChoiceAnchor(id: reconciliation.row.id, stoodIn: snapshot)
-        presented = reconciliation.optimistic
-        replaceList(reconciliation.optimistic, anchor)
+        // Hiding and minimizing mark rows parked where they stand, and the
+        // panel draws parked rows below the separator, so the list moves
+        // them there as the fresh list will have them.
+        let optimistic = WindowItem.parkedLast(reconciliation.optimistic)
+        presented = optimistic
+        replaceList(optimistic, anchor)
         if let failure = reconciliation.send() {
             rewind(
                 to: snapshot,

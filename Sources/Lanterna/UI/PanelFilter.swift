@@ -71,8 +71,9 @@ final class PanelFilter {
     /// standing at the anchor's place among the shown rows, or to the last
     /// shown row when fewer rows are shown than that. Counted among the
     /// shown rows and not the whole list, so a narrowed panel never chooses
-    /// a row it is not showing. A row that stays in the list and keeps its
-    /// place — hiding and minimizing only mark it — keeps the choice. An anchor
+    /// a row it is not showing. A row that keeps its place keeps the choice.
+    /// Hiding and minimizing move a row below the separator, so the choice
+    /// stays at the place the row left, as it does when a row goes. An anchor
     /// that was not shown, or a list that shows nothing, leaves the choice
     /// to the usual resolving.
     func replace(fullWindows: [WindowItem], choosingWhere anchor: ChoiceAnchor) {

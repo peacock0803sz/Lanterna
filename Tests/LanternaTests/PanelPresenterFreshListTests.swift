@@ -43,6 +43,22 @@ struct PanelPresenterFreshListTests {
         #expect(fresh?.windows.map(\.id) == [rows[2].id, rows[0].id, rows[1].id])
     }
 
+    /// A parked row comes back after the rows in use, where the panel
+    /// draws it, whatever its record says.
+    @Test func aFreshListPutsParkedRowsLast() async {
+        let rows = [self.rows[0].settingHidden(true), self.rows[1], self.rows[2]]
+        let tracker = MRUTracker()
+        tracker.record(rows[0].id, ownerProcessIdentifier: rows[0].ownerProcessIdentifier, origin: .external)
+        let presenter = PanelPresenter(
+            surface: FakeSurface(),
+            store: WindowListStore(gather: { passFinding(rows) }, writeLine: { _ in }),
+            writeLine: { _ in },
+            tracker: tracker
+        )
+        let fresh = await presenter.freshList(carrying: [])
+        #expect(fresh?.windows.map(\.id) == [rows[1].id, rows[2].id, rows[0].id])
+    }
+
     /// Rows of an application the pass could not read are carried over
     /// from the list shown before, and the application is named as
     /// skipped, so neither the panel nor the reconciling reads its rows as

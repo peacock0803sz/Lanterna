@@ -61,6 +61,15 @@ struct WindowItem: Identifiable {
         isMinimized || isHidden
     }
 
+    /// The rows in the order the panel draws them: the rows in use, then the
+    /// parked rows, each group in the order it arrived in. The panel draws
+    /// the parked group below the separator, and the choice and the arrows
+    /// step through this same order, so a place on screen and a place in
+    /// the list are one place.
+    static func parkedLast(_ rows: [WindowItem]) -> [WindowItem] {
+        rows.filter { !$0.isParked } + rows.filter(\.isParked)
+    }
+
     /// The same row, marked minimized or not. The optimistic look moves
     /// rows before the reconciling pass confirms them.
     func settingMinimized(_ minimized: Bool) -> WindowItem {

@@ -237,16 +237,18 @@ struct PanelWindowOperationsTests {
         #expect(made.log.lines.contains { $0.contains("window operation (quit Safari/Tabs)") })
     }
 
-    /// Hiding parks every row of the application below the separator.
+    /// Hiding parks every row of the application below the separator, and
+    /// the choice stays at the place the chosen row left: the row in use
+    /// now standing there takes it.
     @Test func hidingParksTheWholeApplication() async {
         let parked = twoApps.map { $0.ownerProcessIdentifier == 123 ? $0.settingHidden(true) : $0 }
-        let made = makeOperations(rows: twoApps, refreshed: parked)
+        let made = makeOperations(rows: twoApps, refreshed: WindowItem.parkedLast(parked))
         made.selection.retarget(to: twoApps.map(\.id), selecting: twoApps[0].id)
         await made.operations.operate(.hideApplication, naming: twoApps[0].id)
         let shown = made.surface.updatedLists.last ?? []
-        #expect(shown.filter(\.isHidden).map(\.id) == [twoApps[0].id, twoApps[1].id])
-        #expect(shown.filter { !$0.isHidden }.map(\.id) == [twoApps[2].id])
-        #expect(made.selection.chosenID == twoApps[0].id)
+        #expect(shown.map(\.id) == [twoApps[2].id, twoApps[0].id, twoApps[1].id])
+        #expect(shown.map(\.isHidden) == [false, true, true])
+        #expect(made.selection.chosenID == twoApps[2].id)
         #expect(made.log.lines.contains { $0.contains("window operation (hide Safari/Tabs)") })
     }
 
@@ -259,15 +261,17 @@ struct PanelWindowOperationsTests {
         #expect(made.counts.emptied == 1)
     }
 
-    /// Minimizing parks the row below the separator.
+    /// Minimizing parks the row below the separator, and the choice stays
+    /// at the place the row left: the next row in use takes it.
     @Test func minimizingParksTheRow() async {
-        let parked = [rows[0].settingMinimized(true), rows[1], rows[2]]
+        let parked = [rows[1], rows[2], rows[0].settingMinimized(true)]
         let made = makeOperations(rows: rows, refreshed: parked)
         made.selection.retarget(to: rows.map(\.id), selecting: rows[0].id)
         await made.operations.operate(.minimizeWindow, naming: rows[0].id)
         let shown = made.surface.updatedLists.last ?? []
-        #expect(shown.first?.isMinimized == true)
-        #expect(made.selection.chosenID == rows[0].id)
+        #expect(shown.map(\.id) == [rows[1].id, rows[2].id, rows[0].id])
+        #expect(shown.last?.isMinimized == true)
+        #expect(made.selection.chosenID == rows[1].id)
         #expect(made.log.lines.contains { $0.contains("window operation (minimize Safari/Tabs)") })
     }
 
