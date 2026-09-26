@@ -189,6 +189,23 @@ struct PanelWindowOperationsTests {
         #expect(made.selection.chosenID == mixed[4].id)
     }
 
+    /// A failure winds the choice back onto the operated row even when an
+    /// earlier query remembered another row: winding back returns rows to
+    /// the list, and the one returning is not a row the user asked for.
+    @Test func aFailureWindsBackOntoTheOperatedRowOverARememberedOne() async {
+        let rows = twoApps
+        let made = makeOperations(rows: rows, refreshed: [], quit: { _ in .windowGone })
+        made.filter.activate()
+        made.selection.retarget(to: rows.map(\.id), selecting: rows[1].id)
+        made.filter.append("t")
+        made.filter.removeLast()
+        #expect(made.selection.chosenID == rows[1].id)
+        made.selection.moveToPrevious()
+        await made.operations.operate(.quitApplication, naming: rows[0].id)
+        #expect(made.surface.updatedLists.last?.map(\.id) == rows.map(\.id))
+        #expect(made.selection.chosenID == rows[0].id)
+    }
+
     /// Asking after what is already parked is not a failure: nothing
     /// happens, and no line says anything.
     @Test func minimizingAParkedRowDoesNothing() async {

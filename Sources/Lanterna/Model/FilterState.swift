@@ -33,6 +33,14 @@ struct FilterState: Equatable, Sendable {
         previousMatchedIDs = []
     }
 
+    /// Takes the rows a swapped-in list matches as already seen. A row a
+    /// swap brings back returns with the list, not with shortening, so it
+    /// does not restore the remembered row; the memory stays for a later
+    /// shortening that brings it back.
+    mutating func takeSwappedIn(matched: [WindowItem.Identifier]) {
+        previousMatchedIDs = Set(matched)
+    }
+
     /// Resolves which row the narrowed list chooses.
     ///
     /// Remembers the incoming choice exactly when a row that was chosen is
