@@ -1,5 +1,21 @@
+import Foundation
 @testable import Lanterna
 import Testing
+
+/// Counts the requests a scripted sender was asked to make. Locked, since
+/// the senders are called through `@Sendable` closures.
+private final class SentCount: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    var value: Int {
+        lock.withLock { count }
+    }
+
+    func add() {
+        lock.withLock { count += 1 }
+    }
+}
 
 /// An operation outlives the keystroke that started it: its reconciling
 /// waits for a fresh list, and the panel can go, or a later one come up,
@@ -73,6 +89,24 @@ struct PanelWindowOperationsLifetimeTests {
         #expect(held.askedCount == 1)
         #expect(made.log.lines.contains { $0.contains("window operation (close Safari/Tabs)") })
         #expect(!made.log.lines.contains { $0.contains("Safari/Downloads") })
+    }
+
+    /// An operation whose task first runs after its appearance has gone,
+    /// and a later one come up, sends nothing: the row it named was chosen
+    /// off a list the later appearance never showed.
+    @Test func anOperationStartedInAnEndedAppearanceSendsNothing() async {
+        let rows = rows
+        let closes = SentCount()
+        let made = makeOperations(rows: rows, close: { _ in
+            closes.add()
+            return nil
+        })
+        let running = made.operations.start(.closeWindow, naming: rows[0].id)
+        made.operations.end()
+        made.operations.begin(windows: rows)
+        await running?.value
+        #expect(closes.value == 0)
+        #expect(made.surface.updatedLists.isEmpty)
     }
 
     /// An operation that has ended, whether reconciled or wound back after
