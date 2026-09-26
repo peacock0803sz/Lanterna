@@ -79,10 +79,10 @@ final class SwitcherPanel: NSPanel {
         isVisible
     }
 
-    /// The failure note on screen now, if any. Kept beside the view rather
-    /// than in it: every swap rebuilds the root view, and the note belongs
-    /// to the appearance rather than to any one list. A swapped list takes
-    /// it down, and a new appearance starts without one.
+    /// The failure note on screen now, if any. Remembered here so the panel
+    /// knows whether the note's height is in its frame, and clearing gives
+    /// back exactly what showing took. A swapped list sizes the frame
+    /// without it, and a new appearance starts without one.
     private var notice: String?
 
     /// Replaces the list and resizes to it, leaving the panel where it was:

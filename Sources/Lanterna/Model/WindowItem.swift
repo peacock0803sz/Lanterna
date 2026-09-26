@@ -22,8 +22,8 @@ struct WindowItem: Identifiable {
     /// nothing but whitespace.
     let windowTitle: String
     let kind: WindowKind
-    /// Kept for window activation; minimised rows look like any other row
-    /// today.
+    /// Whether the window is minimised: one of the ways a row parks below
+    /// the separator (`isParked`), and what reconciling a minimize reads.
     let isMinimized: Bool
     /// Whether the owning application is hidden. Read with the names and
     /// icons, on the main thread, never by the parallel reading.

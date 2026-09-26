@@ -41,9 +41,8 @@ struct SwitcherView: View {
     /// header) belongs on screen. Off draws neither, whatever the query is.
     var filterActive: Bool
 
-    /// A small failure note, drawn under the list. Nil draws nothing: an
-    /// appearance that never fails looks exactly as it did before any of
-    /// this existed.
+    /// A small failure note, drawn under the list. Nil draws nothing and
+    /// takes no height.
     var notice: String?
 
     /// The rows in use, in the order they arrived. Parked rows — minimised
