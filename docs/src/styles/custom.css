@@ -1,0 +1,13 @@
+:root {
+  --sl-color-accent: #5b8def;
+  --sl-color-accent-high: #7aa5ff;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent: #2f6ae0;
+  --sl-color-accent-high: #1f4fb8;
+}
+
+.hero img {
+  border-radius: 0.75rem;
+}
