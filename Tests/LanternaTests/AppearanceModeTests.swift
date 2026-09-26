@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 @testable import Lanterna
 import Testing
@@ -13,12 +14,19 @@ struct AppearanceModeTests {
     }
 
     @Test func appearanceModeDecodesWhenPresent() throws {
-        for mode in [AppearanceMode.system, .light, .dark] {
+        let cases: [(String, AppearanceMode)] = [("system", .system), ("light", .light), ("dark", .dark)]
+        for (text, mode) in cases {
             let decoded = try #require(
-                decode("{\"version\": 1, \"appearanceMode\": \"\(mode.rawValue)\"}").successValue
+                decode("{\"version\": 1, \"appearanceMode\": \"\(text)\"}").successValue
             )
             #expect(decoded.config.appearanceMode == mode)
         }
+    }
+
+    @Test func appearanceModeMapsToAWindowAppearance() {
+        #expect(AppearanceMode.system.nsAppearance == nil)
+        #expect(AppearanceMode.light.nsAppearance?.name == .aqua)
+        #expect(AppearanceMode.dark.nsAppearance?.name == .darkAqua)
     }
 
     @Test func invalidAppearanceModeFallsBackAsAWhole() {

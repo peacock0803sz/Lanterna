@@ -248,3 +248,19 @@ struct SwitcherPanelTests {
         panel.dismiss()
     }
 }
+
+/// The light or dark look sits on the window, so a swapped-in list must
+/// leave it as it was.
+@MainActor
+struct SwitcherPanelAppearanceModeTests {
+    @Test func aFixedModeIsSetOnThePanelAndSurvivesASwap() {
+        let panel = SwitcherPanel(appearanceMode: .dark)
+        #expect(panel.appearance?.name == .darkAqua)
+        panel.update(windows: SampleWindows.make(count: 3))
+        #expect(panel.appearance?.name == .darkAqua)
+    }
+
+    @Test func theSystemModeLeavesThePanelFollowingTheSystem() {
+        #expect(SwitcherPanel(appearanceMode: .system).appearance == nil)
+    }
+}
