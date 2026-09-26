@@ -232,6 +232,48 @@ struct PanelFilterTests {
         #expect(made.selection.chosenID == made.rows[1].id)
     }
 
+    /// Swapping the list underneath keeps the query: the narrowing stays
+    /// on over the new rows.
+    @Test func replacingTheListKeepsTheQuery() {
+        let made = makeFilter()
+        made.filter.append("safa")
+        let renewed = [
+            filterListRow(appName: "Safari", windowTitle: "Tabs", windowID: 10),
+            filterListRow(appName: "Finder", windowTitle: "AirDrop", windowID: 11),
+        ]
+        made.filter.replace(fullWindows: renewed)
+        #expect(made.surface.updatedQueries.last == "safa")
+        #expect(made.surface.updatedLists.last?.map(\.id) == [renewed[0].id])
+        #expect(made.selection.chosenID == renewed[0].id)
+    }
+
+    /// A swap that keeps the chosen row keeps the remembered row: a row the
+    /// query still hides after the swap is chosen again when a later
+    /// shortening brings it back.
+    @Test func aSwapKeepsTheMemoryForALaterShortening() {
+        let made = makeFilter()
+        made.filter.append("update")
+        #expect(made.selection.chosenID == made.rows[0].id)
+        made.filter.replace(fullWindows: [made.rows[0], made.rows[1]])
+        #expect(made.selection.chosenID == made.rows[0].id)
+        for _ in 0 ..< 6 {
+            made.filter.removeLast()
+        }
+        #expect(made.surface.updatedLists.last?.map(\.id) == [made.rows[0].id, made.rows[1].id])
+        #expect(made.selection.chosenID == made.rows[1].id)
+    }
+
+    /// With an empty query the swap shows every row of the new list.
+    @Test func replacingWithAnEmptyQueryShowsEverything() {
+        let made = makeFilter()
+        let renewed = [
+            filterListRow(appName: "Safari", windowTitle: "Tabs", windowID: 10),
+            filterListRow(appName: "Finder", windowTitle: "AirDrop", windowID: 11),
+        ]
+        made.filter.replace(fullWindows: renewed)
+        #expect(made.surface.updatedLists.last?.map(\.id) == renewed.map(\.id))
+    }
+
     /// A commit names a row of the narrowed snapshot, not of the whole list.
     @Test func aCommitNamesARowOfTheNarrowedSnapshot() {
         let made = makeFilter()

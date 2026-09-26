@@ -39,6 +39,13 @@ final class FakeSurface: SwitcherSurface {
     private(set) var shownSelections: [WindowItem.Identifier?] = []
     private(set) var takeKeysCount = 0
     private(set) var dismissCount = 0
+    /// Every failure note shown, in order.
+    private(set) var notices: [String] = []
+    /// How many times the note was taken down.
+    private(set) var clearedNotices = 0
+    /// The note on screen now, if any. A swapped list takes it down, the
+    /// way the real panel redraws without it.
+    private(set) var currentNotice: String?
     var isPresented = false
 
     /// Whether presses are reaching the panel.
@@ -97,6 +104,17 @@ final class FakeSurface: SwitcherSurface {
         updatedQueries.append(query)
         updatedActives.append(filterActive)
         calls.append(.updateList(selecting: selecting, query: query, filterActive: filterActive))
+        currentNotice = nil
+    }
+
+    func showNotice(_ text: String) {
+        notices.append(text)
+        currentNotice = text
+    }
+
+    func clearNotice() {
+        clearedNotices += 1
+        currentNotice = nil
     }
 
     func dismiss() {

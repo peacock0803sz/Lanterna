@@ -33,6 +33,19 @@ struct FilterState: Equatable, Sendable {
         previousMatchedIDs = []
     }
 
+    /// Takes the rows a swapped-in list matches as already seen. A row a
+    /// swap brings back returns with the list, not with shortening, so it
+    /// does not restore the remembered row, and being seen, a shortening
+    /// restores it only after a query hides it again. Leaves the memory
+    /// alone: a remembered row the query still hides after the swap is
+    /// restored by the shortening that brings it back, unless the chosen
+    /// row no longer matches when the swapped list is resolved, and that
+    /// row then takes the remembered row's place in the memory (see
+    /// `resolveSelection`).
+    mutating func takeSwappedIn(matched: [WindowItem.Identifier]) {
+        previousMatchedIDs = Set(matched)
+    }
+
     /// Resolves which row the narrowed list chooses.
     ///
     /// Remembers the incoming choice exactly when a row that was chosen is

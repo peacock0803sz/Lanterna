@@ -1,3 +1,11 @@
+/// Where the operated row stood before a list was swapped: the row, and the
+/// whole list it stood in. The filter counts the place among the rows it
+/// shows.
+struct ChoiceAnchor {
+    let id: WindowItem.Identifier
+    let stoodIn: [WindowItem]
+}
+
 /// What typing does to a panel that is up.
 ///
 /// Split from the commands, which decide what a press means in the large:
@@ -46,6 +54,35 @@ final class PanelFilter {
         guard !isActive else { return }
         isActive = true
         apply()
+    }
+
+    /// Swaps the list underneath, keeping the query: the narrowing stays
+    /// on over the new rows. The counts the commit and cancel lines print
+    /// are recomputed against the new rows. A row a query hid while it
+    /// was chosen is not chosen again merely because the new list brings
+    /// it back: that happens with shortening, not with a swap.
+    func replace(fullWindows: [WindowItem]) {
+        self.fullWindows = fullWindows
+        state.takeSwappedIn(matched: WindowFilter.matching(state.query, against: fullWindows).map(\.id))
+        apply()
+    }
+
+    /// Swaps the list underneath as above, moving the choice to the row now
+    /// standing at the anchor's place among the shown rows, or to the last
+    /// shown row when fewer rows are shown than that. Counted among the
+    /// shown rows and not the whole list, so a narrowed panel never chooses
+    /// a row it is not showing. A row that keeps its place keeps the choice.
+    /// Hiding and minimizing move a row below the separator, so the choice
+    /// stays at the place the row left, as it does when a row goes. An anchor
+    /// that was not shown, or a list that shows nothing, leaves the choice
+    /// to the usual resolving.
+    func replace(fullWindows: [WindowItem], choosingWhere anchor: ChoiceAnchor) {
+        let before = WindowFilter.matching(state.query, against: anchor.stoodIn).map(\.id)
+        let after = WindowFilter.matching(state.query, against: fullWindows).map(\.id)
+        if let index = before.firstIndex(of: anchor.id), let last = after.indices.last {
+            selection.retarget(to: after, selecting: after[min(index, last)])
+        }
+        replace(fullWindows: fullWindows)
     }
 
     /// Gives the appearance up; the next one starts empty either way.

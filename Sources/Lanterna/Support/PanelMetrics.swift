@@ -16,6 +16,18 @@ enum PanelMetrics {
         return query.isEmpty ? header : header + 34
     }
 
+    /// Extra height for the failure note. An estimate, for the reason the
+    /// filter chrome's is.
+    static let noticeHeight: CGFloat = 22
+
+    /// How many rows the list draws for these windows: one for each, and one
+    /// more for the separator above the parked rows when any are parked. The
+    /// separator is a row of the list like the others, and the list gives
+    /// every row at least `rowHeight`.
+    static func drawnRowCount(_ windows: [WindowItem]) -> Int {
+        windows.count + (windows.contains(where: \.isParked) ? 1 : 0)
+    }
+
     /// Height for a given number of rows. The panel grows with its content until
     /// the cap, past which the list scrolls instead of the panel growing.
     static func height(rowCount: Int) -> CGFloat {

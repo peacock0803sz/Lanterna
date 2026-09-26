@@ -24,18 +24,23 @@ final class PanelKeyCommands {
     private let wayOut: PanelExit
     private let filter: PanelFilter
     private let now: @MainActor () -> ContinuousClock.Instant
+    /// Handed the row chosen as the key is pressed, so a choice moved
+    /// before the operation gets its turn does not change its target.
+    private let operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)?
 
     init(
         surface: any SwitcherSurface,
         selection: PanelSelection,
         wayOut: PanelExit,
-        now: @escaping @MainActor () -> ContinuousClock.Instant
+        now: @escaping @MainActor () -> ContinuousClock.Instant,
+        operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)? = nil
     ) {
         self.surface = surface
         self.selection = selection
         self.wayOut = wayOut
         filter = PanelFilter(selection: selection, surface: surface)
         self.now = now
+        self.operate = operate
     }
 
     /// Starts an appearance over the whole ordered list, filtering only
@@ -47,6 +52,16 @@ final class PanelKeyCommands {
     /// Gives the appearance up; the next one starts empty either way.
     func endFiltering() {
         filter.reset()
+    }
+
+    /// Swaps the rows on screen for a list an operation hands over — its
+    /// optimistic look, the reconciled list, or the look wound back —
+    /// keeping the query and the commit's view of the appearance on the
+    /// same rows, and moves the choice to where the anchor stood among the
+    /// shown rows.
+    func replacePresentedList(_ windows: [WindowItem], choosingWhere anchor: ChoiceAnchor) {
+        filter.replace(fullWindows: windows, choosingWhere: anchor)
+        wayOut.replacePresented(windows)
     }
 
     /// Switches filtering on for the panel that is up.
@@ -104,6 +119,9 @@ final class PanelKeyCommands {
         // asking anything.
         let startedAt = now()
         guard surface.isPresented else { return .passedThrough }
+        // A new press answers the old failure: the note goes before
+        // anything the press means is done.
+        surface.clearNotice()
         switch PanelKeyInput.action(for: keystroke) {
         case .selectNext:
             selection.moveToNext()
@@ -119,6 +137,8 @@ final class PanelKeyCommands {
             wayOut.cancel(by: key, since: startedAt, filter: filter.logSummary())
         case let .commit(key):
             wayOut.commit(by: key, naming: selection.chosenID, since: startedAt, filter: filter.logSummary())
+        case let .windowOperation(operation):
+            operate?(operation, selection.chosenID)
         case let .filterText(text):
             filter.append(text)
         case .filterBackspace:

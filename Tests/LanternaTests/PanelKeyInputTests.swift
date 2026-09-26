@@ -8,9 +8,13 @@ import Testing
 private func press(
     _ keyCode: Int,
     _ modifiers: NSEvent.ModifierFlags = [],
-    repeating: Bool = false
+    repeating: Bool = false,
+    characters: String = ""
 ) -> PanelKeystroke {
-    PanelKeystroke(keyCode: UInt16(keyCode), modifiers: modifiers, isARepeat: repeating)
+    PanelKeystroke(
+        keyCode: UInt16(keyCode), modifiers: modifiers, isARepeat: repeating,
+        characters: characters
+    )
 }
 
 /// The bit a real keyboard sets to say Command was held down on the left-hand
@@ -22,10 +26,10 @@ private let leftCommandKey = NSEvent.ModifierFlags(
 )
 
 struct PanelKeyInputTests {
-    /// Every row but the full stop ignores the modifiers, and both ways round
-    /// are said of each: the ordinary press comes with Command still down,
-    /// and a run whose modifier monitor never started sees the same keys
-    /// arrive bare once Command has been let go.
+    /// Every row but the full stop and the operations ignores the modifiers,
+    /// and both ways round are said of each: the ordinary press comes with
+    /// Command still down, and a run whose modifier monitor never started
+    /// sees the same keys arrive bare once Command has been let go.
     @Test(arguments: [NSEvent.ModifierFlags(), .command])
     func theArrowsMoveTheSelectionWhateverIsHeldWithThem(modifiers: NSEvent.ModifierFlags) {
         #expect(PanelKeyInput.action(for: press(kVK_DownArrow, modifiers)) == .selectNext)
@@ -79,7 +83,7 @@ struct PanelKeyInputTests {
     /// thing here as a key that carries on to somewhere else.
     @Test func keysWithNoMeaningAreAbsorbed() {
         #expect(PanelKeyInput.action(for: press(kVK_ANSI_A)) == .absorb)
-        #expect(PanelKeyInput.action(for: press(kVK_ANSI_Q, .command)) == .absorb)
+        #expect(PanelKeyInput.action(for: press(kVK_ANSI_S, .command)) == .absorb)
         #expect(PanelKeyInput.action(for: press(kVK_F1)) == .absorb)
         #expect(PanelKeyInput.action(for: press(kVK_Space)) == .absorb)
     }
@@ -122,6 +126,63 @@ struct PanelKeyInputTests {
         #expect(PanelKeyInput.action(for: press(kVK_Tab)) == .absorb)
         #expect(PanelKeyInput.action(for: press(kVK_Tab, .command)) == .absorb)
         #expect(PanelKeyInput.action(for: press(kVK_Tab, [.command, .shift])) == .absorb)
+    }
+
+    /// Command combinations on the operation keys act on the chosen row
+    /// instead of typing. The codes are what decide, so the input source
+    /// does not matter.
+    @Test func commandLettersOperateOnTheChosenRow() {
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_W, .command))
+                == .windowOperation(.closeWindow)
+        )
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_Q, .command))
+                == .windowOperation(.quitApplication)
+        )
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_H, .command))
+                == .windowOperation(.hideApplication)
+        )
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_M, .command))
+                == .windowOperation(.minimizeWindow)
+        )
+    }
+
+    /// The operations win over filtering: an operation key held with
+    /// Command is an operation even where its letter would type, while any
+    /// other Command letter still narrows.
+    @Test func theOperationKeysWinOverFiltering() {
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_W, .command, characters: "w"))
+                == .windowOperation(.closeWindow)
+        )
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_S, .command, characters: "s"))
+                == .filterText("s")
+        )
+    }
+
+    /// Operating twice is not a thing anyone asks for. A second press from
+    /// leaning on the key would land on whatever the first one left behind.
+    @Test func operationsDoNotRepeat() {
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_W, .command, repeating: true))
+                == .absorb
+        )
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_Q, .command, repeating: true))
+                == .absorb
+        )
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_H, .command, repeating: true))
+                == .absorb
+        )
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_M, .command, repeating: true))
+                == .absorb
+        )
     }
 
     /// On a run whose modifier monitor never started, Command is already up

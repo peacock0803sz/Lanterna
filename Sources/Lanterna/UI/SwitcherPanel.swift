@@ -34,7 +34,7 @@ final class SwitcherPanel: NSPanel {
                 x: 0,
                 y: 0,
                 width: PanelMetrics.width,
-                height: PanelMetrics.height(rowCount: content.windows.count)
+                height: PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(content.windows))
             ),
             // Borderless is the absence of `.titled`, so it needs no flag.
             styleMask: [.nonactivatingPanel],
@@ -79,6 +79,12 @@ final class SwitcherPanel: NSPanel {
         isVisible
     }
 
+    /// The failure note on screen now, if any. Remembered here so the panel
+    /// knows whether the note's height is in its frame, and clearing gives
+    /// back exactly what showing took. A swapped list sizes the frame
+    /// without it, and a new appearance starts without one.
+    private var notice: String?
+
     /// Replaces the list and resizes to it, leaving the panel where it was:
     /// off screen if it was off screen, on screen if it was on.
     ///
@@ -104,7 +110,7 @@ final class SwitcherPanel: NSPanel {
         setContentSize(
             NSSize(
                 width: PanelMetrics.width,
-                height: PanelMetrics.height(rowCount: windows.count)
+                height: PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(windows))
             )
         )
         centerOnMainDisplay()
@@ -125,6 +131,7 @@ final class SwitcherPanel: NSPanel {
     /// twice and hold the second appearance to the row it was given.
     func present(windows: [WindowItem], selecting: WindowItem.Identifier?) {
         appearances += 1
+        notice = nil
         update(windows: windows)
         hostingView.rootView.appearanceToken = appearances
         showSelection(selecting)
@@ -182,6 +189,7 @@ final class SwitcherPanel: NSPanel {
         query: String,
         filterActive: Bool
     ) {
+        notice = nil
         hostingView.rootView = SwitcherView(
             windows: windows,
             selectedID: selecting,
@@ -190,13 +198,41 @@ final class SwitcherPanel: NSPanel {
             filterActive: filterActive
         )
         let height = min(
-            PanelMetrics.height(rowCount: windows.count)
+            PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(windows))
                 + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
             PanelMetrics.maximumHeight
         )
         var frame = frame
         frame.origin.y -= height - frame.height
         frame.size.height = height
+        setFrame(frame, display: true)
+    }
+
+    /// Shows a small failure note under the list, growing the panel for it
+    /// with the top edge staying where it was.
+    func showNotice(_ text: String) {
+        guard notice == nil else {
+            hostingView.rootView.notice = text
+            return
+        }
+        notice = text
+        hostingView.rootView.notice = text
+        var frame = frame
+        frame.origin.y -= PanelMetrics.noticeHeight
+        frame.size.height += PanelMetrics.noticeHeight
+        setFrame(frame, display: true)
+    }
+
+    /// Takes the failure note down, giving its height back.
+    func clearNotice() {
+        guard notice != nil else {
+            return
+        }
+        notice = nil
+        hostingView.rootView.notice = nil
+        var frame = frame
+        frame.origin.y += PanelMetrics.noticeHeight
+        frame.size.height -= PanelMetrics.noticeHeight
         setFrame(frame, display: true)
     }
 

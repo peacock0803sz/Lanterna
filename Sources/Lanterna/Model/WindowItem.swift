@@ -22,9 +22,12 @@ struct WindowItem: Identifiable {
     /// nothing but whitespace.
     let windowTitle: String
     let kind: WindowKind
-    /// Kept for window activation; minimised rows look like any other row
-    /// today.
+    /// Whether the window is minimised: one of the ways a row parks below
+    /// the separator (`isParked`), and what reconciling a minimize reads.
     let isMinimized: Bool
+    /// Whether the owning application is hidden. Read with the names and
+    /// icons, on the main thread, never by the parallel reading.
+    let isHidden: Bool
     let icon: NSImage
 
     /// The enumerator's name fallback (`RunningApplicationInfo.displayName`)
@@ -38,6 +41,7 @@ struct WindowItem: Identifiable {
         windowTitle: String,
         kind: WindowKind,
         isMinimized: Bool,
+        isHidden: Bool = false,
         icon: NSImage
     ) {
         precondition(!appName.isEmpty, "appName must not be empty")
@@ -48,7 +52,54 @@ struct WindowItem: Identifiable {
         self.windowTitle = windowTitle
         self.kind = kind
         self.isMinimized = isMinimized
+        self.isHidden = isHidden
         self.icon = icon
+    }
+
+    /// Whether the row parks below the separator: minimised or hidden.
+    var isParked: Bool {
+        isMinimized || isHidden
+    }
+
+    /// The rows in the order the panel draws them: the rows in use, then the
+    /// parked rows, each group in the order it arrived in. The panel draws
+    /// the parked group below the separator, and the choice and the arrows
+    /// step through this same order, so a place on screen and a place in
+    /// the list are one place.
+    static func parkedLast(_ rows: [WindowItem]) -> [WindowItem] {
+        rows.filter { !$0.isParked } + rows.filter(\.isParked)
+    }
+
+    /// The same row, marked minimized or not. The optimistic look moves
+    /// rows before the reconciling pass confirms them.
+    func settingMinimized(_ minimized: Bool) -> WindowItem {
+        WindowItem(
+            id: id,
+            ownerProcessIdentifier: ownerProcessIdentifier,
+            appName: appName,
+            bundleIdentifier: bundleIdentifier,
+            windowTitle: windowTitle,
+            kind: kind,
+            isMinimized: minimized,
+            isHidden: isHidden,
+            icon: icon
+        )
+    }
+
+    /// The same row, marked hidden or shown. The optimistic look moves rows
+    /// before the reconciling pass confirms them.
+    func settingHidden(_ hidden: Bool) -> WindowItem {
+        WindowItem(
+            id: id,
+            ownerProcessIdentifier: ownerProcessIdentifier,
+            appName: appName,
+            bundleIdentifier: bundleIdentifier,
+            windowTitle: windowTitle,
+            kind: kind,
+            isMinimized: isMinimized,
+            isHidden: hidden,
+            icon: icon
+        )
     }
 
     /// Title to draw. Trimming decides emptiness only: a title that has any

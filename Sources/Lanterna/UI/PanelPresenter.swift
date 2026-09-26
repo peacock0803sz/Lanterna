@@ -4,12 +4,14 @@ import Darwin
 /// Decides when the panel goes up, and writes down what each press cost.
 @MainActor
 final class PanelPresenter {
-    private let surface: any SwitcherSurface
+    /// Handed on to the way out and the operations, built beside the presenter.
+    let surface: any SwitcherSurface
     /// Where the rows come from: already gathered, in the ordinary case.
-    private let store: WindowListStore
-    private let ownProcessIdentifier: pid_t
-    private let now: @MainActor () -> ContinuousClock.Instant
-    private let writeLine: @MainActor (String) -> Void
+    let store: WindowListStore
+    let ownProcessIdentifier: pid_t
+    /// Handed on to the way out, built beside the presenter.
+    let now: @MainActor () -> ContinuousClock.Instant
+    let writeLine: @MainActor (String) -> Void
 
     /// A press that arrived before any list had been gathered and is waiting
     /// for one.
@@ -54,12 +56,13 @@ final class PanelPresenter {
     private let commandWatchInterval: Duration
 
     /// How long the key-status watch waits between looks (`KeyStatusWatch`'s
-    /// number, injected so a test need not wait a real one out).
-    private let keyStatusWatchInterval: Duration
+    /// number, injected so a test need not wait a real one out), handed on
+    /// to the way out, which is built beside the presenter.
+    let keyStatusWatchInterval: Duration
 
     /// What commits take. Through to the way out, which owns the list the
-    /// target is read off.
-    private let switcher: any WindowSwitching
+    /// target is read off and is built beside the presenter.
+    let switcher: any WindowSwitching
 
     /// What commits and appearances consult for the order rows are drawn in,
     /// owned here so recording and sorting share one memory.
@@ -70,7 +73,8 @@ final class PanelPresenter {
     /// `lazy` because every question it puts and the answer it gives back are
     /// this object's. One watch for the presenter's life, started and stopped
     /// the way the window list's loop is rather than made again for each panel.
-    private lazy var commandWatch = UnreportedReleaseWatch(
+    /// The way out, built beside the presenter, stops it as the panel goes.
+    lazy var commandWatch = UnreportedReleaseWatch(
         interval: commandWatchInterval,
         isPanelUp: { [weak self] in self?.surface.isPresented ?? false },
         commandIsHeld: { [weak self] in self?.commandIsHeld() ?? false },
@@ -88,7 +92,8 @@ final class PanelPresenter {
     /// on purpose: `PanelExit` names rows, and naming is not choosing. Given
     /// up where the panel comes off the screen rather than at each way out,
     /// so no way out can be the one that forgets.
-    private let selection: PanelSelection
+    /// That giving up is wired into the way out, built beside the presenter.
+    let selection: PanelSelection
 
     /// Every way the panel comes off the screen, and the list it was showing
     /// while it was up.
@@ -104,7 +109,8 @@ final class PanelPresenter {
     /// the other follows. Spelling the type on the property instead would say
     /// the same thing, and the formatter would take it straight back off
     /// again as a repetition of the initialiser beside it.
-    private lazy var wayOut = makeWayOut()
+    /// The operations, built beside the presenter, close the panel through it.
+    lazy var wayOut = makeWayOut()
 
     /// What a press means to a panel that is up.
     ///
@@ -112,12 +118,20 @@ final class PanelPresenter {
     /// holds nothing of its own — the panel, the chosen row and the ways out
     /// are all this object's — so the two can share them rather than keep
     /// second copies.
-    private lazy var keyCommands = PanelKeyCommands(
+    /// The way out and the operations, built beside the presenter, reach it.
+    lazy var keyCommands = PanelKeyCommands(
         surface: surface,
         selection: selection,
         wayOut: wayOut,
-        now: now
+        now: now,
+        operate: { [weak self] operation, chosen in
+            self?.startOperation(operation, naming: chosen)
+        }
     )
+
+    /// Carries out the operations on the chosen row. Made beside the
+    /// presenter, so no two `lazy` properties name each other.
+    lazy var operations = makeOperations()
 
     init(
         surface: any SwitcherSurface,
@@ -146,25 +160,6 @@ final class PanelPresenter {
         self.keyStatusWatchInterval = keyStatusWatchInterval
         self.switcher = switcher
         self.tracker = tracker
-    }
-
-    private func makeWayOut() -> PanelExit {
-        PanelExit(
-            surface: surface,
-            now: now,
-            writeLine: writeLine,
-            keyStatusWatchInterval: keyStatusWatchInterval,
-            switcher: switcher,
-            recordCommit: { [weak self] id, pid in
-                self?.tracker.record(id, ownerProcessIdentifier: pid, origin: .commit)
-            },
-            noteSwitchReturned: { [weak self] in self?.tracker.noteSwitchReturned() },
-            onPanelGone: { [weak self] in
-                self?.commandWatch.stop()
-                self?.selection.end()
-                self?.keyCommands.endFiltering()
-            }
-        )
     }
 
     /// Puts the panel up for a press, and takes it down again if the press
@@ -306,6 +301,7 @@ final class PanelPresenter {
         let ordered = tracker.ordered(windows, skipping: store.snapshot?.skippedOwners ?? [])
         selection.beginSecond(ordered.map(\.id))
         keyCommands.beginFiltering(fullWindows: ordered, filtering: combination == .filter)
+        operations.begin(windows: ordered)
         surface.present(windows: ordered, selecting: selection.chosenID)
         let becameKey = surface.takeKeys()
         wayOut.nowShowing(ordered, startedAt: startedAt)

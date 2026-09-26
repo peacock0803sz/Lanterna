@@ -27,7 +27,8 @@ import Darwin
 final class PanelExit {
     private let surface: any SwitcherSurface
     private let now: @MainActor () -> ContinuousClock.Instant
-    private let writeLine: @MainActor (String) -> Void
+    /// Read beside the exit, by the ways out in its extension.
+    let writeLine: @MainActor (String) -> Void
 
     /// Run whenever the panel goes, whichever way it went.
     ///
@@ -108,9 +109,10 @@ final class PanelExit {
     /// first however far the choice had travelled since.
     ///
     /// Taken as the panel goes up rather than asked of the window list at the
-    /// time, so what a line names is the list that appearance was given. A
-    /// fresher list could name a row this appearance never showed.
-    private var presentedWindows: [WindowItem] = []
+    /// time, so what a line names is a list that appearance was given: a
+    /// fresher list could name a row it never showed. The reconciling
+    /// operations swap it only for a list the panel draws in the same step.
+    var presentedWindows: [WindowItem] = []
 
     /// Whether this appearance may still write a commit line.
     ///
@@ -297,20 +299,13 @@ final class PanelExit {
         )
     }
 
-    /// The wording for the disappearances that are the app tidying up after
-    /// itself rather than the user deciding anything.
-    func takeDown(because reason: String) {
-        dismissPanel()
-        writeLine("panel hidden (\(reason))")
-    }
-
     /// The one place the panel comes off the screen.
     ///
-    /// The list goes with the panel. Nothing reads it while the panel is
-    /// down, so no sequence of calls can tell whether this line is here — it
-    /// is kept because a list outliving the panel it was drawn on could name
-    /// a row for an appearance that never showed it.
-    private func dismissPanel() {
+    /// The list goes with the panel: a list outliving the panel it was
+    /// drawn on could name a row for an appearance that never showed it.
+    ///
+    /// Run beside the exit, by the ways out in its extension.
+    func dismissPanel() {
         commitIsStillOpen = false
         surface.dismiss()
         presentedWindows = []

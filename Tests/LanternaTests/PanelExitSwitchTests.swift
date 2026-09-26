@@ -144,6 +144,22 @@ struct PanelExitSwitchTests {
         )
     }
 
+    /// The panel going takes its list and its choice with it, so neither
+    /// can name a row for an appearance that never showed it.
+    @Test func theListAndTheChoiceGoWithThePanel() {
+        let fixture = released()
+        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+        #expect(!fixture.presenter.wayOut.presentedWindows.isEmpty)
+        #expect(fixture.presenter.selection.chosenID != nil)
+        fixture.presenter.handleKeyStroke(PanelKeystroke(
+            keyCode: UInt16(kVK_ANSI_Period), modifiers: .command, isARepeat: false
+        ))
+
+        #expect(!fixture.surface.isPresented)
+        #expect(fixture.presenter.wayOut.presentedWindows.isEmpty)
+        #expect(fixture.presenter.selection.chosenID == nil)
+    }
+
     /// The pair keeps the trigger's wording on both lines.
     @Test func thePairKeepsTheKeyCommitWording() {
         let fixture = released()

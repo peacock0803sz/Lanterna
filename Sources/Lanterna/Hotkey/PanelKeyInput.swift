@@ -72,6 +72,10 @@ enum PanelKeyAction: Equatable, Sendable {
     case selectPrevious
     case commit(CommitKey)
     case cancel(CancelKey)
+    /// An operation on the chosen row. Read before the filtering row: an
+    /// operation key held with Command is an operation even where its
+    /// letter would type, while any other Command letter still narrows.
+    case windowOperation(WindowOperation)
     /// A letter or a confirmed string: narrows the list on screen.
     case filterText(String)
     /// Backspace: shortens the query by one character.
@@ -267,13 +271,9 @@ enum PanelKeyInput {
     /// would sit against the complexity limit with no room for the row that
     /// gets added next, and this codebase suppresses no lint rule.
     private static func meaning(of keystroke: PanelKeystroke) -> PanelKeyAction {
-        // Tab first, and whatever is held with it. Carbon has claimed Cmd+Tab
-        // and Shift+Cmd+Tab, and the selection moves through that route, so a
-        // Tab acted on here as well would move the selection two rows for
-        // one press. Whether Carbon lets a Tab through to this process's key
-        // window at all is not the point: if it does not, this row costs a
-        // comparison and nothing else.
-        guard Int(keystroke.keyCode) != kVK_Tab else { return .absorb }
+        if let early = earlyMeaning(of: keystroke) {
+            return early
+        }
         switch Int(keystroke.keyCode) {
         case kVK_DownArrow:
             return .selectNext
@@ -285,18 +285,18 @@ enum PanelKeyInput {
             return .commit(.keypadEnter)
         case kVK_Escape:
             return .cancel(.escape)
-        // The one row that asks about modifiers at all. A bare full stop is
-        // somebody typing, and typing must not cancel. Every other row
-        // ignores them on purpose: the ordinary press is made with Command
-        // still down, while a run whose modifier monitor never started sees
-        // the same keys arrive bare after Command has been let go, and both
-        // have to work the same way.
+        // The one row of this table that asks about modifiers. A bare full
+        // stop is somebody typing, and typing must not cancel; the
+        // operations asked ahead of the table hold Command for the same
+        // reason. Every other row ignores them on purpose: the ordinary
+        // press is made with Command still down, while a run whose modifier
+        // monitor never started sees the same keys arrive bare after Command
+        // has been let go, and both have to work the same way.
         case kVK_ANSI_Period where keystroke.modifiers.contains(.command):
             return .cancel(.commandPeriod)
         case kVK_Delete:
             return .filterBackspace
         default:
-            // Every other key, including the ones that would type something.
             // Going by key code and not by the character is what keeps this
             // whole table independent of the input source and the physical
             // layout — in kana mode the full stop's key reports 。 What the
@@ -306,6 +306,39 @@ enum PanelKeyInput {
                 return .absorb
             }
             return .filterText(text)
+        }
+    }
+
+    /// Tab and the window operations, asked ahead of the table below. Tab
+    /// first, and whatever is held with it: Carbon has claimed Cmd+Tab and
+    /// Shift+Cmd+Tab, and the selection moves through that route, so a Tab
+    /// acted on here as well would move the selection two rows for one
+    /// press. Whether Carbon lets a Tab through at all is not the point:
+    /// if it does not, this row costs a comparison and nothing else.
+    /// The operations go by key code and Command held, as the full stop
+    /// does: what the key would type is not asked. Out here so the table
+    /// below stays within the complexity the linter allows.
+    private static func earlyMeaning(of keystroke: PanelKeystroke) -> PanelKeyAction? {
+        guard Int(keystroke.keyCode) != kVK_Tab else { return .absorb }
+        if let operation = operation(of: keystroke) {
+            return .windowOperation(operation)
+        }
+        return nil
+    }
+
+    private static func operation(of keystroke: PanelKeystroke) -> WindowOperation? {
+        guard keystroke.modifiers.contains(.command) else { return nil }
+        switch Int(keystroke.keyCode) {
+        case kVK_ANSI_W:
+            return .closeWindow
+        case kVK_ANSI_Q:
+            return .quitApplication
+        case kVK_ANSI_H:
+            return .hideApplication
+        case kVK_ANSI_M:
+            return .minimizeWindow
+        default:
+            return nil
         }
     }
 }
@@ -322,7 +355,7 @@ private extension PanelKeyAction {
         switch self {
         case .selectNext, .selectPrevious, .filterText, .filterBackspace:
             self
-        case .commit, .cancel, .absorb:
+        case .commit, .cancel, .windowOperation, .absorb:
             .absorb
         }
     }

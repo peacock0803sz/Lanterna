@@ -1,0 +1,233 @@
+import ApplicationServices
+import PrivateAPIs
+
+/// Carries out the window operations on the panel that is up.
+///
+/// Holds the mirror of the list on screen: what was shown is what a target
+/// is resolved off, and the mirror is rewound when sending fails. The filter
+/// and the way out keep their own copies beside this one — the same shape
+/// they already keep between each other. Every swap an operation makes sets
+/// this mirror and hands the same list to `replaceList`, which carries it to
+/// the other copies.
+@MainActor
+final class PanelWindowOperations {
+    /// Reached beside the operations, by the reconciling half.
+    let surface: any SwitcherSurface
+    let replaceList: @MainActor ([WindowItem], ChoiceAnchor) -> Void
+    /// Handed the list shown now, whose rows of skipped applications are
+    /// carried into the answer. Nothing when no pass has finished.
+    let refresh: @MainActor ([WindowItem]) async -> ReconcilingList?
+    private let closer: any WindowClosing
+    private let quitter: any ApplicationQuitting
+    private let hider: any ApplicationHiding
+    private let minimizer: any WindowMinimizing
+    private let ownProcessIdentifier: pid_t
+    /// Reached beside the operations, by the reconciling half.
+    let writeLine: @MainActor (String) -> Void
+    let closeAfterEmptied: @MainActor () -> Void
+    let closeForInterruption: @MainActor (WindowOperation, String, String) -> Void
+    /// Reached beside the operations, by the reconciling half.
+    var presented: [WindowItem] = []
+    /// Which appearance is up, counted forward as each one begins and as it
+    /// ends. Reconciling resumes after the panel may have gone, or after a
+    /// later appearance has come up; comparing this against the value it
+    /// set out with is how it tells, and a changed value means it touches
+    /// nothing.
+    private(set) var appearance = 0
+    /// The appearance an operation is still running in, if any.
+    private var operatingIn: Int?
+
+    init(
+        surface: any SwitcherSurface,
+        replaceList: @escaping @MainActor ([WindowItem], ChoiceAnchor) -> Void,
+        refresh: @escaping @MainActor ([WindowItem]) async -> ReconcilingList?,
+        closer: any WindowClosing,
+        quitter: any ApplicationQuitting,
+        hider: any ApplicationHiding,
+        minimizer: any WindowMinimizing,
+        ownProcessIdentifier: pid_t,
+        writeLine: @escaping @MainActor (String) -> Void,
+        closeAfterEmptied: @escaping @MainActor () -> Void,
+        closeForInterruption: @escaping @MainActor (WindowOperation, String, String) -> Void
+    ) {
+        self.surface = surface
+        self.replaceList = replaceList
+        self.refresh = refresh
+        self.closer = closer
+        self.quitter = quitter
+        self.hider = hider
+        self.minimizer = minimizer
+        self.ownProcessIdentifier = ownProcessIdentifier
+        self.writeLine = writeLine
+        self.closeAfterEmptied = closeAfterEmptied
+        self.closeForInterruption = closeForInterruption
+    }
+
+    /// Remembers what the appearance shows. Operations resolve off this,
+    /// so a row gone from a fresher list is still a row that was shown.
+    func begin(windows: [WindowItem]) {
+        appearance += 1
+        presented = windows
+    }
+
+    /// Gives the mirror up with the panel.
+    func end() {
+        appearance += 1
+        presented = []
+    }
+
+    /// Takes one operation in at the keystroke, naming the row chosen at
+    /// that moment, and sends it on a task of its own.
+    ///
+    /// One operation at a time per appearance: a press arriving while one
+    /// is still reconciling is dropped with a line, not queued, because its
+    /// target was chosen off a list the running one is still changing.
+    /// Answers the task, or nothing when the press was dropped.
+    @discardableResult
+    func start(_ operation: WindowOperation, naming id: WindowItem.Identifier?) -> Task<Void, Never>? {
+        guard operatingIn != appearance else {
+            writeLine("window operation dropped (\(operation.logName); another is still reconciling)")
+            return nil
+        }
+        let generation = appearance
+        operatingIn = generation
+        return Task {
+            defer {
+                if operatingIn == generation {
+                    operatingIn = nil
+                }
+            }
+            guard appearance == generation else { return }
+            await send(operation, naming: id)
+        }
+    }
+
+    /// Takes one operation in as above and waits it out.
+    func operate(_ operation: WindowOperation, naming id: WindowItem.Identifier?) async {
+        await start(operation, naming: id)?.value
+    }
+
+    private func send(_ operation: WindowOperation, naming id: WindowItem.Identifier?) async {
+        switch operation {
+        case .closeWindow:
+            await close(naming: id)
+        case .quitApplication:
+            await quit(naming: id)
+        case .hideApplication:
+            await hide(naming: id)
+        case .minimizeWindow:
+            await minimize(naming: id)
+        }
+    }
+
+    /// The named row, unless it is out of scope — the process's own row is
+    /// never a target, and a parked row is none for hiding or minimizing,
+    /// since it already sits below the separator.
+    /// Out of scope is not a failure: nothing happens, and no line says
+    /// anything.
+    private func resolve(
+        _ id: WindowItem.Identifier?,
+        for operation: WindowOperation
+    ) -> (index: Int, row: WindowItem)? {
+        guard let id, let index = presented.firstIndex(where: { $0.id == id }) else {
+            return nil
+        }
+        let row = presented[index]
+        guard row.ownerProcessIdentifier != ownProcessIdentifier else {
+            return nil
+        }
+        if row.isParked, operation == .hideApplication || operation == .minimizeWindow {
+            return nil
+        }
+        return (index, row)
+    }
+
+    private func close(naming id: WindowItem.Identifier?) async {
+        guard let (index, row) = resolve(id, for: .closeWindow) else {
+            return
+        }
+        let target = ActivationTarget(
+            id: row.id,
+            ownerProcessIdentifier: row.ownerProcessIdentifier,
+            appName: row.appName,
+            displayTitle: row.displayTitle
+        )
+        var optimistically = presented
+        optimistically.remove(at: index)
+        await sendAndReconcile(
+            Reconciliation(
+                operation: .closeWindow,
+                row: row,
+                optimistic: optimistically,
+                send: { [closer] in closer.closeWindow(target) },
+                isDone: { fresh in !fresh.contains(where: { $0.id == row.id }) },
+                closesWhenEmpty: false
+            )
+        )
+    }
+
+    private func quit(naming id: WindowItem.Identifier?) async {
+        guard let (_, row) = resolve(id, for: .quitApplication) else {
+            return
+        }
+        let pid = row.ownerProcessIdentifier
+        let optimistic = presented.filter { $0.ownerProcessIdentifier != pid }
+        await sendAndReconcile(
+            Reconciliation(
+                operation: .quitApplication,
+                row: row,
+                optimistic: optimistic,
+                send: { [quitter] in quitter.quitApplication(processIdentifier: pid) },
+                isDone: { fresh in !fresh.contains(where: { $0.ownerProcessIdentifier == pid }) },
+                closesWhenEmpty: true
+            )
+        )
+    }
+
+    private func hide(naming id: WindowItem.Identifier?) async {
+        guard let (_, row) = resolve(id, for: .hideApplication) else {
+            return
+        }
+        let pid = row.ownerProcessIdentifier
+        let optimistic = presented.map { item in
+            item.ownerProcessIdentifier == pid ? item.settingHidden(true) : item
+        }
+        await sendAndReconcile(
+            Reconciliation(
+                operation: .hideApplication,
+                row: row,
+                optimistic: optimistic,
+                send: { [hider] in hider.hideApplication(processIdentifier: pid) },
+                isDone: { fresh in
+                    !fresh.contains(where: { $0.ownerProcessIdentifier == pid && !$0.isHidden })
+                },
+                closesWhenEmpty: false
+            )
+        )
+    }
+
+    private func minimize(naming id: WindowItem.Identifier?) async {
+        guard let (_, row) = resolve(id, for: .minimizeWindow) else {
+            return
+        }
+        let target = ActivationTarget(
+            id: row.id,
+            ownerProcessIdentifier: row.ownerProcessIdentifier,
+            appName: row.appName,
+            displayTitle: row.displayTitle
+        )
+        let optimistic = presented.map { $0.id == row.id ? $0.settingMinimized(true) : $0 }
+        await sendAndReconcile(
+            Reconciliation(
+                operation: .minimizeWindow,
+                row: row,
+                optimistic: optimistic,
+                send: { [minimizer] in minimizer.minimizeWindow(target) },
+                isDone: { fresh in
+                    fresh.first(where: { $0.id == row.id })?.isMinimized != false
+                },
+                closesWhenEmpty: false
+            )
+        )
+    }
+}

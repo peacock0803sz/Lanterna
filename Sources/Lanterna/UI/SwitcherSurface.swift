@@ -45,6 +45,15 @@ protocol SwitcherSurface {
     /// panel — not its size, not its position, and writing no line.
     func showSelection(_ id: WindowItem.Identifier?)
 
+    /// Shows a small failure note under the list, growing the panel by the
+    /// note's height with the top edge kept; `clearNotice` gives that height
+    /// back. The note says the operation could not be done; the why belongs
+    /// on the diagnostics line.
+    func showNotice(_ text: String)
+
+    /// Takes the failure note down, if one is up.
+    func clearNotice()
+
     /// Swaps the rows on screen for a narrowed set, redrawing the query and
     /// the header beside them, and changes nothing about the panel's place —
     /// not its position, and writing no line. Only the height follows the
