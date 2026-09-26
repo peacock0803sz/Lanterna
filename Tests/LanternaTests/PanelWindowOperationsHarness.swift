@@ -53,6 +53,21 @@ struct FakeMinimizer: WindowMinimizing, Sendable {
     }
 }
 
+/// Counts the requests a scripted sender was asked to make. Locked, since
+/// the senders are called through `@Sendable` closures.
+final class SentCount: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    var value: Int {
+        lock.withLock { count }
+    }
+
+    func add() {
+        lock.withLock { count += 1 }
+    }
+}
+
 /// A box so the harness counts refreshes, interruptions and empty closes.
 final class OperationCounts {
     var refreshes = 0

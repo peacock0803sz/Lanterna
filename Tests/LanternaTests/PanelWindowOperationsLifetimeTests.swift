@@ -2,21 +2,6 @@ import Foundation
 @testable import Lanterna
 import Testing
 
-/// Counts the requests a scripted sender was asked to make. Locked, since
-/// the senders are called through `@Sendable` closures.
-private final class SentCount: @unchecked Sendable {
-    private let lock = NSLock()
-    private var count = 0
-
-    var value: Int {
-        lock.withLock { count }
-    }
-
-    func add() {
-        lock.withLock { count += 1 }
-    }
-}
-
 /// An operation outlives the keystroke that started it: its reconciling
 /// waits for a fresh list, and the panel can go, or a later one come up,
 /// before that list arrives.

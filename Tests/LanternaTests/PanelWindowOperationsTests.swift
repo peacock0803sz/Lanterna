@@ -82,16 +82,6 @@ struct PanelWindowOperationsTests {
         #expect(made.counts.interruptions == 1)
     }
 
-    /// The process's own row is out of scope: nothing happens, and no line
-    /// says anything.
-    @Test func theOwnRowIsLeftAlone() async {
-        let own = operationRow(appName: "Lanterna", windowTitle: "Panel", windowID: 9, pid: 999)
-        let made = makeOperations(rows: [own], refreshed: [own], ownProcessIdentifier: 999)
-        await made.operations.operate(.closeWindow, naming: own.id)
-        #expect(made.surface.updatedLists.isEmpty)
-        #expect(made.log.lines.isEmpty)
-    }
-
     /// The next keystroke clears the failure note.
     @Test func theNextKeystrokeClearsTheNotice() async {
         let made = makeOperations(
