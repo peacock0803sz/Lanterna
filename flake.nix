@@ -46,6 +46,14 @@
             entry = "${pkgs.shellcheck}/bin/shellcheck";
             files = "\\.sh$";
           };
+          config-schema = {
+            enable = true;
+            entry = "${pkgs.writeShellScript "config-schema-hook" ''
+              exec bash scripts/regenerate-config.sh --check
+            ''}";
+            files = "^config/";
+            pass_filenames = false;
+          };
           swiftformat = {
             enable = true;
             entry = "${pkgs.swiftformat}/bin/swiftformat";
@@ -132,6 +140,7 @@
           packages = with pkgs; [
             actionlint
             pinact
+            pkl
             shellcheck
             swiftformat
             swiftlint

@@ -1,0 +1,28 @@
+// Schema for Lanterna's config file (config.json).
+//
+// Source of truth for shape and defaults. Validation lives in Swift
+// (AppConfiguration.swift), which mirrors the rules below.
+// Regenerate the JSON Schema and the snapshot when this changes:
+// scripts/regenerate-config.sh.
+module lanterna.Config
+
+/// A lower bound declared for one integer key.
+///
+/// Read by config/GenJsonSchema.pkl and mirrored by the Swift validation.
+/// Keeping the bound here makes the schema document derive it.
+open class Minimum extends Annotation {
+  value: Int
+}
+
+/// Schema generation. Stays 1 for this revision.
+version: Int = 1
+
+/// Fixture entries to show instead of live windows.
+/// Absent means live windows. Must be zero or more when present.
+@Minimum { value = 0 }
+sampleCount: Int? = null
+
+/// Intentional monitor stops, in whole seconds, so recovery can be watched.
+/// Absent means an ordinary run. Must be one or more when present.
+@Minimum { value = 1 }
+stopMonitorEvery: Int? = null

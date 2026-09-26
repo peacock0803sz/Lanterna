@@ -1,0 +1,36 @@
+// Generates config/config-schema.json from ConfigSchema.pkl.
+//
+// Run scripts/regenerate-config.sh to refresh the document. Do not edit the
+// output by hand; change the schema and regenerate instead.
+import "pkl:reflect"
+import "ConfigSchema.pkl" as schema
+
+local props = reflect.Module(schema).moduleClass.properties
+
+local function minimumOf(prop: reflect.Property): Int? =
+  prop.annotations.filter((it) -> it is schema.Minimum).firstOrNull?.value
+
+local function fragment(prop: reflect.Property): Dynamic =
+  if (minimumOf(prop) == null)
+    new {
+      ["type"] = "integer"
+      description = prop.docComment
+    }
+  else
+    new {
+      ["type"] = "integer"
+      description = prop.docComment
+      ["minimum"] = minimumOf(prop)
+    }
+
+`$schema` = "https://json-schema.org/draft/2020-12/schema"
+`$comment` = "Generated from ConfigSchema.pkl. Do not edit by hand."
+title = "Lanterna config"
+description = "Settings vessel for Lanterna. Strict: unknown keys invalidate the whole file."
+type = "object"
+properties = new {
+  for (name, prop in props) {
+    [name] = fragment(prop)
+  }
+}
+additionalProperties = false

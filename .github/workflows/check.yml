@@ -61,6 +61,17 @@ jobs:
           tar -xzf /tmp/pinact_linux_amd64.tar.gz -C /tmp/pinact-bin pinact
           /tmp/pinact-bin/pinact run --verify --check
 
+  config-regen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - name: Check schema snapshot
+        run: nix develop --command bash scripts/regenerate-config.sh --check
+
   swift-build:
     needs: nix-validate
     strategy:

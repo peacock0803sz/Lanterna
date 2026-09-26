@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Generated from ConfigSchema.pkl. Do not edit by hand.",
+  "title": "Lanterna config",
+  "description": "Settings vessel for Lanterna. Strict: unknown keys invalidate the whole file.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "description": "Schema generation. Stays 1 for this revision.",
+      "type": "integer"
+    },
+    "sampleCount": {
+      "description": "Fixture entries to show instead of live windows.\nAbsent means live windows. Must be zero or more when present.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "stopMonitorEvery": {
+      "description": "Intentional monitor stops, in whole seconds, so recovery can be watched.\nAbsent means an ordinary run. Must be one or more when present.",
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "additionalProperties": false
+}
