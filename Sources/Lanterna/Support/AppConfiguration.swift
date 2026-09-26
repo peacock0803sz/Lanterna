@@ -277,7 +277,8 @@ extension AppConfiguration {
         return .success((sampleCount, stopMonitorEvery))
     }
 
-    /// Assembles the validated configuration, reading the display modes last.
+    /// Assembles the validated configuration, reading the display modes and
+    /// then, last, the appearance mode.
     private static func checkedConfiguration(
         _ dict: [String: Any],
         version: Int,

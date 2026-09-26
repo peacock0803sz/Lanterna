@@ -3,8 +3,8 @@ import AppKit
 /// Which appearance the panel and the guide windows use.
 ///
 /// Mirrors the config file values (`"system"`, `"light"`, `"dark"`).
-/// Absent keys mean `system`, the long-standing behaviour of following
-/// the system appearance. Kept apart from `DisplayMode`: that one decides
+/// An absent key means `system`: unless the file says otherwise, the
+/// windows follow the system appearance. Kept apart from `DisplayMode`: that one decides
 /// where rows go, this one only how the windows look.
 enum AppearanceMode: String, Sendable {
     /// Follow the system appearance, whatever it currently is.
