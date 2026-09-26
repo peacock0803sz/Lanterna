@@ -59,8 +59,8 @@ final class PanelFilter {
     /// Swaps the list underneath, keeping the query: the narrowing stays
     /// on over the new rows. The counts the commit and cancel lines print
     /// are recomputed against the new rows. A row a query hid while it
-    /// was chosen is not chosen again because the new list brings it back:
-    /// that happens with shortening, not with a swap.
+    /// was chosen is not chosen again merely because the new list brings
+    /// it back: that happens with shortening, not with a swap.
     func replace(fullWindows: [WindowItem]) {
         self.fullWindows = fullWindows
         state.takeSwappedIn(matched: WindowFilter.matching(state.query, against: fullWindows).map(\.id))
