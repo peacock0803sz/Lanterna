@@ -30,11 +30,11 @@ extension PanelExit {
         presentedWindows = windows
     }
 
-    /// Takes the panel down because a sent operation was never confirmed:
-    /// the reconciling passes kept finding its row unchanged, or none of
-    /// them could decide.
+    /// Takes the panel down because no reconciling pass confirmed a sent
+    /// operation: each pass still found the rows the operation should have
+    /// changed, or could not decide, in any mix.
     ///
-    /// Either is an interruption and not a failure: the operation was sent.
+    /// That is an interruption and not a failure: the operation was sent.
     /// The application's own dialog can be why, but a refusal or a pass
     /// that never read the application looks the same from here, so the
     /// line says only what is known, that the change was not confirmed.
