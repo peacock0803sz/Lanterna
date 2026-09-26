@@ -80,8 +80,8 @@ extension PanelPresenter {
     }
 
     /// The freshest list in the order the appearance draws, waiting for the
-    /// store's next completed pass — or less, when the store stops and
-    /// releases the wait with whatever it holds. Sorted without sweeping:
+    /// store's next completed pass — or, when the store stops and releases
+    /// the wait early, whatever list it already holds. Sorted without sweeping:
     /// the appearance already swept against its own snapshot.
     ///
     /// Rows of applications the pass could not read are carried over from
