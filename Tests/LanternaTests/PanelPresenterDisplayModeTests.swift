@@ -88,6 +88,20 @@ struct PanelPresenterDisplayModeTests {
         #expect(!surface.shownSelections.contains(hidden))
     }
 
+    /// The modes the presenter was built with reach the filter: the hidden
+    /// row stays out while the query is empty, and comes back once typing
+    /// matches it.
+    @Test func thePresentersModesReachTheFilter() {
+        let (presenter, surface) = presenter(modes: minimizedHidden)
+        presenter.handleHotkey(.filter, deliveryDelay: nil)
+        #expect(presenter.keyCommands.shownWindows.map(\.id) == [rows[0].id, rows[2].id, rows[3].id])
+        for character in "buried" {
+            _ = presenter.handleKeyStroke(press(kVK_ANSI_A, characters: String(character)))
+        }
+        #expect(surface.updatedLists.last?.map(\.id) == [rows[1].id])
+        #expect(presenter.selection.chosenID == rows[1].id)
+    }
+
     /// Opens a panel over rows arriving in the given order, and holds the
     /// arrows to the order the view draws them in: the panel is handed the
     /// rows as the view splits them, and one lap of the arrows from the
