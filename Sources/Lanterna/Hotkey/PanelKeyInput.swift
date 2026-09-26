@@ -284,12 +284,13 @@ enum PanelKeyInput {
             return .commit(.keypadEnter)
         case kVK_Escape:
             return .cancel(.escape)
-        // The one row that asks about modifiers at all. A bare full stop is
-        // somebody typing, and typing must not cancel. Every other row
-        // ignores them on purpose: the ordinary press is made with Command
-        // still down, while a run whose modifier monitor never started sees
-        // the same keys arrive bare after Command has been let go, and both
-        // have to work the same way.
+        // The one row of this table that asks about modifiers. A bare full
+        // stop is somebody typing, and typing must not cancel; the
+        // operations asked ahead of the table hold Command for the same
+        // reason. Every other row ignores them on purpose: the ordinary
+        // press is made with Command still down, while a run whose modifier
+        // monitor never started sees the same keys arrive bare after Command
+        // has been let go, and both have to work the same way.
         case kVK_ANSI_Period where keystroke.modifiers.contains(.command):
             return .cancel(.commandPeriod)
         case kVK_Delete:
@@ -307,7 +308,7 @@ enum PanelKeyInput {
         }
     }
 
-    /// Tab and the four operations, asked ahead of the table below. Tab
+    /// Tab and the window operations, asked ahead of the table below. Tab
     /// first, and whatever is held with it: Carbon has claimed Cmd+Tab and
     /// Shift+Cmd+Tab, and the selection moves through that route, so a Tab
     /// acted on here as well would move the selection two rows for one
