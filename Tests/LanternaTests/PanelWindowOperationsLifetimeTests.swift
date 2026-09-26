@@ -74,4 +74,27 @@ struct PanelWindowOperationsLifetimeTests {
         #expect(made.log.lines.contains { $0.contains("window operation (close Safari/Tabs)") })
         #expect(!made.log.lines.contains { $0.contains("Safari/Downloads") })
     }
+
+    /// An operation that has ended, whether reconciled or wound back after
+    /// sending failed, leaves the appearance free for the next one.
+    @Test(arguments: [false, true])
+    func theNextOperationRunsAfterOneEnds(failing: Bool) async {
+        let rows = rows
+        let made = makeOperations(rows: rows, refreshed: [rows[2]], close: { _ in failing ? .windowGone : nil })
+        await made.operations.operate(.closeWindow, naming: rows[0].id)
+        await made.operations.operate(.closeWindow, naming: rows[2].id)
+        #expect(!made.log.lines.contains { $0.contains("window operation dropped") })
+        #expect(made.log.lines.contains { $0.contains("Finder/AirDrop") })
+    }
+
+    /// An operation that found nothing to act on leaves the appearance
+    /// free for the next one too.
+    @Test func theNextOperationRunsAfterOneOutOfScope() async {
+        let rows = rows
+        let made = makeOperations(rows: rows, refreshed: [rows[1], rows[2]])
+        await made.operations.operate(.minimizeWindow, naming: nil)
+        await made.operations.operate(.closeWindow, naming: rows[0].id)
+        #expect(!made.log.lines.contains { $0.contains("window operation dropped") })
+        #expect(made.log.lines.contains { $0.contains("window operation (close Safari/Tabs)") })
+    }
 }
