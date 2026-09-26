@@ -5,11 +5,13 @@
 enum DisplayMode: String, Sendable {
     /// Mixed into the ordinary rows.
     case show
-    /// Kept out of the list without a query. A row matching the query
-    /// returns below the separator so it stays reachable.
+    /// Kept out of the list without a query. A row the query matches comes
+    /// back under the heading of the first of its kinds that hides it, so
+    /// it stays reachable.
     case hide
-    /// Parked below the separator, under the kind's heading unless an
-    /// earlier kind in drawing order parks the row too.
+    /// Parked below the ordinary rows, under the heading of the first of
+    /// the row's kinds that parks it. A row that another of its kinds
+    /// hides is not parked.
     case separateAtBottom
 }
 
