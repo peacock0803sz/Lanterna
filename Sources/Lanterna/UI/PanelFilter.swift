@@ -25,6 +25,9 @@ final class PanelFilter {
     /// invocation; a panel shown any other way leaves it off, and typing is
     /// swallowed as before.
     private(set) var isActive = false
+    /// How the special kinds show. Read at launch from the config file;
+    /// the panel keeps the rows and this decides which reach the screen.
+    var displayModes = DisplayModes.defaults
     private let selection: PanelSelection
     private let surface: any SwitcherSurface
 
@@ -135,11 +138,23 @@ final class PanelFilter {
     /// Narrows the rows, follows the choice onto them, and tells the panel,
     /// drawing once. The exits resolve off the whole shown list: identities
     /// are unique, so a narrowed row reads back as itself either way.
+    ///
+    /// Policy runs here alone: `begin` and both `replace` variants only keep
+    /// the whole list, so hiding applies exactly once no matter the entry.
     private func apply() {
-        let matched = WindowFilter.matching(state.query, against: fullWindows)
-        let matchedIDs = matched.map(\.id)
-        let chosen = state.resolveSelection(matched: matchedIDs, incoming: selection.chosenID)
-        selection.retarget(to: matchedIDs, selecting: chosen)
+        let matchedIDs = Set(WindowFilter.matching(state.query, against: fullWindows).map(\.id))
+        let candidates = fullWindows.filter { row in
+            DisplayModes.placement(
+                of: row,
+                modes: displayModes,
+                queryIsEmpty: state.query.isEmpty,
+                matchesQuery: matchedIDs.contains(row.id)
+            ) != .hidden
+        }
+        let matched = WindowFilter.matching(state.query, against: candidates)
+        let matchedList = matched.map(\.id)
+        let chosen = state.resolveSelection(matched: matchedList, incoming: selection.chosenID)
+        selection.retarget(to: matchedList, selecting: chosen)
         surface.updateList(windows: matched, selecting: selection.chosenID, query: state.query, filterActive: isActive)
         lastSummary = FilterLogSummary(
             query: state.query,
