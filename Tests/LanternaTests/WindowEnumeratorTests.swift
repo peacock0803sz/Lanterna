@@ -38,9 +38,10 @@ private func record(
     _ windowID: CGWindowID,
     title: String = "Downloads",
     kind: WindowKind = .standard,
-    isMinimized: Bool = false
+    isMinimized: Bool = false,
+    isFullscreen: Bool = false
 ) -> WindowRecord {
-    WindowRecord(windowID: windowID, title: title, kind: kind, isMinimized: isMinimized)
+    WindowRecord(windowID: windowID, title: title, kind: kind, isMinimized: isMinimized, isFullscreen: isFullscreen)
 }
 
 private func read(
@@ -148,10 +149,11 @@ struct WindowEnumeratorTests {
     @Test func recordDetailReachesTheRow() {
         let result = snapshot(
             applications: [application(100)],
-            reads: [100: read([record(10, kind: .dialog, isMinimized: true)])]
+            reads: [100: read([record(10, kind: .dialog, isMinimized: true), record(11, isFullscreen: true)])]
         )
         #expect(result.items.first?.kind == .dialog)
-        #expect(result.items.first?.isMinimized == true)
+        #expect(result.items.map(\.isMinimized) == [true, false])
+        #expect(result.items.map(\.isFullscreen) == [false, true])
     }
 
     @Test func idsAreUniqueAcrossTheWholeList() {
