@@ -118,15 +118,16 @@ final class SwitcherPanel: NSPanel {
         )
         // The height is pushed down from the window, because the hosting view
         // has no sizing options and so cannot push one up.
+        let query = hostingView.rootView.query
+        let filterActive = hostingView.rootView.filterActive
         setContentSize(
             NSSize(
                 width: PanelMetrics.width,
-                height: PanelMetrics.height(
-                    rowCount: PanelMetrics.drawnRowCount(
-                        windows,
-                        modes: displayModes,
-                        query: hostingView.rootView.query
-                    )
+                height: min(
+                    PanelMetrics.height(
+                        rowCount: PanelMetrics.drawnRowCount(windows, modes: displayModes, query: query)
+                    ) + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
+                    PanelMetrics.maximumHeight
                 )
             )
         )
@@ -146,9 +147,17 @@ final class SwitcherPanel: NSPanel {
     /// on the first row. `shownSelection` reads the drawn choice back off the
     /// view, which is what lets the tests of this class put a real panel up
     /// twice and hold the second appearance to the row it was given.
-    func present(windows: [WindowItem], selecting: WindowItem.Identifier?) {
+    ///
+    /// The query and the chrome are set before the swap for the same
+    /// reason: the swap carries them over too, and a query left from the
+    /// last appearance would keep narrowing the rows drawn while the
+    /// choice steps through all of them. Every appearance opens on an
+    /// empty query, with the chrome on only when it opened filtering.
+    func present(windows: [WindowItem], selecting: WindowItem.Identifier?, filterActive: Bool = false) {
         appearances += 1
         notice = nil
+        hostingView.rootView.query = ""
+        hostingView.rootView.filterActive = filterActive
         update(windows: windows)
         hostingView.rootView.appearanceToken = appearances
         showSelection(selecting)

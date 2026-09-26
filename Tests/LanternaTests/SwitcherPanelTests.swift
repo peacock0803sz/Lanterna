@@ -1,5 +1,6 @@
 import AppKit
 @testable import Lanterna
+import SwiftUI
 import Testing
 
 /// `defer: true` means no window-server window is created, so an instance can
@@ -113,6 +114,23 @@ struct SwitcherPanelTests {
             panel.contentRect(forFrameRect: panel.frame).height
                 == PanelMetrics.height(rowCount: 2)
                 + PanelMetrics.filterChromeHeight(query: rows[2].appName, filterActive: true)
+        )
+    }
+
+    /// A query typed in one appearance is gone when the next one opens:
+    /// the view draws every row it is handed, and the height counts them
+    /// all. The chrome follows what the appearance says, not the last one.
+    @Test func anAppearanceOpensOnAnEmptyQuery() {
+        let panel = panel(rowCount: 5)
+        let rows = SampleWindows.make(count: 3)
+        panel.updateList(windows: [], selecting: nil, query: "x", filterActive: true)
+        panel.present(windows: rows, selecting: rows[1].id)
+        let view = (panel.contentView as? NSHostingView<SwitcherView>)?.rootView
+        #expect(view?.query == "")
+        #expect(view?.filterActive == false)
+        #expect(
+            panel.contentRect(forFrameRect: panel.frame).height
+                == PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(rows, query: ""))
         )
     }
 

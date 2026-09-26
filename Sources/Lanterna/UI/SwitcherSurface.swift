@@ -18,7 +18,9 @@ protocol SwitcherSurface {
     /// Whether key presses are reaching the panel at this instant.
     var isTakingKeys: Bool { get }
 
-    /// Puts the panel up showing this list, with this row drawn as chosen.
+    /// Puts the panel up showing this list, with this row drawn as chosen,
+    /// on an empty query, with the filter chrome on exactly when the
+    /// appearance opened filtering.
     ///
     /// **Takes no keys.** That is `takeKeys()`, and the separation is the
     /// most load-bearing thing in this protocol. The tests of the real panel
@@ -29,7 +31,7 @@ protocol SwitcherSurface {
     /// not: it would only turn "do not call the other method" into "do not
     /// pass true", which is the same thing to remember in a place where
     /// forgetting is quieter.
-    func present(windows: [WindowItem], selecting: WindowItem.Identifier?)
+    func present(windows: [WindowItem], selecting: WindowItem.Identifier?, filterActive: Bool)
 
     /// Asks for key presses, and answers whether they will arrive.
     ///

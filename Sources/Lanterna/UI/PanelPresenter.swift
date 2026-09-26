@@ -310,7 +310,7 @@ final class PanelPresenter {
         let shown = keyCommands.shownWindows
         selection.beginSecond(shown.map(\.id))
         operations.begin(windows: ordered)
-        surface.present(windows: shown, selecting: selection.chosenID)
+        surface.present(windows: shown, selecting: selection.chosenID, filterActive: keyCommands.isFilteringActive)
         let becameKey = surface.takeKeys()
         wayOut.nowShowing(ordered, startedAt: startedAt)
         let measurement = HotkeyMeasurement(

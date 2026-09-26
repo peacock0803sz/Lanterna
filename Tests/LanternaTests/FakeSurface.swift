@@ -30,6 +30,8 @@ final class FakeSurface: SwitcherSurface {
     private(set) var updatedQueries: [String] = []
     /// Whether the filter chrome was on for each swap.
     private(set) var updatedActives: [Bool] = []
+    /// Whether each appearance opened with the filter chrome on.
+    private(set) var presentedActives: [Bool] = []
     /// The row each appearance was told to draw as chosen.
     private(set) var presentedSelections: [WindowItem.Identifier?] = []
     /// Every row the panel was told to redraw as chosen, in order. The count
@@ -74,8 +76,9 @@ final class FakeSurface: SwitcherSurface {
     /// is what separates them.
     var onDismiss: (@MainActor () -> Void)?
 
-    func present(windows: [WindowItem], selecting: WindowItem.Identifier?) {
+    func present(windows: [WindowItem], selecting: WindowItem.Identifier?, filterActive: Bool = false) {
         presentedLists.append(windows)
+        presentedActives.append(filterActive)
         presentedSelections.append(selecting)
         calls.append(.present(selecting: selecting))
         isPresented = true

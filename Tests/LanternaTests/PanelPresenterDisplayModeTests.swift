@@ -78,6 +78,7 @@ struct PanelPresenterDisplayModeTests {
         let hidden = rows[1].id
         presenter.handleHotkey(combination, deliveryDelay: nil)
         #expect(surface.presentedLists.first?.map(\.id) == [rows[0].id, rows[2].id, rows[3].id])
+        #expect(surface.presentedActives == [combination == .filter])
         #expect(presenter.selection.chosenID == rows[2].id)
         var visited: [WindowItem.Identifier?] = []
         for _ in 0 ..< rows.count * 2 {
