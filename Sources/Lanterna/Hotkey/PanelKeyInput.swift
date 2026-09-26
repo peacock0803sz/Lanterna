@@ -72,8 +72,9 @@ enum PanelKeyAction: Equatable, Sendable {
     case selectPrevious
     case commit(CommitKey)
     case cancel(CancelKey)
-    /// An operation on the chosen row. Read before the filtering row: a
-    /// Command letter that would type is an operation instead.
+    /// An operation on the chosen row. Read before the filtering row: an
+    /// operation key held with Command is an operation even where its
+    /// letter would type, while any other Command letter still narrows.
     case windowOperation(WindowOperation)
     /// A letter or a confirmed string: narrows the list on screen.
     case filterText(String)

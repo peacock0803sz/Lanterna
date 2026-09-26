@@ -150,8 +150,9 @@ struct PanelKeyInputTests {
         )
     }
 
-    /// The operations win over filtering: a Command letter that would type
-    /// is an operation, while any other Command letter still narrows.
+    /// The operations win over filtering: an operation key held with
+    /// Command is an operation even where its letter would type, while any
+    /// other Command letter still narrows.
     @Test func theOperationKeysWinOverFiltering() {
         #expect(
             PanelKeyInput.action(for: press(kVK_ANSI_W, .command, characters: "w"))
