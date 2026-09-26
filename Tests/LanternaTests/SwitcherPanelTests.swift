@@ -62,6 +62,17 @@ struct SwitcherPanelTests {
         #expect(contentRect.height == PanelMetrics.height(rowCount: rowCount))
     }
 
+    /// A list with parked rows draws the separator above them as a row of
+    /// its own, and the height makes room for it, so the last parked row
+    /// is not cut off below the panel's edge.
+    @Test func aParkedGroupMakesRoomForItsSeparator() {
+        let panel = panel(rowCount: 5)
+        let windows = SampleWindows.make(count: 3)
+        panel.update(windows: [windows[0], windows[1], windows[2].settingHidden(true)])
+        let contentRect = panel.contentRect(forFrameRect: panel.frame)
+        #expect(contentRect.height == PanelMetrics.height(rowCount: 4))
+    }
+
     /// Swapping the list must not cost a new hosting view: rebuilding the view
     /// tree on every appearance is exactly what keeping one panel avoids.
     @Test func updateKeepsTheHostingViewItAlreadyHas() {

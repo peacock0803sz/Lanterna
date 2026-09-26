@@ -34,7 +34,7 @@ final class SwitcherPanel: NSPanel {
                 x: 0,
                 y: 0,
                 width: PanelMetrics.width,
-                height: PanelMetrics.height(rowCount: content.windows.count)
+                height: PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(content.windows))
             ),
             // Borderless is the absence of `.titled`, so it needs no flag.
             styleMask: [.nonactivatingPanel],
@@ -110,7 +110,7 @@ final class SwitcherPanel: NSPanel {
         setContentSize(
             NSSize(
                 width: PanelMetrics.width,
-                height: PanelMetrics.height(rowCount: windows.count)
+                height: PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(windows))
             )
         )
         centerOnMainDisplay()
@@ -198,7 +198,7 @@ final class SwitcherPanel: NSPanel {
             filterActive: filterActive
         )
         let height = min(
-            PanelMetrics.height(rowCount: windows.count)
+            PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(windows))
                 + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
             PanelMetrics.maximumHeight
         )
