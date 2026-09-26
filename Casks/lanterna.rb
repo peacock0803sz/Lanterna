@@ -2,10 +2,10 @@
 # No zap stanza: the app keeps no persistent user files outside the app
 # bundle itself, so there is nothing to clean up on uninstall.
 cask "lanterna" do
-  version "0.4.3"
-  sha256 "7342905f0300c324094b2591fc5fd1381cd11a613b3007d6db79e1f1e109ae0e"
+  version "0.4.4"
+  sha256 "028e3ca7d210571d80a6112019433222da0c0846447cf933ae8916b04dfd30c7"
 
-  url "https://github.com/peacock0803sz/Lanterna/releases/download/v0.4.3/Lanterna-0.4.3.dmg",
+  url "https://github.com/peacock0803sz/Lanterna/releases/download/v0.4.4/Lanterna-0.4.4.dmg",
       verified: "github.com/peacock0803sz/Lanterna/"
   name "Lanterna"
   desc "List-style window switcher for macOS"
