@@ -232,6 +232,32 @@ struct PanelFilterTests {
         #expect(made.selection.chosenID == made.rows[1].id)
     }
 
+    /// Swapping the list underneath keeps the query: the narrowing stays
+    /// on over the new rows.
+    @Test func replacingTheListKeepsTheQuery() {
+        let made = makeFilter()
+        made.filter.append("safa")
+        let renewed = [
+            filterListRow(appName: "Safari", windowTitle: "Tabs", windowID: 10),
+            filterListRow(appName: "Finder", windowTitle: "AirDrop", windowID: 11),
+        ]
+        made.filter.replace(fullWindows: renewed)
+        #expect(made.surface.updatedQueries.last == "safa")
+        #expect(made.surface.updatedLists.last?.map(\.id) == [renewed[0].id])
+        #expect(made.selection.chosenID == renewed[0].id)
+    }
+
+    /// With an empty query the swap shows everything, as before.
+    @Test func replacingWithAnEmptyQueryShowsEverything() {
+        let made = makeFilter()
+        let renewed = [
+            filterListRow(appName: "Safari", windowTitle: "Tabs", windowID: 10),
+            filterListRow(appName: "Finder", windowTitle: "AirDrop", windowID: 11),
+        ]
+        made.filter.replace(fullWindows: renewed)
+        #expect(made.surface.updatedLists.last?.map(\.id) == renewed.map(\.id))
+    }
+
     /// A commit names a row of the narrowed snapshot, not of the whole list.
     @Test func aCommitNamesARowOfTheNarrowedSnapshot() {
         let made = makeFilter()

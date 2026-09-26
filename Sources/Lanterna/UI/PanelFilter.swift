@@ -48,6 +48,14 @@ final class PanelFilter {
         apply()
     }
 
+    /// Swaps the list underneath, keeping the query: the narrowing stays
+    /// on over the new rows. What the commit and cancel lines will say is
+    /// recomputed, so no line names a row this appearance never showed.
+    func replace(fullWindows: [WindowItem]) {
+        self.fullWindows = fullWindows
+        apply()
+    }
+
     /// Gives the appearance up; the next one starts empty either way.
     func reset() {
         fullWindows = []
