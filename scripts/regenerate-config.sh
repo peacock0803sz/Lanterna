@@ -1,29 +1,35 @@
 #!/usr/bin/env bash
-# Regenerates the schema snapshot from ConfigSchema.pkl.
+# Regenerates config artifacts from ConfigSchema.pkl.
 #
-# The snapshot is the mechanical rendering of the schema's defaults. When it
-# changes, update AppConfiguration.swift and the scaffold to match, so the
-# three (schema, types, scaffold) stay as one. CI runs --check.
+# Outputs: config/schema-snapshot.json (the schema's rendered defaults) and
+# config/config-schema.json (the JSON Schema document). When either changes,
+# update AppConfiguration.swift to match, so the three (schema, types,
+# scaffold) stay as one. CI runs --check.
 #
-# First run canonicalizes config/schema-snapshot.json; commit the result.
+# First run canonicalizes both files; commit the result.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 mode="${1:---write}"
 snapshot="config/schema-snapshot.json"
-tmp="${TMPDIR:-/tmp}/lanterna-schema-$$"
-trap 'rm -f "$tmp"' EXIT
+schema_doc="config/config-schema.json"
+tmp_snapshot="${TMPDIR:-/tmp}/lanterna-schema-$$"
+tmp_schema="${TMPDIR:-/tmp}/lanterna-jsonschema-$$"
+trap 'rm -f "$tmp_snapshot" "$tmp_schema"' EXIT
 
-pkl eval --format json config/ConfigSchema.pkl > "$tmp"
+pkl eval --format json config/ConfigSchema.pkl > "$tmp_snapshot"
+pkl eval --format json config/GenJsonSchema.pkl > "$tmp_schema"
 
 if [ "$mode" = "--check" ]; then
-    if [ ! -f "$snapshot" ]; then
-        echo "missing $snapshot; run scripts/regenerate-config.sh" >&2
+    if [ ! -f "$snapshot" ] || [ ! -f "$schema_doc" ]; then
+        echo "missing generated files; run scripts/regenerate-config.sh" >&2
         exit 1
     fi
-    diff -u "$snapshot" "$tmp"
+    diff -u "$snapshot" "$tmp_snapshot"
+    diff -u "$schema_doc" "$tmp_schema"
 else
     mkdir -p config
-    cp "$tmp" "$snapshot"
+    cp "$tmp_snapshot" "$snapshot"
+    cp "$tmp_schema" "$schema_doc"
 fi
