@@ -1,0 +1,21 @@
+# Triage use only. bug/enhancement stay manual.
+# Renovate handling relies on head-branch so lock-file-only PRs are caught
+# even when only flake.lock changes.
+
+dependencies:
+  - any:
+      - head-branch: ['^renovate/']
+      - changed-files:
+          - any-glob-to-any-file: ['flake.lock', 'docs/pnpm-lock.yaml', 'Package.resolved']
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file: ['docs/**', 'specs/**', '**/*.md']
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: ['.github/**', 'scripts/**', 'flake.nix', 'Casks/**']
+
+swift:
+  - changed-files:
+      - any-glob-to-any-file: ['Sources/**', 'Tests/**', 'Package.swift', 'Assets/**', 'config/**']
