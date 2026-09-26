@@ -17,6 +17,29 @@ private final class ScriptBox: @unchecked Sendable {
     }
 }
 
+/// A box so scripted terminations cross into sendable closures.
+private final class TerminationBox: @unchecked Sendable {
+    var terminated = false
+}
+
+/// A scripted application: answers what terminating and hiding come to.
+private struct FakeControllableApplication: ControllableApplication {
+    let terminateAnswer: @Sendable () -> Bool
+    let hideAnswer: @Sendable () -> Bool
+    init(terminate: @escaping @Sendable () -> Bool, hide: @escaping @Sendable () -> Bool) {
+        terminateAnswer = terminate
+        hideAnswer = hide
+    }
+
+    func terminate() -> Bool {
+        terminateAnswer()
+    }
+
+    func hide() -> Bool {
+        hideAnswer()
+    }
+}
+
 /// A box so scripted elements cross into sendable closures.
 private final class ElementBox: @unchecked Sendable {
     let windows: [AXUIElement]
@@ -122,6 +145,45 @@ struct WindowOperationTests {
     @Test func aMissingTargetIsWindowGone() {
         let (made, _) = closer(script: ScriptBox.Script(), windows: [], windowIDs: [:])
         #expect(made.closeWindow(target()) == .windowGone)
+    }
+
+    /// Quitting asks the application to terminate, and a missing one is
+    /// gone rather than broken.
+    @Test func quittingTerminatesTheApplication() {
+        let box = TerminationBox()
+        let quitter = LiveApplicationQuitter(findApplication: { _ in
+            FakeControllableApplication(terminate: {
+                box.terminated = true
+                return true
+            }, hide: { true })
+        })
+        #expect(quitter.quitApplication(processIdentifier: 123) == nil)
+        #expect(box.terminated)
+    }
+
+    @Test func quittingAMissingApplicationIsGone() {
+        let quitter = LiveApplicationQuitter(findApplication: { _ in nil })
+        #expect(quitter.quitApplication(processIdentifier: 123) == .applicationGone)
+    }
+
+    /// Hiding hides the application, and a refusal is a failure.
+    @Test func hidingHidesTheApplication() {
+        let box = TerminationBox()
+        let hider = LiveApplicationHider(findApplication: { _ in
+            FakeControllableApplication(terminate: { true }, hide: {
+                box.terminated = true
+                return true
+            })
+        })
+        #expect(hider.hideApplication(processIdentifier: 123) == nil)
+        #expect(box.terminated)
+    }
+
+    @Test func aRefusedHideFails() {
+        let hider = LiveApplicationHider(findApplication: { _ in
+            FakeControllableApplication(terminate: { true }, hide: { false })
+        })
+        #expect(hider.hideApplication(processIdentifier: 123) != nil)
     }
 
     @Test func theFourOperationsAreDistinct() {
