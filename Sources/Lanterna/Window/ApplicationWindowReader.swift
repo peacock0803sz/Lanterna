@@ -2,8 +2,9 @@ import ApplicationServices
 import PrivateAPIs
 
 /// The accessibility name of the fullscreen flag. Not in the SDK headers,
-/// so it travels as a string: reading an unknown name answers "no value",
-/// which the call below already reads as not fullscreen.
+/// so it travels as a string: a window that does not know the name answers
+/// unsupported or no value, both of which read as nil and so as not
+/// fullscreen.
 let fullscreenAttributeName = "AXFullScreen"
 
 /// One window of one application, in a shape that can cross threads.

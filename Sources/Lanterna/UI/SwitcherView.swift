@@ -66,7 +66,7 @@ struct SwitcherView: View {
         DisplayModes.sections(of: windows, modes: modes, query: query)
     }
 
-    /// The heading over one subgroup. Plain words, settled separately.
+    /// The heading over one subgroup, in plain words.
     private func heading(for subgroup: DisplaySubgroup) -> String {
         switch subgroup {
         case .otherSpace:
