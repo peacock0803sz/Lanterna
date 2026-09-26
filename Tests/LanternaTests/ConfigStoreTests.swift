@@ -3,11 +3,11 @@ import Foundation
 import Testing
 
 struct ConfigStoreTests {
-    private static func decode(_ text: String) -> Result<DecodedConfiguration, ConfigDecodeError> {
+    private func decode(_ text: String) -> Result<DecodedConfiguration, ConfigDecodeError> {
         AppConfiguration.decode(Data(text.utf8))
     }
 
-    private static func tempDirectory() throws -> URL {
+    private func tempDirectory() throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
@@ -99,6 +99,32 @@ struct ConfigStoreTests {
     @Test func mruKeysAreRejectedAndNeverStored() throws {
         let error = try #require(decode("{\"version\": 1, \"mru\": []}").failureValue)
         #expect(error == .unknownKey("mru"))
+    }
+
+    @Test func existingFilesAreLeftUntouched() throws {
+        let base = try tempDirectory()
+        let url = AppConfiguration.configFileURL(applicationSupport: base)
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let original = "{\"version\": 1, \"sampleCount\": 3}"
+        try Data(original.utf8).write(to: url)
+        let (outcome, found) = AppConfiguration.loadOrScaffold(applicationSupport: base)
+        #expect(found == url)
+        guard case let .loaded(decoded) = outcome else {
+            Issue.record("expected loaded, found \(outcome)")
+            return
+        }
+        #expect(decoded.config.sampleCount == 3)
+        #expect(try String(contentsOf: url, encoding: .utf8) == original)
+    }
+
+    @Test func missingFilesAreScaffolded() throws {
+        let base = try tempDirectory()
+        let (outcome, url) = AppConfiguration.loadOrScaffold(applicationSupport: base)
+        #expect(outcome == .created)
+        #expect(try String(contentsOf: url, encoding: .utf8) == AppConfiguration.scaffoldJSON)
     }
 
     @Test func scaffoldWritesDefaults() throws {
