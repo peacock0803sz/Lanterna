@@ -62,6 +62,10 @@ final class OperationCounts {
 /// A refresh the test holds open, so the panel can be made to go — or a
 /// later appearance come up — while an operation is genuinely waiting for
 /// its list rather than whenever two tasks happen to interleave.
+///
+/// Holds one refresh at a time. A second one asked while the first is held
+/// answers an empty list at once, so a run that asks twice fails on what
+/// it then does rather than waiting on a refresh nobody releases.
 @MainActor
 final class HeldRefresh {
     private(set) var askedCount = 0
@@ -72,6 +76,7 @@ final class HeldRefresh {
         askedCount += 1
         asked?.resume()
         asked = nil
+        guard release == nil else { return [] }
         return await withCheckedContinuation { release = $0 }
     }
 
