@@ -6,7 +6,7 @@ import Testing
 struct PanelWindowOperationsOwnRowTests {
     /// The process's own row is out of scope for every operation: nothing
     /// is sent, and no line says anything.
-    @Test(arguments: [WindowOperation.closeWindow, .quitApplication, .hideApplication, .minimizeWindow])
+    @Test(arguments: WindowOperation.allCases)
     func theOwnRowIsLeftAlone(operation: WindowOperation) async {
         let own = operationRow(appName: "Lanterna", windowTitle: "Panel", windowID: 9, pid: 999)
         let sent = SentCount()

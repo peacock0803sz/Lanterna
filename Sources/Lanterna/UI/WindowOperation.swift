@@ -3,7 +3,7 @@
 /// Closing and minimizing act on the window, quitting and hiding on the
 /// application that owns it. The log names are one to one with the values, so
 /// a line names an operation exactly one way.
-enum WindowOperation: Equatable, Sendable {
+enum WindowOperation: Equatable, Sendable, CaseIterable {
     case closeWindow
     case quitApplication
     case hideApplication
