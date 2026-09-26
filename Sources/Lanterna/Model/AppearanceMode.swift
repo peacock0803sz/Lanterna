@@ -1,4 +1,4 @@
-import SwiftUI
+import AppKit
 
 /// Which appearance the panel and the guide windows use.
 ///
@@ -27,16 +27,6 @@ enum AppearanceMode: String, Sendable {
         case .system: nil
         case .light: NSAppearance(named: .aqua)
         case .dark: NSAppearance(named: .darkAqua)
-        }
-    }
-
-    /// The scheme the hosted views are told to use. `nil` leaves the
-    /// system in charge, which is what `system` means.
-    var colorScheme: ColorScheme? {
-        switch self {
-        case .system: nil
-        case .light: .light
-        case .dark: .dark
         }
     }
 }

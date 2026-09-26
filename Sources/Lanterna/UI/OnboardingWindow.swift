@@ -96,10 +96,8 @@ final class OnboardingWindow: NSWindow {
             defer: false
         )
         title = "Lanterna needs permissions"
-        contentView = NSHostingView(
-            rootView: OnboardingView(missing: missing, opener: opener)
-                .preferredColorScheme(appearanceMode.colorScheme)
-        )
+        appearance = appearanceMode.nsAppearance
+        contentView = NSHostingView(rootView: OnboardingView(missing: missing, opener: opener))
         center()
     }
 }

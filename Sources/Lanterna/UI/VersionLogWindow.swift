@@ -45,11 +45,12 @@ final class VersionLogWindow: NSWindow {
             defer: false
         )
         title = "Lanterna Version and Logs"
+        appearance = appearanceMode.nsAppearance
         contentView = NSHostingView(rootView: VersionLogView(
             version: version,
             summary: summary,
             entries: entries
-        ).preferredColorScheme(appearanceMode.colorScheme))
+        ))
         center()
     }
 }

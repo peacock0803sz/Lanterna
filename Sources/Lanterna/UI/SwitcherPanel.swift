@@ -33,9 +33,7 @@ final class SwitcherPanel: NSPanel {
         appearanceMode: AppearanceMode = .system
     ) {
         self.displayModes = displayModes
-        self.appearanceMode = appearanceMode
         hostingView = NSHostingView(rootView: content)
-        hostingView.rootView.appearanceMode = appearanceMode
         super.init(
             contentRect: NSRect(
                 x: 0,
@@ -60,6 +58,9 @@ final class SwitcherPanel: NSPanel {
         // frame is exactly the content frame.
         hasShadow = false
         hidesOnDeactivate = false
+        // The light or dark look is set on the window, not on the root view,
+        // so swapping in a new root view cannot drop it.
+        appearance = appearanceMode.nsAppearance
 
         // With no sizing options the SwiftUI intrinsic size cannot change the
         // window's content size or its minimum and maximum sizes.
@@ -86,10 +87,6 @@ final class SwitcherPanel: NSPanel {
     /// How the special kinds show, read at launch from the config file.
     /// Kept here so the height counts what the view draws.
     var displayModes = DisplayModes.defaults
-
-    /// Which appearance the list draws in, read at launch from the config
-    /// file. Carried into every rebuilt root view like the choice is.
-    var appearanceMode = AppearanceMode.system
 
     /// Whether the panel is currently on screen.
     var isPresented: Bool {
@@ -121,8 +118,7 @@ final class SwitcherPanel: NSPanel {
             appearanceToken: hostingView.rootView.appearanceToken,
             query: hostingView.rootView.query,
             filterActive: hostingView.rootView.filterActive,
-            modes: displayModes,
-            appearanceMode: appearanceMode
+            modes: displayModes
         )
         // The height is pushed down from the window, because the hosting view
         // has no sizing options and so cannot push one up.
@@ -230,8 +226,7 @@ final class SwitcherPanel: NSPanel {
             appearanceToken: hostingView.rootView.appearanceToken,
             query: query,
             filterActive: filterActive,
-            modes: displayModes,
-            appearanceMode: appearanceMode
+            modes: displayModes
         )
         let height = min(
             PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(windows, modes: displayModes, query: query))
