@@ -75,6 +75,49 @@
             ''}";
             types = [ "swift" ];
           };
+          # The docs site's own tools, run from docs/node_modules so the hooks
+          # use the versions pinned in docs/pnpm-lock.yaml; `pnpm install` in
+          # docs/ is required first. Node comes from nixpkgs because the dev
+          # shell does not provide one.
+          docs-prettier = {
+            enable = true;
+            entry = "${pkgs.writeShellScript "docs-prettier" ''
+              export PATH="${pkgs.nodejs_24}/bin:$PATH"
+              cd docs || exit 1
+              exec ./node_modules/.bin/prettier --check --ignore-unknown "''${@#docs/}"
+            ''}";
+            files = "^docs/";
+          };
+          docs-textlint-ja = {
+            enable = true;
+            entry = "${pkgs.writeShellScript "docs-textlint-ja" ''
+              export PATH="${pkgs.nodejs_24}/bin:$PATH"
+              cd docs || exit 1
+              exec ./node_modules/.bin/textlint --config .textlintrc.ja.json "''${@#docs/}"
+            ''}";
+            files = "^docs/src/content/docs/ja/.*\\.mdx?$";
+          };
+          docs-textlint-en = {
+            enable = true;
+            entry = "${pkgs.writeShellScript "docs-textlint-en" ''
+              export PATH="${pkgs.nodejs_24}/bin:$PATH"
+              cd docs || exit 1
+              exec ./node_modules/.bin/textlint --config .textlintrc.en.json "''${@#docs/}"
+            ''}";
+            files = "^docs/src/content/docs/en/.*\\.mdx?$";
+          };
+          # Type checks the whole site, so it takes no file names and runs
+          # once whenever a file it reads changes.
+          docs-astro-check = {
+            enable = true;
+            entry = "${pkgs.writeShellScript "docs-astro-check" ''
+              export PATH="${pkgs.nodejs_24}/bin:$PATH"
+              cd docs || exit 1
+              exec ./node_modules/.bin/astro check
+            ''}";
+            files = "^docs/(astro\\.config\\.mjs|src/.*\\.(astro|ts|mdx?))$";
+            pass_filenames = false;
+          };
         };
 
         # Equivalent to  inputs'.nixpkgs.legacyPackages.hello;
