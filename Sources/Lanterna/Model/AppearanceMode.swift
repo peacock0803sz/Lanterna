@@ -20,6 +20,16 @@ enum AppearanceMode: String, Sendable {
         config.appearanceMode ?? .system
     }
 
+    /// The look a window is given. `nil` leaves the window following the
+    /// system, which is what `system` means.
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
+        }
+    }
+
     /// The scheme the hosted views are told to use. `nil` leaves the
     /// system in charge, which is what `system` means.
     var colorScheme: ColorScheme? {
