@@ -1,0 +1,103 @@
+---
+title: Usage
+description: Basic operation, filtering, window actions, links, and troubleshooting
+---
+
+import LinkList from "../../../components/LinkList.astro";
+import PillLink from "../../../components/PillLink.astro";
+import SwitchSequence from "../../../components/SwitchSequence.astro";
+
+## Basic operation
+
+<SwitchSequence
+  steps={[
+    { label: "Hold", keys: ["⌘"], text: "Keep holding Cmd" },
+    {
+      label: "Step",
+      keys: ["Tab"],
+      repeat: true,
+      text: "Press Tab for the next window",
+    },
+    { label: "Release", keys: ["⌘"], text: "Release Cmd to switch" },
+  ]}
+/>
+
+|                                        |                                                                                               |
+| -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| <kbd>⌘</kbd><kbd>Tab</kbd>             | Shows the switcher. Keep holding `Cmd` and press `Tab` to move, then release `Cmd` to switch. |
+| <kbd>⇧</kbd><kbd>⌘</kbd><kbd>Tab</kbd> | Moves in the reverse direction.                                                               |
+
+## Filtering
+
+<SwitchSequence
+  steps={[
+    { label: "Open", keys: ["⌘", "Space"], text: "Open in filter mode" },
+    { label: "Type", keys: ["A–Z"], text: "Type to narrow the list" },
+    { label: "Switch", keys: ["↩"], text: "Switch to the chosen window" },
+  ]}
+/>
+
+|                              |                                                                                                                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <kbd>⌘</kbd><kbd>Space</kbd> | Shows the switcher in filter mode. In this mode, releasing `Cmd` does not close it. Pressing it in a switcher opened with `Cmd+Tab` switches that switcher to filter mode. |
+| <kbd>A–Z</kbd>               | Keeps only the rows whose app name or window title contains what you typed. Case is ignored.                                                                               |
+| <kbd>↑</kbd><kbd>↓</kbd>     | Moves the selection.                                                                                                                                                       |
+| <kbd>↩</kbd>                 | Switches to the chosen window.                                                                                                                                             |
+| <kbd>⌫</kbd>                 | Deletes one character.                                                                                                                                                     |
+| <kbd>esc</kbd>               | Clears what you typed. With nothing typed, closes the switcher.                                                                                                            |
+
+:::note
+While Lanterna runs, the Spotlight `Cmd+Space` shortcut is off. It comes back when you quit Lanterna.
+:::
+
+## Window actions
+
+While the switcher is up, hold `Cmd` and press one of these keys to act on the chosen row. The switcher stays up and the list updates in place.
+
+|                          |                       |
+| ------------------------ | --------------------- |
+| <kbd>⌘</kbd><kbd>W</kbd> | Closes the window.    |
+| <kbd>⌘</kbd><kbd>Q</kbd> | Quits the app.        |
+| <kbd>⌘</kbd><kbd>H</kbd> | Hides the app.        |
+| <kbd>⌘</kbd><kbd>M</kbd> | Minimizes the window. |
+
+Hidden apps and minimized windows move below a separator in the list. If an action fails, the list goes back to how it was and a short note appears. You cannot act on Lanterna's own row.
+
+## Links
+
+<LinkList
+  links={[
+    {
+      key: "Repo",
+      label: "GitHub repository",
+      href: "https://github.com/peacock0803sz/Lanterna",
+      display: "github.com/peacock0803sz/Lanterna",
+    },
+    {
+      key: "Releases",
+      label: "Releases",
+      href: "https://github.com/peacock0803sz/Lanterna/releases",
+      display: "…/Lanterna/releases",
+    },
+    {
+      key: "License",
+      label: "LICENSE",
+      href: "https://github.com/peacock0803sz/Lanterna/blob/main/LICENSE",
+      display: "…/blob/main/LICENSE",
+    },
+    {
+      key: "Contributing",
+      label: "CONTRIBUTING",
+      href: "https://github.com/peacock0803sz/Lanterna/blob/main/CONTRIBUTING.md",
+      display: "…/blob/main/CONTRIBUTING.md",
+    },
+  ]}
+/>
+
+## Troubleshooting
+
+The troubleshooting steps live in the README, not on this page.
+
+<PillLink href="https://github.com/peacock0803sz/Lanterna#troubleshooting">
+  README troubleshooting
+</PillLink>

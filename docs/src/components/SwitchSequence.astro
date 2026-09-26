@@ -1,0 +1,114 @@
+---
+// The Cmd+Tab sequence drawn as a track of steps: hold, step, release.
+interface Step {
+  label: string;
+  keys: string[];
+  repeat?: boolean;
+  text: string;
+}
+
+interface Props {
+  steps: Step[];
+}
+
+const { steps } = Astro.props;
+---
+
+<ol class="sequence not-content">
+  {steps.map(({ label, keys, repeat, text }, index) => (
+    <li class:list={["step", { last: index === steps.length - 1 }]}>
+      <span class="track" aria-hidden="true">
+        <span class="node" />
+        <span class="line" />
+      </span>
+      <span class="label">
+        {String(index + 1).padStart(2, "0")} {label}
+      </span>
+      <span class="keys">
+        {keys.map((key) => (
+          <kbd>{key}</kbd>
+        ))}
+        {repeat && <span class="repeat">× n</span>}
+      </span>
+      <span class="text">{text}</span>
+    </li>
+  ))}
+</ol>
+
+<style>
+  .sequence {
+    display: grid;
+    /* One row even on phones: the track reads left to right, so it must not wrap. */
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 1.5rem 0;
+    margin: 0;
+    padding: 8px 0 28px;
+    list-style: none;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .track {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .node {
+    flex: none;
+    width: 9px;
+    height: 9px;
+    border: 1px solid var(--ln-ink);
+    border-radius: 50%;
+    background-color: var(--ln-surface);
+  }
+
+  .line {
+    flex: 1;
+    height: 1px;
+    margin-inline-end: 10px;
+    background-color: var(--ln-ink);
+  }
+
+  .last .node {
+    background-color: var(--ln-accent);
+  }
+
+  .last .line {
+    visibility: hidden;
+  }
+
+  .label {
+    font-family: var(--ln-font-mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    word-spacing: 0.5em;
+    color: var(--ln-secondary);
+  }
+
+  .keys {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .repeat {
+    font-family: var(--ln-font-mono);
+    font-size: 12px;
+    color: var(--ln-muted);
+  }
+
+  .text {
+    font-size: 14px;
+    line-height: 26px;
+    color: var(--ln-secondary);
+  }
+</style>

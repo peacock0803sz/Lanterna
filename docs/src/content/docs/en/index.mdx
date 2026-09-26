@@ -1,0 +1,63 @@
+---
+title: Lanterna
+description: A list-style window switcher for macOS
+template: splash
+hero:
+  title: Lanterna finds<br />the right window.
+  tagline: A list-style window switcher for macOS. It lists window titles without taking thumbnails, so the list is there the moment you press ⌘+Tab.
+  image:
+    file: ../../../assets/switcher-panel.png
+    alt: Screenshot of the Lanterna switcher panel
+  actions:
+    - text: Download
+      link: https://github.com/peacock0803sz/Lanterna/releases
+      variant: primary
+    - text: See usage
+      link: /en/usage/
+      variant: minimal
+---
+
+import Legend from "../../../components/Legend.astro";
+import LegendEntries from "../../../components/LegendEntries.astro";
+import LegendEntry from "../../../components/LegendEntry.astro";
+
+<Legend
+  eyebrow="SECTION A — SYMBOLS & ABBREVIATIONS"
+  title="What is Lanterna"
+  id="what-is-lanterna"
+>
+  Unlike the system switcher, Lanterna lists windows without thumbnails. It
+  appears instantly and uses almost no memory.
+</Legend>
+
+<LegendEntries>
+  <LegendEntry abbr="Lst" icon="list" index="A1" title="Thumbnail-free list">
+    A Contexts-style list of app icon and window title only, so the switcher
+    appears at once.
+  </LegendEntry>
+  <LegendEntry
+    abbr="Mru"
+    icon="history"
+    index="A2"
+    title="Window-level switching"
+  >
+    Switches at window level in most-recently-used order, with type-to-filter
+    search.
+  </LegendEntry>
+  <LegendEntry
+    abbr="2 Pm"
+    icon="key-round"
+    index="A3"
+    title="Two permissions only"
+  >
+    Uses Accessibility and Input Monitoring only. No Screen Recording needed.
+  </LegendEntry>
+  <LegendEntry
+    abbr="Si"
+    icon="cpu"
+    index="A4"
+    title="Apple Silicon and Liquid Glass"
+  >
+    Apple Silicon only, with Liquid Glass on Tahoe, living in the menu bar.
+  </LegendEntry>
+</LegendEntries>

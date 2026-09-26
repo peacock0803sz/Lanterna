@@ -1,0 +1,115 @@
+---
+import Search from "@astrojs/starlight/components/Search.astro";
+import { Image } from "astro:assets";
+import appIcon from "../assets/app-icon.png";
+import LanguageSelect from "./LanguageSelect.astro";
+import ThemeSelect from "./ThemeSelect.astro";
+
+const { siteTitle, siteTitleHref, sidebar } = Astro.locals.starlightRoute;
+
+// The home page is reached from the site title, so the header lists the other sheets only.
+const sheets = sidebar
+  .filter((entry) => entry.type === "link")
+  .slice(1)
+  .map(({ href, label, isCurrent }) => ({ href, label, isCurrent }));
+---
+
+<div class="header">
+  <a href={siteTitleHref} class="site-title">
+    <Image src={appIcon} alt="" width={30} height={30} class="logo" />
+    <span translate="no">{siteTitle}</span>
+  </a>
+  <nav class="links" aria-label="Main">
+    {sheets.map(({ href, label, isCurrent }) => (
+      <a href={href} aria-current={isCurrent ? "page" : undefined}>
+        {label}
+      </a>
+    ))}
+    <a href="https://github.com/peacock0803sz/Lanterna">GitHub</a>
+  </nav>
+  <div class="tools print:hidden">
+    <Search />
+    <div class="tools-secondary">
+      <LanguageSelect />
+      <ThemeSelect />
+    </div>
+  </div>
+</div>
+
+<style>
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    height: 100%;
+  }
+
+  .site-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--ln-font-serif);
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--ln-ink);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .site-title :global(.logo) {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+  }
+
+  .links {
+    display: none;
+    align-items: center;
+    gap: 36px;
+  }
+
+  .links a {
+    font-size: 14px;
+    color: var(--ln-secondary);
+    text-decoration: none;
+  }
+
+  .links a:hover,
+  .links a[aria-current="page"] {
+    color: var(--ln-ink);
+  }
+
+  .links a[aria-current="page"] {
+    font-weight: 600;
+  }
+
+  .tools,
+  .tools-secondary {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  /* On phones, sheet pages carry these in the menu instead; the menu button sits where they would be. */
+  @media (max-width: 49.99rem) {
+    :global([data-has-sidebar]) .tools-secondary {
+      display: none;
+    }
+  }
+
+  @media (min-width: 50rem) {
+    .header {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+    }
+
+    .links {
+      display: flex;
+    }
+
+    .tools {
+      justify-self: end;
+    }
+  }
+</style>

@@ -1,0 +1,12 @@
+<div class="legend-entries not-content">
+  <slot />
+</div>
+
+<style>
+  .legend-entries {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+    gap: 48px;
+    padding-top: 72px;
+  }
+</style>

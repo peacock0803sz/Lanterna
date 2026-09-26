@@ -1,0 +1,123 @@
+---
+// Chart neatline with alternating minute blocks, drawn like the border of a
+// nautical chart. The top variant carries its longitude labels above the
+// blocks, the bottom variant below them.
+interface Props {
+  position: "top" | "bottom";
+  class?: string;
+}
+
+const { position, class: className } = Astro.props;
+
+const labels = [
+  "10°30′E",
+  "35′",
+  "40′",
+  "45′",
+  "50′",
+  "55′",
+  "11°00′E",
+  "05′",
+  "10′",
+  "15′",
+  "20′",
+  "25′",
+  "30′",
+  "35′",
+  "40′",
+  "45′",
+];
+---
+
+<div class:list={["chart-border", position, className]} aria-hidden="true">
+  <div class="labels">
+    {labels.map((label) => (
+      <span>{label}</span>
+    ))}
+  </div>
+</div>
+
+<style>
+  .chart-border {
+    --ink: var(--ln-ink);
+    --paper: var(--ln-surface);
+    position: relative;
+    height: 36px;
+    overflow: hidden;
+    background-repeat: no-repeat, repeat-x, no-repeat, repeat-x, repeat-x;
+  }
+
+  .top {
+    background-image:
+      linear-gradient(var(--ink), var(--ink)),
+      repeating-linear-gradient(
+        90deg,
+        var(--ink) 0 36px,
+        var(--paper) 36px 72px
+      ),
+      linear-gradient(var(--ink), var(--ink)),
+      repeating-linear-gradient(90deg, var(--ink) 0 1px, transparent 1px 36px),
+      repeating-linear-gradient(90deg, var(--ink) 0 1px, transparent 1px 180px);
+    background-size:
+      100% 1px,
+      100% 9px,
+      100% 1px,
+      100% 4px,
+      100% 5px;
+    background-position:
+      0 25px,
+      0 26px,
+      0 35px,
+      0 21px,
+      108px 16px;
+  }
+
+  .bottom {
+    background-image:
+      linear-gradient(var(--ink), var(--ink)),
+      repeating-linear-gradient(
+        90deg,
+        var(--ink) 0 36px,
+        var(--paper) 36px 72px
+      ),
+      linear-gradient(var(--ink), var(--ink)),
+      repeating-linear-gradient(90deg, var(--ink) 0 1px, transparent 1px 36px),
+      repeating-linear-gradient(90deg, var(--ink) 0 1px, transparent 1px 180px);
+    background-size:
+      100% 1px,
+      100% 8px,
+      100% 1px,
+      100% 4px,
+      100% 5px;
+    background-position:
+      0 0,
+      0 1px,
+      0 9px,
+      0 10px,
+      108px 14px;
+  }
+
+  .labels {
+    position: absolute;
+    left: 113px;
+    display: flex;
+    font-family: var(--ln-font-mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    line-height: 1.2;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .top .labels {
+    top: 4px;
+  }
+
+  .bottom .labels {
+    top: 21px;
+  }
+
+  .labels span {
+    flex: 0 0 180px;
+  }
+</style>

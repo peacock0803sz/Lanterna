@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "preset-ja-technical-writing": {
+      "ja-no-mixed-period": {
+        "allowPeriodMarks": [":::"]
+      },
+      "no-mix-dearu-desumasu": {
+        "preferInList": "ですます"
+      }
+    }
+  }
+}

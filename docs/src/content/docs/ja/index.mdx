@@ -1,0 +1,60 @@
+---
+title: Lanterna
+description: macOS用のリスト式ウィンドウスイッチャー
+template: splash
+hero:
+  title: Lanterna finds<br />the right window.
+  tagline: macOS用のリスト式ウィンドウスイッチャー。サムネイルを撮らずにタイトルだけを並べるので、⌘+Tabを押した瞬間に一覧が出ます。
+  image:
+    file: ../../../assets/switcher-panel.png
+    alt: Lanternaのスイッチャーパネルのスクリーンショット
+  actions:
+    - text: ダウンロード
+      link: https://github.com/peacock0803sz/Lanterna/releases
+      variant: primary
+    - text: 使い方を見る
+      link: /ja/usage/
+      variant: minimal
+---
+
+import Legend from "../../../components/Legend.astro";
+import LegendEntries from "../../../components/LegendEntries.astro";
+import LegendEntry from "../../../components/LegendEntry.astro";
+
+<Legend
+  eyebrow="SECTION A — SYMBOLS & ABBREVIATIONS"
+  title="Lanternaとは"
+  id="lanternaとは"
+>
+  Lanternaはシステムの切り替え画面と違い、ウィンドウをリストで並べます。サムネイルを取らないので表示は一瞬で、メモリもほとんど使いません。
+</Legend>
+
+<LegendEntries>
+  <LegendEntry
+    abbr="Lst"
+    icon="list"
+    index="A1"
+    title="サムネイルなしのリスト表示"
+  >
+    アプリアイコンとウィンドウタイトルだけを並べるContexts風のリストなので、切り替え画面がすぐに出ます。
+  </LegendEntry>
+  <LegendEntry
+    abbr="Mru"
+    icon="history"
+    index="A2"
+    title="ウィンドウ単位の切り替え"
+  >
+    ウィンドウを最近使った順に切り替えます。文字を入力して一覧を絞り込むこともできます。
+  </LegendEntry>
+  <LegendEntry abbr="2 Pm" icon="key-round" index="A3" title="2つの権限だけ">
+    使う権限はアクセシビリティと入力監視だけで、画面収録は要りません。
+  </LegendEntry>
+  <LegendEntry
+    abbr="Si"
+    icon="cpu"
+    index="A4"
+    title="Apple SiliconとLiquid Glass"
+  >
+    Apple Silicon専用で、TahoeのLiquid Glassに対応したメニューバーアプリです。
+  </LegendEntry>
+</LegendEntries>

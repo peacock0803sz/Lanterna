@@ -1,0 +1,97 @@
+---
+import LucideIcon from "./LucideIcon.astro";
+import { sheetKey } from "../lib/sheets";
+
+const { pagination, sidebar } = Astro.locals.starlightRoute;
+const { prev, next } = pagination;
+
+const pagers = [
+  prev && {
+    ...prev,
+    rel: "prev",
+    dir: "Previous",
+    key: sheetKey(sidebar, prev.href),
+  },
+  next && {
+    ...next,
+    rel: "next",
+    dir: "Next",
+    key: sheetKey(sidebar, next.href),
+  },
+];
+---
+
+<div class="pagination-links print:hidden">
+  {pagers.map((pager) =>
+    pager ? (
+      <a href={pager.href} rel={pager.rel}>
+        <span class="dir">
+          {pager.dir}
+          {pager.key && ` · Sheet ${pager.key}`}
+        </span>
+        <span class="label">
+          {pager.rel === "prev" && <LucideIcon name="arrow-left" size={18} />}
+          {pager.label}
+          {pager.rel === "next" && <LucideIcon name="arrow-right" size={18} />}
+        </span>
+      </a>
+    ) : (
+      <span aria-hidden="true" />
+    ),
+  )}
+</div>
+
+<style>
+  .pagination-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding-top: 72px;
+  }
+
+  a {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 20px 22px;
+    border: 1px solid var(--ln-ink);
+    text-decoration: none;
+  }
+
+  a:hover {
+    background-color: var(--ln-hairline);
+  }
+
+  [rel="next"] {
+    align-items: flex-end;
+  }
+
+  .dir {
+    font-family: var(--ln-font-mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    word-spacing: 0.5em;
+    color: var(--ln-muted);
+  }
+
+  .label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--ln-font-heading);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ln-ink);
+  }
+
+  @media (max-width: 40rem) {
+    .pagination-links {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    span[aria-hidden] {
+      display: none;
+    }
+  }
+</style>

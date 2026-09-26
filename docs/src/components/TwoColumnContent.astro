@@ -1,0 +1,52 @@
+---
+// Based on Starlight's TwoColumnContent. On wide screens the table of contents
+// becomes a sticky column right after the article instead of a fixed pane at
+// the viewport edge, so the article and TOC keep the chart's fixed gutters.
+---
+
+<div class="two-column">
+  {Astro.locals.starlightRoute.toc && (
+    <aside class="right-sidebar-container print:hidden">
+      <div class="right-sidebar">
+        <slot name="right-sidebar" />
+      </div>
+    </aside>
+  )}
+  <div class="main-pane">
+    <slot />
+  </div>
+</div>
+
+<style>
+  .main-pane {
+    isolation: isolate;
+  }
+
+  @media (min-width: 72rem) {
+    :global([data-has-toc]) .two-column {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--ln-column-gap);
+      padding-inline-end: var(--sl-nav-pad-x);
+    }
+
+    .right-sidebar-container {
+      order: 2;
+      flex: 0 0 var(--ln-toc-width);
+      position: sticky;
+      top: var(--sl-nav-height);
+    }
+
+    .right-sidebar {
+      max-height: calc(100vh - var(--sl-nav-height));
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .main-pane {
+      order: 1;
+      flex: 0 1 var(--sl-content-width);
+      min-width: 0;
+    }
+  }
+</style>

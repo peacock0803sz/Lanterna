@@ -1,0 +1,103 @@
+---
+title: 使い方
+description: 基本操作、絞り込み、ウィンドウ操作、リンク、トラブルシューティング
+---
+
+import LinkList from "../../../components/LinkList.astro";
+import PillLink from "../../../components/PillLink.astro";
+import SwitchSequence from "../../../components/SwitchSequence.astro";
+
+## 基本操作
+
+<SwitchSequence
+  steps={[
+    { label: "Hold", keys: ["⌘"], text: "Cmdを押したまま" },
+    {
+      label: "Step",
+      keys: ["Tab"],
+      repeat: true,
+      text: "Tabで次のウィンドウへ",
+    },
+    { label: "Release", keys: ["⌘"], text: "Cmdを離すと切り替わる" },
+  ]}
+/>
+
+|                                        |                                                                                   |
+| -------------------------------------- | --------------------------------------------------------------------------------- |
+| <kbd>⌘</kbd><kbd>Tab</kbd>             | 切り替え画面を表示します。Cmdを押したままTabで移動し、Cmdを離すと切り替わります。 |
+| <kbd>⇧</kbd><kbd>⌘</kbd><kbd>Tab</kbd> | 逆方向に移動します。                                                              |
+
+## 絞り込み
+
+<SwitchSequence
+  steps={[
+    { label: "Open", keys: ["⌘", "Space"], text: "絞り込みモードで開く" },
+    { label: "Type", keys: ["A–Z"], text: "入力して一覧を絞る" },
+    { label: "Switch", keys: ["↩"], text: "選んだウィンドウに切り替わる" },
+  ]}
+/>
+
+|                              |                                                                                                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| <kbd>⌘</kbd><kbd>Space</kbd> | 切り替え画面を絞り込みモードで表示します。このモードではCmdを離しても閉じません。Cmd+Tabで開いた画面で押すと、そのまま絞り込みモードに切り替わります。 |
+| <kbd>A–Z</kbd>               | 入力した文字をアプリ名かウィンドウタイトルに含む行だけを残します。大文字と小文字は区別しません。                                                       |
+| <kbd>↑</kbd><kbd>↓</kbd>     | 選択を移動します。                                                                                                                                     |
+| <kbd>↩</kbd>                 | 選んだウィンドウに切り替えます。                                                                                                                       |
+| <kbd>⌫</kbd>                 | 入力を1文字消します。                                                                                                                                  |
+| <kbd>esc</kbd>               | 入力を消します。入力が空のときは切り替え画面を閉じます。                                                                                               |
+
+:::note
+Lanternaの起動中はSpotlightのCmd+Spaceが無効になり、Lanternaを終了すると元に戻ります。
+:::
+
+## ウィンドウ操作
+
+切り替え画面を開いている間にCmdを押しながら次のキーを押すと、選んでいる行のウィンドウやアプリを操作できます。操作しても切り替え画面は閉じず、一覧がその場で更新されます。
+
+|                          |                            |
+| ------------------------ | -------------------------- |
+| <kbd>⌘</kbd><kbd>W</kbd> | ウィンドウを閉じます。     |
+| <kbd>⌘</kbd><kbd>Q</kbd> | アプリを終了します。       |
+| <kbd>⌘</kbd><kbd>H</kbd> | アプリを隠します。         |
+| <kbd>⌘</kbd><kbd>M</kbd> | ウィンドウを最小化します。 |
+
+隠したアプリと最小化したウィンドウは、一覧の区切り線より下に並びます。操作に失敗したときは表示が元に戻り、短い通知が出ます。Lanterna自身の行は操作できません。
+
+## リンク
+
+<LinkList
+  links={[
+    {
+      key: "Repo",
+      label: "GitHubリポジトリ",
+      href: "https://github.com/peacock0803sz/Lanterna",
+      display: "github.com/peacock0803sz/Lanterna",
+    },
+    {
+      key: "Releases",
+      label: "Releases",
+      href: "https://github.com/peacock0803sz/Lanterna/releases",
+      display: "…/Lanterna/releases",
+    },
+    {
+      key: "License",
+      label: "LICENSE",
+      href: "https://github.com/peacock0803sz/Lanterna/blob/main/LICENSE",
+      display: "…/blob/main/LICENSE",
+    },
+    {
+      key: "Contributing",
+      label: "CONTRIBUTING",
+      href: "https://github.com/peacock0803sz/Lanterna/blob/main/CONTRIBUTING.md",
+      display: "…/blob/main/CONTRIBUTING.md",
+    },
+  ]}
+/>
+
+## トラブルシューティング
+
+対処手順はREADMEのトラブルシューティングにまとめてあり、このページには載せていません。
+
+<PillLink href="https://github.com/peacock0803sz/Lanterna#troubleshooting">
+  READMEのトラブルシューティング
+</PillLink>

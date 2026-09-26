@@ -1,0 +1,65 @@
+---
+import ChartBorder from "./ChartBorder.astro";
+
+const { hasSidebar } = Astro.locals.starlightRoute;
+---
+
+<footer class="site-footer print:hidden">
+  {hasSidebar && <ChartBorder position="bottom" />}
+  <div class="bar">
+    <div class="note">
+      <span class="note-label">NOTE</span>
+      <span class="note-text">
+        Soundings in milliseconds. Heights in windows.
+      </span>
+    </div>
+    <span class="credit">Lanterna · MIT · Built with Starlight</span>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    /* Sit above the fixed desktop sidebar, which runs to the bottom of the viewport. */
+    position: relative;
+    z-index: calc(var(--sl-z-index-menu) + 1);
+    background-color: var(--ln-surface);
+  }
+
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 40px var(--sl-nav-pad-x) 48px;
+  }
+
+  .note {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .note-label,
+  .credit {
+    font-family: var(--ln-font-mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .note-label {
+    color: var(--ln-ink);
+  }
+
+  .note-text {
+    font-family: var(--ln-font-serif);
+    font-size: 18px;
+    font-style: italic;
+    color: var(--ln-secondary);
+  }
+
+  .credit {
+    color: var(--ln-muted);
+  }
+</style>
