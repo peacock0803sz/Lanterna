@@ -1,0 +1,105 @@
+---
+// The chart legend on the home page: a section heading with its lead
+// paragraph, a scale bar, and the entries passed as children of LegendEntries.
+interface Props {
+  eyebrow: string;
+  title: string;
+  id?: string;
+}
+
+const { eyebrow, title, id } = Astro.props;
+---
+
+<section class="legend not-content">
+  <div class="legend-header">
+    <div class="heading">
+      <p class="eyebrow">{eyebrow}</p>
+      <h2 id={id}>{title}</h2>
+    </div>
+    <div class="lead">
+      <slot />
+    </div>
+  </div>
+  <div class="scale" aria-hidden="true"></div>
+</section>
+
+<style>
+  .legend {
+    display: flex;
+    flex-direction: column;
+    gap: 72px;
+    padding-top: 112px;
+  }
+
+  .legend-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 1.5rem 80px;
+  }
+
+  .heading {
+    display: flex;
+    flex: 1 1 24rem;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .eyebrow {
+    margin: 0;
+    font-family: var(--ln-font-mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    word-spacing: 0.5em;
+    color: var(--ln-secondary);
+  }
+
+  h2 {
+    margin: 0;
+    font-family: var(--ln-font-heading);
+    font-size: clamp(2.25rem, 4vw, 3rem);
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--ln-ink);
+  }
+
+  .lead {
+    flex: 0 1 440px;
+    font-size: 16px;
+    line-height: 30px;
+    color: var(--ln-secondary);
+  }
+
+  .lead :global(p) {
+    margin: 0;
+  }
+
+  .scale {
+    height: 14px;
+    background-image:
+      repeating-linear-gradient(
+        90deg,
+        var(--ln-ink) 0 1px,
+        transparent 1px 328px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        var(--ln-ink) 0 1px,
+        transparent 1px 82px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        var(--ln-ink) 0 1px,
+        transparent 1px 20.5px
+      );
+    background-size:
+      100% 14px,
+      100% 10px,
+      100% 5px;
+    background-position:
+      0 0,
+      0 4px,
+      0 9px;
+    background-repeat: no-repeat;
+  }
+</style>

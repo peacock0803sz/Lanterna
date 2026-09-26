@@ -1,0 +1,86 @@
+---
+import LucideIcon, { type LucideIconName } from "./LucideIcon.astro";
+
+interface Props {
+  /** The chart abbreviation set large in italics, e.g. "Lst". */
+  abbr: string;
+  icon: LucideIconName;
+  index: string;
+  title: string;
+}
+
+const { abbr, icon, index, title } = Astro.props;
+---
+
+<article class="entry">
+  <div class="symbol-row">
+    <span class="abbr" aria-hidden="true">
+      {abbr}
+    </span>
+    <span class="meta">
+      <LucideIcon name={icon} size={18} />
+      <span class="index">{index}</span>
+    </span>
+  </div>
+  <h3>{title}</h3>
+  <div class="body">
+    <slot />
+  </div>
+</article>
+
+<style>
+  .entry {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .symbol-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .abbr {
+    font-family: var(--ln-font-serif);
+    font-size: 52px;
+    font-style: italic;
+    line-height: 52px;
+    color: var(--ln-ink);
+    white-space: nowrap;
+  }
+
+  .meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    padding-bottom: 6px;
+    color: var(--ln-ink);
+  }
+
+  .index {
+    font-family: var(--ln-font-mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--ln-muted);
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--ln-ink);
+  }
+
+  .body {
+    font-size: 14px;
+    line-height: 25px;
+    color: var(--ln-secondary);
+  }
+
+  .body :global(p) {
+    margin: 0;
+  }
+</style>

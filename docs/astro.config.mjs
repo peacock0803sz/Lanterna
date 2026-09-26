@@ -54,6 +54,7 @@ export default defineConfig({
       components: {
         Footer: "./src/components/Footer.astro",
         Header: "./src/components/Header.astro",
+        Hero: "./src/components/Hero.astro",
         LanguageSelect: "./src/components/LanguageSelect.astro",
         PageFrame: "./src/components/PageFrame.astro",
         PageTitle: "./src/components/PageTitle.astro",

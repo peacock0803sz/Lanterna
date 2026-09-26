@@ -1,0 +1,263 @@
+---
+// Figure 1 of the chart: the coastal photograph with light sectors, soundings
+// and a compass rose drawn over it, and the switcher panel at its focus. The
+// plate keeps the 1440×680 proportions of the design so the overlay, drawn in
+// that coordinate space, stays registered with the photograph.
+import { Image } from "astro:assets";
+import lighthouse from "../assets/hero-lighthouse.jpg";
+import switcherPanel from "../assets/switcher-panel.png";
+
+interface Props {
+  alt: string;
+}
+
+const { alt } = Astro.props;
+
+const arcs = [
+  {
+    x: 137,
+    y: 30,
+    opacity: 0.35,
+    d: "M317.888 295.702C345.09 263.284 360 222.318 360 180C360 148.403 351.683 117.363 335.885 90L334.949 90.54C350.653 117.739 358.92 148.593 358.92 180C358.92 222.065 344.099 262.784 317.061 295.008L317.888 295.702Z",
+  },
+  {
+    x: 17,
+    y: -90,
+    opacity: 0.25,
+    d: "M545.746 472.073C581.058 421.641 600 361.566 600 300C600 265.005 593.877 230.279 581.908 197.394L580.216 198.01C592.114 230.697 598.2 265.215 598.2 300C598.2 361.196 579.372 420.911 544.271 471.04L545.746 472.073Z",
+  },
+  {
+    x: -123,
+    y: -230,
+    opacity: 0.18,
+    d: "M821.051 660C859.669 593.112 880 517.236 880 440C880 401.548 874.96 363.262 865.007 326.12L862.457 326.803C872.35 363.722 877.36 401.779 877.36 440C877.36 516.773 857.151 592.193 818.765 658.68L821.051 660Z",
+  },
+  {
+    x: -283,
+    y: -390,
+    opacity: 0.13,
+    d: "M1139.276 863.023C1179.233 781.099 1200 691.148 1200 600C1200 558.074 1195.606 516.263 1186.889 475.253L1183.367 476.001C1192.032 516.765 1196.4 558.325 1196.4 600C1196.4 690.602 1175.758 780.012 1136.041 861.445L1139.276 863.023Z",
+  },
+];
+
+const soundings: [number, number, string][] = [
+  [720, 608, "10"],
+  [1075, 560, "19"],
+  [964, 514, "16"],
+  [1105, 503, "20"],
+  [890, 591, "11"],
+  [1355, 612, "24"],
+  [884, 541, "12"],
+  [1152, 596, "20"],
+  [721, 574, "7"],
+  [995, 564, "18"],
+  [1366, 520, "24"],
+  [628, 512, "7"],
+  [1008, 603, "18"],
+];
+
+const compassTicks =
+  "M84 20l0 14m5.6-13.8l-0.4 4m5.9-3.2l-0.7 3.9m6.2-2.7l-1.1 3.8m6.4-2.1l-1.4 3.7m6.5-1.6l-1.6 3.6m6.6-1l-4.5 7.8m9.2-4.8l-2.3 3.3m6.7 0.1l-2.5 3m6.7 0.7l-2.9 2.9m6.6 1.3l-3 2.5m6.4 1.9l-3.3 2.3m6.3 2.4l-7.8 4.5m10.4 0.5l-3.6 1.6m5.7 3.5l-3.7 1.4m5.4 3.9l-3.8 1.1m5 4.4l-3.9 0.7m4.7 4.8l-4 0.4m4.2 5.2l-14 0m13.8 5.6l-4-0.4m3.2 5.9l-3.9-0.7m2.7 6.2l-3.8-1.1m2.1 6.4l-3.7-1.4m1.6 6.5l-3.6-1.6m1 6.6l-7.8-4.5m4.8 9.2l-3.3-2.3m-0.1 6.7l-3-2.5m-0.7 6.7l-2.9-2.9m-1.3 6.6l-2.5-3m-1.9 6.4l-2.3-3.3m-2.4 6.3l-4.5-7.8m-0.5 10.4l-1.6-3.6m-3.5 5.7l-1.4-3.7m-3.9 5.4l-1.1-3.8m-4.4 5l-0.7-3.9m-4.8 4.7l-0.4-4m-5.2 4.2l0-14m-5.6 13.8l0.4-4m-5.9 3.2l0.7-3.9m-6.2 2.7l1.1-3.8m-6.4 2.1l1.4-3.7m-6.5 1.6l1.6-3.6m-6.6 1l4.5-7.8m-9.2 4.8l2.3-3.3m-6.7-0.1l2.5-3m-6.7-0.7l2.9-2.9m-6.6-1.3l3-2.5m-6.4-1.9l3.3-2.3m-6.3-2.4l7.8-4.5m-10.4-0.5l3.6-1.6m-5.7-3.5l3.7-1.4m-5.4-3.9l3.8-1.1m-5-4.4l3.9-0.7m-4.7-4.8l4-0.4m-4.2-5.2l14 0m-13.8-5.6l4 0.4m-3.2-5.9l3.9 0.7m-2.7-6.2l3.8 1.1m-2.1-6.4l3.7 1.4m-1.6-6.5l3.6 1.6m-1-6.6l7.8 4.5m-4.8-9.2l3.3 2.3m0.1-6.7l3 2.5m0.7-6.7l2.9 2.9m1.3-6.6l2.5 3m1.9-6.4l2.3 3.3m2.4-6.3l4.5 7.8m0.5-10.4l1.6 3.6m3.5-5.7l1.4 3.7m3.9-5.4l1.1 3.8m4.4-5l0.7 3.9m4.8-4.7l0.4 4";
+---
+
+<figure class="plate">
+  <Image
+    src={lighthouse}
+    alt=""
+    class="photo"
+    widths={[960, 1440, 1920]}
+    sizes="118vw"
+  />
+  <div class="shade"></div>
+  <svg class="overlay" viewBox="0 0 1440 680" aria-hidden="true">
+    {arcs.map(({ x, y, opacity, d }) => (
+      <path
+        d={d}
+        transform={`translate(${x} ${y})`}
+        fill="#fff"
+        fill-opacity={opacity}
+      />
+    ))}
+    <g stroke="#fff" stroke-opacity="0.18" fill="none">
+      <path d="M317 210L1617 -350" />
+      <path d="M317 210L1617 590" />
+    </g>
+    <circle
+      cx="317"
+      cy="210"
+      r="3.5"
+      fill="none"
+      stroke="#fff"
+      stroke-opacity="0.8"
+    />
+    <g class="fine mono" font-size="11" letter-spacing="2">
+      <text x="333" y="237" fill="#fff" fill-opacity="0.9">
+        Fl ⌘⇥ 0.1s 0MB
+      </text>
+      <text x="333" y="255" fill="#fff" fill-opacity="0.5">
+        LANTERNA LT.
+      </text>
+      <text x="72" y="641" fill="#fff" fill-opacity="0.7">
+        FIG. 1 — ⌘ HELD, TAB × 2
+      </text>
+    </g>
+    <g fill="#fff">
+      <circle cx="43" cy="303" r="3" fill-opacity="0.33" />
+      <circle cx="43" cy="323" r="3" />
+      <circle cx="43" cy="343" r="3" fill-opacity="0.33" />
+      <circle cx="43" cy="363" r="3" fill-opacity="0.33" />
+    </g>
+    <g
+      class="fine serif"
+      font-size="13"
+      font-style="italic"
+      fill="#fff"
+      fill-opacity="0.4"
+    >
+      {soundings.map(([x, y, depth]) => (
+        <text x={x} y={y + 13}>
+          {depth}
+        </text>
+      ))}
+    </g>
+    <g stroke="#fff" stroke-opacity="0.7">
+      <path d="M0 210.5h12" />
+      <path d="M1428 210.5h12" />
+    </g>
+    <text
+      class="fine mono"
+      x="1370"
+      y="228"
+      font-size="10"
+      letter-spacing="1"
+      fill="#fff"
+      fill-opacity="0.7"
+    >
+      57°45′N
+    </text>
+    <g
+      class="compass"
+      transform="translate(1166 464)"
+      fill="none"
+      stroke="#fff"
+    >
+      <circle cx="84" cy="84" r="63.5" stroke-opacity="0.5" />
+      <circle cx="84" cy="84" r="51.5" stroke-opacity="0.35" />
+      <path d={compassTicks} stroke-opacity="0.6" />
+      <path d="M84 34l5 50-5 50-5-50z m-50 50l100 0" stroke-opacity="0.7" />
+      <text
+        class="serif"
+        x="80"
+        y="15"
+        font-size="14"
+        font-style="italic"
+        fill="#fff"
+        fill-opacity="0.85"
+        stroke="none"
+      >
+        N
+      </text>
+      <text
+        class="fine mono"
+        x="50"
+        y="166"
+        font-size="9"
+        letter-spacing="1"
+        fill="#fff"
+        fill-opacity="0.6"
+        stroke="none"
+      >
+        VAR 4°E 2026
+      </text>
+    </g>
+  </svg>
+  <Image
+    src={switcherPanel}
+    alt={alt}
+    class="switcher"
+    widths={[560, 1120]}
+    sizes="39vw"
+  />
+</figure>
+
+<style>
+  .plate {
+    position: relative;
+    margin: 0;
+    aspect-ratio: 1440 / 680;
+    overflow: hidden;
+    background-color: #1b2a40;
+  }
+
+  .plate :global(.photo) {
+    position: absolute;
+    left: -18.056%;
+    top: -11.029%;
+    width: 118.056%;
+    height: 166.618%;
+    max-width: none;
+  }
+
+  .shade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      #0b152659 0%,
+      #0b152614 55%,
+      #0b152666 100%
+    );
+  }
+
+  :global([data-theme="dark"]) .shade::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: var(--ln-night-dim);
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .overlay :is(path, circle) {
+    vector-effect: non-scaling-stroke;
+  }
+
+  .mono {
+    font-family: var(--ln-font-mono);
+  }
+
+  .serif {
+    font-family: var(--ln-font-serif);
+  }
+
+  .plate :global(.switcher) {
+    position: absolute;
+    left: 37.5%;
+    top: 31.176%;
+    width: 38.889%;
+    height: auto;
+    border-radius: clamp(4px, 0.7vw, 10px);
+    box-shadow:
+      0 4px 6px #00000014,
+      0 24px 60px #0000004d;
+  }
+
+  @media (max-width: 50rem) {
+    /* The overlay text scales with the plate and becomes illegible on phones. */
+    .fine {
+      display: none;
+    }
+
+    .plate :global(.switcher) {
+      left: 26%;
+      width: 60%;
+      top: 22%;
+    }
+  }
+</style>

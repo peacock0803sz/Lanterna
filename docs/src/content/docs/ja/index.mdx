@@ -3,10 +3,10 @@ title: Lanterna
 description: macOS用のリスト式ウィンドウスイッチャー
 template: splash
 hero:
-  title: Lanterna
-  tagline: macOS用のリスト式ウィンドウスイッチャー
+  title: Lanterna finds<br />the right window.
+  tagline: macOS用のリスト式ウィンドウスイッチャー。サムネイルを撮らずにタイトルだけを並べるので、⌘+Tabを押した瞬間に一覧が出ます。
   image:
-    file: ../../../assets/eyecatch.png
+    file: ../../../assets/switcher-panel.png
     alt: Lanternaのスイッチャーパネルのスクリーンショット
   actions:
     - text: ダウンロード
@@ -17,23 +17,44 @@ hero:
       variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import Legend from "../../../components/Legend.astro";
+import LegendEntries from "../../../components/LegendEntries.astro";
+import LegendEntry from "../../../components/LegendEntry.astro";
 
-## Lanternaとは
+<Legend
+  eyebrow="SECTION A — SYMBOLS & ABBREVIATIONS"
+  title="Lanternaとは"
+  id="lanternaとは"
+>
+  Lanternaはシステムの切り替え画面と違い、ウィンドウをリストで並べます。サムネイルを取らないので表示は一瞬で、メモリもほとんど使いません。
+</Legend>
 
-システムの切り替え画面とは異なり、Lanternaはウィンドウの一覧をリストで表示します。サムネイルを取らないため、表示は一瞬で、メモリ消費もほぼありません。
-
-<CardGrid>
-  <Card title="サムネイルなしのリスト表示" icon="list-format">
-    アプリアイコンとウィンドウタイトルだけのContexts風リストで、切り替え画面がすぐに出ます。
-  </Card>
-  <Card title="ウィンドウ単位の切り替え" icon="random">
-    最近使った順にウィンドウ単位で切り替えます。入力による絞り込みにも対応しています。
-  </Card>
-  <Card title="2つの権限だけ" icon="approve-check">
-    アクセシビリティと入力監視だけを使います。画面収録は不要です。
-  </Card>
-  <Card title="Apple SiliconとLiquid Glass" icon="rocket">
+<LegendEntries>
+  <LegendEntry
+    abbr="Lst"
+    icon="list"
+    index="A1"
+    title="サムネイルなしのリスト表示"
+  >
+    アプリアイコンとウィンドウタイトルだけを並べるContexts風のリストなので、切り替え画面がすぐに出ます。
+  </LegendEntry>
+  <LegendEntry
+    abbr="Mru"
+    icon="history"
+    index="A2"
+    title="ウィンドウ単位の切り替え"
+  >
+    ウィンドウを最近使った順に切り替えます。文字を入力して一覧を絞り込むこともできます。
+  </LegendEntry>
+  <LegendEntry abbr="2 Pm" icon="key-round" index="A3" title="2つの権限だけ">
+    使う権限はアクセシビリティと入力監視だけで、画面収録は要りません。
+  </LegendEntry>
+  <LegendEntry
+    abbr="Si"
+    icon="cpu"
+    index="A4"
+    title="Apple SiliconとLiquid Glass"
+  >
     Apple Silicon専用で、TahoeのLiquid Glassに対応したメニューバーアプリです。
-  </Card>
-</CardGrid>
+  </LegendEntry>
+</LegendEntries>

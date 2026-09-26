@@ -1,0 +1,144 @@
+---
+import ChartBorder from "./ChartBorder.astro";
+import ChartPlate from "./ChartPlate.astro";
+import LucideIcon from "./LucideIcon.astro";
+
+const { data } = Astro.locals.starlightRoute.entry;
+const { title = data.title, tagline, image, actions = [] } = data.hero || {};
+---
+
+<div class="hero">
+  <div class="intro">
+    <div class="heading">
+      <p class="eyebrow">
+        Chart No. 1 — A window switcher for <span>macOS</span>
+      </p>
+      <h1 id="_top" data-page-title set:html={title} />
+    </div>
+    <div class="descriptor">
+      {tagline && <p class="tagline" set:html={tagline} />}
+      {actions.length > 0 && (
+        <div class="actions">
+          {actions.map(({ link, text, variant, attrs }) =>
+            variant === "primary" ? (
+              <a href={link} class="action primary" {...attrs}>
+                <LucideIcon name="download" size={17} />
+                {text}
+              </a>
+            ) : (
+              <a href={link} class="action secondary" {...attrs}>
+                {text}
+                <LucideIcon name="arrow-right" size={16} />
+              </a>
+            ),
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+  <div class="bleed">
+    <ChartBorder position="top" />
+    <ChartPlate alt={image?.alt ?? ""} />
+    <ChartBorder position="bottom" />
+  </div>
+</div>
+
+<style>
+  .intro {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 2.5rem 80px;
+    padding: 72px 0 64px;
+  }
+
+  .heading {
+    display: flex;
+    flex: 1 1 32rem;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .eyebrow {
+    margin: 0;
+    font-family: var(--ln-font-mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    word-spacing: 0.5em;
+    color: var(--ln-secondary);
+  }
+
+  .eyebrow span {
+    text-transform: none;
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--ln-font-serif);
+    font-size: clamp(3rem, 6.2vw, 5.5rem);
+    font-weight: 400;
+    letter-spacing: -0.017em;
+    line-height: 1.1;
+    color: var(--ln-ink);
+  }
+
+  .descriptor {
+    display: flex;
+    flex: 0 1 440px;
+    flex-direction: column;
+    gap: 32px;
+    padding-bottom: 14px;
+  }
+
+  .tagline {
+    margin: 0;
+    font-size: 17px;
+    line-height: 31px;
+    color: var(--ln-secondary);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .action {
+    display: inline-flex;
+    align-items: center;
+    font-size: 15px;
+    text-decoration: none;
+    color: var(--ln-ink);
+  }
+
+  .primary {
+    gap: 10px;
+    padding: 14px 22px;
+    border-radius: 6px;
+    font-weight: 600;
+    background-color: var(--ln-accent);
+    color: var(--ln-on-accent);
+  }
+
+  .secondary {
+    gap: 8px;
+    padding: 13px 22px;
+    border: 1px solid var(--ln-ink);
+    border-radius: 9999px;
+    font-weight: 500;
+  }
+
+  .primary:hover {
+    filter: brightness(1.05);
+  }
+
+  .secondary:hover {
+    background-color: var(--ln-hairline);
+  }
+
+  /* Run the chart plate edge to edge, out of the centred content column. */
+  .bleed {
+    margin-inline: calc(50% - 50vw);
+  }
+</style>
