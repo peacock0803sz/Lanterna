@@ -33,7 +33,7 @@ enum RowPlacement: Equatable, Sendable {
     case separated(DisplaySubgroup)
 }
 
-/// The four display modes, and what they do to rows.
+/// One display mode for each special kind, and what they do to rows.
 ///
 /// Rows carry facts (`WindowItem` flags) and this carries policy, so a row
 /// never decides its own place.
@@ -43,8 +43,8 @@ struct DisplayModes: Equatable, Sendable {
     var minimized: DisplayMode
     var fullscreen: DisplayMode
 
-    /// The arrangement of record: minimized and hidden rows park below,
-    /// other-Space and fullscreen rows mix in.
+    /// The modes for keys the config file leaves out: minimized and hidden
+    /// rows park below, other-Space and fullscreen rows mix in.
     static let defaults = DisplayModes(
         otherSpace: .show,
         hiddenApp: .separateAtBottom,

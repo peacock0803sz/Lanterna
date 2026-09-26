@@ -28,8 +28,8 @@ struct WindowItem: Identifiable {
     /// Whether the owning application is hidden. Read with the names and
     /// icons, on the main thread, never by the parallel reading.
     let isHidden: Bool
-    /// Whether the window lives on another Space. False until the per-window
-    /// Space information arrives; unknown never hides.
+    /// Whether the window lives on another Space. Nothing reads per-window
+    /// Space yet, so live rows carry false; false never hides.
     let isOnOtherSpace: Bool
     /// Whether the window is natively fullscreen. Read as one AX attribute;
     /// a manually zoomed window is not fullscreen.
