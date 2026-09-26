@@ -72,7 +72,7 @@ struct PanelPresenterDisplayModeTests {
     /// Every combination that opens a panel narrows before the cursor and
     /// the panel are fed: the hidden row is not drawn, not chosen, and no
     /// run of the arrows lands on it.
-    @Test(arguments: [HotkeyCombination.forward, .filter])
+    @Test(arguments: [HotkeyCombination.forward, .reverse, .filter])
     func aHiddenRowIsNeverShownChosenOrSteppedOnto(combination: HotkeyCombination) {
         let (presenter, surface) = presenter(modes: minimizedHidden)
         let hidden = rows[1].id
