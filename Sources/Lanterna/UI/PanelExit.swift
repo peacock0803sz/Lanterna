@@ -301,10 +301,8 @@ final class PanelExit {
 
     /// The one place the panel comes off the screen.
     ///
-    /// The list goes with the panel. Nothing reads it while the panel is
-    /// down, so no sequence of calls can tell whether this line is here — it
-    /// is kept because a list outliving the panel it was drawn on could name
-    /// a row for an appearance that never showed it.
+    /// The list goes with the panel: a list outliving the panel it was
+    /// drawn on could name a row for an appearance that never showed it.
     ///
     /// Run beside the exit, by the ways out in its extension.
     func dismissPanel() {
