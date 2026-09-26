@@ -29,10 +29,13 @@ final class SwitcherPanel: NSPanel {
         content: SwitcherView = SwitcherView(
             windows: [], selectedID: nil, appearanceToken: 0, query: "", filterActive: false
         ),
-        displayModes: DisplayModes = .defaults
+        displayModes: DisplayModes = .defaults,
+        appearanceMode: AppearanceMode = .system
     ) {
         self.displayModes = displayModes
+        self.appearanceMode = appearanceMode
         hostingView = NSHostingView(rootView: content)
+        hostingView.rootView.appearanceMode = appearanceMode
         super.init(
             contentRect: NSRect(
                 x: 0,
@@ -84,6 +87,10 @@ final class SwitcherPanel: NSPanel {
     /// Kept here so the height counts what the view draws.
     var displayModes = DisplayModes.defaults
 
+    /// Which appearance the list draws in, read at launch from the config
+    /// file. Carried into every rebuilt root view like the choice is.
+    var appearanceMode = AppearanceMode.system
+
     /// Whether the panel is currently on screen.
     var isPresented: Bool {
         isVisible
@@ -114,7 +121,8 @@ final class SwitcherPanel: NSPanel {
             appearanceToken: hostingView.rootView.appearanceToken,
             query: hostingView.rootView.query,
             filterActive: hostingView.rootView.filterActive,
-            modes: displayModes
+            modes: displayModes,
+            appearanceMode: appearanceMode
         )
         // The height is pushed down from the window, because the hosting view
         // has no sizing options and so cannot push one up.
@@ -222,7 +230,8 @@ final class SwitcherPanel: NSPanel {
             appearanceToken: hostingView.rootView.appearanceToken,
             query: query,
             filterActive: filterActive,
-            modes: displayModes
+            modes: displayModes,
+            appearanceMode: appearanceMode
         )
         let height = min(
             PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(windows, modes: displayModes, query: query))

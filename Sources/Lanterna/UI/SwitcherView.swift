@@ -48,6 +48,10 @@ struct SwitcherView: View {
     /// How the special kinds show, read at launch from the config file.
     var modes: DisplayModes = .defaults
 
+    /// Which appearance this list draws in, read at launch from the config
+    /// file. `system` follows the OS; the fixed values pin the list.
+    var appearanceMode: AppearanceMode = .system
+
     /// The ordinary rows, drawing first and in the order they arrived.
     private var ordinaryRows: [WindowItem] {
         sections.ordinary
@@ -190,5 +194,6 @@ struct SwitcherView: View {
         // nothing, so it draws exactly as it did before.
         .padding(.vertical, PanelMetrics.verticalPadding)
         .adaptiveGlass()
+        .preferredColorScheme(appearanceMode.colorScheme)
     }
 }
