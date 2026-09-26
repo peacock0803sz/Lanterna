@@ -56,6 +56,29 @@ struct ConfigStoreTests {
         #expect(effective.stopMonitorEvery == .seconds(7))
     }
 
+    /// The display modes come from the file, present keys winning and
+    /// absent ones falling back to the defaults, whatever the command
+    /// line says.
+    @Test func displayModesComeFromTheFile() throws {
+        let file = ValidConfiguration(
+            version: 1,
+            sampleCount: nil,
+            stopMonitorEverySeconds: nil,
+            hiddenAppMode: .show,
+            fullscreenMode: .hide
+        )
+        let cli = try LaunchArguments.parse(["Lanterna", "--sample-count", "5"])
+        let effective = AppConfiguration.effectiveOptions(file: file, cli: cli)
+        #expect(
+            effective.displayModes == DisplayModes(
+                otherSpace: DisplayModes.defaults.otherSpace,
+                hiddenApp: .show,
+                minimized: DisplayModes.defaults.minimized,
+                fullscreen: .hide
+            )
+        )
+    }
+
     @Test func configFileURLLivesUnderLanterna() {
         let base = URL(fileURLWithPath: "/tmp/ConfigStoreTests", isDirectory: true)
         #expect(
