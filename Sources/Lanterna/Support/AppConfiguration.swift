@@ -21,6 +21,7 @@ enum AppConfiguration {
     static let knownKeys: Set<String> = [
         "version", "sampleCount", "stopMonitorEvery",
         "otherSpaceMode", "hiddenAppMode", "minimizedMode", "fullscreenMode",
+        "appearanceMode",
     ]
 
     /// The scaffold written when no file exists (FR-012).
@@ -42,6 +43,7 @@ struct ValidConfiguration: Equatable, Sendable {
     var hiddenAppMode: DisplayMode?
     var minimizedMode: DisplayMode?
     var fullscreenMode: DisplayMode?
+    var appearanceMode: AppearanceMode?
 
     init(
         version: Int,
@@ -50,7 +52,8 @@ struct ValidConfiguration: Equatable, Sendable {
         otherSpaceMode: DisplayMode? = nil,
         hiddenAppMode: DisplayMode? = nil,
         minimizedMode: DisplayMode? = nil,
-        fullscreenMode: DisplayMode? = nil
+        fullscreenMode: DisplayMode? = nil,
+        appearanceMode: AppearanceMode? = nil
     ) {
         self.version = version
         self.sampleCount = sampleCount
@@ -59,6 +62,7 @@ struct ValidConfiguration: Equatable, Sendable {
         self.hiddenAppMode = hiddenAppMode
         self.minimizedMode = minimizedMode
         self.fullscreenMode = fullscreenMode
+        self.appearanceMode = appearanceMode
     }
 }
 
@@ -298,6 +302,12 @@ extension AppConfiguration {
                 return .failure(error)
             }
         }
+        switch checkedOptionalAppearance(dict, key: "appearanceMode") {
+        case let .success(found):
+            config.appearanceMode = found
+        case let .failure(error):
+            return .failure(error)
+        }
         return .success(config)
     }
 
@@ -309,6 +319,20 @@ extension AppConfiguration {
     ) -> Result<DisplayMode?, ConfigDecodeError> {
         guard let rawValue = dict[key] else { return .success(nil) }
         guard let text = rawValue as? String, let mode = DisplayMode(rawValue: text) else {
+            return .failure(.invalidValue(key: key))
+        }
+        return .success(mode)
+    }
+
+    /// Reads the optional appearance-mode key. Anything but an
+    /// `AppearanceMode` word invalidates the whole file, like any other
+    /// bad value.
+    private static func checkedOptionalAppearance(
+        _ dict: [String: Any],
+        key: String
+    ) -> Result<AppearanceMode?, ConfigDecodeError> {
+        guard let rawValue = dict[key] else { return .success(nil) }
+        guard let text = rawValue as? String, let mode = AppearanceMode(rawValue: text) else {
             return .failure(.invalidValue(key: key))
         }
         return .success(mode)
