@@ -20,7 +20,9 @@ struct DisplayModeTests {
     private func item(
         windowID: CGWindowID = 1,
         isMinimized: Bool = false,
-        isHidden: Bool = false
+        isHidden: Bool = false,
+        isOnOtherSpace: Bool = false,
+        isFullscreen: Bool = false
     ) -> WindowItem {
         WindowItem(
             id: WindowItem.Identifier(windowID: windowID),
@@ -31,6 +33,8 @@ struct DisplayModeTests {
             kind: .standard,
             isMinimized: isMinimized,
             isHidden: isHidden,
+            isOnOtherSpace: isOnOtherSpace,
+            isFullscreen: isFullscreen,
             icon: NSImage()
         )
     }
@@ -116,6 +120,30 @@ struct DisplayModeTests {
         let row = item(isMinimized: true, isHidden: true)
         #expect(
             placement(of: row, modes: modes()) == .separated(.hiddenApp)
+        )
+    }
+
+    @Test func otherSpaceKindsObeyTheirMode() {
+        // Without the per-window Space information every row reads as on
+        // this Space, so everything stays ordinary no matter the mode.
+        #expect(placement(of: item(), modes: modes(otherSpace: .hide)) == .ordinary)
+        let row = item(isOnOtherSpace: true)
+        #expect(placement(of: row, modes: modes(otherSpace: .show)) == .ordinary)
+        #expect(placement(of: row, modes: modes(otherSpace: .hide)) == .hidden)
+        #expect(
+            placement(of: row, modes: modes(otherSpace: .separateAtBottom))
+                == .separated(.otherSpace)
+        )
+    }
+
+    @Test func fullscreenKindsObeyTheirMode() {
+        let row = item(isFullscreen: true)
+        #expect(placement(of: row, modes: modes(fullscreen: .show)) == .ordinary)
+        #expect(placement(of: row, modes: modes(fullscreen: .hide)) == .hidden)
+        #expect(placement(of: row, modes: modes()) == .ordinary)
+        #expect(
+            placement(of: row, modes: modes(fullscreen: .separateAtBottom))
+                == .separated(.fullscreen)
         )
     }
 
