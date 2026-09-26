@@ -1,0 +1,18 @@
+// Schema for Lanterna's config file (config.json).
+//
+// Source of truth for shape and defaults. Validation lives in Swift
+// (AppConfiguration.swift), which mirrors the rules below.
+// Regenerate the Swift types and the scaffold JSON when this changes,
+// and keep the three in sync (checked by CI).
+module lanterna.Config
+
+/// Schema generation. Stays 1 for this revision.
+version: Int = 1
+
+/// Fixture entries to show instead of live windows.
+/// Absent means live windows. Must be zero or more when present.
+sampleCount: Int? = null
+
+/// Intentional monitor stops, in whole seconds, so recovery can be watched.
+/// Absent means an ordinary run. Must be one or more when present.
+stopMonitorEvery: Int? = null
