@@ -27,6 +27,13 @@ open class Allowed extends Annotation {
 /// How one special window kind is shown: mixed in, hidden, or parked below.
 typealias DisplayMode = "show"|"hide"|"separateAtBottom"
 
+/// Which appearance the windows follow: the system, or a fixed one.
+typealias AppearanceMode = "system"|"light"|"dark"
+
+/// The appearance the panel and the guide windows use. Absent means "system".
+@Allowed { values { "system" "light" "dark" } }
+appearanceMode: AppearanceMode? = null
+
 /// Windows on other Spaces. Absent means "show".
 @Allowed { values { "show" "hide" "separateAtBottom" } }
 otherSpaceMode: DisplayMode? = null
