@@ -22,10 +22,12 @@ struct WindowEnumerator {
     }
 
     /// What the worker side of a pass hands back: one read per application,
-    /// in input order, and the windows found to be on another Space.
+    /// in input order, and the windows found to be on another Space or only
+    /// on fullscreen Spaces.
     private struct Gathered: Sendable {
         let results: [Result<ApplicationRead, ReadFailure>]
         let onOtherSpace: Set<CGWindowID>
+        let fullscreen: Set<CGWindowID>
     }
 
     /// Reads every application at once and assembles the rows in a fixed order.
@@ -132,7 +134,8 @@ struct WindowEnumerator {
                             item(
                                 for: record,
                                 of: application,
-                                isOnOtherSpace: gathered.onOtherSpace.contains(record.windowID)
+                                isOnOtherSpace: gathered.onOtherSpace.contains(record.windowID),
+                                isFullscreenSpace: gathered.fullscreen.contains(record.windowID)
                             )
                         }
                 )
@@ -152,7 +155,8 @@ struct WindowEnumerator {
     private func item(
         for record: WindowRecord,
         of application: RunningApplicationInfo,
-        isOnOtherSpace: Bool
+        isOnOtherSpace: Bool,
+        isFullscreenSpace: Bool = false
     ) -> WindowItem {
         WindowItem(
             id: WindowItem.Identifier(windowID: record.windowID),
@@ -164,7 +168,7 @@ struct WindowEnumerator {
             isMinimized: record.isMinimized,
             isHidden: application.isHidden,
             isOnOtherSpace: isOnOtherSpace,
-            isFullscreen: record.isFullscreen,
+            isFullscreen: record.isFullscreen || isFullscreenSpace,
             icon: application.icon
         )
     }
@@ -184,7 +188,8 @@ struct WindowEnumerator {
         }
         return Gathered(
             results: results,
-            onOtherSpace: locator.windowsOnOtherSpaces(among: windowIDs)
+            onOtherSpace: locator.windowsOnOtherSpaces(among: windowIDs),
+            fullscreen: locator.fullscreenWindows(among: windowIDs)
         )
     }
 

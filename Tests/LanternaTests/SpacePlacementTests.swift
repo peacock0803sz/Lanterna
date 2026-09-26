@@ -27,6 +27,22 @@ struct SpacePlacementTests {
         #expect(!SpacePlacement.isOnOtherSpace(windowSpaces: [], currentSpaces: [3]))
     }
 
+    // MARK: - Fullscreen via Space type
+
+    @Test func aWindowOnlyOnAFullscreenSpaceReadsFullscreen() {
+        #expect(SpacePlacement.isFullscreen(windowSpaces: [122], fullscreenSpaces: [122]))
+    }
+
+    @Test func aWindowOnADesktopSpaceIsNotFullscreen() {
+        #expect(!SpacePlacement.isFullscreen(windowSpaces: [7], fullscreenSpaces: [122]))
+        #expect(!SpacePlacement.isFullscreen(windowSpaces: [5, 7], fullscreenSpaces: [122]))
+    }
+
+    @Test func anEmptySpaceAnswerIsNeverFullscreen() {
+        #expect(!SpacePlacement.isFullscreen(windowSpaces: [], fullscreenSpaces: [122]))
+        #expect(!SpacePlacement.isFullscreen(windowSpaces: [122], fullscreenSpaces: []))
+    }
+
     /// A window on every Space lists the shown one among the rest.
     @Test func aWindowOnEverySpaceIsNotElsewhere() {
         #expect(!SpacePlacement.isOnOtherSpace(windowSpaces: [3, 7, 9], currentSpaces: [3]))

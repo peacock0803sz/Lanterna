@@ -106,6 +106,21 @@ struct ApplicationWindowReaderTests {
         ))
     }
 
+    /// A helper with unknown subrole and no title is not a switchable window:
+    /// Chrome reports two such elements on its fullscreen Space, which would
+    /// otherwise appear as extra rows titled only with the app name.
+    @Test(arguments: ["", " ", "\n"])
+    func anUnknownWindowWithoutATitleIsExcluded(title: String) {
+        let outcome = Reader.outcome(
+            role: kAXWindowRole,
+            subrole: kAXUnknownSubrole,
+            title: title,
+            isMinimized: false,
+            windowID: 42
+        )
+        #expect(outcome == .excluded)
+    }
+
     /// A terminal can report a single space as its title. The record keeps it
     /// verbatim; deciding what to draw is the row's job.
     @Test(arguments: ["", " ", "\n"])
