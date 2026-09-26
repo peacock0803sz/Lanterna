@@ -4,8 +4,8 @@
 # The release gate comes first: HEAD must sit exactly on a `vX.Y.Z` tag with
 # a clean tree. The version is then regenerated from the tag and applied, so
 # the bundle and the on-screen display always name the tagged release. The
-# checked-in stamp is only the last development state; the tag is
-# the single source of truth.
+# checked-in stamp is only a placeholder; the tag is the single source of
+# truth.
 #
 # Icon artwork comes from Assets/Lanterna.iconset, a tracked copy of the
 # provided materials. A missing size fails the run; a generic icon never ships.

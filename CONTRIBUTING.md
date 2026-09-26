@@ -33,7 +33,7 @@ Enter the development shell:
 nix develop
 ```
 
-This provides `actionlint`, `pinact`, `shellcheck`, `swiftformat`, `swiftlint`, and installs pre-commit hooks automatically.
+This provides `actionlint`, `pinact`, `shellcheck`, `swiftformat`, `swiftlint`, and installs pre-commit hooks automatically. It also registers the git filter that keeps the build-time version stamp out of `git status`; outside the devshell, run `bash scripts/generate-version.sh --install-filter` once per clone.
 
 ### Build and Test
 

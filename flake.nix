@@ -102,6 +102,9 @@
             echo "swiftformat $(swiftformat --version)"
             echo "swiftlint $(swiftlint version)"
             echo "swift $(swift --version 2>&1 | head -1)"
+            if root=$(git rev-parse --show-toplevel 2>/dev/null); then
+              bash "$root/scripts/generate-version.sh" --install-filter
+            fi
           '';
         };
 
