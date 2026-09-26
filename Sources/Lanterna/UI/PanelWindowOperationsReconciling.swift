@@ -39,9 +39,11 @@ extension PanelWindowOperations {
     /// and the application may still act on it.
     ///
     /// Every swap moves the choice to the row now standing where the
-    /// operated one stood among the rows shown before it, or to the last
-    /// shown row when fewer are shown now. The filter does the counting,
-    /// because only it knows which rows a query leaves on screen.
+    /// operated one stood among the rows shown before the operation, or to
+    /// the last shown row when fewer are shown now. A swap that shows
+    /// nothing, or whose query never showed the operated row, leaves the
+    /// choice to the filter's usual resolving instead. The filter does the
+    /// counting, because only it knows which rows a query leaves on screen.
     ///
     /// Every wait is a place the panel can go, or a later appearance come
     /// up, before this resumes. Each one is followed by asking whether the

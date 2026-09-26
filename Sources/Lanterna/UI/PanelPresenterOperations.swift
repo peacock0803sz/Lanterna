@@ -60,7 +60,8 @@ extension PanelPresenter {
         operations.start(operation, naming: id)
     }
 
-    /// Swaps the rows on screen for the reconciled list.
+    /// Swaps the rows on screen for a list an operation hands over: its
+    /// optimistic look, the reconciled list, or the look wound back.
     func replacePresentedList(_ windows: [WindowItem], choosingWhere anchor: ChoiceAnchor) {
         keyCommands.replacePresentedList(windows, choosingWhere: anchor)
     }
@@ -79,8 +80,9 @@ extension PanelPresenter {
     }
 
     /// The freshest list in the order the appearance draws, waiting for the
-    /// store's next completed pass. Sorted without sweeping: the appearance
-    /// already swept against its own snapshot.
+    /// store's next completed pass — or less, when the store stops and
+    /// releases the wait with whatever it holds. Sorted without sweeping:
+    /// the appearance already swept against its own snapshot.
     ///
     /// Rows of applications the pass could not read are carried over from
     /// the list shown before it: absence from a list that never looked is
