@@ -67,4 +67,56 @@ enum {
 /// leaves the user without their Cmd+Tab.
 extern CGError CGSSetSymbolicHotKeyEnabled(CGSSymbolicHotKey hotKey, bool isEnabled);
 
+/// This process's connection to the window server, which the Space queries
+/// below take as their first argument.
+typedef int CGSConnectionID;
+
+/// The window server's id for one Space. Unique across displays.
+typedef uint64_t CGSSpaceID;
+
+/// Which of a window's Spaces `CGSCopySpacesForWindows` answers with. Only
+/// "all" is declared: asked for current Spaces only, a window on another
+/// Space would answer with an empty list, which is also what an unknown
+/// window answers, so "elsewhere" could not be told from "no answer".
+enum {
+    kCGSSpaceMaskAll = 0x7,
+};
+
+/// Returns the calling process's window-server connection.
+///
+/// Undocumented, but re-exported from CoreGraphics like the setter above.
+/// Declared for the two queries below, whose case is made there.
+extern CGSConnectionID CGSMainConnectionID(void);
+
+/// Every display, each as a dictionary. The key read here is
+/// "Current Space", a dictionary whose "id64" is the id of the Space that
+/// display is showing. With "Displays have separate Spaces" turned off,
+/// every display collapses into one entry.
+///
+/// Undocumented, re-exported from CoreGraphics. It passes the same test as
+/// `_AXUIElementGetWindow`: no public API says which Space a display is
+/// showing. `NSWorkspace` only announces that the active Space changed.
+///
+/// Returns a new reference. The caller treats NULL as no answer.
+extern CFArrayRef CGSCopyManagedDisplaySpaces(CGSConnectionID connection) CF_RETURNS_RETAINED;
+
+/// The Spaces the given windows are on, as `CGSSpaceID` numbers.
+///
+/// `windowIDs` is an array of `CGWindowID` numbers. The answer is one flat
+/// list for the whole array, with no way to tell which window a Space came
+/// from, so a caller that needs a per-window answer passes one window at a
+/// time. A window on every Space answers with more than one id; a window the
+/// server has no record of answers with an empty list, the same as a window
+/// on no Space at all.
+///
+/// Undocumented, re-exported from CoreGraphics, and passes the same test:
+/// no public API places a window on a Space.
+///
+/// Returns a new reference. The caller treats NULL as no answer.
+extern CFArrayRef CGSCopySpacesForWindows(
+    CGSConnectionID connection,
+    int mask,
+    CFArrayRef windowIDs
+) CF_RETURNS_RETAINED;
+
 #endif /* LANTERNA_PRIVATE_APIS_H */
