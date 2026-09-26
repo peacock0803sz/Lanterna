@@ -84,9 +84,12 @@ final class HeldRefresh {
         return await withCheckedContinuation { release = $0 }
     }
 
-    func waitUntilAsked() async {
-        guard askedCount == 0 else { return }
-        await withCheckedContinuation { asked = $0 }
+    /// Returns once the refresh has been asked for the given number of
+    /// times in all, at once when it already has.
+    func waitUntilAsked(count: Int = 1) async {
+        while askedCount < count {
+            await withCheckedContinuation { asked = $0 }
+        }
     }
 
     func finish(with windows: [WindowItem]) {

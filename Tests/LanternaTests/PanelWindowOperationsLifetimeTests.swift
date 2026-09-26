@@ -126,6 +126,27 @@ struct PanelWindowOperationsLifetimeTests {
         #expect(made.log.lines.contains { $0.contains("Finder/AirDrop") })
     }
 
+    /// An operation from an ended appearance that ends after the next
+    /// appearance's operation started leaves that one in flight: a third
+    /// press is still dropped while the second reconciles.
+    @Test func anEndedAppearancesOperationKeepsTheNextOnesInFlight() async {
+        let rows = rows
+        let held = HeldRefresh()
+        let made = makeOperations(rows: rows, held: held)
+        let first = made.operations.start(.closeWindow, naming: rows[0].id)
+        await held.waitUntilAsked()
+        made.operations.end()
+        made.operations.begin(windows: rows)
+        held.finish(with: Array(rows.dropFirst()))
+        let second = made.operations.start(.closeWindow, naming: rows[1].id)
+        await first?.value
+        await held.waitUntilAsked(count: 2)
+        await made.operations.operate(.closeWindow, naming: rows[2].id)
+        #expect(made.log.lines.contains { $0.contains("window operation dropped (close") })
+        held.finish(with: [rows[0], rows[2]])
+        await second?.value
+    }
+
     /// An operation that found nothing to act on leaves the appearance
     /// free for the next one too.
     @Test func theNextOperationRunsAfterOneOutOfScope() async {
