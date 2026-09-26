@@ -5,6 +5,14 @@
 /// operations' questions, and they grow beside the operations rather than
 /// inside a file already close to the length the linter allows.
 extension PanelExit {
+    /// Takes the panel down because quitting emptied the list. Only
+    /// quitting closes over emptiness: every other operation stays open
+    /// over it, so the tidying can go on.
+    func closeAfterEmptiedList(operation: WindowOperation) {
+        dismissPanel()
+        writeLine("closed the panel (\(operation.logName) emptied the list)")
+    }
+
     /// The wording for the disappearances that are the app tidying up after
     /// itself rather than the user deciding anything.
     func takeDown(because reason: String) {

@@ -30,10 +30,26 @@ private struct FakeCloser: WindowClosing, Sendable {
     }
 }
 
-/// A box so the harness counts refreshes and interruptions.
+/// A scripted quitter and hider.
+private struct FakeQuitter: ApplicationQuitting, Sendable {
+    let quit: @Sendable (pid_t) -> ActivationFailure?
+    func quitApplication(processIdentifier pid: pid_t) -> ActivationFailure? {
+        quit(pid)
+    }
+}
+
+private struct FakeHider: ApplicationHiding, Sendable {
+    let hide: @Sendable (pid_t) -> ActivationFailure?
+    func hideApplication(processIdentifier pid: pid_t) -> ActivationFailure? {
+        hide(pid)
+    }
+}
+
+/// A box so the harness counts refreshes, interruptions and empty closes.
 private final class OperationCounts {
     var refreshes = 0
     var interruptions = 0
+    var emptied = 0
 }
 
 /// Everything one operation drives, so each case reads off one value.
@@ -78,6 +94,8 @@ private func makeOperations(
     rows: [WindowItem],
     refreshed: [WindowItem]? = nil,
     close: @escaping @Sendable (ActivationTarget) -> ActivationFailure? = { _ in nil },
+    quit: @escaping @Sendable (pid_t) -> ActivationFailure? = { _ in nil },
+    hide: @escaping @Sendable (pid_t) -> ActivationFailure? = { _ in nil },
     ownProcessIdentifier: pid_t = 999
 ) -> OperationHarness {
     let surface = FakeSurface()
@@ -101,8 +119,11 @@ private func makeOperations(
             return fresh
         },
         closer: FakeCloser(close: close),
+        quitter: FakeQuitter(quit: quit),
+        hider: FakeHider(hide: hide),
         ownProcessIdentifier: ownProcessIdentifier,
         writeLine: log.write,
+        closeAfterEmptied: { counts.emptied += 1 },
         closeForInterruption: { [weak wayOut] operation, appName, displayTitle in
             counts.interruptions += 1
             wayOut?.closeAfterInterruptedOperation(
@@ -199,8 +220,59 @@ struct PanelWindowOperationsTests {
     /// Operations with no body yet are swallowed without a trace.
     @Test func unownedOperationsDoNothing() async {
         let made = makeOperations(rows: rows, refreshed: rows)
-        await made.operations.operate(.quitApplication, naming: rows[0].id)
+        await made.operations.operate(.minimizeWindow, naming: rows[0].id)
         #expect(made.surface.updatedLists.isEmpty)
         #expect(made.log.lines.isEmpty)
+    }
+
+    private var twoApps: [WindowItem] {
+        [
+            operationRow(appName: "Safari", windowTitle: "Tabs", windowID: 1, pid: 123),
+            operationRow(appName: "Safari", windowTitle: "Downloads", windowID: 2, pid: 123),
+            operationRow(appName: "Finder", windowTitle: "AirDrop", windowID: 3, pid: 124),
+        ]
+    }
+
+    /// Quitting removes every row of the application, keeps the panel up,
+    /// and moves the choice to the row now standing where the chosen one
+    /// stood.
+    @Test func quittingRemovesTheWholeApplication() async {
+        let staying = [twoApps[2]]
+        let made = makeOperations(rows: twoApps, refreshed: staying)
+        made.selection.retarget(to: twoApps.map(\.id), selecting: twoApps[0].id)
+        await made.operations.operate(.quitApplication, naming: twoApps[0].id)
+        #expect(made.surface.updatedLists.last?.map(\.id) == [twoApps[2].id])
+        #expect(made.selection.chosenID == twoApps[2].id)
+        #expect(made.log.lines.contains { $0.contains("window operation (quit Safari/Tabs)") })
+    }
+
+    /// Hiding parks every row of the application below the separator.
+    @Test func hidingParksTheWholeApplication() async {
+        let parked = twoApps.map { $0.ownerProcessIdentifier == 123 ? $0.settingHidden(true) : $0 }
+        let made = makeOperations(rows: twoApps, refreshed: parked)
+        made.selection.retarget(to: twoApps.map(\.id), selecting: twoApps[0].id)
+        await made.operations.operate(.hideApplication, naming: twoApps[0].id)
+        let shown = made.surface.updatedLists.last ?? []
+        #expect(shown.filter(\.isHidden).map(\.id) == [twoApps[0].id, twoApps[1].id])
+        #expect(shown.filter { !$0.isHidden }.map(\.id) == [twoApps[2].id])
+        #expect(made.selection.chosenID == twoApps[0].id)
+        #expect(made.log.lines.contains { $0.contains("window operation (hide Safari/Tabs)") })
+    }
+
+    /// Quitting the last application closes the panel; anything else stays
+    /// open over the empty list.
+    @Test func quittingTheLastApplicationClosesThePanel() async {
+        let alone = [twoApps[0]]
+        let made = makeOperations(rows: alone, refreshed: [])
+        await made.operations.operate(.quitApplication, naming: twoApps[0].id)
+        #expect(made.counts.emptied == 1)
+    }
+
+    @Test func hidingEverythingKeepsThePanelOpen() async {
+        let alone = [twoApps[0]]
+        let made = makeOperations(rows: alone, refreshed: [])
+        await made.operations.operate(.hideApplication, naming: twoApps[0].id)
+        #expect(made.counts.emptied == 0)
+        #expect(made.surface.updatedLists.last?.isEmpty == true)
     }
 }

@@ -41,8 +41,11 @@ extension PanelPresenter {
             replaceList: { [weak self] renewed in self?.replacePresentedList(renewed) },
             refresh: { [weak self] in await self?.freshList() ?? [] },
             closer: LiveWindowCloser(),
+            quitter: LiveApplicationQuitter(),
+            hider: LiveApplicationHider(),
             ownProcessIdentifier: ownProcessIdentifier,
             writeLine: writeLine,
+            closeAfterEmptied: { [weak self] in self?.wayOut.closeAfterEmptiedList(operation: .quitApplication) },
             closeForInterruption: { [weak self] operation, appName, displayTitle in
                 self?.closeForInterruption(operation, appName: appName, displayTitle: displayTitle)
             }
