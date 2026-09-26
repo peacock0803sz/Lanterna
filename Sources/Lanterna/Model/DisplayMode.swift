@@ -139,21 +139,16 @@ struct DisplayModes: Equatable, Sendable {
         )
     }
 
-    /// The rows in the order the panel draws them: the ordinary rows, then
-    /// the subgroups in drawing order, each in the order it arrived in.
-    /// Hidden rows are left out; callers narrow first.
+    /// The rows the panel shows for a query, in the order it draws them: the
+    /// ordinary rows, then the subgroups in drawing order, each in the order
+    /// it arrived in. The filter hands this order to the choice and to the
+    /// panel, so the arrows step through the rows as they are drawn.
     static func displayOrdered(
         _ rows: [WindowItem],
         modes: DisplayModes,
-        queryIsEmpty: Bool,
-        matches: Set<WindowItem.Identifier>
+        query: String
     ) -> [WindowItem] {
-        let (ordinary, subgroups) = sections(
-            of: rows,
-            modes: modes,
-            queryIsEmpty: queryIsEmpty,
-            matches: matches
-        )
+        let (ordinary, subgroups) = sections(of: rows, modes: modes, query: query)
         return ordinary + subgroups.flatMap(\.1)
     }
 }

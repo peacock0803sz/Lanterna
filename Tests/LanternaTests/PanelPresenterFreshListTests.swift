@@ -43,9 +43,9 @@ struct PanelPresenterFreshListTests {
         #expect(fresh?.windows.map(\.id) == [rows[2].id, rows[0].id, rows[1].id])
     }
 
-    /// A parked row comes back after the rows in use, where the panel
-    /// draws it, whatever its record says.
-    @Test func aFreshListPutsParkedRowsLast() async {
+    /// A parked row comes back at its recent-use place: where it draws is
+    /// the filter's to decide, by the display modes, as it draws.
+    @Test func aFreshListLeavesParkedRowsAtTheirRecentUsePlace() async {
         let rows = [self.rows[0].settingHidden(true), self.rows[1], self.rows[2]]
         let tracker = MRUTracker()
         tracker.record(rows[0].id, ownerProcessIdentifier: rows[0].ownerProcessIdentifier, origin: .external)
@@ -56,7 +56,7 @@ struct PanelPresenterFreshListTests {
             tracker: tracker
         )
         let fresh = await presenter.freshList(carrying: [])
-        #expect(fresh?.windows.map(\.id) == [rows[1].id, rows[2].id, rows[0].id])
+        #expect(fresh?.windows.map(\.id) == [rows[0].id, rows[1].id, rows[2].id])
     }
 
     /// Rows of an application the pass could not read are carried over

@@ -9,7 +9,9 @@ private func modeRow(
     appName: String,
     windowTitle: String,
     windowID: CGWindowID,
-    isMinimized: Bool = false
+    isMinimized: Bool = false,
+    isHidden: Bool = false,
+    isFullscreen: Bool = false
 ) -> WindowItem {
     WindowItem(
         id: WindowItem.Identifier(windowID: windowID),
@@ -19,6 +21,8 @@ private func modeRow(
         windowTitle: windowTitle,
         kind: .standard,
         isMinimized: isMinimized,
+        isHidden: isHidden,
+        isFullscreen: isFullscreen,
         icon: NSImage(size: NSSize(width: 1, height: 1))
     )
 }
@@ -49,12 +53,15 @@ struct PanelPresenterDisplayModeTests {
         ]
     }
 
-    private func presenter(modes: DisplayModes) -> (PanelPresenter, FakeSurface) {
+    private func presenter(
+        modes: DisplayModes,
+        rows: [WindowItem]? = nil
+    ) -> (PanelPresenter, FakeSurface) {
         let surface = FakeSurface()
         let log = DiagnosticsLog()
         let presenter = PanelPresenter(
             surface: surface,
-            store: WindowListStore(fixed: rows),
+            store: WindowListStore(fixed: rows ?? self.rows),
             displayModes: modes,
             writeLine: log.write,
             switcher: FakeWindowSwitcher()
@@ -79,5 +86,77 @@ struct PanelPresenterDisplayModeTests {
         }
         #expect(!visited.contains(hidden))
         #expect(!surface.shownSelections.contains(hidden))
+    }
+
+    /// Opens a panel over rows arriving in the given order, and holds the
+    /// arrows to the order the view draws them in: the panel is handed the
+    /// rows as the view splits them, and one lap of the arrows from the
+    /// opening choice visits them in that order.
+    private func expectStepsAsDrawn(
+        modes: DisplayModes,
+        arriving: [WindowItem],
+        drawn expected: [WindowItem],
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) {
+        let (presenter, surface) = presenter(modes: modes, rows: arriving)
+        presenter.handleHotkey(.forward, deliveryDelay: nil)
+        let presented = surface.presentedLists.first ?? []
+        let (ordinary, subgroups) = DisplayModes.sections(of: presented, modes: modes, query: "")
+        let drawn = (ordinary + subgroups.flatMap(\.1)).map(\.id)
+        #expect(drawn == expected.map(\.id), sourceLocation: sourceLocation)
+        #expect(presented.map(\.id) == drawn, sourceLocation: sourceLocation)
+        var lap = [presenter.selection.chosenID]
+        for _ in 1 ..< drawn.count {
+            _ = presenter.handleKeyStroke(press(kVK_DownArrow))
+            lap.append(presenter.selection.chosenID)
+        }
+        #expect(lap == Array(drawn[1...] + drawn[..<1]), sourceLocation: sourceLocation)
+    }
+
+    /// Hidden-app and minimized rows interleaved in recent use step through
+    /// their subgroups the way they are drawn, not in recent-use order.
+    @Test func interleavedParkedRowsStepAsDrawn() {
+        let front = modeRow(appName: "Safari", windowTitle: "Front page", windowID: 1)
+        let firstMinimized = modeRow(appName: "Preview", windowTitle: "Notes", windowID: 2, isMinimized: true)
+        let hidden = modeRow(appName: "Mail", windowTitle: "Inbox", windowID: 3, isHidden: true)
+        let secondMinimized = modeRow(appName: "Notes", windowTitle: "Draft", windowID: 4, isMinimized: true)
+        expectStepsAsDrawn(
+            modes: .defaults,
+            arriving: [front, firstMinimized, hidden, secondMinimized],
+            drawn: [front, hidden, firstMinimized, secondMinimized]
+        )
+    }
+
+    /// A kind shown in the list keeps its recent-use place among the
+    /// ordinary rows.
+    @Test func aShownKindKeepsItsRecentUsePlace() {
+        let front = modeRow(appName: "Safari", windowTitle: "Front page", windowID: 1)
+        let hidden = modeRow(appName: "Mail", windowTitle: "Inbox", windowID: 2, isHidden: true)
+        let back = modeRow(appName: "Finder", windowTitle: "Applications", windowID: 3)
+        let minimized = modeRow(appName: "Preview", windowTitle: "Notes", windowID: 4, isMinimized: true)
+        expectStepsAsDrawn(
+            modes: DisplayModes(otherSpace: .show, hiddenApp: .show, minimized: .separateAtBottom, fullscreen: .show),
+            arriving: [front, hidden, back, minimized],
+            drawn: [front, hidden, back, minimized]
+        )
+    }
+
+    /// Fullscreen rows parked below step last, after the minimized ones,
+    /// the way their subgroup draws last.
+    @Test func separatedFullscreenRowsStepAsDrawn() {
+        let front = modeRow(appName: "Safari", windowTitle: "Front page", windowID: 1)
+        let fullscreen = modeRow(appName: "Keynote", windowTitle: "Talk", windowID: 2, isFullscreen: true)
+        let minimized = modeRow(appName: "Preview", windowTitle: "Notes", windowID: 3, isMinimized: true)
+        let back = modeRow(appName: "Finder", windowTitle: "Applications", windowID: 4)
+        expectStepsAsDrawn(
+            modes: DisplayModes(
+                otherSpace: .show,
+                hiddenApp: .separateAtBottom,
+                minimized: .separateAtBottom,
+                fullscreen: .separateAtBottom
+            ),
+            arriving: [front, fullscreen, minimized, back],
+            drawn: [front, back, minimized, fullscreen]
+        )
     }
 }

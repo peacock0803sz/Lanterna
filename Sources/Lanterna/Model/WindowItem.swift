@@ -22,8 +22,8 @@ struct WindowItem: Identifiable {
     /// nothing but whitespace.
     let windowTitle: String
     let kind: WindowKind
-    /// Whether the window is minimised: one of the ways a row parks below
-    /// the separator (`isParked`), and what reconciling a minimize reads.
+    /// Whether the window is minimised: one of the facts the display modes
+    /// place a row by, and what reconciling a minimize reads.
     let isMinimized: Bool
     /// Whether the owning application is hidden. Read with the names and
     /// icons, on the main thread, never by the parallel reading.
@@ -66,18 +66,11 @@ struct WindowItem: Identifiable {
         self.icon = icon
     }
 
-    /// Whether the row parks below the separator: minimised or hidden.
+    /// Whether the row is minimised or its application hidden: a row that
+    /// hiding or minimizing has nothing left to do to. Where it draws is
+    /// the display modes' to say, not this.
     var isParked: Bool {
         isMinimized || isHidden
-    }
-
-    /// The rows in the order the panel draws them: the rows in use, then the
-    /// parked rows, each group in the order it arrived in. The panel draws
-    /// the parked group below the separator, and the choice and the arrows
-    /// step through this same order, so a place on screen and a place in
-    /// the list are one place.
-    static func parkedLast(_ rows: [WindowItem]) -> [WindowItem] {
-        rows.filter { !$0.isParked } + rows.filter(\.isParked)
     }
 
     /// The same row, marked minimized or not. The optimistic look moves

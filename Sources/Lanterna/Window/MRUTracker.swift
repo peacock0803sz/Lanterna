@@ -162,14 +162,12 @@ final class MRUTracker {
         lastSweptAsOf = gatheredAt
     }
 
-    /// The given rows newest first, parked rows after the rest, sweeping
-    /// records for rows that are gone.
+    /// The given rows newest first, sweeping records for rows that are gone.
     ///
     /// Sweeping happens here and nowhere else: once per appearance, against
-    /// the snapshot that appearance was given. Within each group, the rows
-    /// in use and then the parked rows, rows with no record keep the input
-    /// order behind every recorded row of that group; the input arrives in
-    /// the store's fixed order, so that is the fixed order kept. Records owned
+    /// the snapshot that appearance was given. Rows with no record keep the
+    /// input order behind every recorded row; the input arrives in the
+    /// store's fixed order, so that is the fixed order kept. Records owned
     /// by skipped applications stay put whatever their age: their rows are
     /// missing because the look missed, not because the windows closed.
     func ordered(_ items: [WindowItem], skipping skippedOwners: Set<pid_t> = []) -> [WindowItem] {
@@ -177,14 +175,12 @@ final class MRUTracker {
         return arranged(items)
     }
 
-    /// The given rows newest first, parked rows after the rest, sweeping
-    /// nothing.
+    /// The given rows newest first, sweeping nothing.
     ///
-    /// Where a list read from the store is put into the order an appearance
-    /// draws: the parked rows go below the separator, so they come after the
-    /// rest (`WindowItem.parkedLast`), newest first within each group. Used
-    /// directly for a list read while an appearance is up — reconciling an
-    /// operation — and through `ordered(_:skipping:)` for the list an
+    /// Where a list read from the store is put into recent-use order. The
+    /// filter then places the rows by the display modes as it draws, and
+    /// each section keeps this order. Used directly for a list read while
+    /// an appearance is up — reconciling an operation — and through `ordered(_:skipping:)` for the list an
     /// appearance opens on. What counts as gone is decided against the
     /// snapshot the appearance was given, so a list read in the middle of
     /// one sorts without sweeping.
@@ -203,7 +199,7 @@ final class MRUTracker {
             }
         }
         recorded.sort { $0.sequence > $1.sequence }
-        return WindowItem.parkedLast(recorded.map(\.item) + unrecorded)
+        return recorded.map(\.item) + unrecorded
     }
 
     /// Where the newest surviving record came from.

@@ -177,12 +177,7 @@ struct DisplayModeTests {
             item(windowID: 3, isHidden: true),
             item(windowID: 4),
         ]
-        let ordered = DisplayModes.displayOrdered(
-            rows,
-            modes: modes(),
-            queryIsEmpty: true,
-            matches: Set(rows.map(\.id))
-        )
+        let ordered = DisplayModes.displayOrdered(rows, modes: modes(), query: "")
         #expect(ordered.map(\.id.windowID) == [2, 4, 3, 1])
     }
 }

@@ -55,8 +55,9 @@ final class PanelFilter {
     }
 
     /// The rows on screen: the whole list narrowed by the query and the
-    /// display modes. The whole list stays underneath, so a query can
-    /// still bring back a row the modes keep out.
+    /// display modes, in the order the panel draws them. The whole list
+    /// stays underneath, so a query can still bring back a row the modes
+    /// keep out.
     var shownWindows: [WindowItem] {
         shown(in: fullWindows)
     }
@@ -83,10 +84,11 @@ final class PanelFilter {
     /// Swaps the list underneath as above, moving the choice to the row now
     /// standing at the anchor's place among the shown rows, or to the last
     /// shown row when fewer rows are shown than that. Counted among the
-    /// shown rows and not the whole list, so a narrowed panel never chooses
-    /// a row it is not showing. A row that keeps its place keeps the choice.
-    /// Hiding and minimizing move a row below the separator, so the choice
-    /// stays at the place the row left, as it does when a row goes. An anchor
+    /// shown rows, in the order the panel draws them, and not the whole
+    /// list, so a narrowed panel never chooses a row it is not showing. A
+    /// row that keeps its place keeps the choice. An operation that moves
+    /// the row elsewhere in the drawing, or out of it, leaves the choice at
+    /// the place the row left, as it does when a row goes. An anchor
     /// that was not shown, or a list that shows nothing, leaves the choice
     /// to the usual resolving.
     func replace(fullWindows: [WindowItem], choosingWhere anchor: ChoiceAnchor) {
@@ -145,14 +147,12 @@ final class PanelFilter {
         return true
     }
 
-    /// The rows one list shows under the current query and modes. Every
-    /// entry narrows through here, so the modes keep a row out the same
-    /// way whether the panel opened, a keystroke arrived, or a list was
-    /// swapped in.
+    /// The rows one list shows under the current query and modes, in the
+    /// order the panel draws them. Every entry narrows through here, so the
+    /// modes keep a row out and place it the same way whether the panel
+    /// opened, a keystroke arrived, or a list was swapped in.
     private func shown(in windows: [WindowItem]) -> [WindowItem] {
-        let (ordinary, subgroups) = DisplayModes.sections(of: windows, modes: displayModes, query: state.query)
-        let kept = Set((ordinary + subgroups.flatMap(\.1)).map(\.id))
-        return windows.filter { kept.contains($0.id) }
+        DisplayModes.displayOrdered(windows, modes: displayModes, query: state.query)
     }
 
     /// Narrows the rows, follows the choice onto them, and tells the panel,

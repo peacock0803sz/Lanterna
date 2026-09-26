@@ -58,9 +58,10 @@ struct SwitcherView: View {
         sections.subgroups
     }
 
-    /// The list split for drawing. The choice and the arrows step through
-    /// the narrowed order beside this one, so every row draws in the order
-    /// it arrived within its section.
+    /// The list split for drawing. The rows arrive in the order the filter
+    /// hands the choice (`DisplayModes.displayOrdered`), and splitting keeps
+    /// each row's place within its section, so the rows draw in the order
+    /// the arrows step through them.
     private var sections: (ordinary: [WindowItem], subgroups: [(DisplaySubgroup, [WindowItem])]) {
         DisplayModes.sections(of: windows, modes: modes, query: query)
     }
