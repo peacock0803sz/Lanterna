@@ -24,6 +24,14 @@ final class PanelWindowOperations {
     let closeForInterruption: @MainActor (WindowOperation, String, String) -> Void
     /// Reached beside the operations, by the reconciling half.
     var presented: [WindowItem] = []
+    /// Which appearance is up, counted forward at every start and every
+    /// end. Reconciling resumes after the panel may have gone, or after a
+    /// later appearance has come up; comparing this against the value it
+    /// set out with is how it tells, and a changed value means it touches
+    /// nothing.
+    private(set) var appearance = 0
+    /// The appearance an operation is still running in, if any.
+    private var operatingIn: Int?
 
     init(
         surface: any SwitcherSurface,
@@ -54,16 +62,48 @@ final class PanelWindowOperations {
     /// Remembers what the appearance shows. Operations resolve off this,
     /// so a row gone from a fresher list is still a row that was shown.
     func begin(windows: [WindowItem]) {
+        appearance += 1
         presented = windows
     }
 
     /// Gives the mirror up with the panel.
     func end() {
+        appearance += 1
         presented = []
     }
 
-    /// Sends one operation at the named row.
+    /// Takes one operation in at the keystroke, naming the row chosen at
+    /// that moment, and sends it on a task of its own.
+    ///
+    /// One operation at a time per appearance: a press arriving while one
+    /// is still reconciling is dropped with a line, not queued, because its
+    /// target was chosen off a list the running one is still changing.
+    /// Answers the task, or nothing when the press was dropped.
+    @discardableResult
+    func start(_ operation: WindowOperation, naming id: WindowItem.Identifier?) -> Task<Void, Never>? {
+        guard operatingIn != appearance else {
+            writeLine("window operation dropped (\(operation.logName); another is still reconciling)")
+            return nil
+        }
+        let generation = appearance
+        operatingIn = generation
+        return Task {
+            defer {
+                if operatingIn == generation {
+                    operatingIn = nil
+                }
+            }
+            guard appearance == generation else { return }
+            await send(operation, naming: id)
+        }
+    }
+
+    /// Takes one operation in as above and waits it out.
     func operate(_ operation: WindowOperation, naming id: WindowItem.Identifier?) async {
+        await start(operation, naming: id)?.value
+    }
+
+    private func send(_ operation: WindowOperation, naming id: WindowItem.Identifier?) async {
         switch operation {
         case .closeWindow:
             await close(naming: id)

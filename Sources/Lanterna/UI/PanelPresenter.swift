@@ -125,8 +125,8 @@ final class PanelPresenter {
         selection: selection,
         wayOut: wayOut,
         now: now,
-        operate: { [weak self] operation in
-            Task { await self?.runOperation(operation) }
+        operate: { [weak self] operation, chosen in
+            self?.startOperation(operation, naming: chosen)
         }
     )
 

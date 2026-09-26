@@ -24,14 +24,16 @@ final class PanelKeyCommands {
     private let wayOut: PanelExit
     private let filter: PanelFilter
     private let now: @MainActor () -> ContinuousClock.Instant
-    private let operate: (@Sendable @MainActor (WindowOperation) -> Void)?
+    /// Handed the row chosen as the key is pressed, so a choice moved
+    /// before the operation gets its turn does not change its target.
+    private let operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)?
 
     init(
         surface: any SwitcherSurface,
         selection: PanelSelection,
         wayOut: PanelExit,
         now: @escaping @MainActor () -> ContinuousClock.Instant,
-        operate: (@Sendable @MainActor (WindowOperation) -> Void)? = nil
+        operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)? = nil
     ) {
         self.surface = surface
         self.selection = selection
@@ -134,7 +136,7 @@ final class PanelKeyCommands {
         case let .commit(key):
             wayOut.commit(by: key, naming: selection.chosenID, since: startedAt, filter: filter.logSummary())
         case let .windowOperation(operation):
-            operate?(operation)
+            operate?(operation, selection.chosenID)
         case let .filterText(text):
             filter.append(text)
         case .filterBackspace:

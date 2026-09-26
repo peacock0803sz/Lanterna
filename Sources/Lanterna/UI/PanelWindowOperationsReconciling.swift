@@ -28,7 +28,14 @@ extension PanelWindowOperations {
     /// operated one stood among the rows shown before it, or to the new
     /// last shown row when it stood last. The filter does the counting,
     /// because only it knows which rows a query leaves on screen.
+    ///
+    /// Every wait is a place the panel can go, or a later appearance come
+    /// up, before this resumes. Each one is followed by asking whether the
+    /// appearance is still the one this set out in; if not, nothing is
+    /// touched — no list, no choice, no closing — and one line says the
+    /// operation went unreconciled.
     func sendAndReconcile(_ reconciliation: Reconciliation) async {
+        let generation = appearance
         let snapshot = presented
         let anchor = ChoiceAnchor(id: reconciliation.row.id, stoodIn: snapshot)
         presented = reconciliation.optimistic
@@ -45,6 +52,13 @@ extension PanelWindowOperations {
         }
         for _ in 0 ..< 2 {
             let fresh = await refresh()
+            guard appearance == generation else {
+                writeLine(
+                    "window operation left unreconciled (\(reconciliation.operation.logName) "
+                        + "\(reconciliation.row.appName)/\(reconciliation.row.displayTitle); the panel went)"
+                )
+                return
+            }
             if reconciliation.isDone(fresh) {
                 presented = fresh
                 replaceList(fresh, anchor)

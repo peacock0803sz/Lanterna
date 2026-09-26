@@ -54,9 +54,11 @@ extension PanelPresenter {
         )
     }
 
-    /// Sends one operation at the row chosen now.
-    func runOperation(_ operation: WindowOperation) async {
-        await operations.operate(operation, naming: selection.chosenID)
+    /// Sends one operation at the row chosen as the key was pressed. Taken
+    /// in at once rather than when a task gets its turn, so the appearance
+    /// it belongs to and the one-at-a-time rule are settled at the press.
+    func startOperation(_ operation: WindowOperation, naming id: WindowItem.Identifier?) {
+        operations.start(operation, naming: id)
     }
 
     /// Swaps the rows on screen for the reconciled list.

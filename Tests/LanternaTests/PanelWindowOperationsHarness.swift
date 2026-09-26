@@ -59,6 +59,33 @@ final class OperationCounts {
     var emptied = 0
 }
 
+/// A refresh the test holds open, so the panel can be made to go — or a
+/// later appearance come up — while an operation is genuinely waiting for
+/// its list rather than whenever two tasks happen to interleave.
+@MainActor
+final class HeldRefresh {
+    private(set) var askedCount = 0
+    private var asked: CheckedContinuation<Void, Never>?
+    private var release: CheckedContinuation<[WindowItem], Never>?
+
+    func refresh() async -> [WindowItem] {
+        askedCount += 1
+        asked?.resume()
+        asked = nil
+        return await withCheckedContinuation { release = $0 }
+    }
+
+    func waitUntilAsked() async {
+        guard askedCount == 0 else { return }
+        await withCheckedContinuation { asked = $0 }
+    }
+
+    func finish(with windows: [WindowItem]) {
+        release?.resume(returning: windows)
+        release = nil
+    }
+}
+
 /// Everything one operation drives, so each case reads off one value.
 @MainActor
 struct OperationHarness {
@@ -116,6 +143,7 @@ private func beginAppearance(
 func makeOperations(
     rows: [WindowItem],
     refreshed: [WindowItem]? = nil,
+    held: HeldRefresh? = nil,
     close: @escaping @Sendable (ActivationTarget) -> ActivationFailure? = { _ in nil },
     quit: @escaping @Sendable (pid_t) -> ActivationFailure? = { _ in nil },
     hide: @escaping @Sendable (pid_t) -> ActivationFailure? = { _ in nil },
@@ -140,7 +168,7 @@ func makeOperations(
         },
         refresh: {
             counts.refreshes += 1
-            return fresh
+            return await held?.refresh() ?? fresh
         },
         closer: FakeCloser(close: close),
         quitter: FakeQuitter(quit: quit),
