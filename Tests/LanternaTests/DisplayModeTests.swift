@@ -123,6 +123,29 @@ struct DisplayModeTests {
         )
     }
 
+    /// A kind shown in the list files nothing under its heading: the row
+    /// parks under the kind whose mode parks it.
+    @Test func aShownKindYieldsTheSubgroupToTheParkingKind() {
+        let row = item(isMinimized: true, isHidden: true)
+        #expect(
+            placement(of: row, modes: modes(hiddenApp: .show)) == .separated(.minimized)
+        )
+    }
+
+    /// A row escaping hiding on a match goes under the kind that hid it,
+    /// not under an earlier kind that only parks it.
+    @Test func anEscapedRowGoesUnderTheHidingKind() {
+        let row = item(isMinimized: true, isHidden: true)
+        #expect(
+            placement(
+                of: row,
+                modes: modes(minimized: .hide),
+                queryIsEmpty: false,
+                matchesQuery: true
+            ) == .separated(.minimized)
+        )
+    }
+
     @Test func otherSpaceKindsObeyTheirMode() {
         // Without the per-window Space information every row reads as on
         // this Space, so everything stays ordinary no matter the mode.

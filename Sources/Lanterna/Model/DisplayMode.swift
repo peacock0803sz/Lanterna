@@ -6,9 +6,10 @@ enum DisplayMode: String, Sendable {
     /// Mixed into the ordinary rows.
     case show
     /// Kept out of the list without a query. A row matching the query
-    /// returns to its subgroup so it stays reachable.
+    /// returns below the separator so it stays reachable.
     case hide
-    /// Parked below the separator in the kind's subgroup.
+    /// Parked below the separator, under the kind's heading unless an
+    /// earlier kind in drawing order parks the row too.
     case separateAtBottom
 }
 
@@ -51,10 +52,12 @@ struct DisplayModes: Equatable, Sendable {
         fullscreen: .show
     )
 
-    /// Where one row goes. Hiding wins over parking, and a row matching the
-    /// query escapes hiding into its subgroup. Ties between subgroups go to
-    /// the first in drawing order. Rows with nothing known stay ordinary:
-    /// missing information never hides.
+    /// Where one row goes. Hiding wins over parking. A row matching the
+    /// query escapes hiding into the subgroup of the first of its kinds, in
+    /// drawing order, whose mode hides it; a parked row goes to the first
+    /// of its kinds whose mode parks it, so a kind shown in the list never
+    /// files a row under its heading. Rows with nothing known stay
+    /// ordinary: missing information never hides.
     static func placement(
         of row: WindowItem,
         modes: DisplayModes,
@@ -67,32 +70,13 @@ struct DisplayModes: Equatable, Sendable {
             (row.isMinimized ? modes.minimized : nil, .minimized),
             (row.isFullscreen ? modes.fullscreen : nil, .fullscreen),
         ].compactMap { mode, subgroup in mode.map { ($0, subgroup) } }
-        guard !applicable.isEmpty else { return .ordinary }
-        if applicable.contains(where: { $0.0 == .hide }) {
-            if !queryIsEmpty, matchesQuery {
-                return .separated(firstSubgroup(of: row))
-            }
-            return .hidden
+        if let hiding = applicable.first(where: { $0.0 == .hide }) {
+            return !queryIsEmpty && matchesQuery ? .separated(hiding.1) : .hidden
         }
-        if applicable.contains(where: { $0.0 == .separateAtBottom }) {
-            return .separated(firstSubgroup(of: row))
+        if let parking = applicable.first(where: { $0.0 == .separateAtBottom }) {
+            return .separated(parking.1)
         }
         return .ordinary
-    }
-
-    /// The subgroup one row belongs below the separator: the first of its
-    /// kinds in drawing order.
-    private static func firstSubgroup(of row: WindowItem) -> DisplaySubgroup {
-        if row.isOnOtherSpace {
-            return .otherSpace
-        }
-        if row.isHidden {
-            return .hiddenApp
-        }
-        if row.isMinimized {
-            return .minimized
-        }
-        return .fullscreen
     }
 
     /// The effective modes for one run: present keys win, absent keys mean
