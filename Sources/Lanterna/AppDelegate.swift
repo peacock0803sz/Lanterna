@@ -52,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Asked once per launch. A grant given while the app runs takes effect
         // on the next run, so this answer stands for the whole run (FR-005).
         let permissionState = SystemPermissionReader().currentState()
-        let guideWindows = GuideWindows()
+        let guideWindows = GuideWindows(appearanceMode: options.appearanceMode)
         self.guideWindows = guideWindows
         if OnboardingNeed.isNeeded(state: permissionState, sampleCount: options.sampleCount) {
             guideWindows.openGuide(state: permissionState)

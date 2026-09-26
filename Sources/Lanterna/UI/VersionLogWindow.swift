@@ -35,7 +35,8 @@ final class VersionLogWindow: NSWindow {
     convenience init(
         version: DisplayedVersion,
         summary: String?,
-        entries: [DisplayedLogEntry]
+        entries: [DisplayedLogEntry],
+        appearanceMode: AppearanceMode = .system
     ) {
         self.init(
             contentRect: NSRect(x: 0, y: 0, width: 560, height: 420),
@@ -48,7 +49,7 @@ final class VersionLogWindow: NSWindow {
             version: version,
             summary: summary,
             entries: entries
-        ))
+        ).preferredColorScheme(appearanceMode.colorScheme))
         center()
     }
 }
