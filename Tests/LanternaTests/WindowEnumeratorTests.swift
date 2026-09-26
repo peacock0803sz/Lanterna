@@ -22,12 +22,14 @@ private struct FakeReader: ApplicationWindowReading {
 @MainActor
 private func application(
     _ processIdentifier: pid_t,
-    name: String = "Finder"
+    name: String = "Finder",
+    isHidden: Bool = false
 ) -> RunningApplicationInfo {
     RunningApplicationInfo(
         processIdentifier: processIdentifier,
         name: name,
         bundleIdentifier: nil,
+        isHidden: isHidden,
         icon: NSImage()
     )
 }
@@ -131,6 +133,16 @@ struct WindowEnumeratorTests {
             reads: [100: read([record(10, title: title)])]
         )
         #expect(result.items.first?.displayTitle == "Ghostty")
+    }
+
+    /// A hidden application's rows arrive already parked.
+    @Test func hiddenStateReachesTheRow() {
+        let result = snapshot(
+            applications: [application(100, isHidden: true)],
+            reads: [100: read([record(10)])]
+        )
+        #expect(result.items.first?.isHidden == true)
+        #expect(result.items.first?.isParked == true)
     }
 
     @Test func recordDetailReachesTheRow() {

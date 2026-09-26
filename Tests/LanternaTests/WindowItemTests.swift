@@ -7,7 +7,9 @@ struct WindowItemTests {
     private func item(
         appName: String = "Safari",
         windowTitle: String = "Untitled",
-        windowID: CGWindowID = 1
+        windowID: CGWindowID = 1,
+        isMinimized: Bool = false,
+        isHidden: Bool = false
     ) -> WindowItem {
         WindowItem(
             id: WindowItem.Identifier(windowID: windowID),
@@ -16,7 +18,8 @@ struct WindowItemTests {
             bundleIdentifier: nil,
             windowTitle: windowTitle,
             kind: .standard,
-            isMinimized: false,
+            isMinimized: isMinimized,
+            isHidden: isHidden,
             icon: NSImage()
         )
     }
@@ -56,6 +59,14 @@ struct WindowItemTests {
     /// bar shows is what the row shows.
     @Test func displayTitleKeepsSurroundingWhitespaceOfANonEmptyTitle() {
         #expect(item(windowTitle: "  Downloads  ").displayTitle == "  Downloads  ")
+    }
+
+    /// A minimized or hidden row parks below the separator; an ordinary
+    /// row does not.
+    @Test func parkedRowsAreTheMinimizedOrHiddenOnes() {
+        #expect(item().isParked == false)
+        #expect(item(isMinimized: true).isParked == true)
+        #expect(item(isHidden: true).isParked == true)
     }
 
     @Test func displayTitleFallsBackToTheApplicationNameWhenTheTitleIsEmpty() {

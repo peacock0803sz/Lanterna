@@ -13,6 +13,9 @@ struct RunningApplicationInfo {
     let processIdentifier: pid_t
     let name: String
     let bundleIdentifier: String?
+    /// Whether the application is hidden. Read here, on the main thread,
+    /// beside the names and icons — never by the parallel reading.
+    let isHidden: Bool
     let icon: NSImage
 
     /// Applications that appear in the Dock and the system switcher, in the
@@ -37,6 +40,7 @@ struct RunningApplicationInfo {
                     processIdentifier: application.processIdentifier
                 ),
                 bundleIdentifier: application.bundleIdentifier,
+                isHidden: application.isHidden,
                 icon: resolvedIcon(application.icon)
             )
         }

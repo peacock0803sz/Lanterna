@@ -25,6 +25,9 @@ struct WindowItem: Identifiable {
     /// Kept for window activation; minimised rows look like any other row
     /// today.
     let isMinimized: Bool
+    /// Whether the owning application is hidden. Read with the names and
+    /// icons, on the main thread, never by the parallel reading.
+    let isHidden: Bool
     let icon: NSImage
 
     /// The enumerator's name fallback (`RunningApplicationInfo.displayName`)
@@ -38,6 +41,7 @@ struct WindowItem: Identifiable {
         windowTitle: String,
         kind: WindowKind,
         isMinimized: Bool,
+        isHidden: Bool = false,
         icon: NSImage
     ) {
         precondition(!appName.isEmpty, "appName must not be empty")
@@ -48,7 +52,29 @@ struct WindowItem: Identifiable {
         self.windowTitle = windowTitle
         self.kind = kind
         self.isMinimized = isMinimized
+        self.isHidden = isHidden
         self.icon = icon
+    }
+
+    /// Whether the row parks below the separator: minimised or hidden.
+    var isParked: Bool {
+        isMinimized || isHidden
+    }
+
+    /// The same row, marked hidden or shown. The optimistic look moves rows
+    /// before the reconciling pass confirms them.
+    func settingHidden(_ hidden: Bool) -> WindowItem {
+        WindowItem(
+            id: id,
+            ownerProcessIdentifier: ownerProcessIdentifier,
+            appName: appName,
+            bundleIdentifier: bundleIdentifier,
+            windowTitle: windowTitle,
+            kind: kind,
+            isMinimized: isMinimized,
+            isHidden: hidden,
+            icon: icon
+        )
     }
 
     /// Title to draw. Trimming decides emptiness only: a title that has any
