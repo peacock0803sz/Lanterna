@@ -6,6 +6,7 @@
 import { Image } from "astro:assets";
 import lighthouse from "../assets/hero-lighthouse.jpg";
 import switcherPanel from "../assets/switcher-panel.png";
+import switcherPanelDark from "../assets/switcher-panel-dark.png";
 
 interface Props {
   alt: string;
@@ -174,7 +175,14 @@ const compassTicks =
   <Image
     src={switcherPanel}
     alt={alt}
-    class="switcher"
+    class="switcher light"
+    widths={[560, 1120]}
+    sizes="39vw"
+  />
+  <Image
+    src={switcherPanelDark}
+    alt={alt}
+    class="switcher dark"
     widths={[560, 1120]}
     sizes="39vw"
   />
@@ -246,6 +254,12 @@ const compassTicks =
     box-shadow:
       0 4px 6px #00000014,
       0 24px 60px #0000004d;
+  }
+
+  /* The panel follows the site theme, as the app follows the system one. */
+  :global([data-theme="dark"]) .plate :global(.switcher.light),
+  :global(:root:not([data-theme="dark"])) .plate :global(.switcher.dark) {
+    display: none;
   }
 
   @media (max-width: 50rem) {
