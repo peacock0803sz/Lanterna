@@ -92,7 +92,8 @@ struct SwitcherPanelTests {
     }
 
     /// A row its mode keeps out takes no height: no row, no separator and
-    /// no heading for it. A query that matches it brings all three back.
+    /// no heading for it. A query that matches it brings its row and its
+    /// heading back.
     @Test func aRowItsModeKeepsOutTakesNoHeight() {
         let panel = panel(rowCount: 5)
         panel.displayModes = DisplayModes(
