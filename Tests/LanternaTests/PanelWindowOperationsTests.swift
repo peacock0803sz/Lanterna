@@ -179,13 +179,14 @@ struct PanelWindowOperationsTests {
             operationRow(appName: "Safari", windowTitle: "Downloads", windowID: 3),
             operationRow(appName: "Mail", windowTitle: "Drafts", windowID: 4),
             operationRow(appName: "Safari", windowTitle: "History", windowID: 5),
+            operationRow(appName: "Safari", windowTitle: "Bookmarks", windowID: 6),
         ]
-        let made = makeOperations(rows: mixed, refreshed: [mixed[0], mixed[1], mixed[3], mixed[4]])
+        let made = makeOperations(rows: mixed, refreshed: [mixed[0], mixed[1], mixed[3], mixed[4], mixed[5]])
         made.filter.activate()
         made.filter.append("safari")
-        made.selection.retarget(to: [mixed[0].id, mixed[2].id, mixed[4].id], selecting: mixed[2].id)
+        made.selection.retarget(to: [mixed[0].id, mixed[2].id, mixed[4].id, mixed[5].id], selecting: mixed[2].id)
         await made.operations.operate(.closeWindow, naming: mixed[2].id)
-        #expect(made.surface.updatedLists.last?.map(\.id) == [mixed[0].id, mixed[4].id])
+        #expect(made.surface.updatedLists.last?.map(\.id) == [mixed[0].id, mixed[4].id, mixed[5].id])
         #expect(made.selection.chosenID == mixed[4].id)
     }
 
