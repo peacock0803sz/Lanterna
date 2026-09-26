@@ -14,10 +14,12 @@ struct SwitcherViewTests {
     /// The rows the list lays out are the rows the panel's height counts,
     /// each as tall as a row: the separator above the parked rows included,
     /// since the list gives it a row's height like any other.
-    @Test(arguments: [false, true])
-    func theListDrawsTheRowsTheHeightCounts(parked: Bool) {
+    @Test(arguments: [0, 1, 3])
+    func theListDrawsTheRowsTheHeightCounts(parkedCount: Int) {
         let sample = SampleWindows.make(count: 3)
-        let windows = parked ? [sample[0], sample[1], sample[2].settingHidden(true)] : sample
+        let windows = sample.enumerated().map { index, row in
+            index >= sample.count - parkedCount ? row.settingHidden(true) : row
+        }
         let host = NSHostingView(rootView: SwitcherView(
             windows: windows, selectedID: nil, appearanceToken: 0, query: "", filterActive: false
         ))
