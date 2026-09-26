@@ -286,8 +286,8 @@ final class PanelPresenter {
         startedAt: ContinuousClock.Instant,
         gatheredOnDemand: Bool
     ) {
-        // Five orderings below are load-bearing, and the statements they
-        // hold apart are named one pair at a time rather than counted.
+        // The orderings below are load-bearing, and the statements they
+        // hold apart are named one pair at a time.
         //
         // The list is ordered first, so everything this appearance shows,
         // names, and measures reads off one value no later refresh can move.

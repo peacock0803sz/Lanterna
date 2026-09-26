@@ -2,9 +2,8 @@ import Darwin
 
 /// What the presenter does when another application comes to the front.
 ///
-/// Split from the presenter, which decides when a panel goes up, and kept
-/// beside it rather than inside a file already at the length the linter
-/// allows.
+/// Split from the presenter, which decides when a panel goes up, so the
+/// presenter file stays within the linter's length limit.
 extension PanelPresenter {
     /// Takes the panel down when an application other than this one comes to
     /// the front, which is the user having moved on to something else.
@@ -14,12 +13,12 @@ extension PanelPresenter {
     ///
     /// This process is ruled out rather than assumed absent. The panel can
     /// take key status now, which is the part of this that changed, and
-    /// taking it was measured not to bring the application forward: over
-    /// twenty appearances no notification named this process, the frontmost
-    /// application never changed, and the application never reported itself
-    /// active. The reading is not an instrument that failed to fire, because
-    /// a control that brought another application forward on purpose was
-    /// announced both times.
+    /// taking it was measured not to bring the application forward: across
+    /// repeated appearances no notification named this process, the
+    /// frontmost application never changed, and the application never
+    /// reported itself active. The reading is not an instrument that failed
+    /// to fire, because a control that brought another application forward
+    /// on purpose was announced every time.
     ///
     /// So a notification naming this process is not expected — and it is
     /// still compared for, because acting on one that did arrive would take a
