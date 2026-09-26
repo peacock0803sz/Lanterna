@@ -1,5 +1,39 @@
 ---
-title: ホーム
+title: Lanterna
+description: macOS用のリスト式ウィンドウスイッチャー
+template: splash
+hero:
+  title: Lanterna
+  tagline: macOS用のリスト式ウィンドウスイッチャー
+  image:
+    file: ../../assets/eyecatch.png
+    alt: Lanternaのスイッチャーパネルのスクリーンショット
+  actions:
+    - text: ダウンロード
+      link: https://github.com/peacock0803sz/Lanterna/releases
+      variant: primary
+    - text: 使い方を見る
+      link: /ja/usage/
+      variant: minimal
 ---
 
-準備中。
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Lanternaとは
+
+システムの切り替え画面とは異なり、Lanternaはウィンドウの一覧をリストで表示します。サムネイルを取らないため、表示は一瞬で、メモリ消費もほぼありません。
+
+<CardGrid>
+  <Card title="サムネイルなしのリスト表示" icon="list-format">
+    アプリアイコンとウィンドウタイトルだけのContexts風リストで、切り替え画面がすぐに出ます。
+  </Card>
+  <Card title="ウィンドウ単位の切り替え" icon="random">
+    最近使った順にウィンドウ単位で切り替えます。入力による絞り込みにも対応しています。
+  </Card>
+  <Card title="2つの権限だけ" icon="approve-check">
+    アクセシビリティと入力監視だけを使います。画面収録は不要です。
+  </Card>
+  <Card title="Apple SiliconとLiquid Glass" icon="rocket">
+    Apple Silicon専用で、TahoeのLiquid Glassに対応したメニューバーアプリです。
+  </Card>
+</CardGrid>
