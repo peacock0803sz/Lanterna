@@ -132,6 +132,7 @@
           packages = with pkgs; [
             actionlint
             pinact
+            pkl
             shellcheck
             swiftformat
             swiftlint
