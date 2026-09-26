@@ -247,7 +247,7 @@ struct PanelFilterTests {
         #expect(made.selection.chosenID == renewed[0].id)
     }
 
-    /// With an empty query the swap shows everything, as before.
+    /// With an empty query the swap shows every row of the new list.
     @Test func replacingWithAnEmptyQueryShowsEverything() {
         let made = makeFilter()
         let renewed = [

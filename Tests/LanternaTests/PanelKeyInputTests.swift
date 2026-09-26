@@ -26,10 +26,10 @@ private let leftCommandKey = NSEvent.ModifierFlags(
 )
 
 struct PanelKeyInputTests {
-    /// Every row but the full stop ignores the modifiers, and both ways round
-    /// are said of each: the ordinary press comes with Command still down,
-    /// and a run whose modifier monitor never started sees the same keys
-    /// arrive bare once Command has been let go.
+    /// Every row but the full stop and the operations ignores the modifiers,
+    /// and both ways round are said of each: the ordinary press comes with
+    /// Command still down, and a run whose modifier monitor never started
+    /// sees the same keys arrive bare once Command has been let go.
     @Test(arguments: [NSEvent.ModifierFlags(), .command])
     func theArrowsMoveTheSelectionWhateverIsHeldWithThem(modifiers: NSEvent.ModifierFlags) {
         #expect(PanelKeyInput.action(for: press(kVK_DownArrow, modifiers)) == .selectNext)
@@ -83,10 +83,7 @@ struct PanelKeyInputTests {
     /// thing here as a key that carries on to somewhere else.
     @Test func keysWithNoMeaningAreAbsorbed() {
         #expect(PanelKeyInput.action(for: press(kVK_ANSI_A)) == .absorb)
-        #expect(
-            PanelKeyInput.action(for: press(kVK_ANSI_Q, .command))
-                == .windowOperation(.quitApplication)
-        )
+        #expect(PanelKeyInput.action(for: press(kVK_ANSI_S, .command)) == .absorb)
         #expect(PanelKeyInput.action(for: press(kVK_F1)) == .absorb)
         #expect(PanelKeyInput.action(for: press(kVK_Space)) == .absorb)
     }
@@ -131,16 +128,9 @@ struct PanelKeyInputTests {
         #expect(PanelKeyInput.action(for: press(kVK_Tab, [.command, .shift])) == .absorb)
     }
 
-    /// On a run whose modifier monitor never started, Command is already up
-    /// by the time a key arrives, so every keystroke comes in bare. The
-    /// cases above already say each of these bare shapes one by one; this
-    /// says them together, as the run sees them, so that dropping one of
-    /// them reads as losing the run rather than as losing a row of a table.
-    /// Moving along the list is the arrows' job on this run — Tab stays
-    /// swallowed even here, because the two-path reason above does not turn
-    /// on which modifiers are down.
-    /// Four Command combinations act on the chosen row instead of typing.
-    /// The codes are what decide, so the input source does not matter.
+    /// Command combinations on the operation keys act on the chosen row
+    /// instead of typing. The codes are what decide, so the input source
+    /// does not matter.
     @Test func commandLettersOperateOnTheChosenRow() {
         #expect(
             PanelKeyInput.action(for: press(kVK_ANSI_W, .command))
@@ -194,6 +184,14 @@ struct PanelKeyInputTests {
         )
     }
 
+    /// On a run whose modifier monitor never started, Command is already up
+    /// by the time a key arrives, so every keystroke comes in bare. The
+    /// cases above already say each of these bare shapes one by one; this
+    /// says them together, as the run sees them, so that dropping one of
+    /// them reads as losing the run rather than as losing a row of a table.
+    /// Moving along the list is the arrows' job on this run — Tab stays
+    /// swallowed even here, because the two-path reason above does not turn
+    /// on which modifiers are down.
     @Test func bareKeysStayUsableOnARunWithNoMonitor() {
         #expect(PanelKeyInput.action(for: press(kVK_DownArrow)) == .selectNext)
         #expect(PanelKeyInput.action(for: press(kVK_UpArrow)) == .selectPrevious)
