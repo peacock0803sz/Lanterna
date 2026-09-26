@@ -1,13 +1,577 @@
+/*
+ * Chart No. 1 — the Lanterna docs theme. Pages read as sheets of a nautical
+ * chart: paper and ink by day, a night chart in dark mode.
+ */
+
+/* Night chart (Starlight treats dark as the default theme). */
 :root {
-  --sl-color-accent: #5b8def;
-  --sl-color-accent-high: #7aa5ff;
+  --ln-surface: #0d1522;
+  --ln-ink: #ece6d8;
+  --ln-secondary: #a4adba;
+  --ln-muted: #6c788a;
+  --ln-body: #cdd2da;
+  --ln-accent: #ffa630;
+  --ln-on-accent: #0d1522;
+  --ln-hairline: #ece6d81f;
+  --ln-key: #162133;
+  --ln-code: #070c15;
+  --ln-night-dim: #0d15224d;
 }
 
-:root[data-theme='light'] {
-  --sl-color-accent: #2f6ae0;
-  --sl-color-accent-high: #1f4fb8;
+:root[data-theme="light"] {
+  --ln-surface: #fcfaf7;
+  --ln-ink: #000000;
+  --ln-secondary: #666666;
+  --ln-muted: #999999;
+  --ln-body: #333333;
+  --ln-accent: #ff9800;
+  --ln-on-accent: #000000;
+  --ln-hairline: #0000001f;
+  --ln-key: #ffffff;
+  --ln-code: #f3efe7;
+  --ln-night-dim: transparent;
 }
 
-.hero img {
-  border-radius: 0.75rem;
+:root,
+:root[data-theme="light"] {
+  --ln-font-serif: "Newsreader", "Noto Serif JP", Georgia, serif;
+  --ln-font-heading: "Noto Serif JP", "Newsreader", serif;
+  --ln-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --sl-font: "Inter";
+  --sl-font-mono: var(--ln-font-mono);
+
+  --sl-color-white: var(--ln-ink);
+  --sl-color-gray-1: var(--ln-ink);
+  --sl-color-gray-2: var(--ln-body);
+  --sl-color-gray-3: var(--ln-secondary);
+  --sl-color-gray-4: var(--ln-muted);
+  --sl-color-gray-5: var(--ln-hairline);
+  --sl-color-gray-6: var(--ln-hairline);
+  --sl-color-black: var(--ln-surface);
+  --sl-color-accent-low: var(--ln-hairline);
+  --sl-color-accent: var(--ln-accent);
+  --sl-color-accent-high: var(--ln-ink);
+  --sl-color-text: var(--ln-body);
+  --sl-color-text-accent: var(--ln-ink);
+  --sl-color-text-invert: var(--ln-on-accent);
+  --sl-color-bg: var(--ln-surface);
+  --sl-color-bg-nav: var(--ln-surface);
+  --sl-color-bg-sidebar: var(--ln-surface);
+  --sl-color-bg-inline-code: transparent;
+  --sl-color-hairline-light: var(--ln-hairline);
+  --sl-color-hairline: var(--ln-hairline);
+  --sl-color-hairline-shade: transparent;
+  --sl-color-backdrop-overlay: #0d1522a8;
+
+  /* Layout: the header bar, plus the chart border under it on sheet pages. */
+  --ln-nav-bar-height: 4rem;
+  --sl-nav-height: var(--ln-nav-bar-height);
+  --sl-nav-pad-x: 1.25rem;
+  --sl-content-pad-x: 1.25rem;
+  --sl-content-width: 45.75rem;
+  --sl-sidebar-width: 15rem;
+  --sl-sidebar-pad-x: 1.5rem;
+  --ln-column-gap: 4.5rem;
+  --ln-toc-width: 13.75rem;
+  --sl-main-pad: 0;
+}
+
+@media (min-width: 50rem) {
+  :root,
+  :root[data-theme="light"] {
+    --ln-nav-bar-height: 5.375rem;
+    --sl-nav-pad-x: 2rem;
+    --sl-content-pad-x: 2rem;
+  }
+
+  :root[data-has-sidebar] {
+    --sl-nav-height: calc(var(--ln-nav-bar-height) + 36px);
+  }
+}
+
+@media (min-width: 72rem) {
+  :root,
+  :root[data-theme="light"] {
+    --sl-nav-pad-x: 4.5rem;
+    --sl-sidebar-width: 21.5rem;
+    --sl-sidebar-pad-x: 4.5rem;
+  }
+
+  :root[data-has-sidebar] {
+    --sl-content-pad-x: 0rem;
+    --sl-content-margin-inline: 0;
+  }
+}
+
+:root:not([data-has-sidebar]) {
+  --sl-content-width: 81rem;
+  --sl-content-pad-x: var(--sl-nav-pad-x);
+}
+
+/* The home page's chart plate bleeds to the viewport edges. */
+html {
+  overflow-x: clip;
+}
+
+body {
+  background-color: var(--ln-surface);
+}
+
+/* Content panels: no rules between them, and the sheet header keeps its own rhythm. */
+.content-panel {
+  padding-block: 0;
+}
+
+.content-panel + .content-panel {
+  border-top: 0;
+}
+
+[data-has-sidebar] .content-panel:first-child {
+  padding-top: 4rem;
+}
+
+.main-frame main {
+  padding-bottom: 6rem;
+}
+
+/* ---------- Sidebar: the list of sheets ---------- */
+
+.sidebar-content .top-level {
+  counter-reset: sheet;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-content .top-level::before {
+  content: "Sheets";
+  margin-bottom: 16px;
+  font-family: var(--ln-font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ln-muted);
+}
+
+.sidebar-content .top-level > li + li {
+  margin-top: 0;
+}
+
+.sidebar-content .top-level > li > a {
+  counter-increment: sheet;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 0 9px 14px;
+  border-inline-start: 2px solid transparent;
+  border-radius: 0;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--ln-secondary);
+}
+
+.sidebar-content .top-level > li > a::before {
+  content: counter(sheet, upper-alpha);
+  font-family: var(--ln-font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--ln-muted);
+}
+
+.sidebar-content .top-level > li > a:hover {
+  color: var(--ln-ink);
+}
+
+.sidebar-content .top-level > li > a[aria-current="page"] {
+  border-inline-start-color: var(--ln-ink);
+  background: none;
+  font-weight: 600;
+  color: var(--ln-ink);
+}
+
+.sidebar-content .top-level > li > a[aria-current="page"]::before {
+  color: var(--ln-ink);
+}
+
+/* ---------- Table of contents ---------- */
+
+.right-sidebar-panel {
+  padding: 4rem 0 2rem;
+}
+
+.right-sidebar-panel .sl-container {
+  width: auto;
+  max-width: none;
+}
+
+.right-sidebar-panel h2 {
+  margin-bottom: 16px;
+  font-family: var(--ln-font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ln-muted);
+}
+
+.right-sidebar-panel starlight-toc ul {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.right-sidebar-panel starlight-toc ul ul {
+  margin-top: 12px;
+}
+
+.right-sidebar-panel starlight-toc a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-block: 0;
+  padding-inline-end: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ln-secondary);
+}
+
+.right-sidebar-panel starlight-toc ul ul a {
+  padding-inline-start: calc(16px * var(--depth, 0));
+}
+
+.right-sidebar-panel starlight-toc a::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 1px;
+  background-color: var(--ln-muted);
+}
+
+.right-sidebar-panel starlight-toc a[aria-current="true"] {
+  font-weight: 600;
+  color: var(--ln-ink);
+}
+
+.right-sidebar-panel starlight-toc a[aria-current="true"]::before {
+  width: 12px;
+  background-color: var(--ln-ink);
+}
+
+/* ---------- Article typography ---------- */
+
+.sl-markdown-content {
+  counter-reset: section;
+  font-size: 16px;
+  line-height: 30px;
+  color: var(--ln-body);
+}
+
+.sl-markdown-content
+  :is(h1, h2, h3, h4, h5, h6):not(:where(.not-content, .not-content *)) {
+  color: var(--ln-ink);
+}
+
+/*
+ * Starlight wraps each heading with its anchor link in .sl-heading-wrapper and
+ * renders the heading inline, so spacing, size and the section key sit on the
+ * wrapper. The anchor icon is sized from the wrapper's font size.
+ */
+.sl-markdown-content .sl-heading-wrapper {
+  --sl-line-height-headings: 1.4;
+}
+
+.sl-markdown-content .sl-heading-wrapper.level-h2 {
+  margin-top: 56px;
+  margin-bottom: 18px;
+  font-size: 28px;
+}
+
+.sl-markdown-content .sl-heading-wrapper.level-h3 {
+  margin-top: 28px;
+  margin-bottom: 12px;
+  font-size: 18px;
+}
+
+.sl-markdown-content .sl-heading-wrapper + * {
+  margin-top: 0;
+}
+
+.sl-markdown-content h2:not(:where(.not-content, .not-content *)) {
+  font-family: var(--ln-font-heading);
+  font-size: inherit;
+  font-weight: 500;
+}
+
+.sl-markdown-content h3:not(:where(.not-content, .not-content *)) {
+  font-size: inherit;
+  font-weight: 600;
+}
+
+[data-has-sidebar] .sl-markdown-content .sl-heading-wrapper.level-h2 {
+  counter-increment: section;
+}
+
+[data-has-sidebar] .sl-markdown-content .sl-heading-wrapper.level-h2::before {
+  content: var(--ln-sheet, "") counter(section);
+  display: block;
+  margin-bottom: 10px;
+  font-family: var(--ln-font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 2px;
+  line-height: 1.4;
+  color: var(--ln-secondary);
+}
+
+.sl-markdown-content a:not(:where(.not-content, .not-content *)) {
+  color: var(--ln-ink);
+  text-underline-offset: 3px;
+}
+
+.sl-markdown-content code:not(:where(.not-content *, pre *)) {
+  padding: 0;
+  font-size: 0.875em;
+  color: var(--ln-ink);
+  background: none;
+}
+
+.sl-markdown-content kbd {
+  display: inline-block;
+  padding: 3px 10px;
+  border: 1px solid var(--ln-ink);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  font-family: var(--ln-font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ln-ink);
+  background-color: var(--ln-key);
+}
+
+.sl-markdown-content kbd + kbd {
+  margin-inline-start: 6px;
+}
+
+/* Lists: an ink dash for bullets, two-digit numbers for steps. */
+.sl-markdown-content :is(ul, ol):not(:where(.not-content, .not-content *)) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.sl-markdown-content
+  :is(ul, ol):not(:where(.not-content, .not-content *))
+  > li {
+  position: relative;
+  margin: 0;
+  padding-inline-start: 26px;
+}
+
+.sl-markdown-content ul:not(:where(.not-content, .not-content *)) > li::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  inset-inline-start: 0;
+  width: 10px;
+  height: 1px;
+  background-color: var(--ln-ink);
+}
+
+.sl-markdown-content ol:not(:where(.not-content, .not-content *)) {
+  counter-reset: step;
+  gap: 14px;
+}
+
+.sl-markdown-content ol:not(:where(.not-content, .not-content *)) > li {
+  counter-increment: step;
+  padding-inline-start: 32px;
+}
+
+.sl-markdown-content ol:not(:where(.not-content, .not-content *)) > li::before {
+  content: counter(step, decimal-leading-zero);
+  position: absolute;
+  inset-inline-start: 0;
+  font-family: var(--ln-font-mono);
+  font-size: 13px;
+  line-height: 29px;
+  color: var(--ln-ink);
+}
+
+/* Tables: ink rules top and bottom, hairlines between rows. */
+.sl-markdown-content table:not(:where(.not-content, .not-content *)) {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  border-block: 1px solid var(--ln-ink);
+}
+
+/* Header-less tables (all header cells empty) drop the header row. */
+.sl-markdown-content
+  table:not(:where(.not-content, .not-content *))
+  thead:not(:has(th:not(:empty))) {
+  display: none;
+}
+
+.sl-markdown-content :is(th, td):not(:where(.not-content, .not-content *)) {
+  padding: 16px 24px 16px 0;
+  border-bottom: 1px solid var(--ln-hairline);
+  font-size: 15px;
+  line-height: 28px;
+  text-align: start;
+  vertical-align: middle;
+  color: var(--ln-body);
+}
+
+.sl-markdown-content tr:last-child > td {
+  border-bottom: 0;
+}
+
+.sl-markdown-content
+  :is(th, td):first-child:not(:where(.not-content, .not-content *)) {
+  width: 180px;
+  font-family: var(--ln-font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ln-secondary);
+}
+
+.sl-markdown-content td:nth-child(2):not(:where(.not-content, .not-content *)) {
+  font-size: 16px;
+  color: var(--ln-ink);
+}
+
+/* On phones the key column shrinks to its content so the description keeps its width. */
+@media (max-width: 40rem) {
+  .sl-markdown-content :is(th, td):first-child {
+    width: 1%;
+    padding-inline-end: 16px;
+  }
+}
+
+/* Shortcut tables: keycaps in the first column, a description in the second. */
+.sl-markdown-content td kbd {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.sl-markdown-content tr:has(kbd) > td:nth-child(2) {
+  font-size: 15px;
+  color: var(--ln-body);
+}
+
+/* Asides: a ruled margin note. */
+.starlight-aside {
+  padding: 4px 0 4px 20px;
+  border-inline-start: 2px solid var(--ln-ink);
+  background: none;
+  color: var(--ln-secondary);
+}
+
+.sl-markdown-content .starlight-aside {
+  margin-top: 28px;
+}
+
+.starlight-aside__title {
+  font-family: var(--ln-font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 2px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--ln-ink);
+}
+
+.starlight-aside__icon {
+  display: none;
+}
+
+.starlight-aside__title + .starlight-aside__content {
+  margin-top: 8px;
+}
+
+.starlight-aside__content {
+  font-size: 15px;
+  line-height: 28px;
+}
+
+/* ---------- Code blocks ---------- */
+
+.expressive-code .frame .header::before {
+  display: none;
+}
+
+.expressive-code .frame:has(pre[data-language="bash"]) .header::after,
+.expressive-code .frame:has(pre[data-language="sh"]) .header::after {
+  /* Expressive Code draws the title bar's bottom rule on this pseudo-element; keep it and add the label. */
+  content: "Bash";
+  display: flex;
+  align-items: center;
+  padding-inline-start: 16px;
+  font-family: var(--ln-font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ln-muted);
+}
+
+.expressive-code
+  :is(pre[data-language="bash"], pre[data-language="sh"])
+  .ec-line
+  .code::before {
+  content: "$";
+  margin-inline-end: 12px;
+  color: var(--ln-muted);
+  user-select: none;
+}
+
+.expressive-code .copy button {
+  opacity: 0.5;
+}
+
+/* ---------- Search button in the header ---------- */
+
+site-search > button[data-open-modal] {
+  gap: 8px;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  color: var(--ln-muted);
+}
+
+site-search > button[data-open-modal]:hover {
+  color: var(--ln-ink);
+}
+
+site-search > button[data-open-modal] > kbd {
+  margin-inline-start: 0;
+  font-family: inherit;
+  font-size: inherit;
+  background: none;
+  color: inherit;
+}
+
+@media (min-width: 50rem) {
+  site-search {
+    width: auto;
+  }
+}
+
+/* Mobile menu button: flat, like the rest of the header. */
+.sl-menu-button,
+:root[data-theme="light"] .sl-menu-button {
+  box-shadow: none;
+  background: none;
+  color: var(--ln-ink);
+}
+
+.sl-menu-button:has(~ :popover-open),
+:root[data-theme="light"] .sl-menu-button:has(~ :popover-open) {
+  background-color: var(--ln-hairline);
 }

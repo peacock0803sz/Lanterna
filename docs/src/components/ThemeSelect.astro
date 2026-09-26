@@ -1,0 +1,59 @@
+---
+// A single toggle between the light and night charts. Starlight's ThemeProvider
+// still applies the stored choice (or the system preference) before paint.
+import LucideIcon from "./LucideIcon.astro";
+---
+
+<ln-theme-toggle>
+  <button
+    type="button"
+    aria-label={Astro.locals.t("themeSelect.accessibleLabel")}
+  >
+    <LucideIcon name="sun-moon" size={16} />
+  </button>
+</ln-theme-toggle>
+
+<script>
+  const storageKey = "starlight-theme";
+
+  class ThemeToggle extends HTMLElement {
+    constructor() {
+      super();
+      const button = this.querySelector("button");
+      if (!button) return;
+      const sync = () => button.setAttribute("aria-pressed", String(isDark()));
+      sync();
+      button.addEventListener("click", () => {
+        const theme = isDark() ? "light" : "dark";
+        document.documentElement.dataset.theme = theme;
+        try {
+          localStorage.setItem(storageKey, theme);
+        } catch {
+          // Storage can be unavailable in private windows; the toggle still works for this page.
+        }
+        document.querySelectorAll("ln-theme-toggle button").forEach((el) => {
+          el.setAttribute("aria-pressed", String(theme === "dark"));
+        });
+      });
+    }
+  }
+
+  const isDark = () => document.documentElement.dataset.theme === "dark";
+
+  customElements.define("ln-theme-toggle", ThemeToggle);
+</script>
+
+<style>
+  button {
+    display: flex;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ln-muted);
+    cursor: pointer;
+  }
+
+  button:hover {
+    color: var(--ln-ink);
+  }
+</style>

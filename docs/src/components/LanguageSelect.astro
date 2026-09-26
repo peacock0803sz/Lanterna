@@ -1,0 +1,60 @@
+---
+// Mirrors the `locales` option in astro.config.mjs; overrides cannot read the
+// Starlight user config with types.
+const locales = [
+  { code: "en", label: "EN" },
+  { code: "ja", label: "日本語" },
+];
+
+const { locale: current } = Astro.locals.starlightRoute;
+const links = locales.map(({ code, label }) => ({
+  code,
+  label,
+  href: Astro.url.pathname.replace(
+    new RegExp(`^/${current}(?=/|$)`),
+    `/${code}`,
+  ),
+  isCurrent: code === current,
+}));
+---
+
+<nav
+  class="locales"
+  aria-label={Astro.locals.t("languageSelect.accessibleLabel")}
+>
+  {links.map(({ code, label, href, isCurrent }, index) => (
+    <>
+      {index > 0 && <span aria-hidden="true">/</span>}
+      <a
+        href={href}
+        hreflang={code}
+        lang={code}
+        aria-current={isCurrent ? "true" : undefined}
+      >
+        {label}
+      </a>
+    </>
+  ))}
+</nav>
+
+<style>
+  .locales {
+    display: flex;
+    gap: 0.6em;
+    font-family: var(--ln-font-mono);
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: var(--ln-muted);
+    white-space: nowrap;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  a:hover,
+  a[aria-current] {
+    color: var(--ln-ink);
+  }
+</style>

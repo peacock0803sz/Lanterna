@@ -1,0 +1,50 @@
+---
+import { sheetKey } from "../lib/sheets";
+
+const { entry, sidebar } = Astro.locals.starlightRoute;
+const key = sheetKey(sidebar, Astro.url.pathname);
+---
+
+{/* Section headings in the article are numbered after the sheet, e.g. B1, B2. */}
+{key && <style is:inline set:html={`:root { --ln-sheet: '${key}'; }`} />}
+<div class="page-title">
+  {key && <p class="breadcrumb">Chart No. 1 / Sheet {key}</p>}
+  <h1 id="_top">{entry.data.title}</h1>
+  {entry.data.description && (
+    <p class="description">{entry.data.description}</p>
+  )}
+</div>
+
+<style>
+  .page-title {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding-bottom: 8px;
+  }
+
+  .breadcrumb {
+    font-family: var(--ln-font-mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    word-spacing: 0.5em;
+    color: var(--ln-secondary);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--ln-font-heading);
+    font-size: clamp(2.5rem, 5vw, 3.25rem);
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--ln-ink);
+  }
+
+  .description {
+    margin: 0;
+    font-size: 18px;
+    line-height: 33px;
+    color: var(--ln-secondary);
+  }
+</style>
