@@ -61,8 +61,8 @@ struct WindowItemTests {
         #expect(item(windowTitle: "  Downloads  ").displayTitle == "  Downloads  ")
     }
 
-    /// A minimized or hidden row parks below the separator; an ordinary
-    /// row does not.
+    /// A row is parked when it is minimized or its app is hidden; an
+    /// ordinary row is not.
     @Test func parkedRowsAreTheMinimizedOrHiddenOnes() {
         #expect(item().isParked == false)
         #expect(item(isMinimized: true).isParked == true)

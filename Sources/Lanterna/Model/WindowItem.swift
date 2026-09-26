@@ -66,9 +66,9 @@ struct WindowItem: Identifiable {
         self.icon = icon
     }
 
-    /// Whether the row is minimised or its application hidden: a row that
-    /// hiding or minimizing has nothing left to do to. Where it draws is
-    /// the display modes' to say, not this.
+    /// Whether the row is minimised or its application hidden. The hide and
+    /// minimize operations leave such a row alone. Where it draws is up to
+    /// the display modes, not this flag.
     var isParked: Bool {
         isMinimized || isHidden
     }

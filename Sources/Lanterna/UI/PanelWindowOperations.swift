@@ -121,8 +121,8 @@ final class PanelWindowOperations {
     }
 
     /// The named row, unless it is out of scope — the process's own row is
-    /// never a target, and a parked row (`isParked`) is none for hiding or
-    /// minimizing, since it is already minimised or hidden.
+    /// never a target, and a parked row (`isParked`) is left alone by
+    /// hiding and minimizing.
     /// Out of scope is not a failure: nothing happens, and no line says
     /// anything.
     private func resolve(
