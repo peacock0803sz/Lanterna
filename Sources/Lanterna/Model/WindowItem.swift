@@ -28,6 +28,12 @@ struct WindowItem: Identifiable {
     /// Whether the owning application is hidden. Read with the names and
     /// icons, on the main thread, never by the parallel reading.
     let isHidden: Bool
+    /// Whether the window lives on another Space. False until the per-window
+    /// Space information arrives; unknown never hides.
+    let isOnOtherSpace: Bool
+    /// Whether the window is natively fullscreen. Read as one AX attribute;
+    /// a manually zoomed window is not fullscreen.
+    let isFullscreen: Bool
     let icon: NSImage
 
     /// The enumerator's name fallback (`RunningApplicationInfo.displayName`)
@@ -42,6 +48,8 @@ struct WindowItem: Identifiable {
         kind: WindowKind,
         isMinimized: Bool,
         isHidden: Bool = false,
+        isOnOtherSpace: Bool = false,
+        isFullscreen: Bool = false,
         icon: NSImage
     ) {
         precondition(!appName.isEmpty, "appName must not be empty")
@@ -53,6 +61,8 @@ struct WindowItem: Identifiable {
         self.kind = kind
         self.isMinimized = isMinimized
         self.isHidden = isHidden
+        self.isOnOtherSpace = isOnOtherSpace
+        self.isFullscreen = isFullscreen
         self.icon = icon
     }
 
@@ -82,6 +92,8 @@ struct WindowItem: Identifiable {
             kind: kind,
             isMinimized: minimized,
             isHidden: isHidden,
+            isOnOtherSpace: isOnOtherSpace,
+            isFullscreen: isFullscreen,
             icon: icon
         )
     }
@@ -98,6 +110,42 @@ struct WindowItem: Identifiable {
             kind: kind,
             isMinimized: isMinimized,
             isHidden: hidden,
+            isOnOtherSpace: isOnOtherSpace,
+            isFullscreen: isFullscreen,
+            icon: icon
+        )
+    }
+
+    /// The same row, marked on another Space or not.
+    func settingOnOtherSpace(_ onOtherSpace: Bool) -> WindowItem {
+        WindowItem(
+            id: id,
+            ownerProcessIdentifier: ownerProcessIdentifier,
+            appName: appName,
+            bundleIdentifier: bundleIdentifier,
+            windowTitle: windowTitle,
+            kind: kind,
+            isMinimized: isMinimized,
+            isHidden: isHidden,
+            isOnOtherSpace: onOtherSpace,
+            isFullscreen: isFullscreen,
+            icon: icon
+        )
+    }
+
+    /// The same row, marked fullscreen or not.
+    func settingFullscreen(_ fullscreen: Bool) -> WindowItem {
+        WindowItem(
+            id: id,
+            ownerProcessIdentifier: ownerProcessIdentifier,
+            appName: appName,
+            bundleIdentifier: bundleIdentifier,
+            windowTitle: windowTitle,
+            kind: kind,
+            isMinimized: isMinimized,
+            isHidden: isHidden,
+            isOnOtherSpace: isOnOtherSpace,
+            isFullscreen: fullscreen,
             icon: icon
         )
     }
