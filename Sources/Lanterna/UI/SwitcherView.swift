@@ -104,6 +104,10 @@ struct SwitcherView: View {
                     }
                     if !parkedRows.isEmpty {
                         Divider()
+                            // A row like the others, on every OS: without an
+                            // explicit height the list's default decides, and
+                            // that default is not the same on every macOS.
+                            .frame(height: PanelMetrics.rowHeight)
                             .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)

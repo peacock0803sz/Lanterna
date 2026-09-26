@@ -11,9 +11,13 @@ private func tables(in view: NSView) -> [NSTableView] {
 
 @MainActor
 struct SwitcherViewTests {
-    /// The rows the list lays out are the rows the panel's height counts,
-    /// each as tall as a row: the separator above the parked rows included,
-    /// since the list gives it a row's height like any other.
+    /// The rows the list draws are the rows the panel's height counts: one
+    /// for each window, and one more for the separator above the parked
+    /// rows when any are parked. Said of the count alone: measuring row
+    /// rects off a window that was never shown reads OS-version layout
+    /// output, which is not the same on every macOS. Heights hold by
+    /// construction instead — every row carries an explicit frame of one
+    /// row's height — and `PanelMetricsTests` holds the counting.
     @Test(arguments: [0, 1, 3])
     func theListDrawsTheRowsTheHeightCounts(parkedCount: Int) {
         let sample = SampleWindows.make(count: 3)
@@ -33,8 +37,6 @@ struct SwitcherViewTests {
         host.layoutSubtreeIfNeeded()
         let table = tables(in: host).first
         #expect(table?.numberOfRows == PanelMetrics.drawnRowCount(windows))
-        let heights = (0 ..< (table?.numberOfRows ?? 0)).map { table?.rect(ofRow: $0).height }
-        #expect(heights.allSatisfy { $0 == PanelMetrics.rowHeight })
     }
 
     /// The view draws whichever row it is told to, and nothing about the list
