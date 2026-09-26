@@ -98,8 +98,8 @@ struct MRUTrackerTests {
         #expect(tracker.ordered([first, second, third])[1].id == second.id)
     }
 
-    /// Rows with no record keep the input order behind every recorded row.
-    /// The input arrives in the store's fixed order, so "no record" and
+    /// Among rows in use, rows with no record keep the input order behind
+    /// every recorded row. The input arrives in the store's fixed order, so "no record" and
     /// "fixed order" are the same thing from this side.
     @Test func unrecordedRowsStayLastInInputOrder() {
         let tracker = MRUTracker()

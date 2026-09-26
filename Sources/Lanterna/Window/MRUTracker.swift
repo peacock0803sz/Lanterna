@@ -166,9 +166,10 @@ final class MRUTracker {
     /// records for rows that are gone.
     ///
     /// Sweeping happens here and nowhere else: once per appearance, against
-    /// the snapshot that appearance was given. Rows with no record keep the
-    /// input order behind every recorded row; the input arrives in the
-    /// store's fixed order, so that is the fixed order kept. Records owned
+    /// the snapshot that appearance was given. Within each group, the rows
+    /// in use and then the parked rows, rows with no record keep the input
+    /// order behind every recorded row of that group; the input arrives in
+    /// the store's fixed order, so that is the fixed order kept. Records owned
     /// by skipped applications stay put whatever their age: their rows are
     /// missing because the look missed, not because the windows closed.
     func ordered(_ items: [WindowItem], skipping skippedOwners: Set<pid_t> = []) -> [WindowItem] {
