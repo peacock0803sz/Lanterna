@@ -144,6 +144,7 @@ func makeOperations(
     rows: [WindowItem],
     refreshed: [WindowItem]? = nil,
     held: HeldRefresh? = nil,
+    skipped: Set<pid_t>? = [],
     close: @escaping @Sendable (ActivationTarget) -> ActivationFailure? = { _ in nil },
     quit: @escaping @Sendable (pid_t) -> ActivationFailure? = { _ in nil },
     hide: @escaping @Sendable (pid_t) -> ActivationFailure? = { _ in nil },
@@ -166,9 +167,11 @@ func makeOperations(
             filter?.replace(fullWindows: renewed, choosingWhere: anchor)
             wayOut?.replacePresented(renewed)
         },
-        refresh: {
+        // No skipped set stands for no pass having finished at all.
+        refresh: { _ in
             counts.refreshes += 1
-            return await held?.refresh() ?? fresh
+            let windows = await held?.refresh() ?? fresh
+            return skipped.map { PanelWindowOperations.ReconcilingList(windows: windows, skippedOwners: $0) }
         },
         closer: FakeCloser(close: close),
         quitter: FakeQuitter(quit: quit),

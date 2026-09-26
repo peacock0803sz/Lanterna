@@ -62,6 +62,25 @@ struct PanelWindowOperationsTests {
         #expect(made.log.lines.contains { $0.contains("is still open") })
     }
 
+    /// A pass that could not read the operated row's application decides
+    /// nothing: its missing row is not a closed window, so no success is
+    /// written and the row outliving every pass reads as an interruption.
+    @Test func aSkippedApplicationIsNotReadAsDone() async {
+        let made = makeOperations(rows: rows, refreshed: [rows[2]], skipped: [123])
+        await made.operations.operate(.closeWindow, naming: rows[0].id)
+        #expect(made.counts.refreshes == 2)
+        #expect(!made.log.lines.contains { $0.contains("window operation (close") })
+        #expect(made.counts.interruptions == 1)
+    }
+
+    /// No pass having finished is undecided rather than an empty list.
+    @Test func noListIsNotReadAsDone() async {
+        let made = makeOperations(rows: rows, refreshed: [], skipped: nil)
+        await made.operations.operate(.minimizeWindow, naming: rows[0].id)
+        #expect(!made.log.lines.contains { $0.contains("window operation (minimize") })
+        #expect(made.counts.interruptions == 1)
+    }
+
     /// The process's own row is out of scope: nothing happens, and no line
     /// says anything.
     @Test func theOwnRowIsLeftAlone() async {

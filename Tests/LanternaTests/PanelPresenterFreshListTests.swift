@@ -1,14 +1,15 @@
+import Darwin
 @testable import Lanterna
 import Testing
 
-/// A pass that found the given rows.
+/// A pass that found the given rows, timing out on the skipped owners.
 @MainActor
-private func passFinding(_ items: [WindowItem]) -> WindowListSnapshot {
+private func passFinding(_ items: [WindowItem], skipping skipped: [pid_t] = []) -> WindowListSnapshot {
     WindowListSnapshot(
         items: items,
-        applicationCount: Set(items.map(\.ownerProcessIdentifier)).count,
+        applicationCount: Set(items.map(\.ownerProcessIdentifier)).count + skipped.count,
         gatheringDuration: .milliseconds(12),
-        skipped: [],
+        skipped: skipped.map { .init(name: "Busy", reason: .timedOut, processIdentifier: $0) },
         droppedWithoutID: 0,
         gatheredAt: .now
     )
@@ -38,8 +39,24 @@ struct PanelPresenterFreshListTests {
             writeLine: { _ in },
             tracker: tracker
         )
-        let fresh = await presenter.freshList()
-        #expect(fresh.map(\.id) == [rows[2].id, rows[0].id, rows[1].id])
+        let fresh = await presenter.freshList(carrying: [])
+        #expect(fresh?.windows.map(\.id) == [rows[2].id, rows[0].id, rows[1].id])
+    }
+
+    /// Rows of an application the pass could not read are carried over
+    /// from the list shown before, and the application is named as
+    /// skipped, so neither the panel nor the reconciling reads its rows as
+    /// gone.
+    @Test func aSkippedApplicationsRowsAreCarriedOver() async {
+        let rows = rows
+        let presenter = PanelPresenter(
+            surface: FakeSurface(),
+            store: WindowListStore(gather: { passFinding([rows[0]], skipping: [125]) }, writeLine: { _ in }),
+            writeLine: { _ in }
+        )
+        let fresh = await presenter.freshList(carrying: rows)
+        #expect(fresh?.windows.map(\.id) == [rows[0].id, rows[2].id])
+        #expect(fresh?.skippedOwners == [125])
     }
 
     /// Sorting a list read mid-appearance sweeps nothing: a record the list

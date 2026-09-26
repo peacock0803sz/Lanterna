@@ -40,7 +40,7 @@ extension PanelPresenter {
             replaceList: { [weak self] renewed, anchor in
                 self?.replacePresentedList(renewed, choosingWhere: anchor)
             },
-            refresh: { [weak self] in await self?.freshList() ?? [] },
+            refresh: { [weak self] previous in await self?.freshList(carrying: previous) },
             closer: LiveWindowCloser(),
             quitter: LiveApplicationQuitter(),
             hider: LiveApplicationHider(),
@@ -82,8 +82,20 @@ extension PanelPresenter {
     /// The freshest list in the order the appearance draws, waiting out the
     /// reconciling pass for it. Sorted without sweeping: the appearance
     /// already swept against its own snapshot.
-    func freshList() async -> [WindowItem] {
+    ///
+    /// Rows of applications the pass could not read are carried over from
+    /// the list shown before it: absence from a list that never looked is
+    /// not absence. Nothing when no pass has finished, which is undecided
+    /// rather than empty.
+    func freshList(carrying previous: [WindowItem]) async -> PanelWindowOperations.ReconcilingList? {
         await store.refreshEventually()
-        return tracker.arranged(store.snapshot?.items ?? [])
+        guard let snapshot = store.snapshot else { return nil }
+        let skipped = snapshot.skippedOwners
+        let listed = Set(snapshot.items.map(\.id))
+        let carried = previous.filter { skipped.contains($0.ownerProcessIdentifier) && !listed.contains($0.id) }
+        return PanelWindowOperations.ReconcilingList(
+            windows: tracker.arranged(snapshot.items + carried),
+            skippedOwners: skipped
+        )
     }
 }

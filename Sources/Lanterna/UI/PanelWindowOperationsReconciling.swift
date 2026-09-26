@@ -1,3 +1,5 @@
+import Darwin
+
 /// The reconciling half of the window operations.
 ///
 /// Split from the operations, which decide what each one sends and what
@@ -6,6 +8,15 @@
 /// beside them rather than inside a type already close to the length the
 /// linter allows.
 extension PanelWindowOperations {
+    /// A list read for reconciling, and the applications its pass could not
+    /// read. Their rows are missing because the look missed, not because
+    /// the windows went, so a pass that skipped the operated row's
+    /// application decides nothing about it.
+    struct ReconcilingList {
+        let windows: [WindowItem]
+        let skippedOwners: Set<pid_t>
+    }
+
     /// One operation with everything reconciling it needs. A value rather
     /// than a parameter apiece, which is past where the linter draws its
     /// line.
@@ -22,6 +33,9 @@ extension PanelWindowOperations {
     /// waits out the reconciling passes for what the look got wrong. At
     /// most two passes: a slow but working application still answers by
     /// the second one, and only a row outliving both counts as interrupted.
+    /// A pass that could not decide counts against the bound like one that
+    /// found the row, so an application that never answers ends as an
+    /// interruption too.
     /// A failure winds the look back instead of waiting: nothing was sent.
     ///
     /// Every swap moves the choice to the row now standing where the
@@ -51,7 +65,7 @@ extension PanelWindowOperations {
             return
         }
         for _ in 0 ..< 2 {
-            let fresh = await refresh()
+            let fresh = await refresh(presented)
             guard appearance == generation else {
                 writeLine(
                     "window operation left unreconciled (\(reconciliation.operation.logName) "
@@ -59,14 +73,20 @@ extension PanelWindowOperations {
                 )
                 return
             }
-            if reconciliation.isDone(fresh) {
-                presented = fresh
-                replaceList(fresh, anchor)
+            // No list at all, or one whose pass skipped the operated row's
+            // application, is undecided rather than done: the next pass
+            // is asked instead.
+            guard let fresh, !fresh.skippedOwners.contains(reconciliation.row.ownerProcessIdentifier) else {
+                continue
+            }
+            if reconciliation.isDone(fresh.windows) {
+                presented = fresh.windows
+                replaceList(fresh.windows, anchor)
                 writeLine(
                     "window operation (\(reconciliation.operation.logName) "
                         + "\(reconciliation.row.appName)/\(reconciliation.row.displayTitle))"
                 )
-                if reconciliation.closesWhenEmpty, fresh.isEmpty {
+                if reconciliation.closesWhenEmpty, fresh.windows.isEmpty {
                     closeAfterEmptied()
                 }
                 return

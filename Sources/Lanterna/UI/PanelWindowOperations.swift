@@ -12,7 +12,9 @@ final class PanelWindowOperations {
     /// Reached beside the operations, by the reconciling half.
     let surface: any SwitcherSurface
     let replaceList: @MainActor ([WindowItem], ChoiceAnchor) -> Void
-    let refresh: @MainActor () async -> [WindowItem]
+    /// Handed the list shown now, whose rows of skipped applications are
+    /// carried into the answer. Nothing when no pass has finished.
+    let refresh: @MainActor ([WindowItem]) async -> ReconcilingList?
     private let closer: any WindowClosing
     private let quitter: any ApplicationQuitting
     private let hider: any ApplicationHiding
@@ -36,7 +38,7 @@ final class PanelWindowOperations {
     init(
         surface: any SwitcherSurface,
         replaceList: @escaping @MainActor ([WindowItem], ChoiceAnchor) -> Void,
-        refresh: @escaping @MainActor () async -> [WindowItem],
+        refresh: @escaping @MainActor ([WindowItem]) async -> ReconcilingList?,
         closer: any WindowClosing,
         quitter: any ApplicationQuitting,
         hider: any ApplicationHiding,
