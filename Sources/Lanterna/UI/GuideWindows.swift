@@ -7,6 +7,13 @@ import AppKit
 /// alone. Both are snapshots at opening time; reopening takes a fresh one.
 @MainActor
 final class GuideWindows {
+    /// Which appearance the guide windows draw in, settled at launch.
+    private let appearanceMode: AppearanceMode
+
+    init(appearanceMode: AppearanceMode = .system) {
+        self.appearanceMode = appearanceMode
+    }
+
     /// Held so each window stays up until the user closes it.
     private var guideWindow: OnboardingWindow?
     /// Held the same way, for the version and log window.
@@ -20,7 +27,8 @@ final class GuideWindows {
     func openGuide(state: PermissionState) {
         let window = OnboardingWindow(
             missing: MissingPermission.list(for: state),
-            opener: SystemSettings.open
+            opener: SystemSettings.open,
+            appearanceMode: appearanceMode
         )
         // The accessory policy never brings the app forward on its own. At
         // login or a Finder launch another app is frontmost, and ordering
@@ -38,7 +46,8 @@ final class GuideWindows {
             summary: Diagnostics.launchSummary,
             entries: Diagnostics.recentEntries.map {
                 DisplayedLogEntry(sequence: $0.sequence, capturedAt: $0.capturedAt, message: $0.message)
-            }
+            },
+            appearanceMode: appearanceMode
         )
         window.makeKeyAndOrderFront(nil)
         versionLogWindow = window

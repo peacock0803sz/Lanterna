@@ -52,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Asked once per launch. A grant given while the app runs takes effect
         // on the next run, so this answer stands for the whole run (FR-005).
         let permissionState = SystemPermissionReader().currentState()
-        let guideWindows = GuideWindows()
+        let guideWindows = GuideWindows(appearanceMode: options.appearanceMode)
         self.guideWindows = guideWindows
         if OnboardingNeed.isNeeded(state: permissionState, sampleCount: options.sampleCount) {
             guideWindows.openGuide(state: permissionState)
@@ -67,7 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Built now and left off screen. Nothing shows until a key is pressed,
         // and building the window ahead of time keeps its cost off the path
         // between that press and the panel.
-        let panel = SwitcherPanel(displayModes: options.displayModes)
+        let panel = SwitcherPanel(displayModes: options.displayModes, appearanceMode: options.appearanceMode)
 
         // Before the hotkeys are claimed, so that the first pass has a head
         // start on the first press and that press is unlikely to find nothing

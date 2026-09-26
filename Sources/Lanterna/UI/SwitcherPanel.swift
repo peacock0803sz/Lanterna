@@ -29,7 +29,8 @@ final class SwitcherPanel: NSPanel {
         content: SwitcherView = SwitcherView(
             windows: [], selectedID: nil, appearanceToken: 0, query: "", filterActive: false
         ),
-        displayModes: DisplayModes = .defaults
+        displayModes: DisplayModes = .defaults,
+        appearanceMode: AppearanceMode = .system
     ) {
         self.displayModes = displayModes
         hostingView = NSHostingView(rootView: content)
@@ -57,6 +58,9 @@ final class SwitcherPanel: NSPanel {
         // frame is exactly the content frame.
         hasShadow = false
         hidesOnDeactivate = false
+        // The light or dark look is set on the window, not on the root view,
+        // so swapping in a new root view cannot drop it.
+        appearance = appearanceMode.nsAppearance
 
         // With no sizing options the SwiftUI intrinsic size cannot change the
         // window's content size or its minimum and maximum sizes.

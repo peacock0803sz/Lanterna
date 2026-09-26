@@ -19,6 +19,8 @@ enum LaunchArguments {
         var stopMonitorEvery: Duration?
         /// How the special kinds show. No flag sets it; the file covers it.
         var displayModes: DisplayModes = .defaults
+        /// Which appearance the windows use. No flag sets it; the file covers it.
+        var appearanceMode: AppearanceMode = .system
     }
 
     /// What a flag will take, as one closed choice.

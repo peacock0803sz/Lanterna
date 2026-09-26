@@ -9,6 +9,15 @@
       "description": "Schema generation. Stays 1 for this revision.",
       "type": "integer"
     },
+    "appearanceMode": {
+      "description": "The appearance the panel and the guide windows use. Absent means \"system\".",
+      "type": "string",
+      "enum": [
+        "system",
+        "light",
+        "dark"
+      ]
+    },
     "otherSpaceMode": {
       "description": "Windows on other Spaces. Absent means \"show\".",
       "type": "string",

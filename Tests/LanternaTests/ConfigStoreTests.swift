@@ -79,6 +79,19 @@ struct ConfigStoreTests {
         )
     }
 
+    @Test func appearanceModeComesFromTheFile() throws {
+        let file = ValidConfiguration(
+            version: 1,
+            sampleCount: nil,
+            stopMonitorEverySeconds: nil,
+            appearanceMode: .dark
+        )
+        let cli = try LaunchArguments.parse(["Lanterna", "--sample-count", "5"])
+        let effective = AppConfiguration.effectiveOptions(file: file, cli: cli)
+        #expect(effective.appearanceMode == .dark)
+        #expect(effective.sampleCount == 5)
+    }
+
     @Test func configFileURLLivesUnderLanterna() {
         let base = URL(fileURLWithPath: "/tmp/ConfigStoreTests", isDirectory: true)
         #expect(

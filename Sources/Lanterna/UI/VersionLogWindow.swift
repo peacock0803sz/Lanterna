@@ -35,7 +35,8 @@ final class VersionLogWindow: NSWindow {
     convenience init(
         version: DisplayedVersion,
         summary: String?,
-        entries: [DisplayedLogEntry]
+        entries: [DisplayedLogEntry],
+        appearanceMode: AppearanceMode = .system
     ) {
         self.init(
             contentRect: NSRect(x: 0, y: 0, width: 560, height: 420),
@@ -44,6 +45,7 @@ final class VersionLogWindow: NSWindow {
             defer: false
         )
         title = "Lanterna Version and Logs"
+        appearance = appearanceMode.nsAppearance
         contentView = NSHostingView(rootView: VersionLogView(
             version: version,
             summary: summary,

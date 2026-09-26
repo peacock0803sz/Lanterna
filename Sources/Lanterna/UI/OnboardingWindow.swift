@@ -84,7 +84,11 @@ final class OnboardingWindow: NSWindow {
     /// Builds the window for exactly the permissions still missing. Opening
     /// with nothing missing shows the all-clear state rather than an empty
     /// guide, so the menu entry never opens a dead window.
-    convenience init(missing: [MissingPermission], opener: @escaping SettingsOpener) {
+    convenience init(
+        missing: [MissingPermission],
+        opener: @escaping SettingsOpener,
+        appearanceMode: AppearanceMode = .system
+    ) {
         self.init(
             contentRect: NSRect(x: 0, y: 0, width: 440, height: 300),
             styleMask: [.titled, .closable],
@@ -92,6 +96,7 @@ final class OnboardingWindow: NSWindow {
             defer: false
         )
         title = "Lanterna needs permissions"
+        appearance = appearanceMode.nsAppearance
         contentView = NSHostingView(rootView: OnboardingView(missing: missing, opener: opener))
         center()
     }
