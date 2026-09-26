@@ -59,7 +59,7 @@ struct PanelWindowOperationsTests {
         let made = makeOperations(rows: rows, refreshed: rows)
         await made.operations.operate(.closeWindow, naming: rows[0].id)
         #expect(made.counts.interruptions == 1)
-        #expect(made.log.lines.contains { $0.contains("Safari/Tabs not confirmed") })
+        #expect(made.log.lines.contains { $0 == "closed the panel (close not confirmed: Safari/Tabs)" })
     }
 
     /// A pass that could not read the operated row's application decides

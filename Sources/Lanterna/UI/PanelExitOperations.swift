@@ -42,7 +42,7 @@ extension PanelExit {
     func closeAfterInterruptedOperation(operation: WindowOperation, appName: String, displayTitle: String) {
         dismissPanel()
         writeLine(
-            "closed the panel (\(operation.logName) after: \(appName)/\(displayTitle) not confirmed)"
+            "closed the panel (\(operation.logName) not confirmed: \(appName)/\(displayTitle))"
         )
     }
 }
