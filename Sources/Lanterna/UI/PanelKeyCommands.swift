@@ -119,6 +119,11 @@ final class PanelKeyCommands {
             wayOut.cancel(by: key, since: startedAt, filter: filter.logSummary())
         case let .commit(key):
             wayOut.commit(by: key, naming: selection.chosenID, since: startedAt, filter: filter.logSummary())
+        case .windowOperation:
+            // Wired when the operations land (the closing story owns the
+            // coordinator). Until then the press is swallowed like any
+            // other key with a meaning but no body yet.
+            break
         case let .filterText(text):
             filter.append(text)
         case .filterBackspace:

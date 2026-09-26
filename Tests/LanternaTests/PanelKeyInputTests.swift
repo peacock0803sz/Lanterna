@@ -8,9 +8,13 @@ import Testing
 private func press(
     _ keyCode: Int,
     _ modifiers: NSEvent.ModifierFlags = [],
-    repeating: Bool = false
+    repeating: Bool = false,
+    characters: String = ""
 ) -> PanelKeystroke {
-    PanelKeystroke(keyCode: UInt16(keyCode), modifiers: modifiers, isARepeat: repeating)
+    PanelKeystroke(
+        keyCode: UInt16(keyCode), modifiers: modifiers, isARepeat: repeating,
+        characters: characters
+    )
 }
 
 /// The bit a real keyboard sets to say Command was held down on the left-hand
@@ -79,7 +83,10 @@ struct PanelKeyInputTests {
     /// thing here as a key that carries on to somewhere else.
     @Test func keysWithNoMeaningAreAbsorbed() {
         #expect(PanelKeyInput.action(for: press(kVK_ANSI_A)) == .absorb)
-        #expect(PanelKeyInput.action(for: press(kVK_ANSI_Q, .command)) == .absorb)
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_Q, .command))
+                == .windowOperation(.quitApplication)
+        )
         #expect(PanelKeyInput.action(for: press(kVK_F1)) == .absorb)
         #expect(PanelKeyInput.action(for: press(kVK_Space)) == .absorb)
     }
@@ -132,6 +139,61 @@ struct PanelKeyInputTests {
     /// Moving along the list is the arrows' job on this run — Tab stays
     /// swallowed even here, because the two-path reason above does not turn
     /// on which modifiers are down.
+    /// Four Command combinations act on the chosen row instead of typing.
+    /// The codes are what decide, so the input source does not matter.
+    @Test func commandLettersOperateOnTheChosenRow() {
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_W, .command))
+                == .windowOperation(.closeWindow)
+        )
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_Q, .command))
+                == .windowOperation(.quitApplication)
+        )
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_H, .command))
+                == .windowOperation(.hideApplication)
+        )
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_M, .command))
+                == .windowOperation(.minimizeWindow)
+        )
+    }
+
+    /// The operations win over filtering: a Command letter that would type
+    /// is an operation, while any other Command letter still narrows.
+    @Test func theOperationKeysWinOverFiltering() {
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_W, .command, characters: "w"))
+                == .windowOperation(.closeWindow)
+        )
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_S, .command, characters: "s"))
+                == .filterText("s")
+        )
+    }
+
+    /// Operating twice is not a thing anyone asks for. A second press from
+    /// leaning on the key would land on whatever the first one left behind.
+    @Test func operationsDoNotRepeat() {
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_W, .command, repeating: true))
+                == .absorb
+        )
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_Q, .command, repeating: true))
+                == .absorb
+        )
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_H, .command, repeating: true))
+                == .absorb
+        )
+        #expect(
+            PanelKeyInput.action(for: press(kVK_ANSI_M, .command, repeating: true))
+                == .absorb
+        )
+    }
+
     @Test func bareKeysStayUsableOnARunWithNoMonitor() {
         #expect(PanelKeyInput.action(for: press(kVK_DownArrow)) == .selectNext)
         #expect(PanelKeyInput.action(for: press(kVK_UpArrow)) == .selectPrevious)
