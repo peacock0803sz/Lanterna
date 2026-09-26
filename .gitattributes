@@ -1,0 +1,3 @@
+# The stamp is rewritten on every build; the filter shows git the checked-in
+# placeholder instead. See scripts/generate-version.sh.
+Sources/Lanterna/Support/StampedVersion.swift filter=stamped-version
