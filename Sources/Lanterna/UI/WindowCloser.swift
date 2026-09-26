@@ -5,8 +5,10 @@ import PrivateAPIs
 ///
 /// `nil` means the request was sent — whether it landed is what the
 /// reconciling pass after it is for. A failure names why the request did
-/// not go through, with time-outs the exception: an application slow to
-/// answer may still act on a request it was sent.
+/// not go through. A time-out on the press itself is the one failure that
+/// may have reached the application, which may still act on a press it was
+/// slow to answer; a time-out while finding the window or its close button
+/// comes before anything is pressed.
 protocol WindowClosing: Sendable {
     func closeWindow(_ target: ActivationTarget) -> ActivationFailure?
 }
