@@ -142,6 +142,7 @@ struct WindowEnumerator {
             kind: record.kind,
             isMinimized: record.isMinimized,
             isHidden: application.isHidden,
+            isFullscreen: record.isFullscreen,
             icon: application.icon
         )
     }
