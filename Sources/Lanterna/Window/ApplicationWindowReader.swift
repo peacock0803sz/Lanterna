@@ -192,6 +192,9 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
         guard let kind = WindowKind.classify(role: role, subrole: subrole) else {
             return .excluded
         }
+        if kind == .undetermined, title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return .excluded
+        }
         guard let windowID, windowID != 0 else {
             return .droppedWithoutID
         }
