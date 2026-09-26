@@ -176,9 +176,9 @@ extension AppConfiguration {
     }
 
     /// The values this run uses. The command line wins where it says
-    /// anything; the file covers the rest (FR-010). The command line never
-    /// reaches the file. Display modes have no flag, so the file always
-    /// covers them.
+    /// anything; the file covers the rest. The command line never reaches
+    /// the file. Display modes have no flag, so the file always covers
+    /// them.
     static func effectiveOptions(
         file: ValidConfiguration,
         cli: LaunchArguments.Options
@@ -251,7 +251,7 @@ extension AppConfiguration {
         return .success(value)
     }
 
-    /// Reads the two count keys together, so `decode` stays small.
+    /// Reads the count keys together, so `decode` stays small.
     private static func checkedCountOptions(_ dict: [String: Any]) -> Result<
         (Int?, Int?), ConfigDecodeError
     > {
@@ -301,8 +301,8 @@ extension AppConfiguration {
         return .success(config)
     }
 
-    /// Reads one optional display-mode key. Anything but the three known
-    /// words invalidates the whole file, like any other bad value.
+    /// Reads one optional display-mode key. Anything but a `DisplayMode`
+    /// word invalidates the whole file, like any other bad value.
     private static func checkedOptionalMode(
         _ dict: [String: Any],
         key: String
