@@ -73,6 +73,23 @@ struct SwitcherPanelTests {
         #expect(contentRect.height == PanelMetrics.height(rowCount: 4))
     }
 
+    /// A list swapped in while the panel is up makes the same room for the
+    /// separator, and a failure note grows the panel from that height.
+    @Test func aSwappedInParkedGroupMakesRoomForItsSeparator() {
+        let panel = panel(rowCount: 5)
+        let windows = SampleWindows.make(count: 3)
+        panel.updateList(
+            windows: [windows[0], windows[1], windows[2].settingHidden(true)],
+            selecting: nil, query: "", filterActive: false
+        )
+        #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 4))
+        panel.showNotice("Couldn't minimize")
+        #expect(
+            panel.contentRect(forFrameRect: panel.frame).height
+                == PanelMetrics.height(rowCount: 4) + PanelMetrics.noticeHeight
+        )
+    }
+
     /// Swapping the list must not cost a new hosting view: rebuilding the view
     /// tree on every appearance is exactly what keeping one panel avoids.
     @Test func updateKeepsTheHostingViewItAlreadyHas() {
