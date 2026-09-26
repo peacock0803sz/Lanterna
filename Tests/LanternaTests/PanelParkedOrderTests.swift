@@ -43,21 +43,25 @@ struct PanelParkedOrderTests {
 
     /// Minimizing moves the row below the separator at once, before any
     /// pass confirms it, and the choice stays at the place the row left:
-    /// the next row in use takes it.
-    @Test func minimizingMovesTheRowBelowAtOnce() async {
+    /// the next row in use takes it. It holds the refresh, so it carries a
+    /// time limit for a run that never asks for the list.
+    @Test(.timeLimit(.minutes(1))) func minimizingMovesTheRowBelowAtOnce() async {
         let rows = rows
         let shown = MRUTracker().arranged(rows)
         let held = HeldRefresh()
         let made = makeOperations(rows: shown, held: held)
         made.selection.retarget(to: shown.map(\.id), selecting: rows[0].id)
-        let running = made.operations.start(.minimizeWindow, naming: rows[0].id)
+        guard let running = made.operations.start(.minimizeWindow, naming: rows[0].id) else {
+            Issue.record("the operation was dropped")
+            return
+        }
         await held.waitUntilAsked()
         let optimistic = made.surface.updatedLists.last ?? []
         #expect(optimistic.map(\.id) == [rows[2].id, rows[0].id, rows[1].id])
         #expect(optimistic.map(\.isParked) == [false, true, true])
         #expect(made.selection.chosenID == rows[2].id)
         held.finish(with: MRUTracker().arranged([rows[0].settingMinimized(true), rows[1], rows[2]]))
-        await running?.value
+        await running.value
         #expect(made.selection.chosenID == rows[2].id)
     }
 }
