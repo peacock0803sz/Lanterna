@@ -90,6 +90,17 @@ struct DisplayModes: Equatable, Sendable {
         return .fullscreen
     }
 
+    /// The effective modes for one run: present keys win, absent keys mean
+    /// the defaults.
+    static func effective(from config: ValidConfiguration) -> DisplayModes {
+        DisplayModes(
+            otherSpace: config.otherSpaceMode ?? defaults.otherSpace,
+            hiddenApp: config.hiddenAppMode ?? defaults.hiddenApp,
+            minimized: config.minimizedMode ?? defaults.minimized,
+            fullscreen: config.fullscreenMode ?? defaults.fullscreen
+        )
+    }
+
     /// The rows in the order the panel draws them: the ordinary rows, then
     /// the subgroups in drawing order, each in the order it arrived in.
     /// Hidden rows are left out; callers narrow first.
