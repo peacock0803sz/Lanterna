@@ -18,8 +18,7 @@ extension PanelWindowOperations {
     }
 
     /// One operation with everything reconciling it needs. A value rather
-    /// than a parameter apiece, which is past where the linter draws its
-    /// line.
+    /// than a parameter list longer than the linter allows.
     struct Reconciliation {
         let operation: WindowOperation
         let row: WindowItem
@@ -30,17 +29,18 @@ extension PanelWindowOperations {
     }
 
     /// Moves the look first, so the keystroke is answered at once, then
-    /// waits out the reconciling passes for what the look got wrong. At
-    /// most two passes: a slow but working application still answers by
-    /// the second one, and only a row outliving both counts as interrupted.
-    /// A pass that could not decide counts against the bound like one that
-    /// found the row, so an application that never answers ends as an
+    /// waits out a bounded number of reconciling passes for what the look
+    /// got wrong. A row that outlives them counts as interrupted. A pass
+    /// that could not decide counts against the bound like one that found
+    /// the row, so a row that stays undecided through every pass ends as an
     /// interruption too.
-    /// A failure winds the look back instead of waiting: nothing was sent.
+    /// A failure winds the look back instead of waiting. The sender said it
+    /// could not act, though a time-out may come after the request went out
+    /// and the application may still act on it.
     ///
     /// Every swap moves the choice to the row now standing where the
-    /// operated one stood among the rows shown before it, or to the new
-    /// last shown row when it stood last. The filter does the counting,
+    /// operated one stood among the rows shown before it, or to the last
+    /// shown row when fewer are shown now. The filter does the counting,
     /// because only it knows which rows a query leaves on screen.
     ///
     /// Every wait is a place the panel can go, or a later appearance come

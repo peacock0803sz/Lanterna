@@ -5,8 +5,9 @@ import PrivateAPIs
 ///
 /// Shared by the switcher-shaped operations — closing and minimizing read
 /// only the owning application's own window list, never a fresher one: the
-/// target is what the appearance showed. One derivation of resolving, so a
-/// row gone missing reads the same way everywhere.
+/// target is what the appearance showed. One derivation of resolving for
+/// both, so a row gone missing reads the same way in each; the switcher
+/// keeps its own copy of the same steps.
 struct WindowElementResolver: Sendable {
     static let messagingTimeout: Float = 1.0
     /// Answers slower than this are waits, not refusals. Half the messaging

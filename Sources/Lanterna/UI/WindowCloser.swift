@@ -4,8 +4,9 @@ import PrivateAPIs
 /// Closes one window.
 ///
 /// `nil` means the request was sent — whether it landed is what the
-/// reconciling pass after it is for. A failure names why sending was not
-/// even possible.
+/// reconciling pass after it is for. A failure names why the request did
+/// not go through, with time-outs the exception: an application slow to
+/// answer may still act on a request it was sent.
 protocol WindowClosing: Sendable {
     func closeWindow(_ target: ActivationTarget) -> ActivationFailure?
 }

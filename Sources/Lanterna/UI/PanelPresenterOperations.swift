@@ -1,16 +1,15 @@
-/// The presenter's half of the window operations.
+/// The presenter's wiring for the way out and the window operations.
 ///
-/// Split from the presenter, which decides when a panel goes up. Carrying
-/// out an operation — the optimistic look first, then the reconciling pass —
-/// is a different question, and it is the one that grows: every operation
-/// lands here, and the ones still to be given a body land here too. Kept
-/// beside the presenter rather than inside a file already close to the
-/// length the linter allows.
+/// Split from the presenter, which decides when a panel goes up. Building
+/// the way out and the operations, and handing each the closures that reach
+/// back into the presenter, is wiring rather than deciding; carrying an
+/// operation out is `PanelWindowOperations`' job. Kept beside the presenter
+/// rather than inside a file already close to the length the linter allows.
 extension PanelPresenter {
     /// Makes the way out, handing it what each exit needs. Built by a
     /// function rather than written out beside the property, because the
-    /// two name each other and their types cannot both be worked out from
-    /// expressions naming the other.
+    /// way out and the command watch name each other and their types cannot
+    /// both be worked out from expressions naming the other.
     func makeWayOut() -> PanelExit {
         PanelExit(
             surface: surface,
@@ -79,8 +78,8 @@ extension PanelPresenter {
         )
     }
 
-    /// The freshest list in the order the appearance draws, waiting out the
-    /// reconciling pass for it. Sorted without sweeping: the appearance
+    /// The freshest list in the order the appearance draws, waiting for the
+    /// store's next completed pass. Sorted without sweeping: the appearance
     /// already swept against its own snapshot.
     ///
     /// Rows of applications the pass could not read are carried over from

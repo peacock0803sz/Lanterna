@@ -1,6 +1,6 @@
-/// Where the choice stood before a list was swapped: the row it stood on,
-/// and the whole list that row stood in. The filter counts the place among
-/// the rows it shows.
+/// Where the operated row stood before a list was swapped: the row, and the
+/// whole list it stood in. The filter counts the place among the rows it
+/// shows.
 struct ChoiceAnchor {
     let id: WindowItem.Identifier
     let stoodIn: [WindowItem]
@@ -57,19 +57,21 @@ final class PanelFilter {
     }
 
     /// Swaps the list underneath, keeping the query: the narrowing stays
-    /// on over the new rows. What the commit and cancel lines will say is
-    /// recomputed, so no line names a row this appearance never showed.
+    /// on over the new rows. The counts the commit and cancel lines print
+    /// are recomputed against the new rows.
     func replace(fullWindows: [WindowItem]) {
         self.fullWindows = fullWindows
         apply()
     }
 
     /// Swaps the list underneath as above, moving the choice to the row now
-    /// standing where the anchor stood among the shown rows, or to the new
-    /// last shown row when it stood last. Counted among the shown rows and
-    /// not the whole list, so a narrowed panel never chooses a row it is not
-    /// showing. An anchor that was not shown leaves the choice to the usual
-    /// resolving.
+    /// standing at the anchor's place among the shown rows, or to the last
+    /// shown row when fewer rows are shown than that. Counted among the
+    /// shown rows and not the whole list, so a narrowed panel never chooses
+    /// a row it is not showing. A row that stays in the list and keeps its
+    /// place — hiding and minimizing only mark it — keeps the choice. An anchor
+    /// that was not shown, or a list that shows nothing, leaves the choice
+    /// to the usual resolving.
     func replace(fullWindows: [WindowItem], choosingWhere anchor: ChoiceAnchor) {
         let before = WindowFilter.matching(state.query, against: anchor.stoodIn).map(\.id)
         let after = WindowFilter.matching(state.query, against: fullWindows).map(\.id)

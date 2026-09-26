@@ -1,12 +1,14 @@
 import ApplicationServices
 import PrivateAPIs
 
+/// Carries out the window operations on the panel that is up.
 ///
 /// Holds the mirror of the list on screen: what was shown is what a target
 /// is resolved off, and the mirror is rewound when sending fails. The filter
 /// and the way out keep their own copies beside this one — the same shape
-/// they already keep between each other — and all three move through the one
-/// entry that swaps the rows on screen.
+/// they already keep between each other. Every swap an operation makes sets
+/// this mirror and hands the same list to `replaceList`, which carries it to
+/// the other copies.
 @MainActor
 final class PanelWindowOperations {
     /// Reached beside the operations, by the reconciling half.
@@ -26,8 +28,8 @@ final class PanelWindowOperations {
     let closeForInterruption: @MainActor (WindowOperation, String, String) -> Void
     /// Reached beside the operations, by the reconciling half.
     var presented: [WindowItem] = []
-    /// Which appearance is up, counted forward at every start and every
-    /// end. Reconciling resumes after the panel may have gone, or after a
+    /// Which appearance is up, counted forward as each one begins and as it
+    /// ends. Reconciling resumes after the panel may have gone, or after a
     /// later appearance has come up; comparing this against the value it
     /// set out with is how it tells, and a changed value means it touches
     /// nothing.
@@ -119,7 +121,8 @@ final class PanelWindowOperations {
     }
 
     /// The named row, unless it is out of scope — the process's own row is
-    /// never a target, and neither is asking after what is already parked.
+    /// never a target, and a parked row is none for hiding or minimizing,
+    /// since it already sits below the separator.
     /// Out of scope is not a failure: nothing happens, and no line says
     /// anything.
     private func resolve(
