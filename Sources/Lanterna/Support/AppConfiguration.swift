@@ -230,10 +230,10 @@ extension AppConfiguration {
 
     /// A JSON integer and nothing else.
     ///
-    /// Booleans are refused explicitly: without that, a boolean would pass
-    /// through number bridging and read as 0 or 1.
+    /// Booleans are refused by their Objective-C type: an `is Bool` check
+    /// wrongly matches integer 1, so only the `c` type is turned away.
     private static func jsonInt(_ value: Any) -> Int? {
-        if value is Bool {
+        if let number = value as? NSNumber, String(cString: number.objCType) == "c" {
             return nil
         }
         return value as? Int
