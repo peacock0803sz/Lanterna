@@ -24,18 +24,21 @@ final class PanelKeyCommands {
     private let wayOut: PanelExit
     private let filter: PanelFilter
     private let now: @MainActor () -> ContinuousClock.Instant
+    private let operate: (@Sendable @MainActor (WindowOperation) -> Void)?
 
     init(
         surface: any SwitcherSurface,
         selection: PanelSelection,
         wayOut: PanelExit,
-        now: @escaping @MainActor () -> ContinuousClock.Instant
+        now: @escaping @MainActor () -> ContinuousClock.Instant,
+        operate: (@Sendable @MainActor (WindowOperation) -> Void)? = nil
     ) {
         self.surface = surface
         self.selection = selection
         self.wayOut = wayOut
         filter = PanelFilter(selection: selection, surface: surface)
         self.now = now
+        self.operate = operate
     }
 
     /// Starts an appearance over the whole ordered list, filtering only
@@ -47,6 +50,13 @@ final class PanelKeyCommands {
     /// Gives the appearance up; the next one starts empty either way.
     func endFiltering() {
         filter.reset()
+    }
+
+    /// Swaps the rows on screen for the reconciled list, keeping the query
+    /// and the commit's view of the appearance on the same rows.
+    func replacePresentedList(_ windows: [WindowItem]) {
+        filter.replace(fullWindows: windows)
+        wayOut.replacePresented(windows)
     }
 
     /// Switches filtering on for the panel that is up.
@@ -119,11 +129,8 @@ final class PanelKeyCommands {
             wayOut.cancel(by: key, since: startedAt, filter: filter.logSummary())
         case let .commit(key):
             wayOut.commit(by: key, naming: selection.chosenID, since: startedAt, filter: filter.logSummary())
-        case .windowOperation:
-            // Wired when the operations land (the closing story owns the
-            // coordinator). Until then the press is swallowed like any
-            // other key with a meaning but no body yet.
-            break
+        case let .windowOperation(operation):
+            operate?(operation)
         case let .filterText(text):
             filter.append(text)
         case .filterBackspace:

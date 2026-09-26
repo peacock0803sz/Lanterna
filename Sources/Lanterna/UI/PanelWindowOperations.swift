@@ -1,233 +1,123 @@
 import ApplicationServices
 import PrivateAPIs
 
-/// Closes one window.
 ///
-/// One method now; quitting, hiding and minimizing join as their stories
-/// land. `nil` means the request was sent — whether it landed is what the
-/// reconciling pass after it is for. A failure names why sending was not
-/// even possible.
-protocol WindowClosing: Sendable {
-    func closeWindow(_ target: ActivationTarget) -> ActivationFailure?
-}
+/// Holds the mirror of the list on screen: what was shown is what a target
+/// is resolved off, and the mirror is rewound when sending fails. The filter
+/// and the way out keep their own copies beside this one — the same shape
+/// they already keep between each other — and all three move through the one
+/// entry that swaps the rows on screen.
+@MainActor
+final class PanelWindowOperations {
+    private let selection: PanelSelection
+    private let surface: any SwitcherSurface
+    private let replaceList: @MainActor ([WindowItem]) -> Void
+    private let refresh: @MainActor () async -> [WindowItem]
+    private let closer: any WindowClosing
+    private let ownProcessIdentifier: pid_t
+    private let writeLine: @MainActor (String) -> Void
+    private let closeForInterruption: @MainActor (WindowOperation, String, String) -> Void
+    private var presented: [WindowItem] = []
 
-/// Closes a window by pressing its close button.
-///
-/// Resolving (row to element) is the switcher's procedure: the target is
-/// what the appearance showed, and only the owning application's own window
-/// list is read. The last step is the only new one — the close button, one
-/// level down, pressed the way a user presses it, so an application with
-/// unsaved changes shows its own dialog instead of being forced.
-///
-/// Every seam is a closure defaulting to the real call, so tests script
-/// answers no live application can be asked to give. The shape follows
-/// `LiveWindowSwitcher`, which separates its sends the same way.
-struct LiveWindowCloser: WindowClosing, Sendable {
-    static let messagingTimeout: Float = 1.0
-    /// Answers slower than this are waits, not refusals. Half the messaging
-    /// timeout leaves a wide margin on both sides; borrowed from the
-    /// switcher, which draws the same line for the same code.
-    static let unreachableAnswerCeiling: Duration = .milliseconds(500)
-
-    private let createApplication: @Sendable (pid_t) -> AXUIElement
-    private let setMessagingTimeout: @Sendable (AXUIElement, Float) -> AXError
-    private let copyWindows: @Sendable (AXUIElement) -> (AXError, [AXUIElement]?)
-    private let copyWindowID: @Sendable (AXUIElement) -> (AXError, CGWindowID)
-    private let copyChildren: @Sendable (AXUIElement) -> (AXError, [AXUIElement]?)
-    private let attributeString: @Sendable (AXUIElement, String) -> (AXError, String?)
-    private let press: @Sendable (AXUIElement) -> AXError
-    private let now: @Sendable () -> ContinuousClock.Instant
-
-    /// The defaults talk to the real accessibility API. Tests replace them,
-    /// because which answer an application gives is precisely the behaviour
-    /// being specified and no real application can be asked to give one.
     init(
-        createApplication: @escaping @Sendable (pid_t) -> AXUIElement = {
-            AXUIElementCreateApplication($0)
-        },
-        setMessagingTimeout: @escaping @Sendable (AXUIElement, Float) -> AXError = {
-            AXUIElementSetMessagingTimeout($0, $1)
-        },
-        copyWindows: @escaping @Sendable (AXUIElement) -> (AXError, [AXUIElement]?) = { application in
-            var value: CFTypeRef?
-            let error = AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &value)
-            return (error, value as? [AXUIElement])
-        },
-        copyWindowID: @escaping @Sendable (AXUIElement) -> (AXError, CGWindowID) = { element in
-            var windowID: CGWindowID = 0
-            let error = _AXUIElementGetWindow(element, &windowID)
-            return (error, windowID)
-        },
-        copyChildren: @escaping @Sendable (AXUIElement) -> (AXError, [AXUIElement]?) = { element in
-            var value: CFTypeRef?
-            let error = AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &value)
-            return (error, value as? [AXUIElement])
-        },
-        attributeString: @escaping @Sendable (AXUIElement, String) -> (AXError, String?) = { element, name in
-            var value: CFTypeRef?
-            let error = AXUIElementCopyAttributeValue(element, name as CFString, &value)
-            return (error, value as? String)
-        },
-        press: @escaping @Sendable (AXUIElement) -> AXError = {
-            AXUIElementPerformAction($0, kAXPressAction as CFString)
-        },
-        now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
+        selection: PanelSelection,
+        surface: any SwitcherSurface,
+        replaceList: @escaping @MainActor ([WindowItem]) -> Void,
+        refresh: @escaping @MainActor () async -> [WindowItem],
+        closer: any WindowClosing,
+        ownProcessIdentifier: pid_t,
+        writeLine: @escaping @MainActor (String) -> Void,
+        closeForInterruption: @escaping @MainActor (WindowOperation, String, String) -> Void
     ) {
-        self.createApplication = createApplication
-        self.setMessagingTimeout = setMessagingTimeout
-        self.copyWindows = copyWindows
-        self.copyWindowID = copyWindowID
-        self.copyChildren = copyChildren
-        self.attributeString = attributeString
-        self.press = press
-        self.now = now
+        self.selection = selection
+        self.surface = surface
+        self.replaceList = replaceList
+        self.refresh = refresh
+        self.closer = closer
+        self.ownProcessIdentifier = ownProcessIdentifier
+        self.writeLine = writeLine
+        self.closeForInterruption = closeForInterruption
     }
 
-    func closeWindow(_ target: ActivationTarget) -> ActivationFailure? {
-        // Resolve first, reading only the owning application's list. Never
-        // a fresher list: the target is what the appearance showed.
-        let resolved: AXUIElement
-        switch resolve(target) {
-        case let .element(element):
-            resolved = element
-        case let .failure(failure):
-            return failure
-        }
-        // Then the close button, one level down. A window with none is a
-        // failure, not a silent pass.
-        let button: AXUIElement
-        switch closeButton(of: resolved) {
-        case let .button(element):
-            button = element
-        case let .failure(failure):
-            return failure
-        }
-        return pressButton(button)
+    /// Remembers what the appearance shows. Operations resolve off this,
+    /// so a row gone from a fresher list is still a row that was shown.
+    func begin(windows: [WindowItem]) {
+        presented = windows
     }
 
-    /// Slow `cannotComplete` answers are waits, fast ones refusals. The line
-    /// is the switcher's: half the messaging timeout either way.
-    private func waitedSince(_ instant: ContinuousClock.Instant) -> Bool {
-        now() - instant >= Self.unreachableAnswerCeiling
+    /// Gives the mirror up with the panel.
+    func end() {
+        presented = []
     }
 
-    private enum Resolution {
-        case element(AXUIElement)
-        case failure(ActivationFailure)
-    }
-
-    private func resolve(_ target: ActivationTarget) -> Resolution {
-        let application = createApplication(target.ownerProcessIdentifier)
-        guard setMessagingTimeout(application, Self.messagingTimeout) == .success else {
-            return .failure(.applicationGone)
-        }
-        let sentAt = now()
-        let (windowsError, rawElements) = copyWindows(application)
-        let elements: [AXUIElement]
-        switch windowsError {
-        case .success:
-            guard let rawElements else {
-                return .failure(.other(reason: "malformed answer"))
-            }
-            elements = rawElements
-        case .noValue:
-            elements = []
-        default:
-            return .failure(listFailure(for: windowsError, since: sentAt))
-        }
-        for element in elements {
-            switch match(element, to: target) {
-            case .match:
-                return .element(element)
-            case .skip:
-                continue
-            case let .abort(failure):
-                return .failure(failure)
-            }
-        }
-        return .failure(.windowGone)
-    }
-
-    private func listFailure(for error: AXError, since sentAt: ContinuousClock.Instant) -> ActivationFailure {
-        switch error {
-        case .cannotComplete:
-            return waitedSince(sentAt) ? .timedOut : .applicationGone
-        case .apiDisabled:
-            return .other(reason: "permission missing")
-        case .invalidUIElement:
-            return .applicationGone
-        case let error:
-            return .other(reason: "error \(error.rawValue)")
-        }
-    }
-
-    private enum ElementMatch {
-        case match
-        case skip
-        case abort(ActivationFailure)
-    }
-
-    private func match(_ element: AXUIElement, to target: ActivationTarget) -> ElementMatch {
-        guard setMessagingTimeout(element, Self.messagingTimeout) == .success else {
-            return .skip
-        }
-        let attemptAt = now()
-        let (idError, windowID) = copyWindowID(element)
-        switch idError {
-        case .success:
-            return windowID != 0 && windowID == target.id.windowID ? .match : .skip
-        case .cannotComplete:
-            return .abort(waitedSince(attemptAt) ? .timedOut : .applicationGone)
-        case .apiDisabled:
-            return .abort(.other(reason: "permission missing"))
-        default:
-            return .skip
-        }
-    }
-
-    private enum ButtonSearch {
-        case button(AXUIElement)
-        case failure(ActivationFailure)
-    }
-
-    private func closeButton(of window: AXUIElement) -> ButtonSearch {
-        guard setMessagingTimeout(window, Self.messagingTimeout) == .success else {
-            return .failure(.other(reason: "error \(AXError.invalidUIElement.rawValue)"))
-        }
-        let sentAt = now()
-        let (childrenError, children) = copyChildren(window)
-        switch childrenError {
-        case .success:
+    /// Sends one operation at the named row.
+    func operate(_ operation: WindowOperation, naming id: WindowItem.Identifier?) async {
+        switch operation {
+        case .closeWindow:
+            await close(naming: id)
+        case .quitApplication, .hideApplication, .minimizeWindow:
+            // Their stories land next. Until then the press is swallowed
+            // without a trace.
             break
-        default:
-            return .failure(listFailure(for: childrenError, since: sentAt))
         }
-        for child in children ?? [] {
-            guard setMessagingTimeout(child, Self.messagingTimeout) == .success else {
-                continue
-            }
-            let (roleError, role) = attributeString(child, kAXRoleAttribute as String)
-            let (subroleError, subrole) = attributeString(child, kAXSubroleAttribute as String)
-            guard roleError == .success, subroleError == .success else {
-                continue
-            }
-            if role == (kAXButtonRole as String), subrole == (kAXCloseButtonSubrole as String) {
-                return .button(child)
-            }
-        }
-        return .failure(.other(reason: "no close button"))
     }
 
-    private func pressButton(_ button: AXUIElement) -> ActivationFailure? {
-        let sentAt = now()
-        switch press(button) {
-        case .success:
-            return nil
-        case .cannotComplete:
-            return waitedSince(sentAt)
-                ? .timedOut : .other(reason: "error \(AXError.cannotComplete.rawValue)")
-        case let error:
-            return .other(reason: "error \(error.rawValue)")
+    private func close(naming id: WindowItem.Identifier?) async {
+        guard let id, let index = presented.firstIndex(where: { $0.id == id }) else {
+            return
         }
+        let row = presented[index]
+        // Out of scope is not a failure: nothing happens, and no line
+        // says anything.
+        guard row.ownerProcessIdentifier != ownProcessIdentifier else {
+            return
+        }
+        let snapshot = presented
+        // Move the look first, so the keystroke is answered at once; the
+        // reconciling pass below corrects whatever the look got wrong.
+        var optimistically = presented
+        optimistically.remove(at: index)
+        presented = optimistically
+        replaceList(optimistically)
+        moveChoice(from: index, in: optimistically)
+        let target = ActivationTarget(
+            id: row.id,
+            ownerProcessIdentifier: row.ownerProcessIdentifier,
+            appName: row.appName,
+            displayTitle: row.displayTitle
+        )
+        if let failure = closer.closeWindow(target) {
+            presented = snapshot
+            replaceList(snapshot)
+            selection.retarget(to: snapshot.map(\.id), selecting: id)
+            surface.showSelection(id)
+            writeLine(
+                "window operation failed (close \(row.appName)/\(row.displayTitle): \(failure.logDescription))"
+            )
+            return
+        }
+        // At most two passes: a slow but working application still lists
+        // the row on the first one, and only a row outliving both counts
+        // as interrupted.
+        for _ in 0 ..< 2 {
+            let fresh = await refresh()
+            if !fresh.contains(where: { $0.id == id }) {
+                presented = fresh
+                replaceList(fresh)
+                moveChoice(from: index, in: fresh)
+                writeLine("window operation (close \(row.appName)/\(row.displayTitle))")
+                return
+            }
+        }
+        closeForInterruption(.closeWindow, row.appName, row.displayTitle)
+    }
+
+    /// The row now standing where the operated one stood, or the new last
+    /// row when the operated one was last.
+    private func moveChoice(from index: Int, in windows: [WindowItem]) {
+        let ids = windows.map(\.id)
+        let chosen: WindowItem.Identifier? = index < ids.count ? ids[index] : ids.last
+        selection.retarget(to: ids, selecting: chosen)
+        surface.showSelection(chosen)
     }
 }

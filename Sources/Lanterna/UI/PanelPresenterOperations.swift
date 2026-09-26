@@ -1,0 +1,80 @@
+/// The presenter's half of the window operations.
+///
+/// Split from the presenter, which decides when a panel goes up. Carrying
+/// out an operation — the optimistic look first, then the reconciling pass —
+/// is a different question, and it is the one that grows: every operation
+/// lands here, and the ones still to be given a body land here too. Kept
+/// beside the presenter rather than inside a file already close to the
+/// length the linter allows.
+extension PanelPresenter {
+    /// Makes the way out, handing it what each exit needs. Built by a
+    /// function rather than written out beside the property, because the
+    /// two name each other and their types cannot both be worked out from
+    /// expressions naming the other.
+    func makeWayOut() -> PanelExit {
+        PanelExit(
+            surface: surface,
+            now: now,
+            writeLine: writeLine,
+            keyStatusWatchInterval: keyStatusWatchInterval,
+            switcher: switcher,
+            recordCommit: { [weak self] id, pid in
+                self?.tracker.record(id, ownerProcessIdentifier: pid, origin: .commit)
+            },
+            noteSwitchReturned: { [weak self] in self?.tracker.noteSwitchReturned() },
+            onPanelGone: { [weak self] in
+                self?.commandWatch.stop()
+                self?.selection.end()
+                self?.keyCommands.endFiltering()
+                self?.operations.end()
+            }
+        )
+    }
+
+    /// Makes the carrier, wired to the commands, the way out and the list.
+    /// Reached through the `lazy` property rather than directly, so no two
+    /// `lazy` properties name each other.
+    func makeOperations() -> PanelWindowOperations {
+        PanelWindowOperations(
+            selection: selection,
+            surface: surface,
+            replaceList: { [weak self] renewed in self?.replacePresentedList(renewed) },
+            refresh: { [weak self] in await self?.freshList() ?? [] },
+            closer: LiveWindowCloser(),
+            ownProcessIdentifier: ownProcessIdentifier,
+            writeLine: writeLine,
+            closeForInterruption: { [weak self] operation, appName, displayTitle in
+                self?.closeForInterruption(operation, appName: appName, displayTitle: displayTitle)
+            }
+        )
+    }
+
+    /// Sends one operation at the row chosen now.
+    func runOperation(_ operation: WindowOperation) async {
+        await operations.operate(operation, naming: selection.chosenID)
+    }
+
+    /// Swaps the rows on screen for the reconciled list.
+    func replacePresentedList(_ windows: [WindowItem]) {
+        keyCommands.replacePresentedList(windows)
+    }
+
+    /// Takes the panel down for an interrupted operation.
+    func closeForInterruption(
+        _ operation: WindowOperation,
+        appName: String,
+        displayTitle: String
+    ) {
+        wayOut.closeAfterInterruptedOperation(
+            operation: operation,
+            appName: appName,
+            displayTitle: displayTitle
+        )
+    }
+
+    /// The freshest list, waiting out the reconciling pass for it.
+    func freshList() async -> [WindowItem] {
+        await store.refreshEventually()
+        return store.snapshot?.items ?? []
+    }
+}

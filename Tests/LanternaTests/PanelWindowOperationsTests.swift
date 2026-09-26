@@ -1,0 +1,206 @@
+import AppKit
+@testable import Lanterna
+import Testing
+
+/// Rows with distinct names, so which rows survive is decided by the test.
+@MainActor
+private func operationRow(
+    appName: String,
+    windowTitle: String,
+    windowID: CGWindowID,
+    pid: pid_t = 123
+) -> WindowItem {
+    WindowItem(
+        id: WindowItem.Identifier(windowID: windowID),
+        ownerProcessIdentifier: pid,
+        appName: appName,
+        bundleIdentifier: nil,
+        windowTitle: windowTitle,
+        kind: .standard,
+        isMinimized: false,
+        icon: NSImage(size: NSSize(width: 1, height: 1))
+    )
+}
+
+/// A scripted closer: answers what sending comes to.
+private struct FakeCloser: WindowClosing, Sendable {
+    let close: @Sendable (ActivationTarget) -> ActivationFailure?
+    func closeWindow(_ target: ActivationTarget) -> ActivationFailure? {
+        close(target)
+    }
+}
+
+/// A box so the harness counts refreshes and interruptions.
+private final class OperationCounts {
+    var refreshes = 0
+    var interruptions = 0
+}
+
+/// Everything one operation drives, so each case reads off one value.
+@MainActor
+private struct OperationHarness {
+    let operations: PanelWindowOperations
+    let surface: FakeSurface
+    let selection: PanelSelection
+    let filter: PanelFilter
+    let wayOut: PanelExit
+    let log: DiagnosticsLog
+    let counts: OperationCounts
+    let rows: [WindowItem]
+}
+
+/// The collaborators one appearance needs, without the operations.
+@MainActor
+private struct FilterStack {
+    let selection: PanelSelection
+    let wayOut: PanelExit
+    let filter: PanelFilter
+}
+
+@MainActor
+private func makeStack(surface: FakeSurface, log: DiagnosticsLog) -> FilterStack {
+    let selection = PanelSelection(surface: surface)
+    let wayOut = PanelExit(
+        surface: surface,
+        now: { ContinuousClock.now },
+        writeLine: log.write,
+        switcher: FakeWindowSwitcher(),
+        recordCommit: { _, _ in },
+        noteSwitchReturned: {},
+        onPanelGone: {}
+    )
+    let filter = PanelFilter(selection: selection, surface: surface)
+    return FilterStack(selection: selection, wayOut: wayOut, filter: filter)
+}
+
+@MainActor
+private func makeOperations(
+    rows: [WindowItem],
+    refreshed: [WindowItem]? = nil,
+    close: @escaping @Sendable (ActivationTarget) -> ActivationFailure? = { _ in nil },
+    ownProcessIdentifier: pid_t = 999
+) -> OperationHarness {
+    let surface = FakeSurface()
+    surface.isPresented = true
+    let log = DiagnosticsLog()
+    let stack = makeStack(surface: surface, log: log)
+    let selection = stack.selection
+    let wayOut = stack.wayOut
+    let filter = stack.filter
+    let counts = OperationCounts()
+    let fresh = refreshed ?? rows
+    let operations = PanelWindowOperations(
+        selection: selection,
+        surface: surface,
+        replaceList: { [weak filter, weak wayOut] renewed in
+            filter?.replace(fullWindows: renewed)
+            wayOut?.replacePresented(renewed)
+        },
+        refresh: {
+            counts.refreshes += 1
+            return fresh
+        },
+        closer: FakeCloser(close: close),
+        ownProcessIdentifier: ownProcessIdentifier,
+        writeLine: log.write,
+        closeForInterruption: { [weak wayOut] operation, appName, displayTitle in
+            counts.interruptions += 1
+            wayOut?.closeAfterInterruptedOperation(
+                operation: operation,
+                appName: appName,
+                displayTitle: displayTitle
+            )
+        }
+    )
+    selection.beginSecond(rows.map(\.id))
+    wayOut.nowShowing(rows, startedAt: ContinuousClock.now)
+    filter.begin(fullWindows: rows)
+    operations.begin(windows: rows)
+    return OperationHarness(
+        operations: operations,
+        surface: surface,
+        selection: selection,
+        filter: filter,
+        wayOut: wayOut,
+        log: log,
+        counts: counts,
+        rows: rows
+    )
+}
+
+@MainActor
+struct PanelWindowOperationsTests {
+    private var rows: [WindowItem] {
+        [
+            operationRow(appName: "Safari", windowTitle: "Tabs", windowID: 1),
+            operationRow(appName: "Safari", windowTitle: "Downloads", windowID: 2),
+            operationRow(appName: "Finder", windowTitle: "AirDrop", windowID: 3),
+        ]
+    }
+
+    /// Closing removes the row, keeps the panel up, and moves the choice to
+    /// the row now standing where the closed one stood.
+    @Test func closingRemovesTheRowAndMovesTheChoice() async {
+        let made = makeOperations(rows: rows, refreshed: [rows[1], rows[2]])
+        made.selection.retarget(to: rows.map(\.id), selecting: rows[0].id)
+        await made.operations.operate(.closeWindow, naming: rows[0].id)
+        #expect(made.surface.updatedLists.last?.map(\.id) == [rows[1].id, rows[2].id])
+        #expect(made.selection.chosenID == rows[1].id)
+        #expect(made.log.lines.contains { $0.contains("window operation (close Safari/Tabs)") })
+    }
+
+    /// Closing the last row moves the choice to the new last row.
+    @Test func closingTheLastRowMovesTheChoiceBack() async {
+        let made = makeOperations(rows: rows, refreshed: [rows[0], rows[1]])
+        await made.operations.operate(.closeWindow, naming: rows[2].id)
+        #expect(made.selection.chosenID == rows[1].id)
+    }
+
+    /// A failure winds the optimistic update back: the list and the choice
+    /// are what they were, the refresh never runs, and one line says why.
+    @Test func aFailureWindsBackAndKeepsTheChoice() async {
+        let made = makeOperations(
+            rows: rows,
+            refreshed: [],
+            close: { _ in .windowGone },
+            ownProcessIdentifier: 999
+        )
+        made.selection.retarget(to: rows.map(\.id), selecting: rows[0].id)
+        await made.operations.operate(.closeWindow, naming: rows[0].id)
+        #expect(made.counts.refreshes == 0)
+        #expect(made.surface.updatedLists.last?.map(\.id) == rows.map(\.id))
+        #expect(made.selection.chosenID == rows[0].id)
+        #expect(
+            made.log.lines.contains {
+                $0.contains("window operation failed (close Safari/Tabs: window gone)")
+            }
+        )
+    }
+
+    /// A sent request the refresh still lists is an interruption: the panel
+    /// closes on it, writing one line that says the row is still there.
+    @Test func aRemainingRowAfterSendingClosesThePanel() async {
+        let made = makeOperations(rows: rows, refreshed: rows)
+        await made.operations.operate(.closeWindow, naming: rows[0].id)
+        #expect(made.counts.interruptions == 1)
+        #expect(made.log.lines.contains { $0.contains("is still open") })
+    }
+
+    /// The process's own row is out of scope: nothing happens, and no line
+    /// says anything.
+    @Test func theOwnRowIsLeftAlone() async {
+        let own = operationRow(appName: "Lanterna", windowTitle: "Panel", windowID: 9, pid: 999)
+        let made = makeOperations(rows: [own], refreshed: [own], ownProcessIdentifier: 999)
+        await made.operations.operate(.closeWindow, naming: own.id)
+        #expect(made.surface.updatedLists.isEmpty)
+        #expect(made.log.lines.isEmpty)
+    }
+
+    /// Operations with no body yet are swallowed without a trace.
+    @Test func unownedOperationsDoNothing() async {
+        let made = makeOperations(rows: rows, refreshed: rows)
+        await made.operations.operate(.quitApplication, naming: rows[0].id)
+        #expect(made.surface.updatedLists.isEmpty)
+        #expect(made.log.lines.isEmpty)
+    }
+}

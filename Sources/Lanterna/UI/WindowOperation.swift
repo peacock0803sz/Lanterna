@@ -39,3 +39,21 @@ enum OperationOutcome: Equatable, Sendable {
     /// Never sent. The list and the choice are wound back instead.
     case failed(ActivationFailure)
 }
+
+extension ActivationFailure {
+    /// The word the failure line prints. The manual acceptance check greps
+    /// these words, so they are stable. A carried reason prints verbatim:
+    /// the closers shape `error <value>` reasons themselves.
+    var logDescription: String {
+        switch self {
+        case .windowGone:
+            "window gone"
+        case .applicationGone:
+            "application gone"
+        case .timedOut:
+            "timed out"
+        case let .other(reason):
+            reason
+        }
+    }
+}

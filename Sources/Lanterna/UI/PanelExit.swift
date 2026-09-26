@@ -27,7 +27,8 @@ import Darwin
 final class PanelExit {
     private let surface: any SwitcherSurface
     private let now: @MainActor () -> ContinuousClock.Instant
-    private let writeLine: @MainActor (String) -> Void
+    /// Read beside the exit, by the operations' ways out.
+    let writeLine: @MainActor (String) -> Void
 
     /// Run whenever the panel goes, whichever way it went.
     ///
@@ -110,7 +111,8 @@ final class PanelExit {
     /// Taken as the panel goes up rather than asked of the window list at the
     /// time, so what a line names is the list that appearance was given. A
     /// fresher list could name a row this appearance never showed.
-    private var presentedWindows: [WindowItem] = []
+    /// Swapped beside the exit, by the reconciling operations.
+    var presentedWindows: [WindowItem] = []
 
     /// Whether this appearance may still write a commit line.
     ///
@@ -297,20 +299,15 @@ final class PanelExit {
         )
     }
 
-    /// The wording for the disappearances that are the app tidying up after
-    /// itself rather than the user deciding anything.
-    func takeDown(because reason: String) {
-        dismissPanel()
-        writeLine("panel hidden (\(reason))")
-    }
-
     /// The one place the panel comes off the screen.
     ///
     /// The list goes with the panel. Nothing reads it while the panel is
     /// down, so no sequence of calls can tell whether this line is here — it
     /// is kept because a list outliving the panel it was drawn on could name
     /// a row for an appearance that never showed it.
-    private func dismissPanel() {
+    ///
+    /// Run beside the exit, by the operations' ways out.
+    func dismissPanel() {
         commitIsStillOpen = false
         surface.dismiss()
         presentedWindows = []
