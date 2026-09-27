@@ -45,15 +45,18 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$binary" "$app/Contents/MacOS/Lanterna"
 
+# Ship the kana tables as plain resources. The SPM resource bundle
+# itself is not packaged: its BNDL format is rejected by codesign on
+# some toolchains ("bundle format unrecognized" in the release job),
+# while flat files under Contents/Resources join the main signature.
 bundle="$(dirname "$binary")/Lanterna_CMigemo.bundle"
-if [[ ! -d "$bundle" ]]; then
-    echo "package-app: missing $bundle" >&2
+tables="$bundle/Contents/Resources/tables"
+if [[ ! -d "$tables" ]]; then
+    echo "package-app: missing $tables" >&2
     exit 1
 fi
-# Resource bundles belong in Contents/Resources; Contents/MacOS holds
-# executables only. A bundle under MacOS breaks codesign on some
-# toolchains ("bundle format unrecognized" in the release job).
-cp -R "$bundle" "$app/Contents/Resources/"
+mkdir -p "$app/Contents/Resources/tables"
+cp "$tables/"*.dat "$app/Contents/Resources/tables/"
 
 iconset="Assets/Lanterna.iconset"
 for size in 16 32 128 256 512; do
@@ -93,10 +96,7 @@ cat > "$app/Contents/Info.plist" <<EOF
 </plist>
 EOF
 
-# Sign the nested resource bundle before the outer app so --deep
-# only refreshes an already-valid signature.
-codesign --force --sign - "$app/Contents/Resources/Lanterna_CMigemo.bundle"
-codesign --force --deep --sign - "$app"
+codesign --force --sign - "$app"
 codesign --verify --deep --strict "$app"
 
 dmg="build/Lanterna-${short}.dmg"
