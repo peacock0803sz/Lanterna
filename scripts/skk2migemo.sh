@@ -18,6 +18,16 @@ if [ ! -f "$input" ]; then
     exit 1
 fi
 
+output_dir="$(dirname "$output")"
+if [ ! -d "$output_dir" ]; then
+    echo "missing parent directory: $output_dir" >&2
+    exit 1
+fi
+if [ -d "$output" ]; then
+    echo "output is a directory, give a file path: $output" >&2
+    exit 1
+fi
+
 iconv -f EUC-JP -t UTF-8 "$input" | awk '
 !/^;/ && NF >= 2 && $1 !~ /[a-zA-Z]$/ {
     yomi = $1
