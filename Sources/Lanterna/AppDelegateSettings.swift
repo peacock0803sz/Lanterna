@@ -4,6 +4,30 @@ import AppKit
 /// limit. Launch keeps the handles; everything a change touches hangs
 /// off them here.
 extension AppDelegate {
+    /// Opens the settings window on the current values.
+    ///
+    /// Reopening takes a fresh snapshot: the window edits a copy, and
+    /// every edit applies through the single path, so the screen and
+    /// the file cannot drift apart. Confirmation and failure notices
+    /// for saves join with the persistence work; until then the outcome
+    /// only decides what reaches the disk.
+    func openSettings() {
+        let window = SettingsWindow(
+            values: currentValues,
+            permissionState: launchPermissionState,
+            opener: SystemSettings.open,
+            appearanceMode: currentValues.appearanceMode,
+            onChange: { [weak self] values in
+                let outcome = self?.applySettings(values, replacingInvalidFile: false)
+                self?.settingsWindow?.appearance = values.appearanceMode.nsAppearance
+                _ = outcome
+            }
+        )
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        settingsWindow = window
+    }
+
     /// Applies changed settings to the running app and saves them.
     ///
     /// Everything happens synchronously on the main thread, so a change

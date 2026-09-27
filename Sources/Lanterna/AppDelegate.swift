@@ -50,6 +50,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         accessibilityGranted: false,
         inputMonitoringGranted: false
     )
+    /// Held so the settings window stays up until the user closes it,
+    /// the way the guide windows are held.
+    var settingsWindow: SettingsWindow?
 
     /// Takes the options whole rather than one parameter per flag, so a flag
     /// added later reaches here without every caller in between being changed
@@ -88,7 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guideWindows.openGuide(state: permissionState)
         }
         let statusMenu = StatusMenu()
-        standStatusMenu(state: permissionState, guideWindows: guideWindows)
+        standStatusMenu()
 
         // Built now and left off screen. Nothing shows until a key is pressed,
         // and building the window ahead of time keeps its cost off the path
@@ -334,13 +337,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Split out so the launch reads as steps rather than one long body:
     /// the menu carries no state of its own beyond the two windows it can
     /// open.
-    private func standStatusMenu(state: PermissionState, guideWindows: GuideWindows) {
+    private func standStatusMenu() {
         let statusMenu = StatusMenu()
         statusMenu.stand(
-            openGuide: { [weak guideWindows] in guideWindows?.openGuide(state: state) },
-            openVersionLog: { [weak guideWindows] in guideWindows?.openVersionLog() }
+            openSettings: { [weak self] in self?.openSettings() },
+            openVersionLog: { [weak self] in self?.openVersionLog() }
         )
         self.statusMenu = statusMenu
+    }
+
+    /// Shows the version and log window for this launch so far.
+    ///
+    /// Split out beside the settings opener so the menu setup keeps no
+    /// window logic of its own.
+    private func openVersionLog() {
+        guideWindows?.openVersionLog()
     }
 
     func applicationWillTerminate(_: Notification) {
