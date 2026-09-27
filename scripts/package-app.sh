@@ -45,6 +45,13 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$binary" "$app/Contents/MacOS/Lanterna"
 
+bundle="$(dirname "$binary")/Lanterna_CMigemo.bundle"
+if [[ ! -d "$bundle" ]]; then
+    echo "package-app: missing $bundle" >&2
+    exit 1
+fi
+cp -R "$bundle" "$app/Contents/MacOS/"
+
 iconset="Assets/Lanterna.iconset"
 for size in 16 32 128 256 512; do
     if [[ ! -f "$iconset/icon_${size}x${size}.png" ]]; then
