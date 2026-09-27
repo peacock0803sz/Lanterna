@@ -29,8 +29,15 @@ if [ -d "$output" ]; then
 fi
 
 iconv -f EUC-JP -t UTF-8 "$input" | awk '
-!/^;/ && NF >= 2 && $1 !~ /[a-zA-Z]$/ {
+!/^;/ && NF >= 2 {
     yomi = $1
+    # Strip okurigana: a trailing ASCII letter on a non-ASCII key.
+    if (yomi ~ /[a-zA-Z]$/ && yomi ~ /[^ -~]/) {
+        yomi = substr(yomi, 1, length(yomi) - 1)
+    }
+    if (yomi ~ /[a-zA-Z]$/) {
+        next
+    }
     $1 = ""
     line = $0
     gsub(/^ +\//, "", line)
@@ -40,10 +47,10 @@ iconv -f EUC-JP -t UTF-8 "$input" | awk '
     for (i = 1; i <= n; i++) {
         split(cands[i], ann, ";")
         if (ann[1] != "") {
-            out = (out == "" ? ann[1] : out " " ann[1])
+            out = (out == "" ? ann[1] : out "\t" ann[1])
         }
     }
-    if (out != "") {
+    if (yomi != "" && out != "") {
         print yomi "\t" out
     }
 }' > "$output"
