@@ -24,6 +24,10 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
     switch outcome {
     case let .loaded(decoded):
         options = AppConfiguration.effectiveOptions(file: decoded.config, cli: cliOptions)
+        openSharedMatcher(
+            scope: RomajiScope.effective(from: decoded.config),
+            lanternaDirectory: url.deletingLastPathComponent()
+        )
         if decoded.assumedVersion {
             Diagnostics.writeLine("config loaded (version 1, assumed): \(url.path)")
         } else {
@@ -31,14 +35,43 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
         }
     case .created:
         options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
+        openSharedMatcher(
+            scope: .kanaKanji,
+            lanternaDirectory: url.deletingLastPathComponent()
+        )
         Diagnostics.writeLine("config not found; created with defaults: \(url.path)")
     case let .failed(reason):
         options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
+        openSharedMatcher(
+            scope: .kanaKanji,
+            lanternaDirectory: url.deletingLastPathComponent()
+        )
         Diagnostics.writeLine("config invalid (\(reason)); using defaults: \(url.path)")
     }
 } else {
     options = cliOptions
+    openSharedMatcher(scope: .kanaKanji, lanternaDirectory: nil)
     Diagnostics.writeLine("config invalid (cannot resolve directory); using defaults")
+}
+
+/// Opens the shared matcher for one run, ahead of the run loop.
+///
+/// The scope comes from the same config the options do; the dictionary
+/// lives beside the config file. A rejected dictionary gets one launch
+/// line (missing files stay silent); everything else keeps working
+/// kana-only through the legacy fallback in the panel paths.
+func openSharedMatcher(scope: RomajiScope, lanternaDirectory: URL?) {
+    let active = RomajiMatcher.open(
+        scope: scope,
+        dictionaryDirectory: lanternaDirectory,
+        tableDirectory: MigemoEngine.tableDirectoryURL()
+    )
+    if scope == .kanaKanji, let lanternaDirectory {
+        let dictURL = lanternaDirectory.appendingPathComponent("migemo-dict", isDirectory: false)
+        if FileManager.default.fileExists(atPath: dictURL.path), !active {
+            Diagnostics.writeLine("dict invalid (unreadable format); matching kana only: \(dictURL.path)")
+        }
+    }
 }
 
 let application = NSApplication.shared
