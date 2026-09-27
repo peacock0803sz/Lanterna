@@ -12,6 +12,8 @@ extension AppDelegate {
     /// for saves join with the persistence work; until then the outcome
     /// only decides what reaches the disk.
     func openSettings() {
+        // Close the held window first so reopening leaves exactly one.
+        settingsWindow?.close()
         let window = SettingsWindow(
             values: currentValues,
             version: DisplayedVersion(full: AppVersion.full),
