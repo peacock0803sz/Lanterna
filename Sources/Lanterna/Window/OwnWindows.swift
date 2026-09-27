@@ -20,6 +20,8 @@ enum OwnWindows {
         var isMiniaturized: Bool
         /// True for the switcher panel, which must never list itself.
         var isPanel: Bool
+        /// Whether the window is on the active Space, backing other-Space placement.
+        var isOnActiveSpace: Bool
     }
 
     /// The prospects on screen now: titled, visible, non-panel windows
@@ -33,7 +35,8 @@ enum OwnWindows {
                 isTitled: window.styleMask.contains(.titled),
                 isVisible: window.isVisible,
                 isMiniaturized: window.isMiniaturized,
-                isPanel: window is SwitcherPanel
+                isPanel: window is SwitcherPanel,
+                isOnActiveSpace: window.isOnActiveSpace
             )
             guard isListable(prospect) else { return nil }
             return prospect
@@ -71,9 +74,10 @@ enum OwnWindows {
 
     /// Rows for the prospects, carrying this process as their owner.
     ///
-    /// Own windows live on the active Space and never go natively
-    /// fullscreen, so those facts read false the way missing information
-    /// does elsewhere: never hiding, only placing.
+    /// Own windows never go natively fullscreen, so that fact reads false
+    /// the way missing information does elsewhere; Space placement follows
+    /// the active-Space reading, negated into the row flag: never hiding,
+    /// only placing.
     static func items(prospects: [Prospect], owner: Owner) -> [WindowItem] {
         prospects.filter(isListable).map { prospect in
             WindowItem(
@@ -85,6 +89,7 @@ enum OwnWindows {
                 kind: .standard,
                 isMinimized: prospect.isMiniaturized,
                 isHidden: owner.isHidden,
+                isOnOtherSpace: !prospect.isOnActiveSpace,
                 icon: owner.icon
             )
         }

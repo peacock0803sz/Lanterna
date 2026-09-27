@@ -15,7 +15,8 @@ struct OwnWindowsTests {
         isTitled: Bool = true,
         isVisible: Bool = true,
         isMiniaturized: Bool = false,
-        isPanel: Bool = false
+        isPanel: Bool = false,
+        isOnActiveSpace: Bool = true
     ) -> OwnWindows.Prospect {
         OwnWindows.Prospect(
             number: number,
@@ -23,7 +24,8 @@ struct OwnWindowsTests {
             isTitled: isTitled,
             isVisible: isVisible,
             isMiniaturized: isMiniaturized,
-            isPanel: isPanel
+            isPanel: isPanel,
+            isOnActiveSpace: isOnActiveSpace
         )
     }
 
@@ -71,6 +73,12 @@ struct OwnWindowsTests {
         let rows = items([prospect(isMiniaturized: true)])
         #expect(rows.count == 1)
         #expect(rows[0].isMinimized)
+    }
+
+    @Test func backgroundSpaceProspectBecomesOtherSpaceRow() {
+        let rows = items([prospect(isOnActiveSpace: false)])
+        #expect(rows.count == 1)
+        #expect(rows[0].isOnOtherSpace)
     }
 
     @Test func displayNamePrefersBundleThenProcessThenPid() {
