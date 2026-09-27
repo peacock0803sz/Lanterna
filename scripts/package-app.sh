@@ -49,14 +49,18 @@ cp "$binary" "$app/Contents/MacOS/Lanterna"
 # itself is not packaged: its BNDL format is rejected by codesign on
 # some toolchains ("bundle format unrecognized" in the release job),
 # while flat files under Contents/Resources join the main signature.
-bundle="$(dirname "$binary")/Lanterna_CMigemo.bundle"
-tables="$bundle/Contents/Resources/tables"
-if [[ ! -d "$tables" ]]; then
-    echo "package-app: missing $tables" >&2
-    exit 1
-fi
+# Tables come from the vendored sources directly: the built bundle's
+# location next to the binary differs per toolchain, but the sources
+# are the single source of truth.
+tables_src="Sources/CMigemo/tables"
 mkdir -p "$app/Contents/Resources/tables"
-cp "$tables/"*.dat "$app/Contents/Resources/tables/"
+for table in roma2hira.dat hira2kata.dat han2zen.dat zen2han.dat; do
+    if [[ ! -f "$tables_src/$table" ]]; then
+        echo "package-app: missing $tables_src/$table" >&2
+        exit 1
+    fi
+    cp "$tables_src/$table" "$app/Contents/Resources/tables/"
+done
 
 iconset="Assets/Lanterna.iconset"
 for size in 16 32 128 256 512; do
