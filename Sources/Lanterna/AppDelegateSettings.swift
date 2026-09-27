@@ -39,16 +39,21 @@ extension AppDelegate {
         _ values: SettingsValues,
         replacingInvalidFile: Bool
     ) -> SettingsSaveOutcome {
+        let scopeChanged = values.romajiScope != currentValues.romajiScope
         currentValues = values
         panel?.displayModes = values.displayModes
         panel?.appearance = values.appearanceMode.nsAppearance
         presenter?.displayModes = values.displayModes
         guideWindows?.update(appearanceMode: values.appearanceMode)
-        _ = RomajiMatcher.open(
-            scope: values.romajiScope,
-            dictionaryDirectory: lanternaDirectory,
-            tableDirectory: tableDirectory
-        )
+        // Reopening rebuilds the engine, so only a scope change pays
+        // for it. Appearance and display tweaks leave matching alone.
+        if scopeChanged {
+            _ = RomajiMatcher.open(
+                scope: values.romajiScope,
+                dictionaryDirectory: lanternaDirectory,
+                tableDirectory: tableDirectory
+            )
+        }
         guard let configFileURL else {
             return .failed(reason: "cannot resolve directory")
         }
