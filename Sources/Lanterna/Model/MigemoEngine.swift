@@ -121,12 +121,18 @@ final class MigemoEngine {
 
     /// Locates the kana table directory.
     ///
-    /// Prefers the resource bundle in Contents/Resources (installed
-    /// and built products), keeping the legacy Contents/MacOS spot as
-    /// a fallback, then the vendored sources beside this file (tests
-    /// and source checkouts).
+    /// Prefers the flat tables in Contents/Resources (installed and
+    /// built products), keeping the resource-bundle spots as fallbacks,
+    /// then the vendored sources beside this file (tests and source
+    /// checkouts).
     static func tableDirectoryURL() -> URL? {
         let manager = FileManager.default
+        if let resources = Bundle.main.resourceURL {
+            let candidate = resources.appendingPathComponent("tables", isDirectory: true)
+            if manager.fileExists(atPath: candidate.path) {
+                return candidate
+            }
+        }
         if let executable = Bundle.main.executableURL {
             let contents = executable.deletingLastPathComponent().deletingLastPathComponent()
             let resourceCandidate = contents
