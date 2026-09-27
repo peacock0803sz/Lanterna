@@ -132,7 +132,12 @@ struct DisplayModes: Equatable, Sendable {
         modes: DisplayModes,
         query: String
     ) -> (ordinary: [WindowItem], subgroups: [(DisplaySubgroup, [WindowItem])]) {
-        let matched = WindowFilter.matching(query, against: rows)
+        let matched: [WindowItem]
+        if RomajiMatcher.engine.isOpen {
+            matched = WindowFilter.matching(query, against: rows, engine: RomajiMatcher.engine)
+        } else {
+            matched = WindowFilter.matching(query, against: rows)
+        }
         return sections(
             of: matched,
             modes: modes,
