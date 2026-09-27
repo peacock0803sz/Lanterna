@@ -1,19 +1,23 @@
 /// What the settings UI shows and changes, as one value.
 ///
-/// A UI-layer snapshot of the six user-facing settings. Persistence and
+/// A UI-layer snapshot of the seven user-facing settings. Persistence and
 /// validation stay with `ValidConfiguration`; this only carries the live
 /// values between the window and the application delegate.
 struct SettingsValues: Equatable, Sendable {
     var appearanceMode: AppearanceMode
     var displayModes: DisplayModes
     var romajiScope: RomajiScope
+    /// Whether Lanterna starts at login. Absent in the file means off.
+    var launchAtLogin: Bool
 
     /// The values for a missing or invalid file: follow the system, park
-    /// the special kinds as usual, match kanji readings as well.
+    /// the special kinds as usual, match kanji readings as well, stay
+    /// off the login items.
     static let defaults = SettingsValues(
         appearanceMode: .system,
         displayModes: .defaults,
-        romajiScope: .kanaKanji
+        romajiScope: .kanaKanji,
+        launchAtLogin: false
     )
 
     /// The values for one run: present keys win, absent keys mean
@@ -22,7 +26,8 @@ struct SettingsValues: Equatable, Sendable {
         SettingsValues(
             appearanceMode: AppearanceMode.effective(from: config),
             displayModes: DisplayModes.effective(from: config),
-            romajiScope: RomajiScope.effective(from: config)
+            romajiScope: RomajiScope.effective(from: config),
+            launchAtLogin: config.launchAtLogin ?? false
         )
     }
 
@@ -44,6 +49,7 @@ struct SettingsValues: Equatable, Sendable {
         config.minimizedMode = displayModes.minimized
         config.fullscreenMode = displayModes.fullscreen
         config.romajiScope = romajiScope
+        config.launchAtLogin = launchAtLogin
         return config
     }
 }
