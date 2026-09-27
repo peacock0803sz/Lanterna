@@ -34,6 +34,13 @@ typealias AppearanceMode = "system"|"light"|"dark"
 @Allowed { values { "system" "light" "dark" } }
 appearanceMode: AppearanceMode? = null
 
+/// Which readings the romaji filter matches: kana only, or kana plus kanji readings.
+typealias RomajiScope = "kana"|"kanji"
+
+/// The scope the romaji filter matches in. Absent means "kanji".
+@Allowed { values { "kana" "kanji" } }
+romajiScope: RomajiScope? = null
+
 /// Windows on other Spaces. Absent means "show".
 @Allowed { values { "show" "hide" "separateAtBottom" } }
 otherSpaceMode: DisplayMode? = null
