@@ -14,6 +14,7 @@ extension AppDelegate {
     func openSettings() {
         let window = SettingsWindow(
             values: currentValues,
+            version: DisplayedVersion(full: AppVersion.full),
             permissionState: launchPermissionState,
             opener: SystemSettings.open,
             appearanceMode: currentValues.appearanceMode,

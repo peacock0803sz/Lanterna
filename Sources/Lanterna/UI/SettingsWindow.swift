@@ -15,6 +15,7 @@ final class SettingsWindow: NSWindow {
     /// with the caller, not here.
     convenience init(
         values: SettingsValues,
+        version: DisplayedVersion,
         permissionState: PermissionState,
         opener: @escaping SettingsOpener,
         appearanceMode: AppearanceMode = .system,
@@ -30,6 +31,7 @@ final class SettingsWindow: NSWindow {
         appearance = appearanceMode.nsAppearance
         contentView = NSHostingView(rootView: SettingsView(
             values: values,
+            version: version,
             permissionState: permissionState,
             opener: opener,
             onChange: onChange
@@ -45,17 +47,20 @@ final class SettingsWindow: NSWindow {
 /// caller free of per-tab plumbing; it always sees complete settings.
 struct SettingsView: View {
     @State private var values: SettingsValues
+    let version: DisplayedVersion
     let permissionState: PermissionState
     let opener: SettingsOpener
     let onChange: (SettingsValues) -> Void
 
     init(
         values: SettingsValues,
+        version: DisplayedVersion,
         permissionState: PermissionState,
         opener: @escaping SettingsOpener,
         onChange: @escaping (SettingsValues) -> Void
     ) {
         self.values = values
+        self.version = version
         self.permissionState = permissionState
         self.opener = opener
         self.onChange = onChange
@@ -64,6 +69,7 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             SettingsGeneralView(
+                version: version,
                 missing: MissingPermission.list(for: permissionState),
                 opener: opener
             )
