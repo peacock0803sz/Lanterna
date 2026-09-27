@@ -12,7 +12,13 @@ let package = Package(
         // case for each is made in the header. Kept in C because Swift has no
         // supported way to declare them.
         .target(name: "PrivateAPIs"),
-        .executableTarget(name: "Lanterna", dependencies: ["PrivateAPIs"]),
+        // Vendored romaji matching engine. Tables and the version pin are
+        // kept out of the build; the wrapper locates them at runtime.
+        .target(
+            name: "CMigemo",
+            exclude: ["tables", "VERSION"]
+        ),
+        .executableTarget(name: "Lanterna", dependencies: ["PrivateAPIs", "CMigemo"]),
         .testTarget(
             name: "LanternaTests",
             dependencies: ["Lanterna"]
