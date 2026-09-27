@@ -18,14 +18,41 @@ extension AppDelegate {
             opener: SystemSettings.open,
             appearanceMode: currentValues.appearanceMode,
             onChange: { [weak self] values in
-                let outcome = self?.applySettings(values, replacingInvalidFile: false)
-                self?.settingsWindow?.appearance = values.appearanceMode.nsAppearance
-                _ = outcome
+                guard let self else { return }
+                switch self.applySettings(values, replacingInvalidFile: false) {
+                case .saved:
+                    break
+                case .needsConfirmation:
+                    self.confirmInvalidFileReplacement(for: values)
+                case .failed:
+                    break
+                }
+                self.settingsWindow?.appearance = values.appearanceMode.nsAppearance
             }
         )
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         settingsWindow = window
+    }
+
+    /// Asks before replacing an invalid settings file.
+    ///
+    /// The change is already live when this runs; only the file waits.
+    /// Approval saves the current values over the invalid file, while
+    /// cancelling leaves the disk alone for this run.
+    private func confirmInvalidFileReplacement(for values: SettingsValues) {
+        guard let window = settingsWindow else { return }
+        let alert = NSAlert()
+        alert.messageText = "Replace invalid settings file?"
+        alert.informativeText =
+            "The settings file on disk is invalid. Replacing it discards the current file contents."
+        alert.addButton(withTitle: "Replace")
+        alert.addButton(withTitle: "Cancel")
+        alert.beginSheetModal(for: window) { [weak self] response in
+            if response == .alertFirstButtonReturn {
+                _ = self?.applySettings(values, replacingInvalidFile: true)
+            }
+        }
     }
 
     /// Applies changed settings to the running app and saves them.
