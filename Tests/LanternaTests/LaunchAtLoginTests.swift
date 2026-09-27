@@ -23,7 +23,7 @@ private struct FakeLoginItem: LoginItemControlling {
     }
 }
 
-private struct ProbeError: Error {}
+private struct ProbeError: Error, Sendable {}
 
 struct LaunchAtLoginTests {
     private func decode(_ text: String) -> Result<DecodedConfiguration, ConfigDecodeError> {
@@ -59,6 +59,11 @@ struct LaunchAtLoginTests {
         )
         let decoded = try #require(AppConfiguration.decode(data).successValue)
         #expect(decoded.config.launchAtLogin == true)
+        let disabledData = AppConfiguration.encode(
+            ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil, launchAtLogin: false)
+        )
+        let disabledDecoded = try #require(AppConfiguration.decode(disabledData).successValue)
+        #expect(disabledDecoded.config.launchAtLogin == false)
         let scaffold = AppConfiguration.encode(
             ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
         )
@@ -76,6 +81,14 @@ struct LaunchAtLoginTests {
         let back = fromFile.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
         #expect(back.launchAtLogin == true)
         #expect(SettingsValues.defaults.launchAtLogin == false)
+        let absent = SettingsValues.effective(from: ValidConfiguration(
+            version: 1,
+            sampleCount: nil,
+            stopMonitorEverySeconds: nil
+        ))
+        #expect(absent.launchAtLogin == false)
+        let backAbsent = absent.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+        #expect(backAbsent.launchAtLogin == false)
     }
 
     // MARK: - The decision table
