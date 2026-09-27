@@ -8,9 +8,9 @@ import Foundation
 /// the engine; Swift only opens, asks, and closes. Queries the engine
 /// cannot parse fall back to a literal match (see `escapedLiteral`).
 ///
-/// Not `Sendable`: the C handle is not thread-safe. Confine each
-/// instance to its owning execution context.
-struct MigemoEngine {
+/// A reference type because the C handle must close exactly once.
+/// Confine each instance to its owning execution context.
+final class MigemoEngine {
     /// An open engine handle, or nil while closed.
     private var handle: OpaquePointer?
 
@@ -19,23 +19,27 @@ struct MigemoEngine {
         handle != nil
     }
 
-    /// Opens the engine, loading the dictionary at the given path.
+    /// Opens the engine and loads the kana tables.
     ///
-    /// A nil path opens the engine without a dictionary, in which case
-    /// only kana readings match. Returns false when opening fails.
+    /// When `dictionaryPath` names a readable dictionary, kanji readings
+    /// match as well; with nil only kana readings match. The kana tables
+    /// always come from `tableDirectory`. Returns false when opening or
+    /// loading the tables fails.
     @discardableResult
-    mutating func open(dictionaryPath: String?) -> Bool {
+    func open(dictionaryPath: String?, tableDirectory: String) -> Bool {
         close()
-        let handle: OpaquePointer?
+        let opened: OpaquePointer?
         if let dictionaryPath {
-            handle = dictionaryPath.withCString { path in
-                migemo_open(path)
+            opened = dictionaryPath.withCString { path in
+                lanterna_migemo_open_utf8(path)
             }
         } else {
-            handle = migemo_open(nil)
+            opened = lanterna_migemo_open_utf8(nil)
         }
-        self.handle = handle
-        return handle != nil
+        guard let opened else { return false }
+        handle = opened
+        loadTables(from: tableDirectory)
+        return true
     }
 
     /// Generates a matching pattern for the query, or nil when closed.
@@ -55,11 +59,62 @@ struct MigemoEngine {
     }
 
     /// Closes the engine, freeing its resources. Safe to call twice.
-    mutating func close() {
+    func close() {
         if let handle {
             migemo_close(handle)
             self.handle = nil
         }
+    }
+
+    deinit {
+        close()
+    }
+
+    /// Loads the kana conversion tables, ignoring single failures.
+    ///
+    /// The engine tolerates missing tables by matching less; loading is
+    /// best-effort so a damaged table cannot take the filter down.
+    private func loadTables(from directory: String) {
+        guard let handle else { return }
+        let tables: [(Int32, String)] = [
+            (MIGEMO_DICTID_ROMA2HIRA, "roma2hira.dat"),
+            (MIGEMO_DICTID_HIRA2KATA, "hira2kata.dat"),
+            (MIGEMO_DICTID_HAN2ZEN, "han2zen.dat"),
+            (MIGEMO_DICTID_ZEN2HAN, "zen2han.dat"),
+        ]
+        for (id, name) in tables {
+            let path = (directory as NSString).appendingPathComponent(name)
+            // migemo_load takes ownership of nothing; result ignored.
+            _ = path.withCString { pointer in
+                migemo_load(handle, id, pointer)
+            }
+        }
+    }
+
+    /// Locates the kana table directory.
+    ///
+    /// Prefers the resource bundle next to the running executable
+    /// (installed and built products), falling back to the vendored
+    /// sources beside this file (tests and source checkouts).
+    static func tableDirectoryURL() -> URL? {
+        let manager = FileManager.default
+        if let executable = Bundle.main.executableURL {
+            let candidate = executable.deletingLastPathComponent()
+                .appendingPathComponent("Lanterna_CMigemo.bundle", isDirectory: true)
+                .appendingPathComponent("Contents/Resources/tables", isDirectory: true)
+            if manager.fileExists(atPath: candidate.path) {
+                return candidate
+            }
+        }
+        let anchor = URL(fileURLWithPath: #filePath)
+        let candidate = anchor.deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("CMigemo/tables", isDirectory: true)
+        if manager.fileExists(atPath: candidate.path) {
+            return candidate
+        }
+        return nil
     }
 
     /// Escapes a query so it matches literally.
