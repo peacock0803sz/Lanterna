@@ -384,7 +384,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // the process ran.
             return WindowListStore(fixed: [])
         }
-        let store = WindowListStore()
+        // The live pass appends this process's own windows beside the
+        // regular rows. Fixture and permission-empty lists stay as is.
+        let store = WindowListStore(gather: {
+            let snapshot = await WindowEnumerator().enumerateRegularApplicationsOffMainThread()
+            return snapshot.includingOwnWindows(OwnWindows.items(
+                prospects: OwnWindows.currentProspects(),
+                owner: OwnWindows.currentOwner()
+            ))
+        })
         store.start()
         return store
     }
