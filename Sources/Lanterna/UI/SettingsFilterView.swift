@@ -16,7 +16,7 @@ struct SettingsFilterView: View {
                     Text("Hide").tag(DisplayMode.hide)
                     Text("Separate at bottom").tag(DisplayMode.separateAtBottom)
                 }
-                Text("Mix them into the list, keep them out, or park them below.")
+                Text("Windows living on another Space: mix them in, keep them out, or park them below.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -26,7 +26,7 @@ struct SettingsFilterView: View {
                     Text("Hide").tag(DisplayMode.hide)
                     Text("Separate at bottom").tag(DisplayMode.separateAtBottom)
                 }
-                Text("Mix them into the list, keep them out, or park them below.")
+                Text("Windows of hidden applications: mix them in, keep them out, or park them below.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -36,7 +36,7 @@ struct SettingsFilterView: View {
                     Text("Hide").tag(DisplayMode.hide)
                     Text("Separate at bottom").tag(DisplayMode.separateAtBottom)
                 }
-                Text("Mix them into the list, keep them out, or park them below.")
+                Text("Windows folded into the Dock: mix them in, keep them out, or park them below.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -46,7 +46,7 @@ struct SettingsFilterView: View {
                     Text("Hide").tag(DisplayMode.hide)
                     Text("Separate at bottom").tag(DisplayMode.separateAtBottom)
                 }
-                Text("Mix them into the list, keep them out, or park them below.")
+                Text("Windows filling their own Space: mix them in, keep them out, or park them below.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
