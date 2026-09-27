@@ -37,6 +37,9 @@ final class StatusMenu {
         versionItem.representedObject = openVersionLog
         menu.addItem(versionItem)
         menu.addItem(.separator())
+        // The equivalent of quitting a resident switcher from its menu:
+        // an ordinary termination through the usual teardown, touching
+        // neither the login item registration nor the settings file.
         let quitItem = NSMenuItem(
             title: "Quit Lanterna",
             action: #selector(NSApplication.terminate(_:)),
