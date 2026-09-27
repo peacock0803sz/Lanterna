@@ -65,6 +65,19 @@ struct LaunchAtLoginTests {
         #expect(String(bytes: scaffold, encoding: .utf8) == AppConfiguration.scaffoldJSON)
     }
 
+    @Test func settingsValuesRoundTrips() {
+        let fromFile = SettingsValues.effective(from: ValidConfiguration(
+            version: 1,
+            sampleCount: nil,
+            stopMonitorEverySeconds: nil,
+            launchAtLogin: true
+        ))
+        #expect(fromFile.launchAtLogin == true)
+        let back = fromFile.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+        #expect(back.launchAtLogin == true)
+        #expect(SettingsValues.defaults.launchAtLogin == false)
+    }
+
     // MARK: - The decision table
 
     @Test func enabledStateStaysSilent() {

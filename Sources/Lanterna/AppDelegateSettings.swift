@@ -100,6 +100,15 @@ extension AppDelegate {
                 tableDirectory: tableDirectory
             )
         }
+        // Keeps the login item with the toggle, apart from the save: the
+        // change is live before the file catches up, and the next launch
+        // heals whatever drift is left. A failure stays a diagnostics line.
+        if let line = LaunchAtLogin.sync(
+            desired: values.launchAtLogin,
+            service: LaunchAtLogin.liveIfBundled()
+        ) {
+            Diagnostics.writeLine(line)
+        }
         guard let configFileURL else {
             return .failed(reason: "cannot resolve directory")
         }
