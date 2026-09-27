@@ -13,11 +13,29 @@ local function minimumOf(prop: reflect.Property): Int? =
 local function allowedOf(prop: reflect.Property): Listing<String>? =
   prop.annotations.filter((it) -> it is schema.Allowed).firstOrNull?.values
 
+/// Whether the property holds a boolean, nullable or not.
+///
+/// Reads the declared type through reflect: a nullable type unwraps one
+/// level through `member`, and the referent names the stdlib class.
+local function isBoolean(prop: reflect.Property): Boolean =
+  if (prop.type is reflect.NullableType)
+    let (inner = (prop.type as reflect.NullableType).member)
+    inner is reflect.DeclaredType
+      && (inner as reflect.DeclaredType).referent.name == "Boolean"
+  else
+    prop.type is reflect.DeclaredType
+      && (prop.type as reflect.DeclaredType).referent.name == "Boolean"
+
 local function fragment(prop: reflect.Property): Dynamic =
   if (allowedOf(prop) != null)
     new {
       ["type"] = "string"
       ["enum"] = allowedOf(prop)
+      description = prop.docComment
+    }
+  else if (isBoolean(prop))
+    new {
+      ["type"] = "boolean"
       description = prop.docComment
     }
   else if (minimumOf(prop) == null)
