@@ -24,8 +24,8 @@ extension AppDelegate {
                     break
                 case .needsConfirmation:
                     self.confirmInvalidFileReplacement(for: values)
-                case .failed:
-                    break
+                case let .failed(reason):
+                    self.noticeSaveFailure(reason: reason)
                 }
                 self.settingsWindow?.appearance = values.appearanceMode.nsAppearance
             }
@@ -50,9 +50,25 @@ extension AppDelegate {
         alert.addButton(withTitle: "Cancel")
         alert.beginSheetModal(for: window) { [weak self] response in
             if response == .alertFirstButtonReturn {
-                _ = self?.applySettings(values, replacingInvalidFile: true)
+                if case let .failed(reason) = self?.applySettings(values, replacingInvalidFile: true) {
+                    self?.noticeSaveFailure(reason: reason)
+                }
             }
         }
+    }
+
+    /// Tells the user a save failed without touching anything.
+    ///
+    /// The live values stay as applied; only the disk falls behind, so
+    /// the notice is informational and the next change tries again.
+    private func noticeSaveFailure(reason: String) {
+        guard let window = settingsWindow else { return }
+        let alert = NSAlert()
+        alert.messageText = "Could not save settings"
+        alert.informativeText =
+            "The settings file could not be written (\(reason)). The change applies for this run only."
+        alert.addButton(withTitle: "OK")
+        alert.beginSheetModal(for: window) { _ in }
     }
 
     /// Applies changed settings to the running app and saves them.
