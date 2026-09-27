@@ -111,7 +111,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             surface: panel,
             store: windowList,
             displayModes: options.displayModes,
-            closesOnCommandRelease: { [weak self] in self?.monitor?.isMonitoring ?? false }
+            closesOnCommandRelease: { [weak self] in self?.monitor?.isMonitoring ?? false },
+            switcher: OwnWindowSwitcher(wrapped: LiveWindowSwitcher())
         )
         let hotkeys = HotkeyManager { combination, deliveryDelay in
             presenter.handleHotkey(combination, deliveryDelay: deliveryDelay)
