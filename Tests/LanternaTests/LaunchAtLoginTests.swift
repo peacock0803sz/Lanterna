@@ -125,6 +125,12 @@ struct LaunchAtLoginTests {
         )
         #expect(failed?.contains("login item unchanged (register failed: ") == true)
         #expect(failed?.contains("(launch at login is on)") == true)
+        let unregistered = LaunchAtLogin.sync(
+            desired: false,
+            service: FakeLoginItem(status: .enabled, unregisterError: ProbeError())
+        )
+        #expect(unregistered?.contains("login item unchanged (unregister failed: ") == true)
+        #expect(unregistered?.contains("(launch at login is off)") == true)
         let unbundled = LaunchAtLogin.sync(desired: true, service: nil)
         #expect(unbundled == "login item unchanged (not a bundled app) (launch at login is on)")
     }
