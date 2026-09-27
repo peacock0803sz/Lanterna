@@ -1,12 +1,13 @@
 import SwiftUI
 
-/// The General tab: version and permission state.
+/// The General tab: launch behavior, version, and permission state.
 ///
-/// Display-only, like the guide the permission part replaces: the state
-/// is the launch-time snapshot, and a grant given mid-run waits for the
-/// next launch. Future general options (launch at login, update checks)
+/// The permission part stays display-only, like the guide it replaces:
+/// the state is the launch-time snapshot, and a grant given mid-run
+/// waits for the next launch. Future general options (update checks)
 /// join this tab.
 struct SettingsGeneralView: View {
+    @Binding var values: SettingsValues
     let version: DisplayedVersion
     let missing: [MissingPermission]
     let opener: SettingsOpener
@@ -22,6 +23,13 @@ struct SettingsGeneralView: View {
                 Text("Lanterna \(version.full)")
                     .font(.headline)
                     .textSelection(.enabled)
+            }
+            Divider()
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle("Launch at login", isOn: $values.launchAtLogin)
+                Text("Start Lanterna automatically when you log in.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
             Divider()
             Text("Permissions")
