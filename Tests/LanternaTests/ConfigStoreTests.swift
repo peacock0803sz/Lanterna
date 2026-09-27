@@ -242,6 +242,22 @@ struct ConfigStoreTests {
         }
     }
 
+    @Test func fullFileWithRomajiScopeIsValid() throws {
+        let decoded = try #require(
+            decode("{\"version\": 1, \"sampleCount\": 2, \"romajiScope\": \"kana\"}").successValue
+        )
+        #expect(decoded.config.sampleCount == 2)
+        #expect(decoded.config.romajiScope == .kanaOnly)
+        #expect(RomajiScope.effective(from: decoded.config) == .kanaOnly)
+    }
+
+    @Test func romajiScopeWithUnknownKeyFallsBackAsAWhole() {
+        #expect(
+            decode("{\"version\": 1, \"romajiScope\": \"kana\", \"mystery\": 1}").failureValue
+                == .unknownKey("mystery")
+        )
+    }
+
     @Test func absentDisplayModesMeanDefaults() {
         let config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
         let modes = DisplayModes.effective(from: config)
