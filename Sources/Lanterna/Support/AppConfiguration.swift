@@ -21,7 +21,7 @@ enum AppConfiguration {
     static let knownKeys: Set<String> = [
         "version", "sampleCount", "stopMonitorEvery",
         "otherSpaceMode", "hiddenAppMode", "minimizedMode", "fullscreenMode",
-        "appearanceMode", "romajiScope",
+        "appearanceMode", "romajiScope", "launchAtLogin",
     ]
 
     /// The scaffold written when no file exists (FR-012).
@@ -45,6 +45,7 @@ struct ValidConfiguration: Equatable, Sendable {
     var fullscreenMode: DisplayMode?
     var appearanceMode: AppearanceMode?
     var romajiScope: RomajiScope?
+    var launchAtLogin: Bool?
 
     init(
         version: Int,
@@ -55,7 +56,8 @@ struct ValidConfiguration: Equatable, Sendable {
         minimizedMode: DisplayMode? = nil,
         fullscreenMode: DisplayMode? = nil,
         appearanceMode: AppearanceMode? = nil,
-        romajiScope: RomajiScope? = nil
+        romajiScope: RomajiScope? = nil,
+        launchAtLogin: Bool? = nil
     ) {
         self.version = version
         self.sampleCount = sampleCount
@@ -66,6 +68,7 @@ struct ValidConfiguration: Equatable, Sendable {
         self.fullscreenMode = fullscreenMode
         self.appearanceMode = appearanceMode
         self.romajiScope = romajiScope
+        self.launchAtLogin = launchAtLogin
     }
 }
 
@@ -319,7 +322,28 @@ extension AppConfiguration {
         case let .failure(error):
             return .failure(error)
         }
+        switch checkedOptionalBool(dict, key: "launchAtLogin") {
+        case let .success(found):
+            config.launchAtLogin = found
+        case let .failure(error):
+            return .failure(error)
+        }
         return .success(config)
+    }
+
+    /// Reads one optional boolean key. Only a real boolean counts:
+    /// integers are refused the way booleans are refused for integers.
+    private static func checkedOptionalBool(
+        _ dict: [String: Any],
+        key: String
+    ) -> Result<Bool?, ConfigDecodeError> {
+        guard let rawValue = dict[key] else { return .success(nil) }
+        guard let number = rawValue as? NSNumber,
+              String(cString: number.objCType) == "c"
+        else {
+            return .failure(.invalidValue(key: key))
+        }
+        return .success(number.boolValue)
     }
 
     /// Reads one optional display-mode key. Anything but a `DisplayMode`

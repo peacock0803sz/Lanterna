@@ -22,6 +22,9 @@ extension AppConfiguration {
         if let hiddenAppMode = config.hiddenAppMode {
             entries.append(encodedString(key: "hiddenAppMode", value: hiddenAppMode.rawValue))
         }
+        if let launchAtLogin = config.launchAtLogin {
+            entries.append(encodedBool(key: "launchAtLogin", value: launchAtLogin))
+        }
         if let minimizedMode = config.minimizedMode {
             entries.append(encodedString(key: "minimizedMode", value: minimizedMode.rawValue))
         }
@@ -62,6 +65,11 @@ extension AppConfiguration {
 
     /// One `"key": 1` line, indented two spaces.
     private static func encodedInt(key: String, value: Int) -> String {
+        "  \"\(key)\": \(value)"
+    }
+
+    /// One `"key": true` line, indented two spaces.
+    private static func encodedBool(key: String, value: Bool) -> String {
         "  \"\(key)\": \(value)"
     }
 }
