@@ -8,7 +8,7 @@ final class PanelPresenter {
     let surface: any SwitcherSurface
     /// Where the rows come from: already gathered, in the ordinary case.
     let store: WindowListStore
-    let displayModes: DisplayModes
+    var displayModes: DisplayModes
     let ownProcessIdentifier: pid_t
     /// Handed on to the way out, built beside the presenter.
     let now: @MainActor () -> ContinuousClock.Instant
