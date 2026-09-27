@@ -30,6 +30,10 @@ struct SettingsFilterView: View {
                 Text("Hide").tag(DisplayMode.hide)
                 Text("Separate at bottom").tag(DisplayMode.separateAtBottom)
             }
+            Picker("Romaji matching", selection: $values.romajiScope) {
+                Text("Kana only").tag(RomajiScope.kanaOnly)
+                Text("Kana and kanji readings").tag(RomajiScope.kanaKanji)
+            }
         }
         .padding(20)
     }
