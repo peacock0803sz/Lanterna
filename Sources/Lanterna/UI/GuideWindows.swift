@@ -7,8 +7,9 @@ import AppKit
 /// alone. Both are snapshots at opening time; reopening takes a fresh one.
 @MainActor
 final class GuideWindows {
-    /// Which appearance the guide windows draw in, settled at launch.
-    private let appearanceMode: AppearanceMode
+    /// Which appearance the guide windows draw in, settled at launch
+    /// and re-settled whenever the settings change it.
+    private var appearanceMode: AppearanceMode
 
     init(appearanceMode: AppearanceMode = .system) {
         self.appearanceMode = appearanceMode
@@ -36,6 +37,14 @@ final class GuideWindows {
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         guideWindow = window
+    }
+
+    /// Follows a settings change: later windows open in the new look,
+    /// and any window still up is restyled in place.
+    func update(appearanceMode: AppearanceMode) {
+        self.appearanceMode = appearanceMode
+        guideWindow?.appearance = appearanceMode.nsAppearance
+        versionLogWindow?.appearance = appearanceMode.nsAppearance
     }
 
     /// Shows this launch so far: the version, the pinned summary, then the

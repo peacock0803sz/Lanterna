@@ -11,22 +11,23 @@ final class StatusMenu {
     /// take the menu down with it.
     private var item: NSStatusItem?
 
-    /// Puts the menu up. The guide entry reopens the onboarding window, the
+    /// Puts the menu up. The settings entry opens the settings window,
+    /// which now carries the permission check on its General tab. The
     /// version entry opens the version and log window, and the quit entry
     /// ends the process through the usual teardown.
-    func stand(openGuide: @escaping () -> Void, openVersionLog: @escaping () -> Void) {
+    func stand(openSettings: @escaping () -> Void, openVersionLog: @escaping () -> Void) {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.title = "◈"
         item.button?.toolTip = "Lanterna"
         let menu = NSMenu()
-        let guideItem = NSMenuItem(
-            title: "Check Permissions…",
-            action: #selector(openGuideFromMenu(_:)),
+        let settingsItem = NSMenuItem(
+            title: "Settings…",
+            action: #selector(openSettingsFromMenu(_:)),
             keyEquivalent: ""
         )
-        guideItem.target = self
-        guideItem.representedObject = openGuide
-        menu.addItem(guideItem)
+        settingsItem.target = self
+        settingsItem.representedObject = openSettings
+        menu.addItem(settingsItem)
         let versionItem = NSMenuItem(
             title: "Version and Logs…",
             action: #selector(openVersionLogFromMenu(_:)),
@@ -57,7 +58,7 @@ final class StatusMenu {
 
     /// Unpacks the closure the menu item carries. A selector cannot carry a
     /// closure, so it rides along as the represented object.
-    @objc private func openGuideFromMenu(_ sender: NSMenuItem) {
+    @objc private func openSettingsFromMenu(_ sender: NSMenuItem) {
         (sender.representedObject as? () -> Void)?()
     }
 

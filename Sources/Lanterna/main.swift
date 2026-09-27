@@ -14,8 +14,14 @@ do {
 /// scaffolded; anything unreadable falls back to defaults with a line saying
 /// why. Existing files are never written.
 let options: LaunchArguments.Options
+let initialValues: SettingsValues
+let configFileURL: URL?
+let lanternaDirectory: URL?
+let tableDirectory = MigemoEngine.tableDirectoryURL()
 if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
     let (outcome, url) = AppConfiguration.loadOrScaffold(applicationSupport: base)
+    configFileURL = url
+    lanternaDirectory = url.deletingLastPathComponent()
     let defaults = ValidConfiguration(
         version: AppConfiguration.currentVersion,
         sampleCount: nil,
@@ -24,6 +30,7 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
     switch outcome {
     case let .loaded(decoded):
         options = AppConfiguration.effectiveOptions(file: decoded.config, cli: cliOptions)
+        initialValues = SettingsValues.effective(from: decoded.config)
         openSharedMatcher(
             scope: RomajiScope.effective(from: decoded.config),
             lanternaDirectory: url.deletingLastPathComponent()
@@ -35,6 +42,7 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
         }
     case .created:
         options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
+        initialValues = SettingsValues.defaults
         openSharedMatcher(
             scope: .kanaKanji,
             lanternaDirectory: url.deletingLastPathComponent()
@@ -42,6 +50,7 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
         Diagnostics.writeLine("config not found; created with defaults: \(url.path)")
     case let .failed(reason):
         options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
+        initialValues = SettingsValues.defaults
         openSharedMatcher(
             scope: .kanaKanji,
             lanternaDirectory: url.deletingLastPathComponent()
@@ -50,6 +59,9 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
     }
 } else {
     options = cliOptions
+    initialValues = SettingsValues.defaults
+    configFileURL = nil
+    lanternaDirectory = nil
     openSharedMatcher(scope: .kanaKanji, lanternaDirectory: nil)
     Diagnostics.writeLine("config invalid (cannot resolve directory); using defaults")
 }
@@ -79,6 +91,12 @@ let application = NSApplication.shared
 // `.regular` policy is what puts an icon in the Dock.
 application.setActivationPolicy(.accessory)
 
-let delegate = AppDelegate(options: options)
+let delegate = AppDelegate(
+    options: options,
+    configFileURL: configFileURL,
+    lanternaDirectory: lanternaDirectory,
+    tableDirectory: tableDirectory,
+    initialValues: initialValues
+)
 application.delegate = delegate
 application.run()
