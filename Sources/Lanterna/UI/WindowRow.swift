@@ -52,7 +52,12 @@ struct WindowRow: View {
     private func highlighted(_ text: String, base: AnyShapeStyle) -> Text {
         let plain = Text(text).foregroundStyle(rowStyle(base))
         guard !isSelected else { return plain }
-        let ranges = WindowFilter.matchedRanges(query: query, in: text)
+        let ranges: [Range<String.Index>]
+        if RomajiMatcher.engine.isOpen {
+            ranges = WindowFilter.matchedRanges(query: query, in: text, engine: RomajiMatcher.engine)
+        } else {
+            ranges = WindowFilter.matchedRanges(query: query, in: text)
+        }
         guard !ranges.isEmpty else { return plain }
         var out = Text("")
         var cursor = text.startIndex

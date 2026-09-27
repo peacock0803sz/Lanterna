@@ -46,6 +46,10 @@ lipo -archs .build/debug/Lanterna   # must print arm64 and nothing else
 bash scripts/test.sh   # stamps too, before running the suite
 ```
 
+### Vendored Sources
+
+`Sources/CMigemo/` holds the upstream matching engine as-is. Do not edit those files by hand; refresh them with `bash scripts/vendor-cmigemo.sh` (the version pin lives in `Sources/CMigemo/VERSION`). The only hand-written files there are `migemo_utf8.c` and `include/migemo_utf8.h`, which force UTF-8 processing.
+
 ### CI-to-Local Command Mapping
 
 | CI Step | Local Command |

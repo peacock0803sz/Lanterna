@@ -21,7 +21,7 @@ enum AppConfiguration {
     static let knownKeys: Set<String> = [
         "version", "sampleCount", "stopMonitorEvery",
         "otherSpaceMode", "hiddenAppMode", "minimizedMode", "fullscreenMode",
-        "appearanceMode",
+        "appearanceMode", "romajiScope",
     ]
 
     /// The scaffold written when no file exists (FR-012).
@@ -44,6 +44,7 @@ struct ValidConfiguration: Equatable, Sendable {
     var minimizedMode: DisplayMode?
     var fullscreenMode: DisplayMode?
     var appearanceMode: AppearanceMode?
+    var romajiScope: RomajiScope?
 
     init(
         version: Int,
@@ -53,7 +54,8 @@ struct ValidConfiguration: Equatable, Sendable {
         hiddenAppMode: DisplayMode? = nil,
         minimizedMode: DisplayMode? = nil,
         fullscreenMode: DisplayMode? = nil,
-        appearanceMode: AppearanceMode? = nil
+        appearanceMode: AppearanceMode? = nil,
+        romajiScope: RomajiScope? = nil
     ) {
         self.version = version
         self.sampleCount = sampleCount
@@ -63,6 +65,7 @@ struct ValidConfiguration: Equatable, Sendable {
         self.minimizedMode = minimizedMode
         self.fullscreenMode = fullscreenMode
         self.appearanceMode = appearanceMode
+        self.romajiScope = romajiScope
     }
 }
 
@@ -277,8 +280,8 @@ extension AppConfiguration {
         return .success((sampleCount, stopMonitorEvery))
     }
 
-    /// Assembles the validated configuration, reading the display modes and
-    /// then, last, the appearance mode.
+    /// Assembles the validated configuration, reading the display modes,
+    /// then the appearance mode, and then, last, the romaji scope.
     private static func checkedConfiguration(
         _ dict: [String: Any],
         version: Int,
@@ -310,6 +313,12 @@ extension AppConfiguration {
         case let .failure(error):
             return .failure(error)
         }
+        switch checkedOptionalRomajiScope(dict, key: "romajiScope") {
+        case let .success(found):
+            config.romajiScope = found
+        case let .failure(error):
+            return .failure(error)
+        }
         return .success(config)
     }
 
@@ -338,6 +347,20 @@ extension AppConfiguration {
             return .failure(.invalidValue(key: key))
         }
         return .success(mode)
+    }
+
+    /// Reads the optional romaji-scope key. Anything but a
+    /// `RomajiScope` word invalidates the whole file, like any other
+    /// bad value.
+    private static func checkedOptionalRomajiScope(
+        _ dict: [String: Any],
+        key: String
+    ) -> Result<RomajiScope?, ConfigDecodeError> {
+        guard let rawValue = dict[key] else { return .success(nil) }
+        guard let text = rawValue as? String, let scope = RomajiScope(rawValue: text) else {
+            return .failure(.invalidValue(key: key))
+        }
+        return .success(scope)
     }
 
     /// A JSON integer and nothing else.

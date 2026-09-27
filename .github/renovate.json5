@@ -12,6 +12,15 @@
     "commitMessageTopic": "flake.lock",
     "commitMessageExtra": "",
   },
+  "regexManagers": [
+    {
+      "fileMatch": ["^Sources/CMigemo/VERSION$"],
+      "matchStrings": ["(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"],
+      "depNameTemplate": "koron/cmigemo",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$",
+    },
+  ],
   "packageRules": [
     {
       "matchManagers": ["nix"],
@@ -24,6 +33,21 @@
         "commitMessageTopic": "flake.lock",
         "commitMessageExtra": "",
       },
+    },
+    {
+      "matchPackageNames": ["koron/cmigemo"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "commitMessagePrefix": ":arrow_up:",
+      "commitMessageAction": "Update",
+      "commitMessageTopic": "vendored matching engine",
+      "commitMessageExtra": "",
+    },
+    {
+      "matchPackageNames": ["koron/cmigemo"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
     },
   ],
 }

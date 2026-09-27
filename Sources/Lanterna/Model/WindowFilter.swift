@@ -1,3 +1,5 @@
+import Foundation
+
 /// Narrowing the list on screen by what the user typed, and nothing else.
 ///
 /// A namespace rather than a type with state: matching is a pure function of
@@ -42,6 +44,52 @@ enum WindowFilter {
             remainder = found.upperBound ..< text.endIndex
         }
         return ranges
+    }
+
+    /// The rows a romaji query matches through the engine, in order.
+    ///
+    /// The single-pattern path: one pattern per query decides every row,
+    /// so conventional queries keep matching exactly when the engine's
+    /// pattern says so (covered by acceptance, not by a first pass). An
+    /// empty query returns the input unchanged, like the legacy path.
+    static func matching(_ query: String, against windows: [WindowItem], engine: MigemoEngine) -> [WindowItem] {
+        guard !query.isEmpty else { return windows }
+        return windows.filter { matches(query: query, target: combinedText(of: $0), engine: engine) }
+    }
+
+    /// Whether one row matches a romaji query through the engine.
+    static func matches(query: String, target: String, engine: MigemoEngine) -> Bool {
+        guard !query.isEmpty else { return true }
+        return !matchedRanges(query: query, in: target, engine: engine).isEmpty
+    }
+
+    /// Every range where a romaji query matches, for highlighting.
+    ///
+    /// Ranges cover the whole matched span on the target side, whose
+    /// length need not equal the query's. A query no pattern can parse
+    /// falls back to a literal match and never fails the filter.
+    static func matchedRanges(query: String, in text: String, engine: MigemoEngine) -> [Range<String.Index>] {
+        guard !query.isEmpty else { return [] }
+        if let pattern = engine.pattern(for: query) {
+            if let ranges = regexRanges(pattern: pattern, in: text) {
+                return ranges
+            }
+            if let literal = regexRanges(pattern: MigemoEngine.escapedLiteral(query), in: text) {
+                return literal
+            }
+        }
+        return matchedRanges(query: query, in: text)
+    }
+
+    /// The ranges one regular expression matches, or nil when the
+    /// pattern itself cannot be read. An empty hit list means no match,
+    /// never a broken pattern.
+    private static func regexRanges(pattern: String, in text: String) -> [Range<String.Index>]? {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return nil
+        }
+        let full = NSRange(text.startIndex..., in: text)
+        return regex.matches(in: text, range: full).compactMap { Range($0.range, in: text) }
     }
 
     /// Whether the string a keystroke produced joins the query, and as what.

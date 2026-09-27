@@ -18,6 +18,14 @@
         "dark"
       ]
     },
+    "romajiScope": {
+      "description": "The scope the romaji filter matches in. Absent means \"kanji\".",
+      "type": "string",
+      "enum": [
+        "kana",
+        "kanji"
+      ]
+    },
     "otherSpaceMode": {
       "description": "Windows on other Spaces. Absent means \"show\".",
       "type": "string",

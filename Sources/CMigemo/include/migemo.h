@@ -1,0 +1,150 @@
+// vim:set ts=8 sts=4 sw=4 tw=0 et:
+//
+// migemo.h -
+//
+// Written By:  MURAOKA Taro <koron.kaoriya@gmail.com>
+
+#pragma once
+
+#if defined(_WIN32) && !defined(__MINGW32__) && !defined(__CYGWIN32__)
+# define MIGEMO_CALLTYPE __stdcall
+#else
+# define MIGEMO_CALLTYPE
+#endif
+
+// clang-format off
+#define MIGEMO_VERSION            "1.8.0"
+#define MIGEMO_VERSION_MAJOR      1
+#define MIGEMO_VERSION_MINOR      8
+#define MIGEMO_VERSION_PATCH      0
+#define MIGEMO_VERSION_PRERELEASE ""
+// clang-format on
+
+#define MIGEMO_DICT_FILENAME "migemo-dict"
+
+// for migemo_load()
+#define MIGEMO_DICTID_INVALID      0
+#define MIGEMO_DICTID_MIGEMO       1
+#define MIGEMO_DICTID_ROMA2HIRA    2
+#define MIGEMO_DICTID_HIRA2KATA    3
+#define MIGEMO_DICTID_HAN2ZEN      4
+#define MIGEMO_DICTID_ZEN2HAN      5
+#define MIGEMO_DICTID_MIGEMO_SDICT 6
+
+// for migemo_set_operator()/migemo_get_operator().  see: rxgen.h
+#define MIGEMO_OPINDEX_OR         0
+#define MIGEMO_OPINDEX_NEST_IN    1
+#define MIGEMO_OPINDEX_NEST_OUT   2
+#define MIGEMO_OPINDEX_SELECT_IN  3
+#define MIGEMO_OPINDEX_SELECT_OUT 4
+#define MIGEMO_OPINDEX_NEWLINE    5
+
+// see: rxgen.h
+typedef int (*MIGEMO_PROC_CHAR2INT)(const unsigned char *, unsigned int *);
+typedef int (*MIGEMO_PROC_INT2CHAR)(unsigned int, unsigned char *);
+
+/// Migemo object. Created by migemo_open() and destroyed by migemo_close.
+typedef struct migemo migemo;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+//////////////////////////////////////////////////////////////////////////////
+// Information
+
+/// Get version string of C/Migemo library.
+/// @return Pointer to a static version string (e.g. "1.6.1").
+const char *MIGEMO_CALLTYPE migemo_version(void);
+
+//////////////////////////////////////////////////////////////////////////////
+// Life cycle management
+
+/// Create a Migemo object.
+///
+/// Automatically loads standard conversion tables if present in the same
+/// directory as the specified dictionary.  Failure to load sub-dictionaries is
+/// ignored.
+///
+/// @param dict Path to dictionary file. If NULL, no dictionary is loaded.
+/// @return Pointer to created object, or NULL on failure.
+migemo *MIGEMO_CALLTYPE migemo_open(const char *dict);
+
+/// Destroy a Migemo object and free its resources.
+/// @param mo Object to destroy.
+void MIGEMO_CALLTYPE migemo_close(migemo *mo);
+
+//////////////////////////////////////////////////////////////////////////////
+// Query
+
+/// Generate a regular expression pattern from a Romaji query.
+///
+/// NOTE: The returned string is dynamically allocated. You MUST release it
+/// using migemo_release() after use to avoid memory leaks.
+/// @param mo Migemo object.
+/// @param query Query string in Romaji.
+/// @return Generated regex pattern string.
+unsigned char *MIGEMO_CALLTYPE migemo_query(
+        migemo *mo, const unsigned char *query);
+
+/// Free memory allocated by migemo_query().
+/// @param mo Migemo object.
+/// @param used_pattern Pointer to pattern string to free.
+void MIGEMO_CALLTYPE migemo_release(migemo *mo, unsigned char *used_pattern);
+
+//////////////////////////////////////////////////////////////////////////////
+// Static dictionary (sdict) related
+//
+// sdict (Static Dictionary) is a flattened, highly-optimized binary
+// representation of the standard dynamic dictionary (mtree). It offers
+// significant performance advantages:
+//
+//   - Fast Startup: Bypasses dictionary parsing during load.
+//   - Memory Efficiency: Reduces pointer overhead by using flat array storage.
+//   - High Performance: Improves CPU cache locality during query execution.
+//
+// You can convert an in-memory dictionary to sdict using
+// migemo_switch_sdict(), or save/load pre-compiled sdict files directly.
+
+/// Preserve migemo-dict to load incrementally, and rebuild.
+#define MIGEMO_SDICT_PRESERVE_MDICT 0
+/// Release migemo-dict to memory compaction.
+#define MIGEMO_SDICT_RELEASE_MDICT 1
+
+/// Convert current dictionary to sdict and switch active search engine.
+/// @param mo Migemo object.
+/// @param flags Option flags (e.g. MIGEMO_SDICT_PRESERVE_MDICT or
+/// MIGEMO_SDICT_RELEASE_MDICT).
+/// @return Non-zero on success, 0 on failure.
+int MIGEMO_CALLTYPE migemo_switch_sdict(migemo *mo, int flags);
+
+/// Save converted sdict data to a file.
+/// @param mo Migemo object.
+/// @param dict Output file path.
+/// @return Non-zero on success, 0 on failure.
+int MIGEMO_CALLTYPE migemo_save_sdict(migemo *mo, const char *dict_file);
+
+/// Open Migemo object directly with an sdict file.
+/// @param dict Path to sdict dictionary file.
+/// @return Pointer to created object, or NULL on failure.
+migemo *MIGEMO_CALLTYPE migemo_open_sdict(const char *dict_file);
+
+//////////////////////////////////////////////////////////////////////////////
+// Configurations
+
+int MIGEMO_CALLTYPE migemo_set_operator(
+        migemo *mo, int index, const unsigned char *op);
+const unsigned char *MIGEMO_CALLTYPE migemo_get_operator(migemo *mo, int index);
+void MIGEMO_CALLTYPE migemo_set_escape_chars(
+        migemo *mo, const unsigned char *chars);
+void MIGEMO_CALLTYPE migemo_setproc_char2int(
+        migemo *mo, MIGEMO_PROC_CHAR2INT proc);
+void MIGEMO_CALLTYPE migemo_setproc_int2char(
+        migemo *mo, MIGEMO_PROC_INT2CHAR proc);
+
+int MIGEMO_CALLTYPE migemo_load(migemo *mo, int dict_id, const char *dict_file);
+int MIGEMO_CALLTYPE migemo_is_enable(migemo *mo);
+
+#ifdef __cplusplus
+}
+#endif
