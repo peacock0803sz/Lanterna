@@ -27,6 +27,20 @@ struct SettingsWindowTests {
         #expect(SettingsValues.defaults.romajiScope == .kanaKanji)
     }
 
+    @Test func romajiScopeDefaultsToKanji() {
+        let config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+        #expect(SettingsValues.effective(from: config).romajiScope == .kanaKanji)
+    }
+
+    @Test func romajiScopeFollowsPresentKey() {
+        var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+        config.romajiScope = .kanaOnly
+        #expect(SettingsValues.effective(from: config).romajiScope == .kanaOnly)
+        let saved = SettingsValues.effective(from: config)
+            .configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+        #expect(saved.romajiScope == .kanaOnly)
+    }
+
     @Test func configurationRoundTripKeepsShownAndHiddenKeys() {
         var values = SettingsValues.defaults
         values.appearanceMode = .light
