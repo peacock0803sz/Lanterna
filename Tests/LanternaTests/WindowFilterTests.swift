@@ -175,4 +175,55 @@ struct WindowFilterTests {
         #expect(latinRanges.count == 1)
         #expect(latinRanges.first.map { "Safari"[$0] } == "Safari")
     }
+
+    /// Opens the engine with a small dictionary written to a temporary file.
+    private func openEngineWithDictionary(_ entries: String) throws -> MigemoEngine {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent("migemo-dict")
+        try entries.write(to: url, atomically: true, encoding: .utf8)
+        let engine = MigemoEngine()
+        let tables = try #require(MigemoEngine.tableDirectoryURL())
+        #expect(engine.open(dictionaryPath: url.path, tableDirectory: tables.path))
+        return engine
+    }
+
+    /// A kanji reading matches its kanji row when a dictionary is open.
+    @Test func kanjiReadingMatchesWithDictionary() throws {
+        let engine = try openEngineWithDictionary("ぎじろく\t議事録\n")
+        #expect(engine.dictionaryActive)
+        let rows = [
+            filterRow(appName: "Notes", windowTitle: "議事録", windowID: 31),
+            filterRow(appName: "Memo", windowTitle: "しりょう", windowID: 32),
+            filterRow(appName: "Safari", windowTitle: "Quarterly planning", windowID: 33),
+        ]
+        let matched = WindowFilter.matching("gijiroku", against: rows, engine: engine)
+        #expect(matched.map(\.id.windowID) == [31])
+    }
+
+    /// Without a dictionary the same reading matches nothing.
+    @Test func kanjiDoesNotMatchWithoutDictionary() {
+        let engine = openEngineWithoutDictionary()
+        let rows = [filterRow(appName: "Notes", windowTitle: "議事録", windowID: 31)]
+        #expect(WindowFilter.matching("gijiroku", against: rows, engine: engine).isEmpty)
+    }
+
+    /// Kanji highlight ranges cover the whole kanji span.
+    @Test func kanjiRangesCoverKanjiSpan() throws {
+        let engine = try openEngineWithDictionary("ぎじろく\t議事録\n")
+        let ranges = WindowFilter.matchedRanges(query: "gijiroku", in: "議事録", engine: engine)
+        #expect(ranges.count == 1)
+        #expect(ranges.first.map { "議事録"[$0] } == "議事録")
+    }
+
+    /// A broken dictionary falls back to kana-only matching.
+    @Test func invalidDictionaryFallsBack() throws {
+        let engine = try openEngineWithDictionary("this line has no tab\n")
+        #expect(!engine.dictionaryActive)
+        let kana = [filterRow(appName: "Memo", windowTitle: "しりょう", windowID: 32)]
+        #expect(WindowFilter.matching("shiryou", against: kana, engine: engine).count == 1)
+        let kanji = [filterRow(appName: "Notes", windowTitle: "議事録", windowID: 31)]
+        #expect(WindowFilter.matching("gijiroku", against: kanji, engine: engine).isEmpty)
+    }
 }

@@ -19,20 +19,26 @@ final class MigemoEngine {
         handle != nil
     }
 
+    /// Whether a valid dictionary backs this engine. False covers both
+    /// nil paths and rejected files; either way matching stays kana-only.
+    private(set) var dictionaryActive = false
+
     /// Opens the engine and loads the kana tables.
     ///
-    /// When `dictionaryPath` names a readable dictionary, kanji readings
-    /// match as well; with nil only kana readings match. The kana tables
-    /// always come from `tableDirectory`. Returns false when opening or
-    /// loading the tables fails.
+    /// When `dictionaryPath` names a readable, well-formed dictionary,
+    /// kanji readings match as well; otherwise only kana readings match.
+    /// The kana tables always come from `tableDirectory`. Returns false
+    /// when opening or loading the tables fails.
     @discardableResult
     func open(dictionaryPath: String?, tableDirectory: String) -> Bool {
         close()
+        dictionaryActive = false
         let opened: OpaquePointer?
-        if let dictionaryPath {
+        if let dictionaryPath, Self.validatedDictionary(at: dictionaryPath) {
             opened = dictionaryPath.withCString { path in
                 lanterna_migemo_open_utf8(path)
             }
+            dictionaryActive = opened != nil
         } else {
             opened = lanterna_migemo_open_utf8(nil)
         }
@@ -68,6 +74,28 @@ final class MigemoEngine {
 
     deinit {
         close()
+    }
+
+    /// Checks a dictionary file without opening the engine.
+    ///
+    /// A dictionary is UTF-8 text where every content line pairs a
+    /// reading with candidates across one tab. Blank lines and `#`
+    /// comments are skipped. Anything else rejects the whole file, so
+    /// one broken line cannot skew matching silently.
+    static func validatedDictionary(at path: String) -> Bool {
+        guard let data = FileManager.default.contents(atPath: path),
+              let text = String(data: data, encoding: .utf8)
+        else { return false }
+        for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty || trimmed.hasPrefix("#") {
+                continue
+            }
+            if !trimmed.contains("\t") {
+                return false
+            }
+        }
+        return true
     }
 
     /// Loads the kana conversion tables, ignoring single failures.
