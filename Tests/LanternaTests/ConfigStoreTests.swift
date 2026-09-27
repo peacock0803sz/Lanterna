@@ -216,6 +216,32 @@ struct ConfigStoreTests {
         }
     }
 
+    @Test func romajiScopeIsAbsentByDefault() throws {
+        let decoded = try #require(decode("{\"version\": 1}").successValue)
+        #expect(decoded.config.romajiScope == nil)
+        #expect(RomajiScope.effective(from: decoded.config) == .kanaKanji)
+    }
+
+    @Test func romajiScopeDecodesWhenPresent() throws {
+        let kana = try #require(decode("{\"version\": 1, \"romajiScope\": \"kana\"}").successValue)
+        #expect(kana.config.romajiScope == .kanaOnly)
+        #expect(RomajiScope.effective(from: kana.config) == .kanaOnly)
+        let kanji = try #require(decode("{\"version\": 1, \"romajiScope\": \"kanji\"}").successValue)
+        #expect(kanji.config.romajiScope == .kanaKanji)
+    }
+
+    @Test func invalidRomajiScopeFallsBackAsAWhole() {
+        let cases: [(String, ConfigDecodeError)] = [
+            ("{\"version\": 1, \"romajiScope\": \"KANA\"}", .invalidValue(key: "romajiScope")),
+            ("{\"version\": 1, \"romajiScope\": \"kana-only\"}", .invalidValue(key: "romajiScope")),
+            ("{\"version\": 1, \"romajiScope\": true}", .invalidValue(key: "romajiScope")),
+            ("{\"version\": 1, \"romajiScope\": 1}", .invalidValue(key: "romajiScope")),
+        ]
+        for (text, expected) in cases {
+            #expect(decode(text).failureValue == expected, "for \(text)")
+        }
+    }
+
     @Test func absentDisplayModesMeanDefaults() {
         let config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
         let modes = DisplayModes.effective(from: config)
