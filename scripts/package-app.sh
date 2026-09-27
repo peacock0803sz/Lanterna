@@ -50,7 +50,10 @@ if [[ ! -d "$bundle" ]]; then
     echo "package-app: missing $bundle" >&2
     exit 1
 fi
-cp -R "$bundle" "$app/Contents/MacOS/"
+# Resource bundles belong in Contents/Resources; Contents/MacOS holds
+# executables only. A bundle under MacOS breaks codesign on some
+# toolchains ("bundle format unrecognized" in the release job).
+cp -R "$bundle" "$app/Contents/Resources/"
 
 iconset="Assets/Lanterna.iconset"
 for size in 16 32 128 256 512; do
@@ -90,7 +93,11 @@ cat > "$app/Contents/Info.plist" <<EOF
 </plist>
 EOF
 
+# Sign the nested resource bundle before the outer app so --deep
+# only refreshes an already-valid signature.
+codesign --force --sign - "$app/Contents/Resources/Lanterna_CMigemo.bundle"
 codesign --force --deep --sign - "$app"
+codesign --verify --deep --strict "$app"
 
 dmg="build/Lanterna-${short}.dmg"
 rm -f "$dmg"
