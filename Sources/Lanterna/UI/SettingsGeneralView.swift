@@ -2,7 +2,7 @@ import SwiftUI
 
 /// What the General tab shows about the last manual check.
 ///
-/// Owned by the application delegate; the settings view only observes it.
+/// Owned by the settings window; the settings view only observes it.
 /// The text starts unset and is replaced on every check, never carried
 /// across launches.
 @MainActor
@@ -50,6 +50,7 @@ struct SettingsGeneralView: View {
                 Text("Updates")
                     .font(.headline)
                 Toggle("Check for updates", isOn: $values.updateCheckEnabled)
+                    .disabled(isChecking)
                 Text("Ask whether a newer release is published.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -57,6 +58,7 @@ struct SettingsGeneralView: View {
                     Text("Stable").tag(UpdateChannel.stable)
                     Text("Beta").tag(UpdateChannel.beta)
                 }
+                .disabled(isChecking)
                 Text("Stable covers full releases only. Beta also covers prereleases.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)

@@ -143,7 +143,12 @@ extension AppDelegate {
         replacingInvalidFile: Bool
     ) -> SettingsSaveOutcome {
         let scopeChanged = values.romajiScope != currentValues.romajiScope
+        let checkContextChanged = values.updateCheckEnabled != currentValues.updateCheckEnabled
+            || values.updateChannel != currentValues.updateChannel
         currentValues = values
+        if checkContextChanged {
+            settingsWindow?.checkDisplay.resultText = nil
+        }
         panel?.displayModes = values.displayModes
         panel?.appearance = values.appearanceMode.nsAppearance
         presenter?.displayModes = values.displayModes
