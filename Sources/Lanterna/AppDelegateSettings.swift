@@ -176,11 +176,12 @@ extension AppDelegate {
         guard let configFileURL else {
             return .failed(reason: "cannot resolve directory")
         }
-        let (sampleCount, stopMonitorEvery) = preservedDebugKeys()
+        let preserved = preservedConfiguration()
         let config = values.configuration(
             version: AppConfiguration.currentVersion,
-            sampleCount: sampleCount,
-            stopMonitorEverySeconds: stopMonitorEvery
+            sampleCount: preserved?.sampleCount,
+            stopMonitorEverySeconds: preserved?.stopMonitorEverySeconds,
+            logLevel: preserved?.logLevel
         )
         return SettingsSaver.save(
             config,
@@ -194,11 +195,14 @@ extension AppDelegate {
     /// Anything unreadable means nothing to preserve: an invalid file is
     /// about to be confirmed away or rebuilt, and a missing one was never
     /// going to supply them.
-    private func preservedDebugKeys() -> (Int?, Int?) {
+    /// The on-disk configuration the settings window does not manage, read
+    /// back so saving from the window does not drop it: the debug count and
+    /// period, and the log level, which lives in the file alone.
+    private func preservedConfiguration() -> ValidConfiguration? {
         guard let configFileURL,
               let data = try? Data(contentsOf: configFileURL),
               case let .success(decoded) = AppConfiguration.decode(data)
-        else { return (nil, nil) }
-        return (decoded.config.sampleCount, decoded.config.stopMonitorEverySeconds)
+        else { return nil }
+        return decoded.config
     }
 }

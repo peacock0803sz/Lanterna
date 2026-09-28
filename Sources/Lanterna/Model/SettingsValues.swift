@@ -1,3 +1,5 @@
+import Logging
+
 /// What the settings UI shows and changes, as one value.
 ///
 /// A UI-layer snapshot of the seven user-facing settings. Persistence and
@@ -44,12 +46,14 @@ struct SettingsValues: Equatable, Sendable {
     func configuration(
         version: Int,
         sampleCount: Int?,
-        stopMonitorEverySeconds: Int?
+        stopMonitorEverySeconds: Int?,
+        logLevel: Logger.Level? = nil
     ) -> ValidConfiguration {
         var config = ValidConfiguration(
             version: version,
             sampleCount: sampleCount,
-            stopMonitorEverySeconds: stopMonitorEverySeconds
+            stopMonitorEverySeconds: stopMonitorEverySeconds,
+            logLevel: logLevel
         )
         config.appearanceMode = appearanceMode
         config.otherSpaceMode = displayModes.otherSpace
