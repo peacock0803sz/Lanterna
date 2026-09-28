@@ -140,6 +140,53 @@ extension AppConfiguration {
         return .success(scope)
     }
 
+    /// Reads the three search-quality keys together, so the assembly stays
+    /// small. The length bound is 0 to 5: the lower bound rides on the
+    /// shared reader, the upper bound refuses the whole file, like any
+    /// other bad value.
+    static func checkedSearchSettings(
+        _ dict: [String: Any],
+        into config: inout ValidConfiguration
+    ) -> Result<Void, ConfigDecodeError> {
+        switch checkedOptionalInt(dict, key: "shortcutMemoryLength", minimum: 0) {
+        case let .success(found):
+            guard found.map({ $0 <= 5 }) ?? true else {
+                return .failure(.invalidValue(key: "shortcutMemoryLength"))
+            }
+            config.shortcutMemoryLength = found
+        case let .failure(error):
+            return .failure(error)
+        }
+        switch checkedOptionalBool(dict, key: "fuzzyMatchEnabled") {
+        case let .success(found):
+            config.fuzzyMatchEnabled = found
+        case let .failure(error):
+            return .failure(error)
+        }
+        switch checkedOptionalResultOrder(dict, key: "resultOrder") {
+        case let .success(found):
+            config.resultOrder = found
+        case let .failure(error):
+            return .failure(error)
+        }
+        return .success(())
+    }
+
+    /// Reads the optional ordering word. Only the two known words count:
+    /// anything else invalidates the whole file, like any other bad value.
+    static func checkedOptionalResultOrder(
+        _ dict: [String: Any],
+        key: String
+    ) -> Result<String?, ConfigDecodeError> {
+        guard let rawValue = dict[key] else { return .success(nil) }
+        guard let text = rawValue as? String,
+              text == "mru" || text == "score"
+        else {
+            return .failure(.invalidValue(key: key))
+        }
+        return .success(text)
+    }
+
     /// Reads one optional channel key. Only the two known words count:
     /// anything else invalidates the whole file, like any other bad value.
     static func checkedOptionalChannel(

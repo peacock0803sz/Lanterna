@@ -17,6 +17,15 @@ struct SettingsValues: Equatable, Sendable {
     var launchAtLogin: Bool
     /// The raw exclusion entries. Empty means no exclusions.
     var exclusions: [ExclusionEntry]
+    /// How many characters of a query the shortcut memory covers. Absent
+    /// in the file means 5. 0 means off.
+    var shortcutMemoryLength: Int
+    /// Whether subsequence queries match as well as substrings. Absent in
+    /// the file means on.
+    var fuzzyMatchEnabled: Bool
+    /// The raw ordering word. Absent in the file means "mru". Kept as a
+    /// string like the file; the enum arrives with T018.
+    var resultOrder: String
 
     /// The values for a missing or invalid file: follow the system, park
     /// the special kinds as usual, match kanji readings as well, stay
@@ -28,7 +37,10 @@ struct SettingsValues: Equatable, Sendable {
         updateCheckEnabled: false,
         updateChannel: .stable,
         launchAtLogin: false,
-        exclusions: []
+        exclusions: [],
+        shortcutMemoryLength: 5,
+        fuzzyMatchEnabled: true,
+        resultOrder: "mru"
     )
 
     /// The values for one run: present keys win, absent keys mean
@@ -41,7 +53,10 @@ struct SettingsValues: Equatable, Sendable {
             updateCheckEnabled: config.updateCheckEnabled ?? false,
             updateChannel: UpdateChannel(rawValue: config.updateChannel ?? "stable") ?? .stable,
             launchAtLogin: config.launchAtLogin ?? false,
-            exclusions: config.exclusions ?? []
+            exclusions: config.exclusions ?? [],
+            shortcutMemoryLength: config.shortcutMemoryLength ?? 5,
+            fuzzyMatchEnabled: config.fuzzyMatchEnabled ?? true,
+            resultOrder: config.resultOrder ?? "mru"
         )
     }
 
@@ -70,6 +85,9 @@ struct SettingsValues: Equatable, Sendable {
         config.updateChannel = updateChannel.rawValue
         // Empty stays absent, so clearing the list removes the key.
         config.exclusions = exclusions.isEmpty ? nil : exclusions
+        config.shortcutMemoryLength = shortcutMemoryLength
+        config.fuzzyMatchEnabled = fuzzyMatchEnabled
+        config.resultOrder = resultOrder
         return config
     }
 }

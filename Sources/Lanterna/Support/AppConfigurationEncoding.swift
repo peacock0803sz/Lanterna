@@ -44,9 +44,12 @@ extension AppConfiguration {
         if let stopMonitorEverySeconds = config.stopMonitorEverySeconds {
             entries.append(encodedInt(key: "stopMonitorEvery", value: stopMonitorEverySeconds))
         }
+        entries.append(contentsOf: searchSettingEntries(config))
         entries.append(contentsOf: updateCheckEntries(config))
         entries.append(encodedInt(key: "version", value: config.version))
-        return Data(("{\n" + entries.joined(separator: ",\n") + "\n}\n").utf8)
+        // Every line opens with two spaces and its quoted key, so sorting
+        // the lines sorts the keys. Helpers may append in any order.
+        return Data(("{\n" + entries.sorted().joined(separator: ",\n") + "\n}\n").utf8)
     }
 
     /// Writes encoded settings to the file, creating its directory.
@@ -61,6 +64,21 @@ extension AppConfiguration {
             withIntermediateDirectories: true
         )
         try encode(config).write(to: url, options: .atomic)
+    }
+
+    /// The search-quality lines, skipping absence like every other key.
+    private static func searchSettingEntries(_ config: ValidConfiguration) -> [String] {
+        var lines: [String] = []
+        if let fuzzyMatchEnabled = config.fuzzyMatchEnabled {
+            lines.append(encodedBool(key: "fuzzyMatchEnabled", value: fuzzyMatchEnabled))
+        }
+        if let resultOrder = config.resultOrder {
+            lines.append(encodedString(key: "resultOrder", value: resultOrder))
+        }
+        if let shortcutMemoryLength = config.shortcutMemoryLength {
+            lines.append(encodedInt(key: "shortcutMemoryLength", value: shortcutMemoryLength))
+        }
+        return lines
     }
 
     /// The exclusion list lines, in canonical order, skipping absence.
