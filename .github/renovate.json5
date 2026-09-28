@@ -9,10 +9,6 @@
   lockFileMaintenance: {
     enabled: true,
     minimumReleaseAge: null,
-    commitMessagePrefix: ':snowflake:',
-    commitMessageAction: 'Update',
-    commitMessageTopic: 'flake.lock',
-    commitMessageExtra: '',
   },
   customManagers: [
     {
@@ -42,6 +38,19 @@
         commitMessageTopic: 'flake.lock',
         commitMessageExtra: '',
       },
+    },
+    {
+      description: 'pnpm lock maintenance uses pnpm-lock.yaml title',
+      matchManagers: [
+        'npm',
+      ],
+      matchUpdateTypes: [
+        'lockFileMaintenance',
+      ],
+      commitMessagePrefix: ':package:',
+      commitMessageAction: 'Update',
+      commitMessageTopic: 'pnpm-lock.yaml',
+      commitMessageExtra: '',
     },
     {
       matchPackageNames: [
