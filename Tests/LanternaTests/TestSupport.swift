@@ -184,13 +184,26 @@ struct Fixture {
 }
 
 /// Keeps the lines written to it, so a test can read them back — including
-/// reading that there were none.
+/// reading that there were none. Records the level beside each line, so a
+/// test can say which lines a threshold would have let through.
 @MainActor
 final class DiagnosticsLog {
-    private(set) var lines: [String] = []
+    private(set) var entries: [(level: LogLevel, line: String)] = []
 
+    /// The lines alone, oldest first. Keeps the wording assertions reading
+    /// as they always did while the conversion moves file by file.
+    var lines: [String] {
+        entries.map(\.line)
+    }
+
+    func write(_ level: LogLevel, _ line: String) {
+        entries.append((level: level, line: line))
+    }
+
+    /// The compatibility road for callers not yet carrying a level.
+    /// Removed once every injection carries one.
     func write(_ line: String) {
-        lines.append(line)
+        entries.append((level: .warn, line: line))
     }
 }
 
