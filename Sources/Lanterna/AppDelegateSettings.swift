@@ -70,9 +70,9 @@ extension AppDelegate {
         channel: UpdateChannel,
         display: UpdateCheckDisplay
     ) {
+        Diagnostics.writeLine(UpdateCheck.diagnosticsLine(result, channel: channel))
         guard settingsWindow?.checkDisplay === display else { return }
         display.isChecking = false
-        Diagnostics.writeLine(UpdateCheck.diagnosticsLine(result, channel: channel))
         switch result {
         case let .found(version, pageURL):
             display.resultText = "A newer release (\(version)) is published."
