@@ -291,4 +291,16 @@ struct WindowFilterTests {
         let ordered = WindowFilter.scoreOrdered([first, second], query: "ab")
         #expect(ordered.map(\.id) == [first.id, second.id])
     }
+
+    /// An empty query leaves the rows in the order they arrived in.
+    @Test func scoreOrderWithEmptyQueryKeepsInputOrder() {
+        let ordered = WindowFilter.scoreOrdered(rows, query: "")
+        #expect(ordered.map(\.id) == rows.map(\.id))
+    }
+
+    /// Rows no matcher judges keep the order they arrived in.
+    @Test func scoreOrderWithNoMatchesKeepsInputOrder() {
+        let ordered = WindowFilter.scoreOrdered(rows, query: "zzz")
+        #expect(ordered.map(\.id) == rows.map(\.id))
+    }
 }

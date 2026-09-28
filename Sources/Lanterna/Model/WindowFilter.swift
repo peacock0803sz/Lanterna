@@ -57,11 +57,12 @@ enum WindowFilter {
     /// the order they arrived in (a stable sort through the index), so
     /// equal rows never change places. An empty query changes nothing.
     static func scoreOrdered(_ rows: [WindowItem], query: String) -> [WindowItem] {
-        rows.enumerated().sorted { left, right in
-            let leftQuality = matchQuality(query: query, target: combinedText(of: left.element))
-            let rightQuality = matchQuality(query: query, target: combinedText(of: right.element))
-            if leftQuality != rightQuality {
-                return leftQuality < rightQuality
+        rows.enumerated().map { entry in
+            let target = combinedText(of: entry.element)
+            return (offset: entry.offset, quality: matchQuality(query: query, target: target), element: entry.element)
+        }.sorted { left, right in
+            if left.quality != right.quality {
+                return left.quality < right.quality
             }
             return left.offset < right.offset
         }.map(\.element)
