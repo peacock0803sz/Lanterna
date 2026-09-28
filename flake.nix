@@ -197,7 +197,7 @@
                     # host swift resolves the Xcode SDK via xcode-select.
                     unset SDKROOT
                     unset DEVELOPER_DIR
-                    export HOME="$(mktemp -d "${TMPDIR:-/tmp}/swift-home.XXXXXX")"
+                    export HOME="$(mktemp -d /tmp/swift-home.XXXXXX)"
                     if ! xcode-select -p &>/dev/null; then
                       echo "error: Xcode or the Command Line Tools are required to build Lanterna." >&2
                       echo "  Install with: xcode-select --install" >&2
@@ -214,8 +214,10 @@
                         static let describe = "${describe}"
                     }
                     EOF
-                    swift build --triple arm64-apple-macosx26.0 --configuration release
-                    binary="$(swift build --triple arm64-apple-macosx26.0 --configuration release --show-bin-path)/Lanterna"
+                    # --disable-sandbox: SwiftPM compiles the manifest inside
+                    # sandbox-exec, which the build context does not permit.
+                    swift build --disable-sandbox --triple arm64-apple-macosx26.0 --configuration release
+                    binary="$(swift build --disable-sandbox --triple arm64-apple-macosx26.0 --configuration release --show-bin-path)/Lanterna"
                     bash scripts/assemble-app.sh "$binary" "${short}" "$out/Applications/Lanterna.app"
                     runHook postBuild
                   '';
