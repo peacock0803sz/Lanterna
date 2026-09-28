@@ -168,13 +168,15 @@
         packages =
           let
             ref = self.ref or null;
-            rev = self.shortRev or self.dirtyShortRev or null;
+            rev = if (self.shortRev or null) != null then self.shortRev else self.dirtyShortRev or null;
             releaseMatch = if ref == null then null else builtins.match "v([0-9]+\\.[0-9]+\\.[0-9]+)" ref;
             short = if releaseMatch == null then "0.0.0" else builtins.head releaseMatch;
             describe =
               if releaseMatch != null then ref
               else if rev == null then "dev"
               else "${if ref == null then "main" else ref}-${rev}";
+            # Escape backslash and double-quote so the value is safe inside a Swift string literal.
+            describeEscaped = builtins.replaceStrings ["\\" "\""] ["\\\\" "\\\""] describe;
           in
           {
             default =
@@ -190,6 +192,7 @@
                   dontFixup = true;
                   buildPhase = ''
                     runHook preBuild
+                    set -euo pipefail
                     export PATH=/usr/bin:/bin:/usr/sbin:/sbin
                     # The Nix stdenv points SDKROOT/DEVELOPER_DIR at its own
                     # Apple SDK, which the host toolchain cannot use (same
@@ -208,10 +211,10 @@
                     chmod -R u+w .
                     # No .git in flake sources, so stamp the version directly
                     # instead of scripts/generate-version.sh.
-                    cat > Sources/Lanterna/Support/StampedVersion.swift <<EOF
+                    cat > Sources/Lanterna/Support/StampedVersion.swift <<'EOF
                     /// Stamped by the nix build. Do not edit.
                     enum StampedVersion {
-                        static let describe = "${describe}"
+                        static let describe = "${describeEscaped}"
                     }
                     EOF
                     # --disable-sandbox: SwiftPM compiles the manifest inside
