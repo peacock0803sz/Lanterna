@@ -1,5 +1,6 @@
 import Darwin
 @testable import Lanterna
+import Logging
 
 /// Arbitrary and distinct. Nothing depends on the values, only on whether the
 /// process that came forward is the one the presenter was told to ignore.
@@ -188,7 +189,7 @@ struct Fixture {
 /// test can say which lines a threshold would have let through.
 @MainActor
 final class DiagnosticsLog {
-    private(set) var entries: [(level: LogLevel, line: String)] = []
+    private(set) var entries: [(level: Logger.Level, line: String)] = []
 
     /// The lines alone, oldest first. Keeps the wording assertions reading
     /// as they always did while the conversion moves file by file.
@@ -196,7 +197,7 @@ final class DiagnosticsLog {
         entries.map(\.line)
     }
 
-    func write(_ level: LogLevel, _ line: String) {
+    func write(_ level: Logger.Level, _ line: String) {
         entries.append((level: level, line: line))
     }
 
