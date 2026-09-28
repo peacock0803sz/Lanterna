@@ -41,20 +41,20 @@ struct ExclusionConfigTests {
         }
     }
 
-    @Test func misshapenElementsInvalidateTheWholeFile() {
-        let cases: [(String, ConfigDecodeError)] = [
-            ("{\"version\": 1, \"exclusions\": [{\"app\": \"x\"}]}", .invalidValue(key: "exclusions")),
-            (
-                "{\"version\": 1, \"exclusions\": [{\"titlePattern\": \"x\"}]}",
-                .invalidValue(key: "exclusions")
-            ),
-            ("{\"version\": 1, \"exclusions\": [{\"app\": 1, \"titlePattern\": \"x\"}]}",
-             .invalidValue(key: "exclusions")),
-            ("{\"version\": 1, \"exclusions\": [\"abc\"]}", .invalidValue(key: "exclusions")),
-        ]
-        for (text, expected) in cases {
-            #expect(decode(text).failureValue == expected, "for \(text)")
-        }
+    @Test func misshapenElementsAreSkipped() throws {
+        let decoded = try #require(decode("""
+        {"version": 1, "exclusions": [
+          {"app": "good", "titlePattern": "ok"},
+          {"app": "x"},
+          {"titlePattern": "x"},
+          {"app": 1, "titlePattern": "x"},
+          {"app": "x", "titlePattern": 1},
+          {"app": "a", "titlePattern": "b", "extra": 1},
+          "abc",
+          1
+        ]}
+        """).successValue)
+        #expect(decoded.config.exclusions == [ExclusionEntry(app: "good", titlePattern: "ok")])
     }
 
     @Test func invalidEntriesAreSkippedOneByOne() {

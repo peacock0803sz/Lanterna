@@ -155,25 +155,28 @@ extension AppConfiguration {
         return .success(text)
     }
 
-    /// Reads the optional exclusion list. The key must hold an array of
-    /// `{app, titlePattern}` string pairs; anything else invalidates the
-    /// whole file, like any other bad value. Entries stay raw here, even
-    /// the invalid ones: compiling reports what it skips, so decoding
-    /// never decides what counts as unreadable.
+    /// Reads the optional exclusion list. The value must be an array;
+    /// anything else invalidates the whole file. Elements that are not
+    /// objects, or lack string app and titlePattern pairs, or carry
+    /// extra keys, are skipped one by one while valid elements are kept.
+    /// Value problems stay raw here: compiling reports what it skips, so
+    /// decoding never decides what counts as unreadable.
     static func checkedOptionalExclusions(
         _ dict: [String: Any],
         key: String
     ) -> Result<[ExclusionEntry]?, ConfigDecodeError> {
         guard let rawValue = dict[key] else { return .success(nil) }
-        guard let items = rawValue as? [[String: Any]] else {
+        guard let items = rawValue as? [Any] else {
             return .failure(.invalidValue(key: key))
         }
         var entries: [ExclusionEntry] = []
         for item in items {
-            guard let app = item["app"] as? String,
-                  let titlePattern = item["titlePattern"] as? String
+            guard let element = item as? [String: Any],
+                  Set(element.keys) == Set(["app", "titlePattern"]),
+                  let app = element["app"] as? String,
+                  let titlePattern = element["titlePattern"] as? String
             else {
-                return .failure(.invalidValue(key: key))
+                continue
             }
             entries.append(ExclusionEntry(app: app, titlePattern: titlePattern))
         }
