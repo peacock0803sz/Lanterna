@@ -114,13 +114,6 @@ enum Diagnostics {
         logger.log(level: level, "\(message)")
     }
 
-    /// The compatibility road for emission sites not yet carrying a level.
-    /// Routes at warnings so unconverted lines stay visible while the
-    /// conversion moves file by file. Removed once every site is explicit.
-    static func writeLine(_ message: String) {
-        logger.log(level: .warning, "\(message)")
-    }
-
     /// The mirrored lines, oldest first. Never longer than
     /// `DiagnosticLog.capacity`.
     static var recentEntries: [LogEntry] {

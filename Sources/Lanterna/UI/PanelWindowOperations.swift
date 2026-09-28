@@ -1,4 +1,5 @@
 import ApplicationServices
+import Logging
 import PrivateAPIs
 
 /// Carries out the window operations on the panel that is up.
@@ -23,7 +24,7 @@ final class PanelWindowOperations {
     private let minimizer: any WindowMinimizing
     private let ownProcessIdentifier: pid_t
     /// Reached beside the operations, by the reconciling half.
-    let writeLine: @MainActor (String) -> Void
+    let writeLine: @MainActor (Logger.Level, String) -> Void
     let closeAfterEmptied: @MainActor () -> Void
     let closeForInterruption: @MainActor (WindowOperation, String, String) -> Void
     /// Reached beside the operations, by the reconciling half.
@@ -46,7 +47,7 @@ final class PanelWindowOperations {
         hider: any ApplicationHiding,
         minimizer: any WindowMinimizing,
         ownProcessIdentifier: pid_t,
-        writeLine: @escaping @MainActor (String) -> Void,
+        writeLine: @escaping @MainActor (Logger.Level, String) -> Void,
         closeAfterEmptied: @escaping @MainActor () -> Void,
         closeForInterruption: @escaping @MainActor (WindowOperation, String, String) -> Void
     ) {
@@ -86,7 +87,7 @@ final class PanelWindowOperations {
     @discardableResult
     func start(_ operation: WindowOperation, naming id: WindowItem.Identifier?) -> Task<Void, Never>? {
         guard operatingIn != appearance else {
-            writeLine("window operation dropped (\(operation.logName); another is still reconciling)")
+            writeLine(.warning, "window operation dropped (\(operation.logName); another is still reconciling)")
             return nil
         }
         let generation = appearance

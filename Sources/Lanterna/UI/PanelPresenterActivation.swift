@@ -1,4 +1,5 @@
 import Darwin
+import Logging
 
 /// What the presenter does when another application comes to the front.
 ///
@@ -40,6 +41,7 @@ extension PanelPresenter {
             // happened here. The frontmost application changed on its own.
             pendingPress.callOff()
             writeLine(
+                .info,
                 "called off the press waiting for its first list; "
                     + "the frontmost application changed"
             )
