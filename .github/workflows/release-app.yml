@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: write
+  actions: read # maincheck polls check-swift runs
 
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -33,15 +34,10 @@ defaults:
     shell: bash
 
 jobs:
-  release:
-    strategy:
-      fail-fast: false
-      matrix:
-        # xcode-27 is the preview label for the macOS 27 image;
-        # switch to macos-27 once it reaches GA.
-        # Publish steps run on macos-26 only so the DMG/cask sha stays single.
-        os: [macos-26, xcode-27]
-    runs-on: ${{ matrix.os }}
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      proceed: ${{ steps.validate.outputs.proceed }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -109,6 +105,57 @@ jobs:
             verify_cask "$CASK_VER" || note "advisory" "existing cask $CASK_VER is stale (advisory only)"
           fi
 
+  verify:
+    needs: validate
+    if: needs.validate.outputs.proceed != 'false'
+    strategy:
+      fail-fast: false
+      matrix:
+        # xcode-27 is the preview label for the macOS 27 image;
+        # switch to macos-27 once it reaches GA.
+        os: [macos-26, xcode-27]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Wait for main validation
+        id: maincheck
+        run: |
+          # Skip the local debug build/test when this exact commit already
+          # passed check-swift on main. While that check is still running,
+          # wait for it instead of duplicating the work. Any inconclusive
+          # state falls back to running the checks locally.
+          SHA="$(git rev-parse HEAD)"
+          query() {
+            gh run list --commit "$SHA" --workflow check-swift.yml --limit 1 \
+              --json status,conclusion --jq '.[0] | "\(.status // "absent") \(.conclusion // "none")"'
+          }
+          run_info="absent none"
+          # Give the main-push check a moment to appear when the tag and
+          # main advance together.
+          for _ in $(seq 1 6); do
+            run_info="$(query)"
+            [[ "$run_info" != "absent none" ]] && break
+            [[ "${GITHUB_REF}" != refs/tags/* ]] && break
+            sleep 30
+          done
+          # Wait while the check is still running (up to ~45 minutes).
+          for _ in $(seq 1 90); do
+            status="${run_info%% *}"
+            [[ "$status" == "completed" || "$status" == "absent" ]] && break
+            sleep 30
+            run_info="$(query)"
+          done
+          if [[ "${run_info##* }" == "success" ]]; then
+            echo "check-swift already passed for $SHA; skipping local build/test"
+            echo "validated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "check-swift state: $run_info; running build/test locally"
+            echo "validated=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
@@ -121,18 +168,50 @@ jobs:
           key: ${{ matrix.os }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: ${{ matrix.os }}-spm-
       # The triple is pinned; CONTRIBUTING.md says why.
+      # The debug build/test only re-validate: packaging runs its own
+      # release build, so skip when main already validated this commit.
       - name: Build
+        if: steps.maincheck.outputs.validated != 'true'
         run: nix develop --command swift build --triple arm64-apple-macosx26.0
       - name: Verify architecture
+        if: steps.maincheck.outputs.validated != 'true'
         run: lipo -archs .build/debug/Lanterna | grep -qx arm64
       - name: Test
+        if: steps.maincheck.outputs.validated != 'true'
         run: nix develop --command swift test --triple arm64-apple-macosx26.0
+
+  publish:
+    needs: [validate, verify]
+    # verify is skipped when validate vetoes; always() lets this job read
+    # that outcome instead of being skipped itself. Publish steps run on
+    # macos-26 only so the DMG/cask sha stays single.
+    if: >-
+      always() &&
+      needs.validate.outputs.proceed != 'false' &&
+      (needs.verify.result == 'success' || needs.verify.result == 'skipped') &&
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
+      - name: Cache SPM build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: macos-26-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: macos-26-spm-
       - name: Package app
-        if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: nix develop --command bash scripts/package-app.sh
       - name: Record artifact hashes
         id: package
-        if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           SHORT="${TAG#v}"
@@ -143,7 +222,6 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
       - name: Create draft release
-        if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           SHORT="${{ steps.package.outputs.short }}"
@@ -156,7 +234,6 @@ jobs:
           gh release create "$TAG" --draft --title "$TAG" --notes-file /tmp/notes.md \
             "build/Lanterna-${SHORT}.dmg" "build/Lanterna-${SHORT}.dmg.sha256"
       - name: Verify draft assets
-        if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           SHORT="${{ steps.package.outputs.short }}"
@@ -175,7 +252,6 @@ jobs:
           echo "draft assets verified"
 
       - name: Publish release
-        if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           SHORT="${{ steps.package.outputs.short }}"
@@ -200,7 +276,6 @@ jobs:
           gh release edit "$TAG" --draft=false
 
       - name: Push cask to main
-        if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
         run: |
           SHORT="${{ steps.package.outputs.short }}"
           SHA="${{ steps.package.outputs.sha }}"
