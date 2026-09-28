@@ -226,4 +226,45 @@ struct WindowFilterTests {
         let kanji = [filterRow(appName: "Notes", windowTitle: "議事録", windowID: 31)]
         #expect(WindowFilter.matching("gijiroku", against: kanji, engine: engine).isEmpty)
     }
+
+    /// A subsequence query matches when its characters appear in order.
+    @Test func subsequenceQueryMatchesInOrder() {
+        #expect(WindowFilter.matching("sfr", against: rows, fuzzy: true).map(\.id) == [rows[0].id])
+    }
+
+    /// A query whose characters never appear in order matches nothing.
+    @Test func outOfOrderQueryMatchesNothing() {
+        #expect(WindowFilter.matching("sdf", against: rows, fuzzy: true).isEmpty)
+    }
+
+    /// Fuzzy matching never narrows substring matching.
+    @Test func fuzzyMatchingKeepsSubstringMatches() {
+        for query in ["safari", "SAF", "download", "a"] {
+            let plain = WindowFilter.matching(query, against: rows).map(\.id)
+            let fuzzy = WindowFilter.matching(query, against: rows, fuzzy: true).map(\.id)
+            #expect(fuzzy.count >= plain.count)
+            #expect(plain.allSatisfy { fuzzy.contains($0) })
+        }
+    }
+
+    /// Fuzzy matching ignores case.
+    @Test func fuzzyMatchingIgnoresCase() {
+        #expect(WindowFilter.matching("SFR", against: rows, fuzzy: true).map(\.id) == [rows[0].id])
+    }
+
+    /// An empty fuzzy query returns the input unchanged.
+    @Test func emptyFuzzyQueryReturnsTheInputUnchanged() {
+        #expect(WindowFilter.matching("", against: rows, fuzzy: true).map(\.id) == rows.map(\.id))
+    }
+
+    /// Subsequence ranges mark each query character where it matched.
+    @Test func subsequenceRangesMarkEachCharacter() {
+        let ranges = WindowFilter.subsequenceRanges(query: "sfr", in: "Safari")
+        #expect(ranges.map { String("Safari"[$0]) } == ["S", "f", "r"])
+    }
+
+    /// Subsequence ranges are empty when the query never appears in order.
+    @Test func subsequenceRangesAreEmptyWithoutAMatch() {
+        #expect(WindowFilter.subsequenceRanges(query: "sdf", in: "Safari").isEmpty)
+    }
 }

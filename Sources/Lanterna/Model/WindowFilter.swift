@@ -15,7 +15,20 @@ enum WindowFilter {
     /// unchanged, judging not one row, which is what keeps the show path
     /// free of measurable work.
     static func matching(_ query: String, against windows: [WindowItem]) -> [WindowItem] {
+        matching(query, against: windows, fuzzy: false)
+    }
+
+    /// The rows matching the query, in the order they arrived.
+    ///
+    /// With fuzzy off this is the legacy substring match; with fuzzy on a
+    /// subsequence match counts too. A substring always counts as a
+    /// subsequence, so fuzzy matching never narrows the legacy result.
+    /// An empty query returns the input unchanged either way.
+    static func matching(_ query: String, against windows: [WindowItem], fuzzy: Bool) -> [WindowItem] {
         guard !query.isEmpty else { return windows }
+        if fuzzy {
+            return windows.filter { matchesSubsequence(query: query, target: combinedText(of: $0)) }
+        }
         return windows.filter { matches(query: query, target: combinedText(of: $0)) }
     }
 
@@ -28,6 +41,32 @@ enum WindowFilter {
     /// search) only widens this body. Case-insensitive substring match.
     static func matches(query: String, target: String) -> Bool {
         target.range(of: query, options: .caseInsensitive) != nil
+    }
+
+    /// Whether the query's characters appear in the target in order, gaps
+    /// allowed. Case-insensitive. An empty query answers false; callers
+    /// return the whole list without judging.
+    static func matchesSubsequence(query: String, target: String) -> Bool {
+        !subsequenceRanges(query: query, in: target).isEmpty
+    }
+
+    /// Where each query character matched, in order, for highlighting.
+    ///
+    /// Case-insensitive, and empty when the query never appears in order.
+    /// Ranges never overlap: searching resumes past each match. An empty
+    /// query matches nothing.
+    static func subsequenceRanges(query: String, in text: String) -> [Range<String.Index>] {
+        guard !query.isEmpty else { return [] }
+        var ranges: [Range<String.Index>] = []
+        var remainder = text.startIndex ..< text.endIndex
+        for character in query {
+            guard let found = text.range(of: String(character), options: .caseInsensitive, range: remainder) else {
+                return []
+            }
+            ranges.append(found)
+            remainder = found.upperBound ..< text.endIndex
+        }
+        return ranges
     }
 
     /// Every range where the query occurs in the text, for highlighting.
