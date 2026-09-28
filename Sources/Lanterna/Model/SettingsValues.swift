@@ -7,6 +7,10 @@ struct SettingsValues: Equatable, Sendable {
     var appearanceMode: AppearanceMode
     var displayModes: DisplayModes
     var romajiScope: RomajiScope
+    /// Whether Lanterna checks for newer releases. Absent in the file means off.
+    var updateCheckEnabled: Bool
+    /// Which releases the check covers. Absent in the file means stable only.
+    var updateChannel: UpdateChannel
     /// Whether Lanterna starts at login. Absent in the file means off.
     var launchAtLogin: Bool
 
@@ -17,6 +21,8 @@ struct SettingsValues: Equatable, Sendable {
         appearanceMode: .system,
         displayModes: .defaults,
         romajiScope: .kanaKanji,
+        updateCheckEnabled: false,
+        updateChannel: .stable,
         launchAtLogin: false
     )
 
@@ -27,6 +33,8 @@ struct SettingsValues: Equatable, Sendable {
             appearanceMode: AppearanceMode.effective(from: config),
             displayModes: DisplayModes.effective(from: config),
             romajiScope: RomajiScope.effective(from: config),
+            updateCheckEnabled: config.updateCheckEnabled ?? false,
+            updateChannel: UpdateChannel(rawValue: config.updateChannel ?? "stable") ?? .stable,
             launchAtLogin: config.launchAtLogin ?? false
         )
     }
@@ -50,6 +58,8 @@ struct SettingsValues: Equatable, Sendable {
         config.fullscreenMode = displayModes.fullscreen
         config.romajiScope = romajiScope
         config.launchAtLogin = launchAtLogin
+        config.updateCheckEnabled = updateCheckEnabled
+        config.updateChannel = updateChannel.rawValue
         return config
     }
 }
