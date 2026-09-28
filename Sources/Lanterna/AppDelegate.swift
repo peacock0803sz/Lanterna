@@ -90,7 +90,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if OnboardingNeed.isNeeded(state: permissionState, sampleCount: options.sampleCount) {
             guideWindows.openGuide(state: permissionState)
         }
-        let statusMenu = StatusMenu()
         standStatusMenu()
 
         // Built now and left off screen. Nothing shows until a key is pressed,
