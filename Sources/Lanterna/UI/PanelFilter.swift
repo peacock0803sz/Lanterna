@@ -67,6 +67,8 @@ final class PanelFilter {
         state.previousMatchedIDs = Set(shown.map(\.id))
         lastSummary = FilterLogSummary(query: "", matchedCount: shown.count, totalCount: fullWindows.count)
         isActive = filtering
+        // Without rules there is nothing to report, so stay quiet.
+        guard !exclusionRules.isEmpty else { return }
         let excluded = fullWindows.count - WindowExclusion.excluding(fullWindows, rules: exclusionRules).count
         writeLine(.info, "excluded \(excluded) of \(fullWindows.count) windows")
     }

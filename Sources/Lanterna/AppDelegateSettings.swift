@@ -188,6 +188,7 @@ extension AppDelegate {
         let scopeChanged = values.romajiScope != currentValues.romajiScope
         let checkContextChanged = values.updateCheckEnabled != currentValues.updateCheckEnabled
             || values.updateChannel != currentValues.updateChannel
+        let exclusionsChanged = values.exclusions != currentValues.exclusions
         currentValues = values
         if checkContextChanged {
             settingsWindow?.checkDisplay.resultText = nil
@@ -195,7 +196,11 @@ extension AppDelegate {
         panel?.displayModes = values.displayModes
         panel?.appearance = values.appearanceMode.nsAppearance
         presenter?.displayModes = values.displayModes
-        refreshExclusions(from: values.exclusions)
+        // Recompile exclusions only when the entries changed, so unrelated
+        // tweaks leave the panel and presenter rules alone.
+        if exclusionsChanged {
+            refreshExclusions(from: values.exclusions)
+        }
         guideWindows?.update(appearanceMode: values.appearanceMode)
         // Reopening rebuilds the engine, so only a scope change pays
         // for it. Appearance and display tweaks leave matching alone.
