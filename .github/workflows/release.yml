@@ -18,16 +18,10 @@ on:
         default: ''
 
 permissions:
-  contents: write
-  actions: read # maincheck polls check-swift runs
+  contents: read
 
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-concurrency:
-  group: release
-  cancel-in-progress: false
-  # Keep queued runs instead of replacing them so every tag is processed.
 
 defaults:
   run:
@@ -36,6 +30,8 @@ defaults:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       proceed: ${{ steps.validate.outputs.proceed }}
     steps:
@@ -108,6 +104,9 @@ jobs:
   verify:
     needs: validate
     if: needs.validate.outputs.proceed != 'false'
+    permissions:
+      contents: read
+      actions: read # maincheck polls check-swift runs
     strategy:
       fail-fast: false
       matrix:
@@ -191,6 +190,11 @@ jobs:
       (needs.verify.result == 'success' || needs.verify.result == 'skipped') &&
       github.event_name == 'push' &&
       startsWith(github.ref, 'refs/tags/v')
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    permissions:
+      contents: write
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -299,9 +303,105 @@ jobs:
           echo "cask push failed after 3 attempts"
           exit 1
 
+  deploy-docs:
+    # Docs deploy stays independent of the app jobs: it runs on every tag
+    # push even when the app side skips (already-released tag) or fails.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    concurrency:
+      group: release-docs-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read # docscheck polls check-docs runs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Wait for docs validation
+        id: docscheck
+        run: |
+          # Deploy only what check-docs already approved for this exact
+          # commit. While that check is still running, wait for it instead
+          # of duplicating the work. When it never ran (no docs changes in
+          # this commit), fall back to running the checks locally.
+          # A completed non-success check refuses the deploy.
+          SHA="$(git rev-parse HEAD)"
+          query() {
+            gh run list --commit "$SHA" --workflow check-docs.yml --limit 1 \
+              --json status,conclusion --jq '.[0] | "\(.status // "absent") \(.conclusion // "none")"'
+          }
+          run_info="absent none"
+          # Give the tag-time check a moment to appear when the tag and
+          # main advance together.
+          for _ in $(seq 1 6); do
+            run_info="$(query)"
+            [[ "$run_info" != "absent none" ]] && break
+            sleep 30
+          done
+          # Wait while the check is still running (up to ~45 minutes).
+          for _ in $(seq 1 90); do
+            status="${run_info%% *}"
+            [[ "$status" == "completed" || "$status" == "absent" ]] && break
+            sleep 30
+            run_info="$(query)"
+          done
+          conclusion="${run_info##* }"
+          if [[ "$conclusion" == "success" ]]; then
+            echo "check-docs already passed for $SHA; skipping local checks"
+            echo "validated=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$run_info" == "absent none" || "$conclusion" == "skipped" ]]; then
+            echo "check-docs did not run for $SHA; running checks locally"
+            echo "validated=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "check-docs state: $run_info; refusing to deploy"
+            exit 1
+          fi
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 12.6.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint prose
+        if: steps.docscheck.outputs.validated != 'true'
+        run: pnpm lint:text
+      - name: Check Astro
+        if: steps.docscheck.outputs.validated != 'true'
+        run: pnpm check
+      - name: Check formatting
+        if: steps.docscheck.outputs.validated != 'true'
+        run: pnpm format:check
+      - name: Build site
+        run: pnpm build
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: docs
+          command: pages deploy dist --project-name lanterna-docs --branch main
+      - name: Purge Cloudflare cache for docs domain
+        run: |
+          curl -fsS -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/purge_cache" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{"prefixes":["lanterna.p3ac0ck.net"]}'
+
   recover:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && inputs.recover_tag != ''
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
