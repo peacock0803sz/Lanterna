@@ -132,12 +132,15 @@ struct DisplayModes: Equatable, Sendable {
         of rows: [WindowItem],
         modes: DisplayModes,
         query: String,
-        exclusions: [ExclusionRule] = []
+        exclusions: [ExclusionRule] = [],
+        fuzzy: Bool = false
     ) -> (ordinary: [WindowItem], subgroups: [(DisplaySubgroup, [WindowItem])]) {
         let listed = WindowExclusion.excluding(rows, rules: exclusions)
         let matched: [WindowItem]
         if RomajiMatcher.engine.isOpen {
             matched = WindowFilter.matching(query, against: listed, engine: RomajiMatcher.engine)
+        } else if fuzzy {
+            matched = WindowFilter.matching(query, against: listed, fuzzy: true)
         } else {
             matched = WindowFilter.matching(query, against: listed)
         }
@@ -157,9 +160,10 @@ struct DisplayModes: Equatable, Sendable {
         _ rows: [WindowItem],
         modes: DisplayModes,
         query: String,
-        exclusions: [ExclusionRule] = []
+        exclusions: [ExclusionRule] = [],
+        fuzzy: Bool = false
     ) -> [WindowItem] {
-        let (ordinary, subgroups) = sections(of: rows, modes: modes, query: query, exclusions: exclusions)
+        let (ordinary, subgroups) = sections(of: rows, modes: modes, query: query, exclusions: exclusions, fuzzy: fuzzy)
         return ordinary + subgroups.flatMap(\.1)
     }
 }

@@ -30,13 +30,15 @@ enum PanelMetrics {
         _ windows: [WindowItem],
         modes: DisplayModes = .defaults,
         query: String = "",
-        exclusions: [ExclusionRule] = []
+        exclusions: [ExclusionRule] = [],
+        fuzzy: Bool = false
     ) -> Int {
         let (ordinary, subgroups) = DisplayModes.sections(
             of: windows,
             modes: modes,
             query: query,
-            exclusions: exclusions
+            exclusions: exclusions,
+            fuzzy: fuzzy
         )
         let separator = (!ordinary.isEmpty && !subgroups.isEmpty) ? 1 : 0
         let subgroupRows = subgroups.reduce(0) { $0 + $1.1.count }
