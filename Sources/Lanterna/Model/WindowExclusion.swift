@@ -4,9 +4,24 @@ import Foundation
 ///
 /// Both fields are required and non-empty; anything else is invalid on its
 /// own and ignored without touching the other entries.
-struct ExclusionEntry: Hashable, Sendable {
+struct ExclusionEntry: Hashable, Identifiable, Sendable {
+    /// Row identity for the settings list, never encoded.
+    ///
+    /// Equality and hashing cover the visible fields alone, so rows decoded
+    /// from the file compare equal to rows shown in the editor while the list
+    /// keeps stable identity when duplicate rows stand side by side.
+    var id = UUID()
     var app: String
     var titlePattern: String
+
+    static func == (lhs: ExclusionEntry, rhs: ExclusionEntry) -> Bool {
+        lhs.app == rhs.app && lhs.titlePattern == rhs.titlePattern
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(app)
+        hasher.combine(titlePattern)
+    }
 }
 
 /// One compiled exclusion rule for the show path.

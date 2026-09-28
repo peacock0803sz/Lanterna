@@ -61,12 +61,12 @@ struct SettingsFilterView: View {
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text("Excluded windows")
-                ForEach($values.exclusions, id: \.self) { $entry in
+                ForEach($values.exclusions) { $entry in
                     HStack {
                         TextField("App", text: $entry.app)
                         TextField("Title pattern", text: $entry.titlePattern)
                         Button("Remove") {
-                            if let index = values.exclusions.firstIndex(of: entry) {
+                            if let index = values.exclusions.firstIndex(where: { $0.id == entry.id }) {
                                 values.exclusions.remove(at: index)
                             }
                         }
