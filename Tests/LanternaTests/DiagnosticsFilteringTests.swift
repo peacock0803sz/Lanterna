@@ -8,8 +8,8 @@ struct DiagnosticsFilteringTests {
     /// The ranking the threshold compares by: errors first, then
     /// warnings, then the ordinary flow, then the test hook's lines.
     @Test func levelsRankErrorBelowWarnBelowInfoBelowDebug() {
-        #expect(LogLevel.error < .warn)
-        #expect(LogLevel.warn < .info)
+        #expect(LogLevel.error < .warning)
+        #expect(LogLevel.warning < .info)
         #expect(LogLevel.info < .debug)
         #expect(!(LogLevel.debug < .debug))
         #expect(LogLevel.debug > .error)
@@ -17,12 +17,12 @@ struct DiagnosticsFilteringTests {
 
     /// Only the four lowercase words read. Anything else is for the
     /// caller to refuse as a whole.
-    @Test(arguments: ["error", "warn", "info", "debug"])
+    @Test(arguments: ["error", "warning", "info", "debug"])
     func theFourWordsParse(word: String) {
         #expect(LogLevel.parse(word)?.rawValue == word)
     }
 
-    @Test(arguments: ["Error", "WARN", " info", "info ", "warning", "", "verbose", "0"])
+    @Test(arguments: ["Error", "WARN", "warn", " info", "info ", "", "verbose", "0"])
     func anythingElseRefuses(word: String) {
         #expect(LogLevel.parse(word) == nil)
     }
@@ -32,17 +32,17 @@ struct DiagnosticsFilteringTests {
     @Test func effectiveLevelPrefersTheCommandLineThenTheFile() {
         #expect(LogLevel.effective(cli: .debug, file: .error) == .debug)
         #expect(LogLevel.effective(cli: nil, file: .info) == .info)
-        #expect(LogLevel.effective(cli: nil, file: nil) == .warn)
+        #expect(LogLevel.effective(cli: nil, file: nil) == .warning)
     }
 
     /// A fresh store starts quiet: warnings and above show, the
     /// ordinary flow does not.
     @Test func aFreshStoreWarnsByDefault() {
         let store = DiagnosticLogStore()
-        #expect(store.threshold == .warn)
-        store.write("filter-probe-warn", level: .warn)
+        #expect(store.threshold == .warning)
+        store.write("filter-probe-warning", level: .warning)
         store.write("filter-probe-info", level: .info)
-        #expect(store.recent.map(\.message) == ["filter-probe-warn"])
+        #expect(store.recent.map(\.message) == ["filter-probe-warning"])
     }
 
     /// Below the threshold, a line goes nowhere: not to the mirror,
@@ -60,7 +60,7 @@ struct DiagnosticsFilteringTests {
 
     /// Errors show under every threshold, warnings and above included.
     @Test func errorsShowUnderEveryThreshold() {
-        for threshold in [LogLevel.error, .warn, .info, .debug] {
+        for threshold in [LogLevel.error, .warning, .info, .debug] {
             let store = DiagnosticLogStore()
             store.threshold = threshold
             store.write("filter-probe-error", level: .error)

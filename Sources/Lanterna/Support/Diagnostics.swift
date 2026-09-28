@@ -18,7 +18,7 @@ final class DiagnosticLogStore: @unchecked Sendable {
     private var entries: [Diagnostics.LogEntry] = []
     private var nextSequence: UInt64 = 0
     private var pinnedSummary: String?
-    private var thresholdLevel: LogLevel = .warn
+    private var thresholdLevel: LogLevel = .warning
 
     /// The level in force. Set once per launch, ahead of the first line.
     var threshold: LogLevel {
@@ -124,7 +124,7 @@ enum Diagnostics {
     /// Routes at warnings so unconverted lines stay visible while the
     /// conversion moves file by file. Removed once every site is explicit.
     static func writeLine(_ message: String) {
-        store.write(message, level: .warn)
+        store.write(message, level: .warning)
     }
 
     /// The mirrored lines, oldest first. Never longer than

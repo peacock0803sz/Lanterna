@@ -203,7 +203,7 @@ final class DiagnosticsLog {
     /// The compatibility road for callers not yet carrying a level.
     /// Removed once every injection carries one.
     func write(_ line: String) {
-        entries.append((level: .warn, line: line))
+        entries.append((level: .warning, line: line))
     }
 }
 

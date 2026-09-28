@@ -100,7 +100,7 @@ enum LaunchArguments {
     /// back so the two cannot drift apart unnoticed.
     static let logLevelFlag = Flag(
         name: "--log-level",
-        accepts: .allowedWords(["error", "warn", "info", "debug"])
+        accepts: .allowedWords(["error", "warning", "info", "debug"])
     )
 
     /// Every flag there is. Anything beginning with two dashes and absent from

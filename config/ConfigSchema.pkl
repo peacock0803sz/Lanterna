@@ -71,11 +71,11 @@ stopMonitorEvery: Int? = null
 launchAtLogin: Boolean? = null
 
 /// How much diagnostics to emit: errors only, warnings and above, or
-/// down through info and debug. Absent means "warn".
-typealias LogLevel = "error"|"warn"|"info"|"debug"
+/// down through info and debug. Absent means "warning".
+typealias LogLevel = "error"|"warning"|"info"|"debug"
 
-/// The diagnostics threshold. Absent means "warn".
-@Allowed { values { "error" "warn" "info" "debug" } }
+/// The diagnostics threshold. Absent means "warning".
+@Allowed { values { "error" "warning" "info" "debug" } }
 logLevel: LogLevel? = null
 
 /// Whether Lanterna checks for newer releases. Absent means off.

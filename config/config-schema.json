@@ -77,11 +77,11 @@
       "type": "boolean"
     },
     "logLevel": {
-      "description": "The diagnostics threshold. Absent means \"warn\".",
+      "description": "The diagnostics threshold. Absent means \"warning\".",
       "type": "string",
       "enum": [
         "error",
-        "warn",
+        "warning",
         "info",
         "debug"
       ]

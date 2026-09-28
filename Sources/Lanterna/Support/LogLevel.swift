@@ -2,8 +2,8 @@ import Foundation
 
 /// How much diagnostics one run emits.
 ///
-/// Mirrors the config file values (`"error"`, `"warn"`, `"info"`,
-/// `"debug"`) and the `--log-level` words. An absent key means `warn`:
+/// Mirrors the config file values (`"error"`, `"warning"`, `"info"`,
+/// `"debug"`) and the `--log-level` words. An absent key means `warning`:
 /// unless the file or the command line says otherwise, only warnings
 /// and above reach stderr and the on-screen mirror. Ordered by how much
 /// they let through, so a threshold reads as one comparison: a line shows
@@ -13,7 +13,7 @@ enum LogLevel: String, Sendable, Comparable {
     /// values. Shown under every threshold.
     case error
     /// Dropped operations and recoverable trouble. Shown by default.
-    case warn
+    case warning
     /// The ordinary flow and the timing summaries. Hidden by default.
     case info
     /// The test hook's companions alone. Shown only when asked down to.
@@ -25,7 +25,7 @@ enum LogLevel: String, Sendable, Comparable {
     private var rank: Int {
         switch self {
         case .error: 0
-        case .warn: 1
+        case .warning: 1
         case .info: 2
         case .debug: 3
         }
@@ -36,9 +36,9 @@ enum LogLevel: String, Sendable, Comparable {
     }
 
     /// The level one run uses. The command line wins where it says
-    /// anything; the file covers the rest; silence on both means `warn`.
+    /// anything; the file covers the rest; silence on both means `warning`.
     static func effective(cli: LogLevel?, file: LogLevel?) -> LogLevel {
-        cli ?? file ?? .warn
+        cli ?? file ?? .warning
     }
 
     /// Reads one word exactly as written. Only the four lowercase words
@@ -46,7 +46,7 @@ enum LogLevel: String, Sendable, Comparable {
     static func parse(_ word: String) -> LogLevel? {
         switch word {
         case "error": .error
-        case "warn": .warn
+        case "warning": .warning
         case "info": .info
         case "debug": .debug
         default: nil
