@@ -312,12 +312,52 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: read
+      actions: read # docscheck polls check-docs runs
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: docs
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Wait for docs validation
+        id: docscheck
+        run: |
+          # Deploy only what check-docs already approved for this exact
+          # commit. While that check is still running, wait for it instead
+          # of duplicating the work. When it never ran (no docs changes in
+          # this commit), fall back to running the checks locally.
+          # A completed non-success check refuses the deploy.
+          SHA="$(git rev-parse HEAD)"
+          query() {
+            gh run list --commit "$SHA" --workflow check-docs.yml --limit 1 \
+              --json status,conclusion --jq '.[0] | "\(.status // "absent") \(.conclusion // "none")"'
+          }
+          run_info="absent none"
+          # Give the tag-time check a moment to appear when the tag and
+          # main advance together.
+          for _ in $(seq 1 6); do
+            run_info="$(query)"
+            [[ "$run_info" != "absent none" ]] && break
+            sleep 30
+          done
+          # Wait while the check is still running (up to ~45 minutes).
+          for _ in $(seq 1 90); do
+            status="${run_info%% *}"
+            [[ "$status" == "completed" || "$status" == "absent" ]] && break
+            sleep 30
+            run_info="$(query)"
+          done
+          conclusion="${run_info##* }"
+          if [[ "$conclusion" == "success" ]]; then
+            echo "check-docs already passed for $SHA; skipping local checks"
+            echo "validated=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$run_info" == "absent none" || "$conclusion" == "skipped" ]]; then
+            echo "check-docs did not run for $SHA; running checks locally"
+            echo "validated=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "check-docs state: $run_info; refusing to deploy"
+            exit 1
+          fi
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 12.6.0
@@ -328,6 +368,15 @@ jobs:
           cache-dependency-path: docs/pnpm-lock.yaml
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Lint prose
+        if: steps.docscheck.outputs.validated != 'true'
+        run: pnpm lint:text
+      - name: Check Astro
+        if: steps.docscheck.outputs.validated != 'true'
+        run: pnpm check
+      - name: Check formatting
+        if: steps.docscheck.outputs.validated != 'true'
+        run: pnpm format:check
       - name: Build site
         run: pnpm build
       - name: Deploy to Cloudflare Pages
