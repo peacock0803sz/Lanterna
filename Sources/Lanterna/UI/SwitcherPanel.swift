@@ -256,7 +256,9 @@ final class SwitcherPanel: NSPanel {
             query: query,
             filterActive: filterActive,
             modes: displayModes,
-            exclusionRules: exclusionRules
+            exclusionRules: exclusionRules,
+            fuzzyMatchEnabled: searchSettings.fuzzyMatchEnabled,
+            ordering: searchSettings.ordering
         )
         let height = min(
             PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(
