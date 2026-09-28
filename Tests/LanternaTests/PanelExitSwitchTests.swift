@@ -42,7 +42,7 @@ struct PanelExitSwitchTests {
     @Test func aKeyCommitTakesTheSameRowWithItsOwnTrigger() {
         let fixture = released()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        fixture.presenter.handleKeyStroke(PanelKeystroke(
+        _ = fixture.presenter.handleKeyStroke(PanelKeystroke(
             keyCode: UInt16(kVK_Return), modifiers: .command, isARepeat: false
         ))
 
@@ -66,7 +66,7 @@ struct PanelExitSwitchTests {
     @Test func aCancelTakesNothing() {
         let fixture = released()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        fixture.presenter.handleKeyStroke(PanelKeystroke(
+        _ = fixture.presenter.handleKeyStroke(PanelKeystroke(
             keyCode: UInt16(kVK_Escape), modifiers: .command, isARepeat: false
         ))
 
@@ -151,7 +151,7 @@ struct PanelExitSwitchTests {
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
         #expect(!fixture.presenter.wayOut.presentedWindows.isEmpty)
         #expect(fixture.presenter.selection.chosenID != nil)
-        fixture.presenter.handleKeyStroke(PanelKeystroke(
+        _ = fixture.presenter.handleKeyStroke(PanelKeystroke(
             keyCode: UInt16(kVK_ANSI_Period), modifiers: .command, isARepeat: false
         ))
 
@@ -164,7 +164,7 @@ struct PanelExitSwitchTests {
     @Test func thePairKeepsTheKeyCommitWording() {
         let fixture = released()
         fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        fixture.presenter.handleKeyStroke(PanelKeystroke(
+        _ = fixture.presenter.handleKeyStroke(PanelKeystroke(
             keyCode: UInt16(kVK_Return), modifiers: .command, isARepeat: false
         ))
 

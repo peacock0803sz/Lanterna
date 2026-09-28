@@ -17,7 +17,8 @@ let package = Package(
         .target(
             name: "CMigemo",
             exclude: ["VERSION"],
-            resources: [.copy("tables")]
+            resources: [.copy("tables")],
+            cSettings: [.unsafeFlags(["-w"])]
         ),
         .executableTarget(name: "Lanterna", dependencies: ["PrivateAPIs", "CMigemo"]),
         .testTarget(
