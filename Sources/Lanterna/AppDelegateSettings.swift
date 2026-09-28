@@ -48,15 +48,16 @@ extension AppDelegate {
         guard currentValues.updateCheckEnabled else { return }
         let channel = currentValues.updateChannel
         guard let display = settingsWindow?.checkDisplay else { return }
+        guard !display.isChecking else { return }
         display.isChecking = true
-        Task { [weak self] in
+        Task { [weak self, display] in
             let result = await UpdateCheck.perform(
                 channel: channel,
                 currentVersion: AppVersion.short,
                 fetcher: LiveReleaseFetcher()
             )
-            await MainActor.run { [weak self] in
-                self?.finishUpdateCheck(result, channel: channel)
+            await MainActor.run { [weak self, display] in
+                self?.finishUpdateCheck(result, channel: channel, display: display)
             }
         }
     }
@@ -64,8 +65,12 @@ extension AppDelegate {
     /// Shows one finished check: the General tab always hears about it,
     /// and only a newer release also gets a dialog with a way to the
     /// releases page.
-    private func finishUpdateCheck(_ result: UpdateCheckResult, channel: UpdateChannel) {
-        guard let display = settingsWindow?.checkDisplay else { return }
+    private func finishUpdateCheck(
+        _ result: UpdateCheckResult,
+        channel: UpdateChannel,
+        display: UpdateCheckDisplay
+    ) {
+        guard settingsWindow?.checkDisplay === display else { return }
         display.isChecking = false
         Diagnostics.writeLine(UpdateCheck.diagnosticsLine(result, channel: channel))
         switch result {
