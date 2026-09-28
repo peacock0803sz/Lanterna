@@ -98,9 +98,14 @@ enum Diagnostics {
 
     /// Points the logging system at the mirror backend. Called once per
     /// launch, ahead of the first line; never called twice, never moved after.
+    /// A second call traps inside the logging system, which is the right
+    /// noise for a launch path wired twice.
     static func bootstrap() {
         LoggingSystem.bootstrap { _ in DiagnosticLogHandler(store: store) }
         logger = Logger(label: "lanterna")
+        // Holds warnings and above until the effective options say otherwise,
+        // so an early line never leans on the logging default.
+        logger.logLevel = .warning
     }
 
     /// The level in force for this process. Read once per launch from the
@@ -153,16 +158,40 @@ final class DiagnosticLogHandler: LogHandler, @unchecked Sendable {
     private let lock = NSLock()
     private let store: DiagnosticLogStore
     private var metadataStorage: Logger.Metadata = [:]
+    private var acceptedLevel: Logger.Level = .trace
+    private var providerStorage: Logger.MetadataProvider?
 
     init(store: DiagnosticLogStore) {
         self.store = store
     }
 
-    var metadataProvider: Logger.MetadataProvider?
+    var metadataProvider: Logger.MetadataProvider? {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return providerStorage
+        }
+        set {
+            lock.lock()
+            defer { lock.unlock() }
+            providerStorage = newValue
+        }
+    }
 
     /// Takes all it receives. The logger gates ahead of this call, so a
     /// second opinion here would only double the rule.
-    var logLevel: Logger.Level = .trace
+    var logLevel: Logger.Level {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return acceptedLevel
+        }
+        set {
+            lock.lock()
+            defer { lock.unlock() }
+            acceptedLevel = newValue
+        }
+    }
 
     var metadata: Logger.Metadata {
         get {
