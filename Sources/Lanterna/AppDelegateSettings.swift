@@ -50,6 +50,7 @@ extension AppDelegate {
         guard let display = settingsWindow?.checkDisplay else { return }
         guard !display.isChecking else { return }
         display.isChecking = true
+        display.resultText = nil
         Task { [weak self, display] in
             let result = await UpdateCheck.perform(
                 channel: channel,
