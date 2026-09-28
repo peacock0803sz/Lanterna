@@ -1,0 +1,59 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Sources/**"
+      - "Tests/**"
+      - "Package.swift"
+      - "Package.resolved"
+      - "flake.nix"
+      - "flake.lock"
+      - ".github/workflows/check-swift.yml"
+  pull_request:
+    paths:
+      - "Sources/**"
+      - "Tests/**"
+      - "Package.swift"
+      - "Package.resolved"
+      - "flake.nix"
+      - "flake.lock"
+      - ".github/workflows/check-swift.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  swift-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        # xcode-27 is the preview label for the macOS 27 image;
+        # switch to macos-27 once it reaches GA.
+        os: [macos-26, xcode-27]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
+      - name: Cache SPM build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: ${{ matrix.os }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: ${{ matrix.os }}-spm-
+      # The triple is pinned; CONTRIBUTING.md says why.
+      - name: Build
+        run: nix develop --command swift build --triple arm64-apple-macosx26.0
+      - name: Verify architecture
+        run: lipo -archs .build/debug/Lanterna | grep -qx arm64
+      - name: Test
+        run: nix develop --command swift test --triple arm64-apple-macosx26.0

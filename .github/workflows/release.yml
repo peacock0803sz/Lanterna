@@ -19,7 +19,7 @@ on:
 
 permissions:
   contents: write
-  actions: read # maincheck polls check.yml runs
+  actions: read # maincheck polls check-swift runs
 
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -124,12 +124,12 @@ jobs:
         id: maincheck
         run: |
           # Skip the local debug build/test when this exact commit already
-          # passed check.yml on main. While that check is still running,
+          # passed check-swift on main. While that check is still running,
           # wait for it instead of duplicating the work. Any inconclusive
           # state falls back to running the checks locally.
           SHA="$(git rev-parse HEAD)"
           query() {
-            gh run list --commit "$SHA" --workflow check.yml --limit 1 \
+            gh run list --commit "$SHA" --workflow check-swift.yml --limit 1 \
               --json status,conclusion --jq '.[0] | "\(.status // "absent") \(.conclusion // "none")"'
           }
           run_info="absent none"
@@ -149,10 +149,10 @@ jobs:
             run_info="$(query)"
           done
           if [[ "${run_info##* }" == "success" ]]; then
-            echo "check.yml already passed for $SHA; skipping local build/test"
+            echo "check-swift already passed for $SHA; skipping local build/test"
             echo "validated=true" >> "$GITHUB_OUTPUT"
           else
-            echo "check.yml state: $run_info; running build/test locally"
+            echo "check-swift state: $run_info; running build/test locally"
             echo "validated=false" >> "$GITHUB_OUTPUT"
           fi
 
