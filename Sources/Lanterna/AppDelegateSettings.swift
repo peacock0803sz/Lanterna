@@ -20,6 +20,7 @@ extension AppDelegate {
             permissionState: launchPermissionState,
             opener: SystemSettings.open,
             appearanceMode: currentValues.appearanceMode,
+            onCheckNow: { [weak self] in self?.runUpdateCheck() },
             onChange: { [weak self] values in
                 guard let self else { return }
                 switch self.applySettings(values, replacingInvalidFile: false) {
@@ -36,6 +37,57 @@ extension AppDelegate {
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         settingsWindow = window
+    }
+
+    /// Runs one manual update check from the General tab.
+    ///
+    /// The check runs off the panel paths: nothing here touches panel
+    /// timing, and a failure stays a line in the General tab and in the
+    /// diagnostics. The run never writes the settings file.
+    func runUpdateCheck() {
+        guard currentValues.updateCheckEnabled else { return }
+        let channel = currentValues.updateChannel
+        guard let display = settingsWindow?.checkDisplay else { return }
+        display.isChecking = true
+        Task { [weak self] in
+            let result = await UpdateCheck.perform(
+                channel: channel,
+                currentVersion: AppVersion.short,
+                fetcher: LiveReleaseFetcher()
+            )
+            await MainActor.run { [weak self] in
+                self?.finishUpdateCheck(result, channel: channel)
+            }
+        }
+    }
+
+    /// Shows one finished check: the General tab always hears about it,
+    /// and only a newer release also gets a dialog with a way to the
+    /// releases page.
+    private func finishUpdateCheck(_ result: UpdateCheckResult, channel: UpdateChannel) {
+        guard let display = settingsWindow?.checkDisplay else { return }
+        display.isChecking = false
+        Diagnostics.writeLine(UpdateCheck.diagnosticsLine(result, channel: channel))
+        switch result {
+        case let .found(version, pageURL):
+            display.resultText = "A newer release (\(version)) is published."
+            guard let window = settingsWindow else { return }
+            let alert = NSAlert()
+            alert.messageText = "A newer Lanterna release is available"
+            alert.informativeText = "Version \(version) is published. "
+                + "Downloading stays a manual step."
+            alert.addButton(withTitle: "Open Releases")
+            alert.addButton(withTitle: "Later")
+            alert.beginSheetModal(for: window) { response in
+                if response == .alertFirstButtonReturn {
+                    _ = SystemSettings.open(pageURL)
+                }
+            }
+        case .upToDate:
+            display.resultText = "Lanterna is up to date."
+        case let .failed(reason):
+            display.resultText = "The check did not finish (\(reason))."
+        }
     }
 
     /// Asks before replacing an invalid settings file.

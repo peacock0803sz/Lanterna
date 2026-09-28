@@ -10,6 +10,11 @@ import SwiftUI
 /// once through the single change handler.
 @MainActor
 final class SettingsWindow: NSWindow {
+    /// What the General tab shows about the last manual check.
+    ///
+    /// Held here so reopening the window starts unconfirmed again.
+    let checkDisplay = UpdateCheckDisplay()
+
     /// Builds the window showing the given values. Changes flow back
     /// through `onChange` as they happen; saving and confirmation live
     /// with the caller, not here.
@@ -19,7 +24,6 @@ final class SettingsWindow: NSWindow {
         permissionState: PermissionState,
         opener: @escaping SettingsOpener,
         appearanceMode: AppearanceMode = .system,
-        checkDisplay: UpdateCheckDisplay = UpdateCheckDisplay(),
         onCheckNow: @escaping () -> Void = {},
         onChange: @escaping (SettingsValues) -> Void
     ) {
