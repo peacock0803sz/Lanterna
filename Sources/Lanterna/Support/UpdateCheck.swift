@@ -76,6 +76,12 @@ protocol ReleaseFetching: Sendable {
     func fetchReleases() async throws -> [PublishedRelease]
 }
 
+/// Why a listing read failed, so the check can explain what happened.
+enum ReleaseFetchError: Error, Sendable {
+    case unreachable
+    case unreadable
+}
+
 /// Reads the published releases from the releases listing.
 ///
 /// Manual checks only, so the modest rate limit for anonymous reads is
@@ -85,9 +91,19 @@ struct LiveReleaseFetcher: ReleaseFetching {
         var request = URLRequest(url: UpdateCheck.releasesAPIURL)
         request.timeoutInterval = 15
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else {
+            throw ReleaseFetchError.unreachable
+        }
         let decoded = try JSONDecoder().decode([GitHubRelease].self, from: data)
-        return decoded.compactMap { PublishedRelease(github: $0) }
+        if decoded.isEmpty {
+            return []
+        }
+        let kept = decoded.compactMap { PublishedRelease(github: $0) }
+        guard !kept.isEmpty else {
+            throw ReleaseFetchError.unreadable
+        }
+        return kept
     }
 }
 
@@ -139,6 +155,13 @@ enum UpdateCheck {
             releases = try await fetcher.fetchReleases()
         } catch let error as URLError where error.code == .notConnectedToInternet {
             return .failed(reason: "no network")
+        } catch let error as ReleaseFetchError {
+            switch error {
+            case .unreachable:
+                return .failed(reason: "cannot reach releases")
+            case .unreadable:
+                return .failed(reason: "unreadable response")
+            }
         } catch is DecodingError {
             return .failed(reason: "unreadable response")
         } catch {

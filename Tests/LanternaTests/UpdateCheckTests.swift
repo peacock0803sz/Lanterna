@@ -254,4 +254,19 @@ struct UpdateCheckTests {
         )
         #expect(unreadable == .failed(reason: "unreadable response"))
     }
+
+    @Test func performMapsTypedFetchErrors() async {
+        let unreachable = await UpdateCheck.perform(
+            channel: .stable,
+            currentVersion: "0.6.0",
+            fetcher: FakeReleases(releases: [], error: ReleaseFetchError.unreachable)
+        )
+        #expect(unreachable == .failed(reason: "cannot reach releases"))
+        let unreadable = await UpdateCheck.perform(
+            channel: .stable,
+            currentVersion: "0.6.0",
+            fetcher: FakeReleases(releases: [], error: ReleaseFetchError.unreadable)
+        )
+        #expect(unreadable == .failed(reason: "unreadable response"))
+    }
 }
