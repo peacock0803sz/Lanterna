@@ -191,7 +191,13 @@
                   buildPhase = ''
                     runHook preBuild
                     export PATH=/usr/bin:/bin:/usr/sbin:/sbin
-                    export HOME="$TMPDIR"
+                    # The Nix stdenv points SDKROOT/DEVELOPER_DIR at its own
+                    # Apple SDK, which the host toolchain cannot use (same
+                    # reason scripts/test.sh clears them): drop both so the
+                    # host swift resolves the Xcode SDK via xcode-select.
+                    unset SDKROOT
+                    unset DEVELOPER_DIR
+                    export HOME="$(mktemp -d "${TMPDIR:-/tmp}/swift-home.XXXXXX")"
                     if ! xcode-select -p &>/dev/null; then
                       echo "error: Xcode or the Command Line Tools are required to build Lanterna." >&2
                       echo "  Install with: xcode-select --install" >&2
