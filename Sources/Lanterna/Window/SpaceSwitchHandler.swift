@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import Darwin
+import Logging
 
 /// Refreshes the held list and the most-recently-used order when the active
 /// Space changes.
@@ -30,7 +31,7 @@ struct SpaceSwitchHandler {
     private let ownProcessIdentifier: pid_t
     private let frontmostProcessIdentifier: @MainActor () -> pid_t?
     private let reading: any FocusedWindowReading
-    private let writeLine: @MainActor (String) -> Void
+    private let writeLine: @MainActor (Logger.Level, String) -> Void
 
     init(
         store: WindowListStore,
@@ -38,7 +39,7 @@ struct SpaceSwitchHandler {
         ownProcessIdentifier: pid_t,
         frontmostProcessIdentifier: @escaping @MainActor () -> pid_t?,
         reading: any FocusedWindowReading,
-        writeLine: @escaping @MainActor (String) -> Void
+        writeLine: @escaping @MainActor (Logger.Level, String) -> Void
     ) {
         self.store = store
         self.tracker = tracker
@@ -56,7 +57,7 @@ struct SpaceSwitchHandler {
     /// reaches a press that lands mid-pass; verifying after it is what keeps
     /// an unsettled read from standing as the newest record.
     func handle() async {
-        writeLine("space changed; refreshing window list")
+        writeLine(.info, "space changed; refreshing window list")
         let optimistic = recordFrontmost()
         await store.refreshEventually()
         correctIfSettled(from: optimistic)
@@ -67,15 +68,15 @@ struct SpaceSwitchHandler {
     /// a settled switch from one that was still moving.
     private func recordFrontmost() -> (owner: pid_t, windowID: CGWindowID)? {
         guard let frontmost = frontmostProcessIdentifier() else {
-            writeLine("space changed; no frontmost application to record")
+            writeLine(.info, "space changed; no frontmost application to record")
             return nil
         }
         guard frontmost != ownProcessIdentifier else {
-            writeLine("space changed; frontmost is this process")
+            writeLine(.info, "space changed; frontmost is this process")
             return nil
         }
         guard let windowID = reading.focusedWindowID(of: frontmost) else {
-            writeLine("space changed; frontmost window could not be read")
+            writeLine(.warning, "space changed; frontmost window could not be read")
             return nil
         }
         // Through the one outside entry, with the read identity riding a
@@ -105,7 +106,7 @@ struct SpaceSwitchHandler {
         else {
             return
         }
-        writeLine("space changed; settled on a different frontmost window")
+        writeLine(.info, "space changed; settled on a different frontmost window")
         recordExternalActivation(
             of: frontmost,
             excluding: ownProcessIdentifier,
@@ -137,7 +138,7 @@ func startObservingSpaceChanges(store: WindowListStore, tracker: MRUTracker) {
         ownProcessIdentifier: getpid(),
         frontmostProcessIdentifier: { NSWorkspace.shared.frontmostApplication?.processIdentifier },
         reading: AXFocusedWindowReader(),
-        writeLine: Diagnostics.writeLine
+        writeLine: { level, message in Diagnostics.writeLine(message, level: level) }
     )
     _ = NSWorkspace.shared.notificationCenter.addObserver(
         forName: NSWorkspace.activeSpaceDidChangeNotification,

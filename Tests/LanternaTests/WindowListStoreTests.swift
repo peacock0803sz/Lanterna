@@ -1,4 +1,5 @@
 @testable import Lanterna
+import Logging
 import Testing
 
 @MainActor
@@ -74,7 +75,7 @@ private final class CountingGather {
 @MainActor
 struct WindowListStoreTests {
     @Test func theFirstPassPutsAListInPlace() async {
-        let store = WindowListStore(gather: { snapshot(count: 3) }, writeLine: { _ in })
+        let store = WindowListStore(gather: { snapshot(count: 3) }, writeLine: { _, _ in })
         #expect(store.snapshot == nil)
         await store.refresh()
         #expect(store.snapshot?.items.count == 3)
@@ -84,7 +85,7 @@ struct WindowListStoreTests {
         var counts = [3, 7]
         let store = WindowListStore(
             gather: { snapshot(count: counts.removeFirst()) },
-            writeLine: { _ in }
+            writeLine: { _, _ in }
         )
         await store.refresh()
         await store.refresh()
@@ -96,6 +97,7 @@ struct WindowListStoreTests {
         let store = WindowListStore(gather: { snapshot(count: 3) }, writeLine: log.write)
         await store.refresh()
         #expect(log.lines == ["listed 3 windows from 3 applications in 12.0 ms"])
+        #expect(log.entries.map(\.level) == [.info])
     }
 
     /// A pass takes about a second when an application has stopped answering,
@@ -112,12 +114,13 @@ struct WindowListStoreTests {
         #expect(fake.callCount == 1)
         #expect(log.lines.first == "refresh skipped (previous pass still running)")
         #expect(log.lines.count == 2)
+        #expect(log.entries.map(\.level) == [.info, .info])
     }
 
     /// The refusal is for the duration of a pass, not for good.
     @Test func aRefreshAfterThePassHasFinishedRunsNormally() async {
         let fake = ReentrantGather(answers: [snapshot(count: 3), snapshot(count: 9)])
-        let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
+        let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
         fake.store = store
 
         await store.refresh()
@@ -142,7 +145,7 @@ struct WindowListStoreTests {
     }
 
     @Test func liveListsAreLive() {
-        let store = WindowListStore(gather: { snapshot(count: 1) }, writeLine: { _ in })
+        let store = WindowListStore(gather: { snapshot(count: 1) }, writeLine: { _, _ in })
         #expect(store.isLive == true)
     }
 
@@ -150,7 +153,7 @@ struct WindowListStoreTests {
     /// show at once, so a list that went missing again would put the delay
     /// back after it had already been paid for.
     @Test func aListThatArrivedIsNeverTakenAway() async {
-        let store = WindowListStore(gather: { snapshot(count: 3) }, writeLine: { _ in })
+        let store = WindowListStore(gather: { snapshot(count: 3) }, writeLine: { _, _ in })
         await store.refresh()
         store.stop()
         #expect(store.snapshot?.items.count == 3)
@@ -164,7 +167,7 @@ struct WindowListStoreTests {
         var counts = [3, 7]
         let store = WindowListStore(
             gather: { snapshot(count: counts.removeFirst()) },
-            writeLine: { _ in }
+            writeLine: { _, _ in }
         )
         await store.refresh()
         store.stop()
@@ -176,7 +179,7 @@ struct WindowListStoreTests {
 
     @Test func aHeldListIsHandedOverWithoutGatheringAgain() async {
         let fake = HeldGather(answer: snapshot(count: 5))
-        let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
+        let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
         let pass = Task { await store.refresh() }
         await fake.waitUntilCalled()
         fake.finish()
@@ -188,7 +191,7 @@ struct WindowListStoreTests {
     }
 
     @Test func askingBeforeAnyPassHasRunGathersOne() async {
-        let store = WindowListStore(gather: { snapshot(count: 2) }, writeLine: { _ in })
+        let store = WindowListStore(gather: { snapshot(count: 2) }, writeLine: { _, _ in })
         let items = await store.listWhenGathered()
         #expect(items.count == 2)
     }
@@ -199,7 +202,7 @@ struct WindowListStoreTests {
     /// first list rather than its own attempt at one.
     @Test func askingDuringAPassWaitsForThatPassRatherThanStartingAnother() async {
         let fake = HeldGather(answer: snapshot(count: 5))
-        let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
+        let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
 
         let pass = Task { await store.refresh() }
         await fake.waitUntilCalled()
@@ -225,7 +228,7 @@ struct WindowListStoreTests {
     /// reduced to a single pass would wait for ever rather than fail.
     @Test(.timeLimit(.minutes(1))) func theLoopKeepsGoingUntilItIsStopped() async {
         let fake = CountingGather(answer: snapshot(count: 3))
-        let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
+        let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
 
         store.start(interval: .milliseconds(1))
         await fake.waitUntilCalled(times: 3)
@@ -242,7 +245,7 @@ struct WindowListStoreTests {
     /// still going would have gone round many times over within it.
     @Test(.timeLimit(.minutes(1))) func stoppingEndsTheLoop() async {
         let fake = CountingGather(answer: snapshot(count: 3))
-        let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
+        let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
 
         store.start(interval: .milliseconds(1))
         await fake.waitUntilCalled(times: 3)
@@ -261,7 +264,7 @@ struct WindowListStoreTests {
     /// past the reading taken here.
     @Test(.timeLimit(.minutes(1))) func startingAgainReplacesTheLoopRatherThanAddingOne() async {
         let fake = CountingGather(answer: snapshot(count: 3))
-        let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
+        let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
 
         store.start(interval: .milliseconds(1))
         store.start(interval: .milliseconds(1))

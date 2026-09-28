@@ -172,7 +172,7 @@ struct WindowListStoreEventRefreshTests {
     /// exception to waiting for fresh.
     @Test(.timeLimit(.minutes(1))) func stoppingReleasesAParkedEventRefresh() async {
         let fake = HeldGather(answer: eventSnapshot(count: 5))
-        let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
+        let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
 
         let pass = Task { await store.refreshEventually() }
         await fake.waitUntilCalled()
@@ -190,7 +190,7 @@ struct WindowListStoreEventRefreshTests {
     /// still produce only a single following pass, which releases them both.
     @Test(.timeLimit(.minutes(1))) func twoEventRefreshesDuringOnePassProduceOnlyOneExtraPass() async {
         let fake = HeldGather(answer: eventSnapshot(count: 5))
-        let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
+        let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
 
         let pass = Task { await store.refreshEventually() }
         await fake.waitUntilCalled()
