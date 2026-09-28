@@ -31,8 +31,14 @@ final class PanelFilter {
     /// the panel keeps the rows and this decides which reach the screen.
     var displayModes = DisplayModes.defaults
     /// Where the per-appearance lines go. Wired like the presenter's, so
-    /// tests can read what an appearance reports without stderr.
-    var writeLine: @MainActor (Logger.Level, String) -> Void = { Diagnostics.writeLine($1, level: $0) }
+    /// tests can read what an appearance reports without stderr. Falls
+    /// silent while the diagnostics logger is down (tests reading no log),
+    /// because the process only wires it on the launch path.
+    var writeLine: @MainActor (Logger.Level, String) -> Void = { level, line in
+        guard Diagnostics.logger != nil else { return }
+        Diagnostics.writeLine(line, level: level)
+    }
+
     /// The compiled exclusion rules. Read at launch from the config file
     /// and recompiled whenever the settings change; the panel keeps the
     /// rows and these decide which leave before anything else sees them.
