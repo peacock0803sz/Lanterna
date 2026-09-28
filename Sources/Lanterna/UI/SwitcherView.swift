@@ -51,6 +51,10 @@ struct SwitcherView: View {
     /// The compiled exclusion rules, read beside the modes.
     var exclusionRules: [ExclusionRule] = []
 
+    /// Whether subsequence queries match as well as substrings, read
+    /// beside the modes.
+    var fuzzyMatchEnabled = false
+
     /// The ordinary rows, drawing first and in the order they arrived.
     private var ordinaryRows: [WindowItem] {
         sections.ordinary
@@ -66,7 +70,13 @@ struct SwitcherView: View {
     /// each row's place within its section, so the rows draw in the order
     /// the arrows step through them.
     private var sections: (ordinary: [WindowItem], subgroups: [(DisplaySubgroup, [WindowItem])]) {
-        DisplayModes.sections(of: windows, modes: modes, query: query, exclusions: exclusionRules)
+        DisplayModes.sections(
+            of: windows,
+            modes: modes,
+            query: query,
+            exclusions: exclusionRules,
+            fuzzy: fuzzyMatchEnabled
+        )
     }
 
     /// The heading over one subgroup, in plain words.
@@ -84,7 +94,7 @@ struct SwitcherView: View {
     }
 
     private func row(_ window: WindowItem) -> some View {
-        WindowRow(window: window, isSelected: window.id == selectedID, query: query)
+        WindowRow(window: window, isSelected: window.id == selectedID, query: query, fuzzy: fuzzyMatchEnabled)
             // Vertical insets and separators are removed so the List
             // adds nothing to WindowRow's fixed height; the horizontal
             // insets stay.

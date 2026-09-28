@@ -50,6 +50,11 @@ final class PanelFilter {
         Diagnostics.writeLine(line, level: level)
     }
 
+    /// Whether subsequence queries match as well as substrings. Read at
+    /// launch from the config file and whenever the settings change, like
+    /// the exclusion rules are recompiled.
+    var fuzzyMatchEnabled = true
+
     /// The compiled exclusion rules. Read at launch from the config file
     /// and recompiled whenever the settings change; the panel keeps the
     /// rows and these decide which leave before anything else sees them.
@@ -202,7 +207,13 @@ final class PanelFilter {
     /// modes keep a row out and place it the same way whether the panel
     /// opened, a keystroke arrived, or a list was swapped in.
     private func shown(in windows: [WindowItem]) -> [WindowItem] {
-        DisplayModes.displayOrdered(windows, modes: displayModes, query: state.query, exclusions: exclusionRules)
+        DisplayModes.displayOrdered(
+            windows,
+            modes: displayModes,
+            query: state.query,
+            exclusions: exclusionRules,
+            fuzzy: fuzzyMatchEnabled
+        )
     }
 
     /// Narrows the rows, puts the remembered row first, follows the

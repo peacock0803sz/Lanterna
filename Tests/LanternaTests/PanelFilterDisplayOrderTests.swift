@@ -142,4 +142,40 @@ struct PanelFilterDisplayOrderTests {
         filter.append("app")
         #expect(surface.updatedLists.last?.map(\.id) == rows.map(\.id))
     }
+
+    /// A subsequence query narrows when fuzzy matching is on.
+    @Test func aSubsequenceQueryNarrowsWhenFuzzyIsOn() {
+        let surface = FakeSurface()
+        surface.isPresented = true
+        let selection = PanelSelection(surface: surface)
+        let filter = PanelFilter(selection: selection, surface: surface)
+        filter.fuzzyMatchEnabled = true
+        let rows = [
+            orderRow(windowID: 1, title: "Safari start"),
+            orderRow(windowID: 2, title: "Downloads"),
+            orderRow(windowID: 3, title: "Front page"),
+        ]
+        filter.begin(fullWindows: rows, filtering: true)
+        selection.beginSecond(filter.shownWindows.map(\.id))
+        filter.append("sfr")
+        #expect(surface.updatedLists.last?.map(\.id) == [rows[0].id])
+    }
+
+    /// A subsequence query narrows nothing when fuzzy matching is off.
+    @Test func aSubsequenceQueryNarrowsNothingWhenFuzzyIsOff() {
+        let surface = FakeSurface()
+        surface.isPresented = true
+        let selection = PanelSelection(surface: surface)
+        let filter = PanelFilter(selection: selection, surface: surface)
+        filter.fuzzyMatchEnabled = false
+        let rows = [
+            orderRow(windowID: 1, title: "Safari start"),
+            orderRow(windowID: 2, title: "Downloads"),
+            orderRow(windowID: 3, title: "Front page"),
+        ]
+        filter.begin(fullWindows: rows, filtering: true)
+        selection.beginSecond(filter.shownWindows.map(\.id))
+        filter.append("sfr")
+        #expect(surface.updatedLists.last?.isEmpty == true)
+    }
 }
