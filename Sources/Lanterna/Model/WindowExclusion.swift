@@ -52,6 +52,14 @@ enum WindowExclusion {
         return (rules, invalid)
     }
 
+    /// Whether one app/title pair may stand as a row in the editor.
+    ///
+    /// The same rule compiling uses, so the editor flags exactly the rows
+    /// showing would skip.
+    static func isValid(app: String, titlePattern: String) -> Bool {
+        !app.isEmpty && !titlePattern.isEmpty && (try? NSRegularExpression(pattern: app)) != nil
+    }
+
     /// Compiles one entry, or nil when the entry is invalid on its own.
     private static func compile(_ entry: ExclusionEntry) -> ExclusionRule? {
         guard !entry.app.isEmpty, !entry.titlePattern.isEmpty else { return nil }

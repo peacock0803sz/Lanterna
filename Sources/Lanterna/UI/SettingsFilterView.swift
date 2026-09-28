@@ -59,6 +59,32 @@ struct SettingsFilterView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Excluded windows")
+                ForEach(values.exclusions.indices, id: \.self) { index in
+                    HStack {
+                        TextField("App", text: $values.exclusions[index].app)
+                        TextField("Title pattern", text: $values.exclusions[index].titlePattern)
+                        Button("Remove") {
+                            values.exclusions.remove(at: index)
+                        }
+                    }
+                }
+                Button("Add excluded window") {
+                    values.exclusions.append(ExclusionEntry(app: "", titlePattern: ""))
+                }
+                if values.exclusions.contains(where: {
+                    !WindowExclusion.isValid(app: $0.app, titlePattern: $0.titlePattern)
+                }) {
+                    Text("Rows with an empty field or an unreadable app pattern are ignored.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Text("A window stays out when its app and title both match a row. "
+                    + "A title wrapped as ^...$ must match exactly.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
