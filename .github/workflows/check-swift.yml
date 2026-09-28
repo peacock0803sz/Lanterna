@@ -51,9 +51,10 @@ jobs:
           key: ${{ matrix.os }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: ${{ matrix.os }}-spm-
       # The triple is pinned; CONTRIBUTING.md says why.
+      # Swift warnings fail the build; CMigemo stays silent via -w in Package.swift.
       - name: Build
-        run: nix develop --command swift build --triple arm64-apple-macosx26.0
+        run: nix develop --command swift build --triple arm64-apple-macosx26.0 -Xswiftc -warnings-as-errors
       - name: Verify architecture
         run: lipo -archs .build/debug/Lanterna | grep -qx arm64
       - name: Test
-        run: nix develop --command swift test --triple arm64-apple-macosx26.0
+        run: nix develop --command swift test --triple arm64-apple-macosx26.0 -Xswiftc -warnings-as-errors
