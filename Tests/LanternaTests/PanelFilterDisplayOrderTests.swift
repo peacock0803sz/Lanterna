@@ -195,4 +195,33 @@ struct PanelFilterDisplayOrderTests {
         filter.append("ab")
         #expect(surface.updatedLists.last?.map(\.id) == [rows[1].id, rows[0].id])
     }
+
+    /// A remembered row stays at its section front under score order.
+    @Test func rememberedRowStaysAtSubgroupFrontInScoreOrder() {
+        let surface = FakeSurface()
+        surface.isPresented = true
+        let selection = PanelSelection(surface: surface)
+        let filter = PanelFilter(selection: selection, surface: surface)
+        filter.searchSettings.ordering = .score
+        let ordinaryScattered = orderRow(windowID: 1, title: "a--b")
+        let ordinaryContiguous = orderRow(windowID: 2, title: "xab")
+        let minimizedContiguous = orderRow(windowID: 3, title: "xab", isMinimized: true)
+        let minimizedScattered = orderRow(windowID: 4, title: "a--b", isMinimized: true)
+        let rows = [ordinaryScattered, ordinaryContiguous, minimizedContiguous, minimizedScattered]
+        filter.begin(fullWindows: rows, filtering: true)
+        selection.beginSecond(filter.shownWindows.map(\.id))
+        for character in "ab" {
+            filter.append(String(character))
+        }
+        filter.recordShortcut(query: "ab", id: minimizedScattered.id)
+        filter.begin(fullWindows: rows, filtering: true)
+        for character in "ab" {
+            filter.append(String(character))
+        }
+        #expect(
+            surface.updatedLists.last?.map(\.id) == [
+                ordinaryContiguous.id, ordinaryScattered.id, minimizedScattered.id, minimizedContiguous.id,
+            ]
+        )
+    }
 }

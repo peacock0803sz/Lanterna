@@ -183,43 +183,68 @@ final class PanelFilter {
         return true
     }
 
-    /// The narrowed rows with the remembered row first, when one applies:
-    /// the query is non-empty, the memory holds its key, and the recorded
-    /// row is among the narrowed rows. Membership in the narrowed rows is
-    /// the match: whatever matcher narrowed them already judged, so this
-    /// asks nothing twice and survives matcher changes.
-    private func memoryFirst(_ rows: [WindowItem]) -> [WindowItem] {
+    /// The remembered row for the current query, if one applies: the panel
+    /// is filtering, the query is non-empty, and the memory holds its key.
+    /// Membership in the shown rows is checked by the caller, so this asks
+    /// nothing twice and survives matcher changes.
+    private var rememberedID: WindowItem.Identifier? {
         // Synced here rather than in `didSet`: nested edits of the
         // settings skip `didSet`, and the cap must hold for them too.
         shortcutMemory.maxLength = searchSettings.shortcutMemoryLength
-        guard isActive, !state.query.isEmpty else { return rows }
-        guard let remembered = shortcutMemory.lookup(query: state.query) else { return rows }
-        guard let index = rows.firstIndex(where: { $0.id == remembered }) else { return rows }
-        var ordered = rows
-        let row = ordered.remove(at: index)
-        ordered.insert(row, at: 0)
-        return ordered
+        guard isActive, !state.query.isEmpty else { return nil }
+        return shortcutMemory.lookup(query: state.query)
+    }
+
+    /// Moves the remembered row to the front of its own section, leaving
+    /// every other row where the ranking put it. Parking and hiding stand:
+    /// a remembered row never leaves its section for another one.
+    private func memoryFirstInSections(
+        ordinary: [WindowItem],
+        subgroups: [(DisplaySubgroup, [WindowItem])],
+        remembered: WindowItem.Identifier
+    ) -> [WindowItem] {
+        var ordinary = ordinary
+        var subgroups = subgroups
+        if let index = ordinary.firstIndex(where: { $0.id == remembered }) {
+            let row = ordinary.remove(at: index)
+            ordinary.insert(row, at: 0)
+            return ordinary + subgroups.flatMap(\.1)
+        }
+        for section in subgroups.indices {
+            if let index = subgroups[section].1.firstIndex(where: { $0.id == remembered }) {
+                let row = subgroups[section].1.remove(at: index)
+                subgroups[section].1.insert(row, at: 0)
+                break
+            }
+        }
+        return ordinary + subgroups.flatMap(\.1)
     }
 
     /// modes keep a row out and place it the same way whether the panel
-    /// opened, a keystroke arrived, or a list was swapped in.
+    /// opened, a keystroke arrived, or a list was swapped in. Sections are
+    /// split first and the remembered row moves within its own section, so
+    /// the choice and the drawing read one order in both orderings.
     private func shown(in windows: [WindowItem]) -> [WindowItem] {
-        DisplayModes.displayOrdered(
-            windows,
+        let (ordinary, subgroups) = DisplayModes.sections(
+            of: windows,
             modes: displayModes,
             query: state.query,
             exclusions: exclusionRules,
             fuzzy: searchSettings.fuzzyMatchEnabled,
             ordering: searchSettings.ordering
         )
+        guard let remembered = rememberedID else {
+            return ordinary + subgroups.flatMap(\.1)
+        }
+        return memoryFirstInSections(ordinary: ordinary, subgroups: subgroups, remembered: remembered)
     }
 
-    /// Narrows the rows, puts the remembered row first, follows the
-    /// choice onto them, and tells the panel, drawing once. The exits
-    /// resolve off the whole shown list: identities are unique, so a
-    /// narrowed row reads back as itself either way.
+    /// Narrows the rows, puts the remembered row first in its section,
+    /// follows the choice onto them, and tells the panel, drawing once.
+    /// The exits resolve off the whole shown list: identities are unique,
+    /// so a narrowed row reads back as itself either way.
     private func apply() {
-        let matched = memoryFirst(shownWindows)
+        let matched = shownWindows
         let matchedList = matched.map(\.id)
         let chosen = state.resolveSelection(matched: matchedList, incoming: selection.chosenID)
         selection.retarget(to: matchedList, selecting: chosen)
