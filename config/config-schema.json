@@ -26,6 +26,23 @@
         "kanji"
       ]
     },
+    "shortcutMemoryLength": {
+      "description": "How many characters of a query the shortcut memory covers: a longer\nquery is neither recorded nor applied. 0 means off. Absent means 5.\nValues above 5 invalidate the whole file (mirrored by the Swift\nvalidation, which also enforces the upper bound).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "fuzzyMatchEnabled": {
+      "description": "Whether the filter also matches subsequence queries, not only\nsubstrings. Absent means on.",
+      "type": "boolean"
+    },
+    "resultOrder": {
+      "description": "The order the narrowed rows draw in. Absent means \"mru\".",
+      "type": "string",
+      "enum": [
+        "mru",
+        "score"
+      ]
+    },
     "otherSpaceMode": {
       "description": "Windows on other Spaces. Absent means \"show\".",
       "type": "string",
