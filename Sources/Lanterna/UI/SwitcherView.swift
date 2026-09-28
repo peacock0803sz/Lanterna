@@ -53,7 +53,7 @@ struct SwitcherView: View {
 
     /// Whether subsequence queries match as well as substrings, read
     /// beside the modes.
-    var fuzzyMatchEnabled = false
+    var fuzzyMatchEnabled = true
 
     /// The order narrowed rows draw in, read beside the modes.
     var ordering: SearchOrdering = .mru
