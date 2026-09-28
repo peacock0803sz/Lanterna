@@ -211,7 +211,7 @@
                     chmod -R u+w .
                     # No .git in flake sources, so stamp the version directly
                     # instead of scripts/generate-version.sh.
-                    cat > Sources/Lanterna/Support/StampedVersion.swift <<'EOF
+                    cat > Sources/Lanterna/Support/StampedVersion.swift <<'EOF'
                     /// Stamped by the nix build. Do not edit.
                     enum StampedVersion {
                         static let describe = "${describeEscaped}"
