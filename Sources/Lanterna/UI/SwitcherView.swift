@@ -55,9 +55,6 @@ struct SwitcherView: View {
     /// beside the modes.
     var fuzzyMatchEnabled = true
 
-    /// The order narrowed rows draw in, read beside the modes.
-    var ordering: SearchOrdering = .mru
-
     /// The ordinary rows, drawing first and in the order they arrived.
     private var ordinaryRows: [WindowItem] {
         sections.ordinary
@@ -71,7 +68,9 @@ struct SwitcherView: View {
     /// The list split for drawing. The rows arrive in the order the filter
     /// hands the choice (`DisplayModes.displayOrdered`), and splitting keeps
     /// each row's place within its section, so the rows draw in the order
-    /// the arrows step through them.
+    /// the arrows step through them. Never re-ranks here: the rows arrive
+    /// pre-ordered from the filter, and ranking twice would drop the
+    /// remembered row from its section front.
     private var sections: (ordinary: [WindowItem], subgroups: [(DisplaySubgroup, [WindowItem])]) {
         DisplayModes.sections(
             of: windows,
@@ -79,7 +78,7 @@ struct SwitcherView: View {
             query: query,
             exclusions: exclusionRules,
             fuzzy: fuzzyMatchEnabled,
-            ordering: ordering
+            ordering: .mru
         )
     }
 
