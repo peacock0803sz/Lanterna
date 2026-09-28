@@ -2,13 +2,27 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
+    paths:
+      - "Sources/**"
+      - "Tests/**"
+      - "Package.swift"
+      - "Package.resolved"
+      - "flake.nix"
+      - "flake.lock"
+      - "config/**"
+      - "scripts/**"
+      - ".github/workflows/check.yml"
   pull_request:
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
+    paths:
+      - "Sources/**"
+      - "Tests/**"
+      - "Package.swift"
+      - "Package.resolved"
+      - "flake.nix"
+      - "flake.lock"
+      - "config/**"
+      - "scripts/**"
+      - ".github/workflows/check.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
