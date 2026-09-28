@@ -85,9 +85,17 @@ struct SettingsValues: Equatable, Sendable {
         config.updateChannel = updateChannel.rawValue
         // Empty stays absent, so clearing the list removes the key.
         config.exclusions = exclusions.isEmpty ? nil : exclusions
-        config.shortcutMemoryLength = shortcutMemoryLength
-        config.fuzzyMatchEnabled = fuzzyMatchEnabled
-        config.resultOrder = resultOrder.rawValue
+        // Defaults stay absent, so a later default change reaches saved files.
+        let defaults = SettingsValues.defaults
+        if shortcutMemoryLength != defaults.shortcutMemoryLength {
+            config.shortcutMemoryLength = shortcutMemoryLength
+        }
+        if fuzzyMatchEnabled != defaults.fuzzyMatchEnabled {
+            config.fuzzyMatchEnabled = fuzzyMatchEnabled
+        }
+        if resultOrder != defaults.resultOrder {
+            config.resultOrder = resultOrder.rawValue
+        }
         return config
     }
 }
