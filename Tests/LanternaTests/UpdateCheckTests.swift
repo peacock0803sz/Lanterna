@@ -80,6 +80,12 @@ struct UpdateCheckTests {
         let decoded = try #require(AppConfiguration.decode(AppConfiguration.encode(config)).successValue)
         #expect(decoded.config.updateCheckEnabled == true)
         #expect(decoded.config.updateChannel == "beta")
+        var disabled = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+        disabled.updateCheckEnabled = false
+        disabled.updateChannel = "beta"
+        let decodedDisabled = try #require(AppConfiguration.decode(AppConfiguration.encode(disabled)).successValue)
+        #expect(decodedDisabled.config.updateCheckEnabled == false)
+        #expect(decodedDisabled.config.updateChannel == "beta")
     }
 
     @Test func encodedFormKeepsCanonicalOrder() throws {
@@ -172,11 +178,12 @@ extension UpdateCheckTests {
             releases: [release("v0.6.0"), release("v0.7.0")],
             channel: .stable
         )
-        guard case let .found(version, _) = result else {
+        guard case let .found(version, pageURL) = result else {
             Issue.record("expected a newer release")
             return
         }
         #expect(version == "0.7.0")
+        #expect(pageURL.absoluteString == "https://example.com/release")
     }
 
     @Test func newestAmongSeveralWinsRegardlessOfOrder() {
@@ -188,11 +195,12 @@ extension UpdateCheckTests {
                 releases: releases,
                 channel: .stable
             )
-            guard case let .found(version, _) = result else {
+            guard case let .found(version, pageURL) = result else {
                 Issue.record("expected a newer release")
                 return
             }
             #expect(version == "0.8.0")
+            #expect(pageURL.absoluteString == "https://example.com/release")
         }
     }
 
@@ -217,21 +225,23 @@ extension UpdateCheckTests {
             releases: releases,
             channel: .stable
         )
-        guard case let .found(stableVersion, _) = stable else {
+        guard case let .found(stableVersion, stablePageURL) = stable else {
             Issue.record("expected a stable release")
             return
         }
         #expect(stableVersion == "0.7.0")
+        #expect(stablePageURL.absoluteString == "https://example.com/release")
         let beta = UpdateCheck.decide(
             currentVersion: "0.6.0",
             releases: releases,
             channel: .beta
         )
-        guard case let .found(betaVersion, _) = beta else {
+        guard case let .found(betaVersion, betaPageURL) = beta else {
             Issue.record("expected a prerelease")
             return
         }
         #expect(betaVersion == "0.8.0")
+        #expect(betaPageURL.absoluteString == "https://example.com/release")
     }
 
     @Test func equalVersionsAreNotNewer() {
@@ -258,11 +268,12 @@ extension UpdateCheckTests {
             releases: [release("v0.7.0", prerelease: true)],
             channel: .beta
         )
-        guard case let .found(version, _) = result else {
+        guard case let .found(version, pageURL) = result else {
             Issue.record("expected a prerelease")
             return
         }
         #expect(version == "0.7.0")
+        #expect(pageURL.absoluteString == "https://example.com/release")
     }
 
     @Test func undeterminableVersionsFail() {
@@ -309,11 +320,12 @@ extension UpdateCheckTests {
             currentVersion: "0.6.0",
             fetcher: FakeReleases(releases: [release("v0.7.0")], error: nil)
         )
-        guard case let .found(version, _) = result else {
+        guard case let .found(version, pageURL) = result else {
             Issue.record("expected a newer release")
             return
         }
         #expect(version == "0.7.0")
+        #expect(pageURL.absoluteString == "https://example.com/release")
     }
 
     @Test func performMapsFailuresToReasons() async {
