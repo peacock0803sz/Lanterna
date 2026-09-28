@@ -57,6 +57,19 @@ struct ExclusionConfigTests {
         }
     }
 
+    @Test func invalidEntriesAreSkippedOneByOne() {
+        let entries = [
+            ExclusionEntry(app: "", titlePattern: "x"),
+            ExclusionEntry(app: "x", titlePattern: ""),
+            ExclusionEntry(app: "([", titlePattern: "x"),
+            ExclusionEntry(app: "com.example.aid", titlePattern: "Mini"),
+        ]
+        let compiled = WindowExclusion.compile(entries)
+        #expect(compiled.invalid == 3)
+        #expect(compiled.rules.count == 1)
+        #expect(compiled.rules[0].app == "com.example.aid")
+    }
+
     @Test func exclusionsRoundTripThroughEncoding() throws {
         let decoded = try #require(decode("""
         {"version": 1, "exclusions": [{"app": "a.*", "titlePattern": "^b$"}]}
