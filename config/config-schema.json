@@ -71,6 +71,10 @@
       "description": "Intentional monitor stops, in whole seconds, so recovery can be watched.\nAbsent means an ordinary run. Must be one or more when present.",
       "type": "integer",
       "minimum": 1
+    },
+    "launchAtLogin": {
+      "description": "Whether Lanterna starts at login. Absent means off.",
+      "type": "boolean"
     }
   },
   "additionalProperties": false

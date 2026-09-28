@@ -69,6 +69,7 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             SettingsGeneralView(
+                values: $values,
                 version: version,
                 missing: MissingPermission.list(for: permissionState),
                 opener: opener

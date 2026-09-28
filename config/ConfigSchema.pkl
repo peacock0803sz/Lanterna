@@ -66,3 +66,6 @@ sampleCount: Int? = null
 /// Absent means an ordinary run. Must be one or more when present.
 @Minimum { value = 1 }
 stopMonitorEvery: Int? = null
+
+/// Whether Lanterna starts at login. Absent means off.
+launchAtLogin: Boolean? = null

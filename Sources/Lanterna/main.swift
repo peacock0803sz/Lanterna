@@ -15,6 +15,7 @@ do {
 /// why. Existing files are never written.
 let options: LaunchArguments.Options
 let initialValues: SettingsValues
+let launchDesired: Bool
 let configFileURL: URL?
 let lanternaDirectory: URL?
 let tableDirectory = MigemoEngine.tableDirectoryURL()
@@ -31,6 +32,7 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
     case let .loaded(decoded):
         options = AppConfiguration.effectiveOptions(file: decoded.config, cli: cliOptions)
         initialValues = SettingsValues.effective(from: decoded.config)
+        launchDesired = decoded.config.launchAtLogin ?? false
         openSharedMatcher(
             scope: RomajiScope.effective(from: decoded.config),
             lanternaDirectory: url.deletingLastPathComponent()
@@ -43,6 +45,7 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
     case .created:
         options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
         initialValues = SettingsValues.defaults
+        launchDesired = defaults.launchAtLogin ?? false
         openSharedMatcher(
             scope: .kanaKanji,
             lanternaDirectory: url.deletingLastPathComponent()
@@ -51,6 +54,7 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
     case let .failed(reason):
         options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
         initialValues = SettingsValues.defaults
+        launchDesired = defaults.launchAtLogin ?? false
         openSharedMatcher(
             scope: .kanaKanji,
             lanternaDirectory: url.deletingLastPathComponent()
@@ -60,10 +64,18 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
 } else {
     options = cliOptions
     initialValues = SettingsValues.defaults
+    launchDesired = false
     configFileURL = nil
     lanternaDirectory = nil
     openSharedMatcher(scope: .kanaKanji, lanternaDirectory: nil)
     Diagnostics.writeLine("config invalid (cannot resolve directory); using defaults")
+}
+
+// Brings the login item in line with the saved setting, ahead of the run
+// loop and off the path with a time budget. A change or a failure leaves
+// one diagnostics line; quiet runs stay silent. Never stops the launch.
+if let line = LaunchAtLogin.sync(desired: launchDesired, service: LaunchAtLogin.liveIfBundled()) {
+    Diagnostics.writeLine(line)
 }
 
 /// Opens the shared matcher for one run, ahead of the run loop.
