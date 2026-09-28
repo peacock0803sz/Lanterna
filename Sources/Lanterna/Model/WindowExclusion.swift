@@ -13,10 +13,13 @@ struct ExclusionEntry: Equatable, Sendable {
 ///
 /// The display-name pattern is compiled at load, so showing never pays
 /// for compilation and never meets a pattern it cannot read: unreadable
-/// entries never become rules.
+/// entries never become rules. Case-insensitive halves are folded at
+/// load, so showing compares bytes instead of folding every row.
 struct ExclusionRule: Sendable {
     /// The raw app string, compared case-insensitively against bundle ids.
     let app: String
+    /// The app string folded for the bundle comparison.
+    let appFolded: String
     /// The app string as a regular expression over display names,
     /// case-sensitive by the convention of patterns.
     let appRegex: NSRegularExpression
@@ -27,6 +30,8 @@ struct ExclusionRule: Sendable {
     /// The title text to compare: the inner text for exact patterns,
     /// the pattern itself otherwise.
     let titleNeedle: String
+    /// The needle folded for the case-insensitive comparison.
+    let needleFolded: String
 }
 
 /// The exclusion list between the config file and the list on screen.
@@ -67,10 +72,12 @@ enum WindowExclusion {
         let (exact, needle) = splitTitlePattern(entry.titlePattern)
         return ExclusionRule(
             app: entry.app,
+            appFolded: entry.app.lowercased(),
             appRegex: appRegex,
             titlePattern: entry.titlePattern,
             titleExact: exact,
-            titleNeedle: needle
+            titleNeedle: needle,
+            needleFolded: needle.lowercased()
         )
     }
 
@@ -96,32 +103,34 @@ enum WindowExclusion {
         return windows.filter { !isExcluded($0, rules: rules) }
     }
 
-    /// Whether one row leaves the list under any rule.
+    /// Whether one row leaves the list under any rule. The row's compared
+    /// halves are folded once here, so a rule never folds what another
+    /// rule already folded.
     static func isExcluded(_ item: WindowItem, rules: [ExclusionRule]) -> Bool {
-        rules.contains { matches(item, rule: $0) }
+        let bundle = item.bundleIdentifier?.lowercased()
+        let title = item.windowTitle.lowercased()
+        return rules.contains { matches(bundle: bundle, title: title, appName: item.appName, rule: $0) }
     }
 
-    /// Both halves must match; one half alone excludes nothing.
-    private static func matches(_ item: WindowItem, rule: ExclusionRule) -> Bool {
-        guard matchesApp(item, rule: rule) else { return false }
-        return matchesTitle(item.windowTitle, rule: rule)
-    }
-
-    /// A bundle id match (ignoring case) or a display-name pattern match.
-    private static func matchesApp(_ item: WindowItem, rule: ExclusionRule) -> Bool {
-        if let bundle = item.bundleIdentifier, bundle.lowercased() == rule.app.lowercased() {
+    /// Both halves must match; one half alone excludes nothing. The title
+    /// is judged first because a folded equality or substring check costs
+    /// far less than a regular-expression pass, so rows matching nothing
+    /// usually pay nothing per rule beyond it.
+    private static func matches(bundle: String?, title: String, appName: String, rule: ExclusionRule) -> Bool {
+        guard matchesTitle(title, rule: rule) else { return false }
+        if bundle == rule.appFolded {
             return true
         }
-        let range = NSRange(item.appName.startIndex..., in: item.appName)
-        return rule.appRegex.firstMatch(in: item.appName, range: range) != nil
+        let range = NSRange(appName.startIndex..., in: appName)
+        return rule.appRegex.firstMatch(in: appName, range: range) != nil
     }
 
     /// An exact match for anchored patterns, a substring match otherwise,
-    /// both ignoring case.
+    /// over already-folded text.
     private static func matchesTitle(_ title: String, rule: ExclusionRule) -> Bool {
         if rule.titleExact {
-            return title.compare(rule.titleNeedle, options: .caseInsensitive) == .orderedSame
+            return title == rule.needleFolded
         }
-        return title.range(of: rule.titleNeedle, options: .caseInsensitive) != nil
+        return title.range(of: rule.needleFolded) != nil
     }
 }
