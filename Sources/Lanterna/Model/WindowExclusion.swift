@@ -10,7 +10,7 @@ struct ExclusionEntry: Hashable, Identifiable, Sendable {
     /// Equality and hashing cover the visible fields alone, so rows decoded
     /// from the file compare equal to rows shown in the editor while the list
     /// keeps stable identity when duplicate rows stand side by side.
-    var id = UUID()
+    let id = UUID()
     var app: String
     var titlePattern: String
 
