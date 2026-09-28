@@ -195,6 +195,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: write
+      actions: read # stable step polls check-swift/check-static runs
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -302,6 +303,38 @@ jobs:
           done
           echo "cask push failed after 3 attempts"
           exit 1
+
+      # The stable tracking ref for nix installs follows published tags.
+      # It moves only when both check-swift and check-static passed on
+      # the tag commit; otherwise stable stays where it is.
+      - name: Advance stable branch
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          SHA="$(git rev-parse "$TAG^{commit}")"
+          query() {
+            gh run list --commit "$SHA" --workflow "$1" --limit 1 \
+              --json status,conclusion --jq '.[0] | "\(.status // "absent") \(.conclusion // "none")"'
+          }
+          swift_state="absent none"
+          static_state="absent none"
+          # Give the tag-time checks a moment to appear, then wait while
+          # either is still running (up to ~10 minutes).
+          for _ in $(seq 1 20); do
+            swift_state="$(query check-swift.yml)"
+            static_state="$(query check-static.yml)"
+            swift_status="${swift_state%% *}"
+            static_status="${static_state%% *}"
+            [[ "$swift_status" == "completed" || "$swift_status" == "absent" ]] && \
+              [[ "$static_status" == "completed" || "$static_status" == "absent" ]] && break
+            sleep 30
+          done
+          if [[ "$swift_state" == "completed success" && "$static_state" == "completed success" ]]; then
+            git push origin "$SHA:refs/heads/stable"
+            echo "stable now at $TAG"
+          else
+            echo "check-swift is $swift_state, check-static is $static_state for $SHA; not advancing stable"
+            exit 0
+          fi
 
   deploy-docs:
     # Docs deploy stays independent of the app jobs: it runs on every tag

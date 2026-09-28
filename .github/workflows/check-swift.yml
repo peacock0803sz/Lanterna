@@ -58,3 +58,31 @@ jobs:
         run: lipo -archs .build/debug/Lanterna | grep -qx arm64
       - name: Test
         run: nix develop --command swift test --triple arm64-apple-macosx26.0 -Xswiftc -warnings-as-errors
+
+  # Builds the installable flake package and verifies the bundle layout.
+  # macos-26 only: packaging is pinned to the same triple and layout on
+  # every image, so the swift-build matrix already covers image variance.
+  nix-package:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
+      - name: Record OS version
+        run: sw_vers
+      - name: Build package
+        run: nix build .#default
+      - name: Verify bundle
+        run: |
+          app="result/Applications/Lanterna.app"
+          lipo -archs "$app/Contents/MacOS/Lanterna" | grep -qx arm64
+          codesign --verify --deep --strict "$app"
+          for table in roma2hira.dat hira2kata.dat han2zen.dat zen2han.dat; do
+            test -f "$app/Contents/Resources/tables/$table"
+          done
+          # Only the two permitted permissions may be declared.
+          /usr/libexec/PlistBuddy -c "Print NSAccessibilityUsageDescription" "$app/Contents/Info.plist" >/dev/null
+          ! /usr/libexec/PlistBuddy -c "Print NSScreenCaptureUsageDescription" "$app/Contents/Info.plist" >/dev/null 2>&1

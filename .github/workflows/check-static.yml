@@ -35,6 +35,19 @@ jobs:
           extra_nix_config: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - name: Validate flake
         run: nix flake check --all-systems
+      - name: Check nix formatting
+        run: nix develop --command nixfmt --check flake.nix
+      # The package only supports Apple Silicon Macs, so building the
+      # default output here must fail with the unsupported-system message.
+      - name: Assert unsupported-system failure
+        run: |
+          set +e
+          output=$(nix build .#default 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          [[ $status -ne 0 ]]
+          echo "$output" | grep -q "only available for aarch64-darwin"
 
   workflow-lint:
     runs-on: ubuntu-latest
