@@ -209,7 +209,8 @@ final class PanelFilter {
             modes: displayModes,
             query: state.query,
             exclusions: exclusionRules,
-            fuzzy: searchSettings.fuzzyMatchEnabled
+            fuzzy: searchSettings.fuzzyMatchEnabled,
+            ordering: searchSettings.ordering
         )
     }
 

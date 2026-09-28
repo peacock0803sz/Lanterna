@@ -49,7 +49,8 @@ final class SwitcherPanel: NSPanel {
                         modes: displayModes,
                         query: content.query,
                         exclusions: exclusionRules,
-                        fuzzy: searchSettings.fuzzyMatchEnabled
+                        fuzzy: searchSettings.fuzzyMatchEnabled,
+                        ordering: searchSettings.ordering
                     )
                 )
             ),
@@ -138,7 +139,8 @@ final class SwitcherPanel: NSPanel {
             filterActive: hostingView.rootView.filterActive,
             modes: displayModes,
             exclusionRules: exclusionRules,
-            fuzzyMatchEnabled: searchSettings.fuzzyMatchEnabled
+            fuzzyMatchEnabled: searchSettings.fuzzyMatchEnabled,
+            ordering: searchSettings.ordering
         )
         // The height is pushed down from the window, because the hosting view
         // has no sizing options and so cannot push one up.
@@ -154,7 +156,8 @@ final class SwitcherPanel: NSPanel {
                             modes: displayModes,
                             query: query,
                             exclusions: exclusionRules,
-                            fuzzy: searchSettings.fuzzyMatchEnabled
+                            fuzzy: searchSettings.fuzzyMatchEnabled,
+                            ordering: searchSettings.ordering
                         )
                     ) + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
                     PanelMetrics.maximumHeight
@@ -261,7 +264,8 @@ final class SwitcherPanel: NSPanel {
                 modes: displayModes,
                 query: query,
                 exclusions: exclusionRules,
-                fuzzy: searchSettings.fuzzyMatchEnabled
+                fuzzy: searchSettings.fuzzyMatchEnabled,
+                ordering: searchSettings.ordering
             ))
                 + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
             PanelMetrics.maximumHeight

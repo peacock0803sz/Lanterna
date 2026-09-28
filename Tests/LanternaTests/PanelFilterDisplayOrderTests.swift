@@ -178,4 +178,21 @@ struct PanelFilterDisplayOrderTests {
         filter.append("sfr")
         #expect(surface.updatedLists.last?.isEmpty == true)
     }
+
+    /// Score order puts the contiguous match first through the filter.
+    @Test func scoreOrderPutsTheContiguousMatchFirst() {
+        let surface = FakeSurface()
+        surface.isPresented = true
+        let selection = PanelSelection(surface: surface)
+        let filter = PanelFilter(selection: selection, surface: surface)
+        filter.searchSettings.ordering = .score
+        let rows = [
+            orderRow(windowID: 1, title: "a--b"),
+            orderRow(windowID: 2, title: "xab"),
+        ]
+        filter.begin(fullWindows: rows, filtering: true)
+        selection.beginSecond(filter.shownWindows.map(\.id))
+        filter.append("ab")
+        #expect(surface.updatedLists.last?.map(\.id) == [rows[1].id, rows[0].id])
+    }
 }

@@ -55,6 +55,9 @@ struct SwitcherView: View {
     /// beside the modes.
     var fuzzyMatchEnabled = false
 
+    /// The order narrowed rows draw in, read beside the modes.
+    var ordering: SearchOrdering = .mru
+
     /// The ordinary rows, drawing first and in the order they arrived.
     private var ordinaryRows: [WindowItem] {
         sections.ordinary
@@ -75,7 +78,8 @@ struct SwitcherView: View {
             modes: modes,
             query: query,
             exclusions: exclusionRules,
-            fuzzy: fuzzyMatchEnabled
+            fuzzy: fuzzyMatchEnabled,
+            ordering: ordering
         )
     }
 
