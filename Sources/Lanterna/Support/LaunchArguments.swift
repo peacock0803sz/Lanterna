@@ -24,15 +24,9 @@ enum LaunchArguments {
         var exclusionEntries: [ExclusionEntry] = []
         /// Which appearance the windows use. No flag sets it; the file covers it.
         var appearanceMode: AppearanceMode = .system
-        /// How many query characters the shortcut memory covers. No flag
-        /// sets it; the file covers it.
-        var shortcutMemoryLength: Int = 5
-        /// Whether subsequence queries match as well as substrings. No flag
-        /// sets it; the file covers it.
-        var fuzzyMatchEnabled: Bool = true
-        /// The ordering the narrowed rows draw in. No flag sets it; the
-        /// file covers it.
-        var resultOrder: SearchOrdering = .mru
+        /// The three search-quality settings as one value. No flag sets
+        /// them; the file covers them.
+        var searchSettings = SearchSettings()
         /// How much diagnostics this run emits. `nil` leaves it to the file
         /// and the default. Never written back to the file.
         var logLevel: Logger.Level?

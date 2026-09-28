@@ -32,11 +32,11 @@ final class SwitcherPanel: NSPanel {
         displayModes: DisplayModes = .defaults,
         exclusionRules: [ExclusionRule] = [],
         appearanceMode: AppearanceMode = .system,
-        fuzzyMatchEnabled: Bool = true
+        searchSettings: SearchSettings = SearchSettings()
     ) {
         self.displayModes = displayModes
         self.exclusionRules = exclusionRules
-        self.fuzzyMatchEnabled = fuzzyMatchEnabled
+        self.searchSettings = searchSettings
         hostingView = NSHostingView(rootView: content)
         super.init(
             contentRect: NSRect(
@@ -49,7 +49,7 @@ final class SwitcherPanel: NSPanel {
                         modes: displayModes,
                         query: content.query,
                         exclusions: exclusionRules,
-                        fuzzy: fuzzyMatchEnabled
+                        fuzzy: searchSettings.fuzzyMatchEnabled
                     )
                 )
             ),
@@ -102,9 +102,9 @@ final class SwitcherPanel: NSPanel {
     /// reason: the height counts what the view draws, exclusions first.
     var exclusionRules: [ExclusionRule] = []
 
-    /// Whether subsequence queries match as well as substrings. Kept
-    /// beside the modes: the height counts what the view draws.
-    var fuzzyMatchEnabled = true
+    /// The three search-quality settings as one value. Kept beside the
+    /// modes: the height counts what the view draws.
+    var searchSettings = SearchSettings()
 
     /// Whether the panel is currently on screen.
     var isPresented: Bool {
@@ -138,7 +138,7 @@ final class SwitcherPanel: NSPanel {
             filterActive: hostingView.rootView.filterActive,
             modes: displayModes,
             exclusionRules: exclusionRules,
-            fuzzyMatchEnabled: fuzzyMatchEnabled
+            fuzzyMatchEnabled: searchSettings.fuzzyMatchEnabled
         )
         // The height is pushed down from the window, because the hosting view
         // has no sizing options and so cannot push one up.
@@ -154,7 +154,7 @@ final class SwitcherPanel: NSPanel {
                             modes: displayModes,
                             query: query,
                             exclusions: exclusionRules,
-                            fuzzy: fuzzyMatchEnabled
+                            fuzzy: searchSettings.fuzzyMatchEnabled
                         )
                     ) + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
                     PanelMetrics.maximumHeight
@@ -261,7 +261,7 @@ final class SwitcherPanel: NSPanel {
                 modes: displayModes,
                 query: query,
                 exclusions: exclusionRules,
-                fuzzy: fuzzyMatchEnabled
+                fuzzy: searchSettings.fuzzyMatchEnabled
             ))
                 + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
             PanelMetrics.maximumHeight

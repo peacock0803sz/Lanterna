@@ -128,7 +128,7 @@ struct PanelFilterDisplayOrderTests {
         surface.isPresented = true
         let selection = PanelSelection(surface: surface)
         let filter = PanelFilter(selection: selection, surface: surface)
-        filter.shortcutMemoryLength = 0
+        filter.searchSettings.shortcutMemoryLength = 0
         let rows = [
             orderRow(windowID: 1, title: "Front page"),
             orderRow(windowID: 2, title: "Downloads"),
@@ -149,7 +149,7 @@ struct PanelFilterDisplayOrderTests {
         surface.isPresented = true
         let selection = PanelSelection(surface: surface)
         let filter = PanelFilter(selection: selection, surface: surface)
-        filter.fuzzyMatchEnabled = true
+        filter.searchSettings.fuzzyMatchEnabled = true
         let rows = [
             orderRow(windowID: 1, title: "Safari start"),
             orderRow(windowID: 2, title: "Downloads"),
@@ -167,7 +167,7 @@ struct PanelFilterDisplayOrderTests {
         surface.isPresented = true
         let selection = PanelSelection(surface: surface)
         let filter = PanelFilter(selection: selection, surface: surface)
-        filter.fuzzyMatchEnabled = false
+        filter.searchSettings.fuzzyMatchEnabled = false
         let rows = [
             orderRow(windowID: 1, title: "Safari start"),
             orderRow(windowID: 2, title: "Downloads"),

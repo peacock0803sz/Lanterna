@@ -26,12 +26,10 @@ final class PanelFilter {
     /// runs. The query starts over with every appearance; the habits do
     /// not.
     private var shortcutMemory = ShortcutMemory(maxLength: 5)
-    /// How many query characters the memory covers. Read at launch from
-    /// the config file and whenever the settings change, like the
+    /// The three search-quality settings as one value. Read at launch
+    /// from the config file and whenever the settings change, like the
     /// exclusion rules are recompiled.
-    var shortcutMemoryLength = 5 {
-        didSet { shortcutMemory.maxLength = shortcutMemoryLength }
-    }
+    var searchSettings = SearchSettings()
 
     private var lastSummary = FilterLogSummary(query: "", matchedCount: 0, totalCount: 0)
     /// Whether keystrokes narrow the list right now. Set only by the filter
@@ -49,11 +47,6 @@ final class PanelFilter {
         guard Diagnostics.logger != nil else { return }
         Diagnostics.writeLine(line, level: level)
     }
-
-    /// Whether subsequence queries match as well as substrings. Read at
-    /// launch from the config file and whenever the settings change, like
-    /// the exclusion rules are recompiled.
-    var fuzzyMatchEnabled = true
 
     /// The compiled exclusion rules. Read at launch from the config file
     /// and recompiled whenever the settings change; the panel keeps the
@@ -147,6 +140,7 @@ final class PanelFilter {
     /// of the choice record nothing; only the commit path calls here.
     /// Empty queries, overlong queries, and a zero cap record nothing.
     func recordShortcut(query: String, id: WindowItem.Identifier) {
+        shortcutMemory.maxLength = searchSettings.shortcutMemoryLength
         shortcutMemory.record(query: query, id: id)
     }
 
@@ -195,6 +189,9 @@ final class PanelFilter {
     /// the match: whatever matcher narrowed them already judged, so this
     /// asks nothing twice and survives matcher changes.
     private func memoryFirst(_ rows: [WindowItem]) -> [WindowItem] {
+        // Synced here rather than in `didSet`: nested edits of the
+        // settings skip `didSet`, and the cap must hold for them too.
+        shortcutMemory.maxLength = searchSettings.shortcutMemoryLength
         guard isActive, !state.query.isEmpty else { return rows }
         guard let remembered = shortcutMemory.lookup(query: state.query) else { return rows }
         guard let index = rows.firstIndex(where: { $0.id == remembered }) else { return rows }
@@ -212,7 +209,7 @@ final class PanelFilter {
             modes: displayModes,
             query: state.query,
             exclusions: exclusionRules,
-            fuzzy: fuzzyMatchEnabled
+            fuzzy: searchSettings.fuzzyMatchEnabled
         )
     }
 

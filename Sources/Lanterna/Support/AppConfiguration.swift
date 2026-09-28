@@ -231,9 +231,7 @@ extension AppConfiguration {
             displayModes: DisplayModes.effective(from: file),
             exclusionEntries: file.exclusions ?? [],
             appearanceMode: AppearanceMode.effective(from: file),
-            shortcutMemoryLength: file.shortcutMemoryLength ?? 5,
-            fuzzyMatchEnabled: file.fuzzyMatchEnabled ?? true,
-            resultOrder: SearchOrdering.effective(from: file),
+            searchSettings: SearchSettings.effective(from: file),
             // The command line wins where it says anything; the file covers
             // the rest. Never written back to the file.
             logLevel: Logger.Level.effective(cli: cli.logLevel, file: file.logLevel)
