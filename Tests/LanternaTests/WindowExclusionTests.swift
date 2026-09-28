@@ -128,4 +128,71 @@ struct WindowExclusionTests {
         )
         #expect(remaining.map(\.id) == [rows[0].id, rows[1].id, rows[2].id])
     }
+
+    /// An anchored pattern matches exactly; the bare word also matches longer titles.
+    @Test func anchoredPatternMatchesExactly() {
+        let exact = WindowExclusion.excluding(
+            rows,
+            rules: rules([ExclusionEntry(app: "^1Password$", titlePattern: "^Mini$")])
+        )
+        #expect(exact.map(\.id) == [rows[1].id, rows[2].id, rows[3].id])
+        let bare = WindowExclusion.excluding(
+            rows,
+            rules: rules([ExclusionEntry(app: "^1Password$", titlePattern: "Mini")])
+        )
+        #expect(bare.map(\.id) == [rows[1].id, rows[2].id, rows[3].id])
+        let longer = WindowExclusion.excluding(
+            [
+                exclusionRow(
+                    appName: "1Password",
+                    bundleIdentifier: "com.1password.1password",
+                    windowTitle: "Mini-extra",
+                    windowID: 9
+                ),
+            ],
+            rules: rules([ExclusionEntry(app: "^1Password$", titlePattern: "^Mini$")])
+        )
+        #expect(longer.map(\.id) == [WindowItem.Identifier(windowID: 9)])
+    }
+
+    /// An exact title match ignores case.
+    @Test func exactTitleIgnoresCase() {
+        let remaining = WindowExclusion.excluding(
+            rows,
+            rules: rules([ExclusionEntry(app: "^1Password$", titlePattern: "^MINI$")])
+        )
+        #expect(remaining.map(\.id) == [rows[1].id, rows[2].id, rows[3].id])
+    }
+
+    /// A lone anchor is literal text, matched the substring way.
+    @Test func loneAnchorIsLiteralText() {
+        let rows = [
+            exclusionRow(
+                appName: "Aid",
+                bundleIdentifier: "com.example.aid",
+                windowTitle: "^abc",
+                windowID: 11
+            ),
+            exclusionRow(
+                appName: "Aid",
+                bundleIdentifier: "com.example.aid",
+                windowTitle: "abc",
+                windowID: 12
+            ),
+        ]
+        let remaining = WindowExclusion.excluding(
+            rows,
+            rules: rules([ExclusionEntry(app: "com.example.aid", titlePattern: "^abc")])
+        )
+        #expect(remaining.map(\.id) == [rows[1].id])
+    }
+
+    /// A display-name pattern keeps the convention of patterns: case matters.
+    @Test func displayNamePatternIsCaseSensitive() {
+        let remaining = WindowExclusion.excluding(
+            rows,
+            rules: rules([ExclusionEntry(app: "install.*", titlePattern: "progress")])
+        )
+        #expect(remaining.map(\.id) == rows.map(\.id))
+    }
 }
