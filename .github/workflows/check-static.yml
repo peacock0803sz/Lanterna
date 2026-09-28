@@ -35,6 +35,8 @@ jobs:
           extra_nix_config: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - name: Validate flake
         run: nix flake check --all-systems
+      - name: Check nix formatting
+        run: nix develop --command nixfmt --check flake.nix
       # The package only supports Apple Silicon Macs, so building the
       # default output here must fail with the unsupported-system message.
       - name: Assert unsupported-system failure

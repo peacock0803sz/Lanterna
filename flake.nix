@@ -162,6 +162,7 @@
             inputsFrom = [ config.pre-commit.devShell ];
             packages = with pkgs; [
               actionlint
+              nixfmt
               pinact
               pkl
               shellcheck
