@@ -26,6 +26,17 @@ struct LogLevelConfigTests {
         }
     }
 
+    @Test func commandLineWinsForLogLevel() throws {
+        var file = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+        file.logLevel = .info
+        let cli = try LaunchArguments.parse(["Lanterna", "--log-level", "debug"])
+        #expect(AppConfiguration.effectiveOptions(file: file, cli: cli).logLevel == .debug)
+        let quietCLI = try LaunchArguments.parse(["Lanterna"])
+        #expect(AppConfiguration.effectiveOptions(file: file, cli: quietCLI).logLevel == .info)
+        let bare = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+        #expect(AppConfiguration.effectiveOptions(file: bare, cli: quietCLI).logLevel == .warning)
+    }
+
     @Test func invalidLogLevelFallsBackAsAWhole() {
         let cases: [(String, ConfigDecodeError)] = [
             ("{\"version\": 1, \"logLevel\": \"WARN\"}", .invalidValue(key: "logLevel")),

@@ -210,9 +210,9 @@ extension AppConfiguration {
                 ?? file.stopMonitorEverySeconds.map { .seconds($0) },
             displayModes: DisplayModes.effective(from: file),
             appearanceMode: AppearanceMode.effective(from: file),
-            // The command-line override arrives in US3; until then the file
-            // and the default decide alone.
-            logLevel: file.logLevel ?? .warning
+            // The command line wins where it says anything; the file covers
+            // the rest. Never written back to the file.
+            logLevel: Logger.Level.effective(cli: cli.logLevel, file: file.logLevel)
         )
     }
 
