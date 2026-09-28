@@ -50,6 +50,35 @@ enum WindowFilter {
         !subsequenceRanges(query: query, in: target).isEmpty
     }
 
+    /// The rows ordered for score mode, keeping the input order otherwise.
+    ///
+    /// Contiguous substring matches come before scattered subsequence
+    /// matches; among those, an earlier match start comes first. Ties keep
+    /// the order they arrived in (a stable sort through the index), so
+    /// equal rows never change places. An empty query changes nothing.
+    static func scoreOrdered(_ rows: [WindowItem], query: String) -> [WindowItem] {
+        rows.enumerated().sorted { left, right in
+            let leftQuality = matchQuality(query: query, target: combinedText(of: left.element))
+            let rightQuality = matchQuality(query: query, target: combinedText(of: right.element))
+            if leftQuality != rightQuality {
+                return leftQuality < rightQuality
+            }
+            return left.offset < right.offset
+        }.map(\.element)
+    }
+
+    /// How one row ranks: contiguous matches before scattered ones, then
+    /// by where the match starts. Rows no matcher judges rank last.
+    private static func matchQuality(query: String, target: String) -> (contiguous: Int, start: Int) {
+        if let first = matchedRanges(query: query, in: target).first {
+            return (0, target.distance(from: target.startIndex, to: first.lowerBound))
+        }
+        if let first = subsequenceRanges(query: query, in: target).first {
+            return (1, target.distance(from: target.startIndex, to: first.lowerBound))
+        }
+        return (2, Int.max)
+    }
+
     /// Where each query character matched, in order, for highlighting.
     ///
     /// Case-insensitive, and empty when the query never appears in order.

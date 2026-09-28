@@ -267,4 +267,28 @@ struct WindowFilterTests {
     @Test func subsequenceRangesAreEmptyWithoutAMatch() {
         #expect(WindowFilter.subsequenceRanges(query: "sdf", in: "Safari").isEmpty)
     }
+
+    /// Score order puts a contiguous match before a scattered one.
+    @Test func scoreOrderPrefersContiguousMatches() {
+        let scattered = filterRow(appName: "Q", windowTitle: "a--b", windowID: 41)
+        let contiguous = filterRow(appName: "Q", windowTitle: "xab", windowID: 42)
+        let ordered = WindowFilter.scoreOrdered([scattered, contiguous], query: "ab")
+        #expect(ordered.map(\.id) == [contiguous.id, scattered.id])
+    }
+
+    /// Score order puts an earlier match start first.
+    @Test func scoreOrderPrefersEarlierMatchStarts() {
+        let later = filterRow(appName: "Q", windowTitle: "xab", windowID: 43)
+        let earlier = filterRow(appName: "Q", windowTitle: "abx", windowID: 44)
+        let ordered = WindowFilter.scoreOrdered([later, earlier], query: "ab")
+        #expect(ordered.map(\.id) == [earlier.id, later.id])
+    }
+
+    /// Score order keeps the input order when nothing ranks apart.
+    @Test func scoreOrderKeepsTiesInInputOrder() {
+        let first = filterRow(appName: "Q", windowTitle: "ab", windowID: 45)
+        let second = filterRow(appName: "Q", windowTitle: "ab", windowID: 46)
+        let ordered = WindowFilter.scoreOrdered([first, second], query: "ab")
+        #expect(ordered.map(\.id) == [first.id, second.id])
+    }
 }
