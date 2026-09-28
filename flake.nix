@@ -10,7 +10,7 @@
     };
   };
 
-  outputs = inputs@{ flake-parts, ... }:
+  outputs = inputs@{ self, flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
         # To import an internal flake module: ./other.nix
@@ -158,6 +158,89 @@
               bash "$root/scripts/generate-version.sh" --install-filter
             fi
           '';
+        };
+
+        # Installable Lanterna.app for Apple Silicon Macs, built with the
+        # host Xcode toolchain (the nixpkgs Swift cannot build this app;
+        # see the devShell comment above). Version comes from this flake's
+        # own ref/rev only, so evaluation stays pure: `self` is closed over
+        # from `outputs`, touching source-info attributes alone.
+        packages =
+          let
+            ref = self.ref or null;
+            rev = self.shortRev or self.dirtyShortRev or null;
+            releaseMatch = if ref == null then null else builtins.match "v([0-9]+\\.[0-9]+\\.[0-9]+)" ref;
+            short = if releaseMatch == null then "0.0.0" else builtins.head releaseMatch;
+            describe =
+              if releaseMatch != null then ref
+              else if rev == null then "dev"
+              else "${if ref == null then "main" else ref}-${rev}";
+          in
+          {
+            default =
+              if system == "aarch64-darwin" then
+                pkgs.stdenv.mkDerivation {
+                  pname = "lanterna";
+                  version = short;
+                  src = self.outPath;
+                  # Needs the host toolchain, SDK, and network (SPM deps),
+                  # so the sandbox stays off for this derivation.
+                  __noChroot = true;
+                  dontConfigure = true;
+                  dontFixup = true;
+                  buildPhase = ''
+                    runHook preBuild
+                    export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+                    export HOME="$TMPDIR"
+                    if ! xcode-select -p &>/dev/null; then
+                      echo "error: Xcode or the Command Line Tools are required to build Lanterna." >&2
+                      echo "  Install with: xcode-select --install" >&2
+                      exit 1
+                    fi
+                    cp -r "$src" build-work
+                    cd build-work
+                    chmod -R u+w .
+                    # No .git in flake sources, so stamp the version directly
+                    # instead of scripts/generate-version.sh.
+                    cat > Sources/Lanterna/Support/StampedVersion.swift <<EOF
+                    /// Stamped by the nix build. Do not edit.
+                    enum StampedVersion {
+                        static let describe = "${describe}"
+                    }
+                    EOF
+                    swift build --triple arm64-apple-macosx26.0 --configuration release
+                    binary="$(swift build --triple arm64-apple-macosx26.0 --configuration release --show-bin-path)/Lanterna"
+                    bash scripts/assemble-app.sh "$binary" "${short}" "$out/Applications/Lanterna.app"
+                    runHook postBuild
+                  '';
+                  installPhase = "runHook preInstall; runHook postInstall;";
+                  meta = with pkgs.lib; {
+                    description = "List-style window switcher for macOS";
+                    homepage = "https://github.com/peacock0803sz/Lanterna";
+                    platforms = [ "aarch64-darwin" ];
+                  };
+                }
+              else
+                pkgs.runCommand "lanterna-unsupported" { } ''
+                  echo "error: Lanterna is only available for aarch64-darwin (macOS 26+ on Apple Silicon); you are on ${system}." >&2
+                  exit 1
+                '';
+          };
+
+        apps = {
+          default =
+            if system == "aarch64-darwin" then {
+              type = "app";
+              program = pkgs.writeShellScriptBin "lanterna" ''
+                exec /usr/bin/open "${self'.packages.default}/Applications/Lanterna.app"
+              '' + "/bin/lanterna";
+            } else {
+              type = "app";
+              program = pkgs.writeShellScriptBin "lanterna" ''
+                echo "error: Lanterna is only available for aarch64-darwin (macOS 26+ on Apple Silicon); you are on ${system}." >&2
+                exit 1
+              '' + "/bin/lanterna";
+            };
         };
 
       };
