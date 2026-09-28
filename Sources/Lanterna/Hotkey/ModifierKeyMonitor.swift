@@ -1,3 +1,5 @@
+import Logging
+
 /// Owns the modifier tap: starts it once, says what that achieved, keeps it
 /// delivering for as long as the app runs, and takes it down on the way out.
 ///
@@ -97,7 +99,7 @@ final class ModifierKeyMonitor {
     private let healthCheckInterval: Duration
     private let onCommandRelease: @MainActor () -> Void
     private let now: @MainActor () -> ContinuousClock.Instant
-    private let writeLine: @MainActor (String) -> Void
+    private let writeLine: @MainActor (Logger.Level, String) -> Void
 
     /// What the first `start()` achieved. Present from that call onwards, and
     /// the reason a repeat call need attempt nothing.
@@ -149,7 +151,7 @@ final class ModifierKeyMonitor {
         healthCheckInterval: Duration = defaultHealthCheckInterval,
         onCommandRelease: @escaping @MainActor () -> Void,
         now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
-        writeLine: @escaping @MainActor (String) -> Void = Diagnostics.writeLine
+        writeLine: @escaping @MainActor (Logger.Level, String) -> Void = { Diagnostics.writeLine($1, level: $0) }
     ) {
         self.tap = tap
         self.healthCheckInterval = healthCheckInterval
@@ -235,13 +237,11 @@ final class ModifierKeyMonitor {
         // Read before the putting-back moves it.
         let downFor = checkedAt - lastKnownEnabledAt
         guard enableTap() else {
-            writeLine("modifier monitor was found disabled; could not re-enable it")
+            writeLine(.error, "modifier monitor was found disabled; could not re-enable it")
             return
         }
-        writeLine(
-            "modifier monitor was found disabled; re-enabled "
-                + "\(Diagnostics.millisecondsText(downFor)) ms after it went down"
-        )
+        writeLine(.warning, "modifier monitor was found disabled; re-enabled "
+            + "\(Diagnostics.millisecondsText(downFor)) ms after it went down")
     }
 
     /// The route that depends on being told: the system says it has switched
@@ -251,10 +251,10 @@ final class ModifierKeyMonitor {
     /// between the two to measure.
     private func putBackAfterBeingTold() {
         guard enableTap() else {
-            writeLine("modifier monitor was disabled by the system; could not re-enable it")
+            writeLine(.error, "modifier monitor was disabled by the system; could not re-enable it")
             return
         }
-        writeLine("modifier monitor was disabled by the system; re-enabled")
+        writeLine(.warning, "modifier monitor was disabled by the system; re-enabled")
     }
 
     /// `enable()` and the one thing every successful enabling owes: moving the
@@ -349,16 +349,12 @@ final class ModifierKeyMonitor {
     /// the recovery, which is the one place the fault would not be.
     func stopOnPurpose() {
         guard tap.disable() else {
-            writeLine(
-                "modifier monitor could not be stopped on purpose "
-                    + "(\(LaunchArguments.stopMonitorEveryFlag.name))"
-            )
+            writeLine(.debug, "modifier monitor could not be stopped on purpose "
+                + "(\(LaunchArguments.stopMonitorEveryFlag.name))")
             return
         }
-        writeLine(
-            "modifier monitor stopped on purpose "
-                + "(\(LaunchArguments.stopMonitorEveryFlag.name))"
-        )
+        writeLine(.debug, "modifier monitor stopped on purpose "
+            + "(\(LaunchArguments.stopMonitorEveryFlag.name))")
     }
 
     /// Takes the tap down.

@@ -1,5 +1,6 @@
 import Foundation
 @testable import Lanterna
+import Logging
 import ServiceManagement
 import Testing
 
@@ -117,12 +118,14 @@ struct LaunchAtLoginTests {
             desired: true,
             service: FakeLoginItem(status: .notRegistered)
         )
-        #expect(registered == "login item registered (launch at login is on)")
+        #expect(registered?.line == "login item registered (launch at login is on)")
+        #expect(registered?.level == .info)
         let unregistered = LaunchAtLogin.sync(
             desired: false,
             service: FakeLoginItem(status: .enabled)
         )
-        #expect(unregistered == "login item unregistered (launch at login is off)")
+        #expect(unregistered?.line == "login item unregistered (launch at login is off)")
+        #expect(unregistered?.level == .info)
     }
 
     @Test func quietRunsStaySilent() {
@@ -136,15 +139,18 @@ struct LaunchAtLoginTests {
             desired: true,
             service: FakeLoginItem(status: .notRegistered, registerError: ProbeError())
         )
-        #expect(failed?.contains("login item unchanged (register failed: ") == true)
-        #expect(failed?.contains("(launch at login is on)") == true)
+        #expect(failed?.line.contains("login item unchanged (register failed: ") == true)
+        #expect(failed?.line.contains("(launch at login is on)") == true)
+        #expect(failed?.level == .warning)
         let unregistered = LaunchAtLogin.sync(
             desired: false,
             service: FakeLoginItem(status: .enabled, unregisterError: ProbeError())
         )
-        #expect(unregistered?.contains("login item unchanged (unregister failed: ") == true)
-        #expect(unregistered?.contains("(launch at login is off)") == true)
+        #expect(unregistered?.line.contains("login item unchanged (unregister failed: ") == true)
+        #expect(unregistered?.line.contains("(launch at login is off)") == true)
+        #expect(unregistered?.level == .warning)
         let unbundled = LaunchAtLogin.sync(desired: true, service: nil)
-        #expect(unbundled == "login item unchanged (not a bundled app) (launch at login is on)")
+        #expect(unbundled?.line == "login item unchanged (not a bundled app) (launch at login is on)")
+        #expect(unbundled?.level == .warning)
     }
 }

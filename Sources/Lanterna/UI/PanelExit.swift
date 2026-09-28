@@ -1,4 +1,5 @@
 import Darwin
+import Logging
 
 /// Every way the panel comes off the screen, and the line each of them
 /// writes.
@@ -28,7 +29,7 @@ final class PanelExit {
     private let surface: any SwitcherSurface
     private let now: @MainActor () -> ContinuousClock.Instant
     /// Read beside the exit, by the ways out in its extension.
-    let writeLine: @MainActor (String) -> Void
+    let writeLine: @MainActor (Logger.Level, String) -> Void
 
     /// Run whenever the panel goes, whichever way it went.
     ///
@@ -68,6 +69,7 @@ final class PanelExit {
         // while rather than only the noticing of it.
         onTakenBack: { [weak self] withoutKeys in
             self?.writeLine(
+                .info,
                 "panel stopped taking keys; taken back "
                     + "\(Diagnostics.millisecondsText(withoutKeys)) ms later"
             )
@@ -130,7 +132,7 @@ final class PanelExit {
     init(
         surface: any SwitcherSurface,
         now: @escaping @MainActor () -> ContinuousClock.Instant,
-        writeLine: @escaping @MainActor (String) -> Void,
+        writeLine: @escaping @MainActor (Logger.Level, String) -> Void,
         keyStatusWatchInterval: Duration = KeyStatusWatch.defaultInterval,
         switcher: any WindowSwitching = LiveWindowSwitcher(),
         recordCommit: @escaping @MainActor (WindowItem.Identifier, pid_t) -> Void,
@@ -294,6 +296,7 @@ final class PanelExit {
         }
         dismissPanel()
         writeLine(
+            .info,
             "closed the panel showing \(named ?? "nothing"); "
                 + "Command was let go and the tap never said so"
         )
@@ -346,7 +349,7 @@ final class PanelExit {
             elapsed: elapsed,
             filter: filterSummary
         )
-        writeLine(SwitchMeasurement(
+        writeLine(.info, SwitchMeasurement(
             appName: take.appName,
             displayTitle: take.displayTitle,
             id: take.id,
@@ -390,6 +393,6 @@ final class PanelExit {
             elapsed: elapsed,
             filterSummary: filterSummary
         )
-        writeLine(measurement.summaryLine)
+        writeLine(.info, measurement.summaryLine)
     }
 }

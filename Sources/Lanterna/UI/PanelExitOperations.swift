@@ -1,3 +1,5 @@
+import Logging
+
 /// The ways out that reconciling an operation needs, and the take-down for
 /// the app's own tidying beside them.
 ///
@@ -12,14 +14,14 @@ extension PanelExit {
     /// over it, so the tidying can go on.
     func closeAfterEmptiedList(operation: WindowOperation) {
         dismissPanel()
-        writeLine("closed the panel (\(operation.logName) emptied the list)")
+        writeLine(.info, "closed the panel (\(operation.logName) emptied the list)")
     }
 
     /// The wording for the disappearances that are the app tidying up after
     /// itself rather than the user deciding anything.
     func takeDown(because reason: String) {
         dismissPanel()
-        writeLine("panel hidden (\(reason))")
+        writeLine(.info, "panel hidden (\(reason))")
     }
 
     /// Swaps the list an appearance is showing, whenever an operation moves
@@ -42,6 +44,7 @@ extension PanelExit {
     func closeAfterInterruptedOperation(operation: WindowOperation, appName: String, displayTitle: String) {
         dismissPanel()
         writeLine(
+            .warning,
             "closed the panel (\(operation.logName) not confirmed: \(appName)/\(displayTitle))"
         )
     }

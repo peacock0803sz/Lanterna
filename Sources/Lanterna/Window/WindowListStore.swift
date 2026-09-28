@@ -1,3 +1,5 @@
+import Logging
+
 /// The one owner of the window list.
 ///
 /// The list used to be gathered by the press that needed it, which made every
@@ -48,13 +50,13 @@ final class WindowListStore {
     /// Callers parked until the first pass produces something.
     private var waitingForFirstList: [CheckedContinuation<Void, Never>] = []
     private let gather: @MainActor () async -> WindowListSnapshot
-    private let writeLine: @MainActor (String) -> Void
+    private let writeLine: @MainActor (Logger.Level, String) -> Void
 
     init(
         gather: @escaping @MainActor () async -> WindowListSnapshot = {
             await WindowEnumerator().enumerateRegularApplicationsOffMainThread()
         },
-        writeLine: @escaping @MainActor (String) -> Void = Diagnostics.writeLine
+        writeLine: @escaping @MainActor (Logger.Level, String) -> Void = { Diagnostics.writeLine($1, level: $0) }
     ) {
         self.gather = gather
         self.writeLine = writeLine
@@ -70,7 +72,7 @@ final class WindowListStore {
     /// not happen would at least not change what is held.
     init(
         fixed items: [WindowItem],
-        writeLine: @escaping @MainActor (String) -> Void = Diagnostics.writeLine
+        writeLine: @escaping @MainActor (Logger.Level, String) -> Void = { Diagnostics.writeLine($1, level: $0) }
     ) {
         let fixed = WindowListSnapshot(
             items: items,
@@ -99,14 +101,14 @@ final class WindowListStore {
     /// the second out. The list it wanted is on its way regardless.
     func refresh() async {
         guard !isRefreshing else {
-            writeLine("refresh skipped (previous pass still running)")
+            writeLine(.info, "refresh skipped (previous pass still running)")
             return
         }
         isRefreshing = true
         defer { isRefreshing = false }
         let gathered = await gather()
         snapshot = gathered
-        writeLine(gathered.summaryLine)
+        writeLine(.info, gathered.summaryLine)
 
         let waiting = waitingForFirstList
         waitingForFirstList = []

@@ -1,5 +1,6 @@
 import Foundation
 @testable import Lanterna
+import Logging
 import Testing
 
 /// What writing the config file produces, as text and as bytes.
@@ -30,6 +31,7 @@ struct ConfigEncodingTests {
         config.fullscreenMode = .separateAtBottom
         config.appearanceMode = .light
         config.romajiScope = .kanaOnly
+        config.logLevel = .debug
         let decoded = AppConfiguration.decode(AppConfiguration.encode(config))
         #expect(decoded.successValue?.config == config)
     }
@@ -41,5 +43,6 @@ struct ConfigEncodingTests {
         )
         #expect(!text.contains("sampleCount"))
         #expect(!text.contains("appearanceMode"))
+        #expect(!text.contains("logLevel"))
     }
 }

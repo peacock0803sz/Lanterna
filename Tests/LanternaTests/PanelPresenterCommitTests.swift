@@ -301,7 +301,7 @@ struct PanelPresenterCommitTests {
 struct PanelPresenterCallOffTests {
     private func waitingForItsFirstList(_ fake: HeldGather) -> Fixture {
         Fixture(
-            store: WindowListStore(gather: fake.gather, writeLine: { _ in }),
+            store: WindowListStore(gather: fake.gather, writeLine: { _, _ in }),
             closesOnCommandRelease: true
         )
     }

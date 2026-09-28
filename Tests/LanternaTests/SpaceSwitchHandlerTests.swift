@@ -2,6 +2,7 @@ import AppKit
 import CoreGraphics
 import Darwin
 @testable import Lanterna
+import Logging
 import Testing
 
 /// A row naming an exact window, so the handler tests can stage a frontmost
@@ -43,7 +44,7 @@ struct SpaceSwitchHandlerTests {
     @Test func spaceChangeRecordsFrontmostAndRefreshes() async {
         let store = WindowListStore(
             gather: { spaceSnapshot([spaceRow(windowID: 7, owner: otherProcess)]) },
-            writeLine: { _ in }
+            writeLine: { _, _ in }
         )
         let tracker = MRUTracker()
         let reading = FakeFocusedReading(windowID: 7)
@@ -79,7 +80,7 @@ struct SpaceSwitchHandlerTests {
                     gatheredAt: .now
                 )
             },
-            writeLine: { _ in }
+            writeLine: { _, _ in }
         )
         let tracker = MRUTracker()
         let log = DiagnosticsLog()
@@ -114,7 +115,7 @@ struct SpaceSwitchHandlerTests {
                     gatheredAt: .now
                 )
             },
-            writeLine: { _ in }
+            writeLine: { _, _ in }
         )
         let tracker = MRUTracker()
         let log = DiagnosticsLog()
@@ -149,7 +150,7 @@ struct SpaceSwitchHandlerTests {
                     gatheredAt: .now
                 )
             },
-            writeLine: { _ in }
+            writeLine: { _, _ in }
         )
         let tracker = MRUTracker()
         let log = DiagnosticsLog()
@@ -179,7 +180,7 @@ struct SpaceSwitchHandlerTests {
         let rows = [spaceRow(windowID: 8, owner: otherProcess)]
         let store = WindowListStore(
             gather: { spaceSnapshot(rows) },
-            writeLine: { _ in }
+            writeLine: { _, _ in }
         )
         let tracker = MRUTracker()
         let log = DiagnosticsLog()
@@ -205,7 +206,7 @@ struct SpaceSwitchHandlerTests {
     @Test func spaceChangeWithFailedReReadKeepsTheOptimisticRecord() async {
         let store = WindowListStore(
             gather: { spaceSnapshot([spaceRow(windowID: 7, owner: otherProcess)]) },
-            writeLine: { _ in }
+            writeLine: { _, _ in }
         )
         let tracker = MRUTracker()
         let log = DiagnosticsLog()
@@ -271,6 +272,10 @@ struct SpaceSwitchHandlerTests {
         #expect(!storeLog.lines.contains("refresh skipped (previous pass still running)"))
         #expect(tracker.newestSource == .external)
         #expect(handlerLog.lines.contains("space changed; refreshing window list"))
+        #expect(
+            handlerLog.entries.first(where: { $0.line == "space changed; refreshing window list" })?.level
+                == .info
+        )
     }
 }
 

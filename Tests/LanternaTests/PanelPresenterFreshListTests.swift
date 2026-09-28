@@ -35,8 +35,8 @@ struct PanelPresenterFreshListTests {
         tracker.record(rows[2].id, ownerProcessIdentifier: rows[2].ownerProcessIdentifier, origin: .external)
         let presenter = PanelPresenter(
             surface: FakeSurface(),
-            store: WindowListStore(gather: { passFinding(rows) }, writeLine: { _ in }),
-            writeLine: { _ in },
+            store: WindowListStore(gather: { passFinding(rows) }, writeLine: { _, _ in }),
+            writeLine: { _, _ in },
             tracker: tracker
         )
         let fresh = await presenter.freshList(carrying: [])
@@ -51,8 +51,8 @@ struct PanelPresenterFreshListTests {
         tracker.record(rows[0].id, ownerProcessIdentifier: rows[0].ownerProcessIdentifier, origin: .external)
         let presenter = PanelPresenter(
             surface: FakeSurface(),
-            store: WindowListStore(gather: { passFinding(rows) }, writeLine: { _ in }),
-            writeLine: { _ in },
+            store: WindowListStore(gather: { passFinding(rows) }, writeLine: { _, _ in }),
+            writeLine: { _, _ in },
             tracker: tracker
         )
         let fresh = await presenter.freshList(carrying: [])
@@ -67,8 +67,8 @@ struct PanelPresenterFreshListTests {
         let rows = rows
         let presenter = PanelPresenter(
             surface: FakeSurface(),
-            store: WindowListStore(gather: { passFinding([rows[0]], skipping: [125]) }, writeLine: { _ in }),
-            writeLine: { _ in }
+            store: WindowListStore(gather: { passFinding([rows[0]], skipping: [125]) }, writeLine: { _, _ in }),
+            writeLine: { _, _ in }
         )
         let fresh = await presenter.freshList(carrying: rows)
         #expect(fresh?.windows.map(\.id) == [rows[0].id, rows[2].id])
@@ -94,8 +94,8 @@ struct PanelPresenterFreshListTests {
         tracker.record(rows[0].id, ownerProcessIdentifier: rows[0].ownerProcessIdentifier, origin: .external)
         let presenter = PanelPresenter(
             surface: FakeSurface(),
-            store: WindowListStore(gather: { passFinding([rows[1]]) }, writeLine: { _ in }),
-            writeLine: { _ in },
+            store: WindowListStore(gather: { passFinding([rows[1]]) }, writeLine: { _, _ in }),
+            writeLine: { _, _ in },
             tracker: tracker
         )
         let fresh = await presenter.freshList(carrying: [])

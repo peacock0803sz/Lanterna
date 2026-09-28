@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import Logging
 
 /// The operations on a system-wide event tap that the monitor needs.
 ///
@@ -292,7 +293,7 @@ private func handleModifierEvent(
         // nothing reaches here. It says so all the same rather than slipping
         // away quietly, because a return with nothing written would read
         // exactly like a tap that was never sent an event at all.
-        Diagnostics.writeLine("event ignored; the callback arrived with no way back to the tap")
+        Diagnostics.writeLine("event ignored; the callback arrived with no way back to the tap", level: .warning)
         return Unmanaged.passUnretained(event)
     }
     let tap = Unmanaged<SystemEventTap>.fromOpaque(userInfo).takeUnretainedValue()
@@ -305,7 +306,8 @@ private func handleModifierEvent(
         // thing in the line that tells those two apart.
         Diagnostics.writeLine(
             "modifier monitor callback ran off the main thread; event ignored "
-                + "(type \(type.rawValue))"
+                + "(type \(type.rawValue))",
+            level: .warning
         )
         return Unmanaged.passUnretained(event)
     }

@@ -1,4 +1,5 @@
 import AppKit
+import Logging
 
 /// Settings changes, split out when the delegate reached the file-length
 /// limit. Launch keeps the handles; everything a change touches hangs
@@ -71,7 +72,7 @@ extension AppDelegate {
         channel: UpdateChannel,
         display: UpdateCheckDisplay
     ) {
-        Diagnostics.writeLine(UpdateCheck.diagnosticsLine(result, channel: channel))
+        Diagnostics.writeLine(UpdateCheck.diagnosticsLine(result, channel: channel), level: .info)
         guard settingsWindow?.checkDisplay === display else { return }
         display.isChecking = false
         switch result {
@@ -166,20 +167,21 @@ extension AppDelegate {
         // Keeps the login item with the toggle, apart from the save: the
         // change is live before the file catches up, and the next launch
         // heals whatever drift is left. A failure stays a diagnostics line.
-        if let line = LaunchAtLogin.sync(
+        if let report = LaunchAtLogin.sync(
             desired: values.launchAtLogin,
             service: LaunchAtLogin.liveIfBundled()
         ) {
-            Diagnostics.writeLine(line)
+            Diagnostics.writeLine(report.line, level: report.level)
         }
         guard let configFileURL else {
             return .failed(reason: "cannot resolve directory")
         }
-        let (sampleCount, stopMonitorEvery) = preservedDebugKeys()
+        let preserved = preservedConfiguration()
         let config = values.configuration(
             version: AppConfiguration.currentVersion,
-            sampleCount: sampleCount,
-            stopMonitorEverySeconds: stopMonitorEvery
+            sampleCount: preserved?.sampleCount,
+            stopMonitorEverySeconds: preserved?.stopMonitorEverySeconds,
+            logLevel: preserved?.logLevel
         )
         return SettingsSaver.save(
             config,
@@ -193,11 +195,14 @@ extension AppDelegate {
     /// Anything unreadable means nothing to preserve: an invalid file is
     /// about to be confirmed away or rebuilt, and a missing one was never
     /// going to supply them.
-    private func preservedDebugKeys() -> (Int?, Int?) {
+    /// The on-disk configuration the settings window does not manage, read
+    /// back so saving from the window does not drop it: the debug count and
+    /// period, and the log level, which lives in the file alone.
+    private func preservedConfiguration() -> ValidConfiguration? {
         guard let configFileURL,
               let data = try? Data(contentsOf: configFileURL),
               case let .success(decoded) = AppConfiguration.decode(data)
-        else { return (nil, nil) }
-        return (decoded.config.sampleCount, decoded.config.stopMonitorEverySeconds)
+        else { return nil }
+        return decoded.config
     }
 }

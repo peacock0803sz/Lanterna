@@ -1,5 +1,6 @@
 import Foundation
 @testable import Lanterna
+import Logging
 import Testing
 
 /// What survives a restart, and what an invalid file leaves behind.
@@ -29,6 +30,20 @@ struct SettingsPersistenceTests {
         #expect(SettingsValues.effective(from: decoded.config) == values)
         #expect(decoded.config.sampleCount == 2)
         #expect(decoded.config.stopMonitorEverySeconds == 5)
+    }
+
+    @Test func unsavedKeysSurviveASave() throws {
+        let url = try temporaryFile()
+        let values = SettingsValues.defaults
+        let config = values.configuration(
+            version: 1,
+            sampleCount: 2,
+            stopMonitorEverySeconds: 5,
+            logLevel: .debug
+        )
+        #expect(SettingsSaver.save(config, to: url, replacingInvalidFile: false) == .saved)
+        let decoded = try #require(try AppConfiguration.decode(Data(contentsOf: url)).successValue)
+        #expect(decoded.config.logLevel == .debug)
     }
 
     @Test func invalidFileFallsBackToDefaultsWithReason() throws {

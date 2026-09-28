@@ -1,4 +1,5 @@
 @testable import Lanterna
+import Logging
 import Testing
 
 /// Putting a stopped tap back, by both routes.
@@ -68,6 +69,7 @@ struct ModifierKeyMonitorRecoveryTests {
             fixture.log.lines.last
                 == "modifier monitor was found disabled; could not re-enable it"
         )
+        #expect(fixture.log.entries.last?.level == .error)
     }
 
     /// Four lines say that the tap came back, or did not, and which route
@@ -115,6 +117,7 @@ struct ModifierKeyMonitorRecoveryTests {
         fromTheStart.tap.isEnabled = false
         fromTheStart.monitor.checkHealth()
         #expect(fromTheStart.log.lines.last == Self.foundDisabled("4.8"))
+        #expect(fromTheStart.log.entries.last?.level == .warning)
 
         // A check saw it enabled in between, so that check is the origin.
         let fromACheck = MonitorFixture()
@@ -172,6 +175,7 @@ struct ModifierKeyMonitorRecoveryTests {
             fixture.log.lines.last
                 == "modifier monitor stopped on purpose (--stop-monitor-every)"
         )
+        #expect(fixture.log.entries.last?.level == .debug)
 
         fixture.monitor.checkHealth()
 
@@ -204,6 +208,7 @@ struct ModifierKeyMonitorRecoveryTests {
             fixture.log.lines.last
                 == "modifier monitor could not be stopped on purpose (--stop-monitor-every)"
         )
+        #expect(fixture.log.entries.last?.level == .debug)
     }
 
     /// The loop, driven for real rather than by hand — the first of the four

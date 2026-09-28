@@ -1,4 +1,5 @@
 import AppKit
+import Logging
 
 // Named rather than left to AppKit's re-export: the two input-monitoring
 // calls below live in `CGEvent.h`, not in the Application Services umbrella
@@ -120,7 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.presenter = presenter
 
         let outcome = hotkeys.register()
-        Diagnostics.writeLine(outcome.summaryLine)
+        Diagnostics.writeLine(outcome.summaryLine, level: outcome.logLevel)
         guard !outcome.isTotalFailure else {
             // Nothing has been taken from the system yet, so there is nothing
             // to give back on the way out.
@@ -133,10 +134,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // this is here for.
         TerminationSignals.install(cleanUp: shutDown)
 
-        if let line = SystemSwitcherShortcuts.summaryLine(
-            disabling: SystemSwitcherShortcuts.disable(outcome.registered)
-        ) {
-            Diagnostics.writeLine(line)
+        let disabling = SystemSwitcherShortcuts.disable(outcome.registered)
+        if let line = SystemSwitcherShortcuts.summaryLine(disabling: disabling) {
+            Diagnostics.writeLine(line, level: .warning)
         }
 
         startMonitoringModifiers(for: presenter)
@@ -189,7 +189,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             started
                 ? "panel key monitor started; a panel that is up can take the whole keyboard"
                 : "panel key monitor could not start; keys reach the frontmost application "
-                + "even while a panel is up"
+                + "even while a panel is up",
+            level: started ? .info : .warning
         )
         panelKeys = channel
     }
@@ -213,7 +214,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.monitor = monitor
         let outcome = monitor.start()
-        Diagnostics.writeLine(outcome.summaryLine)
+        Diagnostics.writeLine(outcome.summaryLine, level: outcome.producedATap ? .info : .error)
         stopPeriodically(monitor, startedWith: outcome)
     }
 
@@ -231,7 +232,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         startedWith outcome: ModifierKeyMonitor.StartOutcome
     ) {
         guard let period = options.stopMonitorEvery, outcome.producedATap else { return }
-        Diagnostics.writeLine(ModifierKeyMonitor.periodicStopAnnouncement(every: period))
+        Diagnostics.writeLine(ModifierKeyMonitor.periodicStopAnnouncement(every: period), level: .debug)
         // `weak` for the same reason the monitor's own loop is: this holds the
         // task, so a strong capture would be the pair keeping each other alive
         // through it.
@@ -370,14 +371,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let sampleCount = options.sampleCount {
             // The fixture needs no permission, so the check is skipped with
             // it, and it never changes, so nothing refreshes it.
-            Diagnostics.writeLine("showing \(sampleCount) sample entries (--sample-count)")
+            Diagnostics.writeLine("showing \(sampleCount) sample entries (--sample-count)", level: .info)
             return WindowListStore(fixed: SampleWindows.make(count: sampleCount))
         }
         guard AccessibilityPermission.isTrusted(promptingIfNeeded: true) else {
             Diagnostics.writeLine(
                 "accessibility permission not granted; the window list stays empty for this run; "
                     + "grant it in System Settings > Privacy & Security > Accessibility and "
-                    + "restart the app"
+                    + "restart the app", level: .warning
             )
             // An empty list is held rather than a loop started, which would
             // report the same missing permission on every pass for as long as

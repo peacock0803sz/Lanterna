@@ -1,4 +1,5 @@
 import Darwin
+import Logging
 
 /// The reconciling half of the window operations.
 ///
@@ -74,6 +75,7 @@ extension PanelWindowOperations {
             let fresh = await refresh(presented)
             guard appearance == generation else {
                 writeLine(
+                    .warning,
                     "window operation left unreconciled (\(reconciliation.operation.logName) "
                         + "\(reconciliation.row.appName)/\(reconciliation.row.displayTitle); the panel went)"
                 )
@@ -89,6 +91,7 @@ extension PanelWindowOperations {
                 presented = fresh.windows
                 replaceList(fresh.windows, anchor)
                 writeLine(
+                    .info,
                     "window operation (\(reconciliation.operation.logName) "
                         + "\(reconciliation.row.appName)/\(reconciliation.row.displayTitle))"
                 )
@@ -119,6 +122,7 @@ extension PanelWindowOperations {
         replaceList(snapshot, anchor)
         surface.showNotice("Couldn't \(operation.logName) \(row.displayTitle)")
         writeLine(
+            .warning,
             "window operation failed (\(operation.logName) "
                 + "\(row.appName)/\(row.displayTitle): \(failure.logDescription))"
         )

@@ -1,5 +1,6 @@
 import Carbon.HIToolbox
 import Foundation
+import Logging
 
 /// Stamped on every hotkey this app registers, spelling "LTRN". A press
 /// carrying anything else belongs to some other handler on the same target and
@@ -46,6 +47,13 @@ struct HotkeyRegistrationOutcome: Sendable {
     /// and no reason to stay running.
     var isTotalFailure: Bool {
         registered.isEmpty
+    }
+
+    /// The level the one launch line carries: silence when everything
+    /// registered, a warning when some did not, an error when none did
+    /// and the run ends here.
+    var logLevel: Logger.Level {
+        isTotalFailure ? .error : (failures.isEmpty ? .info : .warning)
     }
 
     /// The one line written after registration: what was taken, what was not
@@ -258,7 +266,8 @@ private func handleHotkeyEvent(
     // visible reason.
     guard Thread.isMainThread else {
         Diagnostics.writeLine(
-            "dropped \(combination.name); Carbon ran the handler off the main thread"
+            "dropped \(combination.name); Carbon ran the handler off the main thread",
+            level: .warning
         )
         return OSStatus(eventNotHandledErr)
     }

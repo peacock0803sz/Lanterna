@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 
 // Mirrors ConfigSchema.pkl in Swift. Change the schema first, then mirror
 // it here, and keep the three (schema, types, scaffold) as one. CI checks
@@ -21,7 +22,7 @@ enum AppConfiguration {
     static let knownKeys: Set<String> = [
         "version", "sampleCount", "stopMonitorEvery",
         "otherSpaceMode", "hiddenAppMode", "minimizedMode", "fullscreenMode",
-        "appearanceMode", "romajiScope", "launchAtLogin",
+        "appearanceMode", "romajiScope", "launchAtLogin", "logLevel",
         "updateCheckEnabled", "updateChannel",
     ]
 
@@ -47,6 +48,7 @@ struct ValidConfiguration: Equatable, Sendable {
     var appearanceMode: AppearanceMode?
     var romajiScope: RomajiScope?
     var launchAtLogin: Bool?
+    var logLevel: Logger.Level?
     var updateCheckEnabled: Bool?
     var updateChannel: String?
 
@@ -61,6 +63,7 @@ struct ValidConfiguration: Equatable, Sendable {
         appearanceMode: AppearanceMode? = nil,
         romajiScope: RomajiScope? = nil,
         launchAtLogin: Bool? = nil,
+        logLevel: Logger.Level? = nil,
         updateCheckEnabled: Bool? = nil,
         updateChannel: String? = nil
     ) {
@@ -74,6 +77,7 @@ struct ValidConfiguration: Equatable, Sendable {
         self.appearanceMode = appearanceMode
         self.romajiScope = romajiScope
         self.launchAtLogin = launchAtLogin
+        self.logLevel = logLevel
         self.updateCheckEnabled = updateCheckEnabled
         self.updateChannel = updateChannel
     }
@@ -205,7 +209,10 @@ extension AppConfiguration {
             stopMonitorEvery: cli.stopMonitorEvery
                 ?? file.stopMonitorEverySeconds.map { .seconds($0) },
             displayModes: DisplayModes.effective(from: file),
-            appearanceMode: AppearanceMode.effective(from: file)
+            appearanceMode: AppearanceMode.effective(from: file),
+            // The command line wins where it says anything; the file covers
+            // the rest. Never written back to the file.
+            logLevel: Logger.Level.effective(cli: cli.logLevel, file: file.logLevel)
         )
     }
 

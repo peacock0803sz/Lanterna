@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 
 /// The command-line options the app understands.
 ///
@@ -21,6 +22,9 @@ enum LaunchArguments {
         var displayModes: DisplayModes = .defaults
         /// Which appearance the windows use. No flag sets it; the file covers it.
         var appearanceMode: AppearanceMode = .system
+        /// How much diagnostics this run emits. `nil` leaves it to the file
+        /// and the default. Never written back to the file.
+        var logLevel: Logger.Level?
     }
 
     /// What a flag will take, as one closed choice.
@@ -38,12 +42,18 @@ enum LaunchArguments {
     enum AcceptedValues: Equatable, Sendable {
         case zeroOrMore
         case oneOrMore
+        /// One of the listed words, and nothing else. The list is the bound:
+        /// a refusal reads it back, so neither can drift from the other.
+        case allowedWords([String])
 
-        /// The smallest value accepted.
+        /// The smallest value accepted. Words have no range; the zero keeps
+        /// the switch total on a branch nothing reads, because words are
+        /// matched rather than ranged.
         var minimum: Int {
             switch self {
             case .zeroOrMore: 0
             case .oneOrMore: 1
+            case .allowedWords: 0
             }
         }
 
@@ -52,6 +62,7 @@ enum LaunchArguments {
             switch self {
             case .zeroOrMore: "zero or more"
             case .oneOrMore: "one or more"
+            case let .allowedWords(words): "one of \(words.joined(separator: ", "))"
             }
         }
     }
@@ -85,9 +96,18 @@ enum LaunchArguments {
         accepts: .oneOrMore
     )
 
+    /// Four words, and only those four. The list mirrors the words
+    /// `Logger.Level/parse(word:)` reads: a word added there wants adding
+    /// here, and the refusal below reads the list back so the two cannot
+    /// drift apart unnoticed.
+    static let logLevelFlag = Flag(
+        name: "--log-level",
+        accepts: .allowedWords(["error", "warning", "info", "debug"])
+    )
+
     /// Every flag there is. Anything beginning with two dashes and absent from
     /// here is an unknown option, whatever else may name it.
-    static let allFlags = [sampleCountFlag, stopMonitorEveryFlag]
+    static let allFlags = [sampleCountFlag, stopMonitorEveryFlag, logLevelFlag]
 
     /// Why an argument could not be used. The text is the reason alone; the
     /// usage line is `LaunchArguments.usage`.
@@ -106,7 +126,14 @@ enum LaunchArguments {
             case let .missingValue(flag):
                 "\(flag.name) needs a value"
             case let .invalidValue(flag, value):
-                "\"\(value)\" is not a whole number of \(flag.accepts.described) (\(flag.name))"
+                switch flag.accepts {
+                case .allowedWords:
+                    // A word refusal names the words rather than a range:
+                    // there is no bound to miss, only a list to leave.
+                    "\"\(value)\" is not \(flag.accepts.described) (\(flag.name))"
+                default:
+                    "\"\(value)\" is not a whole number of \(flag.accepts.described) (\(flag.name))"
+                }
             case let .unknownOption(option):
                 "unknown option \"\(option)\""
             case let .duplicateFlag(flag):
@@ -118,6 +145,7 @@ enum LaunchArguments {
     /// One line describing correct usage, for stderr.
     static let usage = "usage: Lanterna [\(sampleCountFlag.name) N]"
         + " [\(stopMonitorEveryFlag.name) SECONDS]"
+        + " [\(logLevelFlag.name) LEVEL]"
 
     /// What the command line asked for. Both `--flag value` and `--flag=value`
     /// are accepted, for either flag, in any position and in any order. An
@@ -136,6 +164,7 @@ enum LaunchArguments {
         // is ever handed a bare number whose unit it could take for
         // milliseconds.
         var values: [String: Int] = [:]
+        var words: [String: String] = [:]
         var index = arguments.index(after: arguments.startIndex)
 
         while index < arguments.endIndex {
@@ -143,15 +172,16 @@ enum LaunchArguments {
             if let flag = allFlags.first(where: { argument == $0.name }) {
                 // Asked before the value is looked for, so a flag given twice
                 // reads as a repeat whichever of the two is also malformed.
-                guard values[flag.name] == nil else { throw .duplicateFlag(flag) }
+                guard values[flag.name] == nil, words[flag.name] == nil else {
+                    throw .duplicateFlag(flag)
+                }
                 let valueIndex = arguments.index(after: index)
                 guard valueIndex < arguments.endIndex else { throw .missingValue(flag) }
-                values[flag.name] = try parsedValue(arguments[valueIndex], of: flag)
+                try store(arguments[valueIndex], of: flag, values: &values, words: &words)
                 index = arguments.index(after: valueIndex)
             } else if let flag = allFlags.first(where: { argument.hasPrefix($0.inlinePrefix) }) {
-                guard values[flag.name] == nil else { throw .duplicateFlag(flag) }
                 let rawValue = String(argument.dropFirst(flag.inlinePrefix.count))
-                values[flag.name] = try parsedValue(rawValue, of: flag)
+                try store(rawValue, of: flag, values: &values, words: &words)
                 index = arguments.index(after: index)
             } else if argument.hasPrefix("--") {
                 throw .unknownOption(argument)
@@ -162,8 +192,28 @@ enum LaunchArguments {
 
         return Options(
             sampleCount: values[sampleCountFlag.name],
-            stopMonitorEvery: values[stopMonitorEveryFlag.name].map { .seconds($0) }
+            stopMonitorEvery: values[stopMonitorEveryFlag.name].map { .seconds($0) },
+            logLevel: words[logLevelFlag.name].flatMap(Logger.Level.parse(word:))
         )
+    }
+
+    /// Files one flag's raw value under its name. Words and numbers share
+    /// the repeat rule, so the guard lives here rather than once per form.
+    private static func store(
+        _ rawValue: String,
+        of flag: Flag,
+        values: inout [String: Int],
+        words: inout [String: String]
+    ) throws(ParseError) {
+        guard values[flag.name] == nil, words[flag.name] == nil else {
+            throw .duplicateFlag(flag)
+        }
+        switch flag.accepts {
+        case .allowedWords:
+            words[flag.name] = try parsedWord(rawValue, of: flag)
+        default:
+            values[flag.name] = try parsedValue(rawValue, of: flag)
+        }
     }
 
     private static func parsedValue(
@@ -174,5 +224,17 @@ enum LaunchArguments {
             throw .invalidValue(flag: flag, value: rawValue)
         }
         return value
+    }
+
+    /// One of the flag's words, and nothing else. Only exact words count:
+    /// case, spacing and aliases refuse the way out-of-range numbers do.
+    private static func parsedWord(
+        _ rawValue: String,
+        of flag: Flag
+    ) throws(ParseError) -> String {
+        guard case let .allowedWords(words) = flag.accepts, words.contains(rawValue) else {
+            throw .invalidValue(flag: flag, value: rawValue)
+        }
+        return rawValue
     }
 }

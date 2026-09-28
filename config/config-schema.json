@@ -76,6 +76,16 @@
       "description": "Whether Lanterna starts at login. Absent means off.",
       "type": "boolean"
     },
+    "logLevel": {
+      "description": "The diagnostics threshold. Absent means \"warning\".",
+      "type": "string",
+      "enum": [
+        "error",
+        "warning",
+        "info",
+        "debug"
+      ]
+    },
     "updateCheckEnabled": {
       "description": "Whether Lanterna checks for newer releases. Absent means off.",
       "type": "boolean"

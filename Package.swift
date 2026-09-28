@@ -7,6 +7,11 @@ let package = Package(
     platforms: [
         .macOS(.v26),
     ],
+    dependencies: [
+        // Diagnostics levels and backends. Pinned below in
+        // Package.resolved; Renovate keeps the pin current.
+        .package(url: "https://github.com/apple/swift-log", from: "1.9.0"),
+    ],
     targets: [
         // Declarations of the private system functions the app calls; the
         // case for each is made in the header. Kept in C because Swift has no
@@ -20,7 +25,10 @@ let package = Package(
             resources: [.copy("tables")],
             cSettings: [.unsafeFlags(["-w"])]
         ),
-        .executableTarget(name: "Lanterna", dependencies: ["PrivateAPIs", "CMigemo"]),
+        .executableTarget(
+            name: "Lanterna",
+            dependencies: ["PrivateAPIs", "CMigemo", .product(name: "Logging", package: "swift-log")]
+        ),
         .testTarget(
             name: "LanternaTests",
             dependencies: ["Lanterna"]

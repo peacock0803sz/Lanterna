@@ -1,5 +1,6 @@
 import Foundation
 @testable import Lanterna
+import Logging
 import Testing
 
 private typealias Failure = HotkeyRegistrationOutcome.Failure
@@ -33,6 +34,7 @@ struct HotkeyRegistrationOutcomeTests {
     @Test func allTakenReadsAsOneList() {
         #expect(Self.everything.summaryLine == "registered Cmd+Tab, Shift+Cmd+Tab, Cmd+Space")
         #expect(Self.everything.isTotalFailure == false)
+        #expect(Self.everything.logLevel == .info)
     }
 
     /// A half-working app is the case worth reading carefully: it keeps
@@ -43,6 +45,7 @@ struct HotkeyRegistrationOutcomeTests {
                 == "registered Shift+Cmd+Tab, Cmd+Space; could not register Cmd+Tab (error -9878)"
         )
         #expect(Self.allButForward.isTotalFailure == false)
+        #expect(Self.allButForward.logLevel == .warning)
     }
 
     @Test func nothingTakenSaysWhyAndSaysItIsLeaving() {
@@ -52,6 +55,7 @@ struct HotkeyRegistrationOutcomeTests {
                 + "Shift+Cmd+Tab (error -9878), Cmd+Space (error -9878); no hotkey registered, exiting"
         )
         #expect(Self.nothing.isTotalFailure)
+        #expect(Self.nothing.logLevel == .error)
     }
 
     /// Every combination lands on exactly one of the two lists. A combination

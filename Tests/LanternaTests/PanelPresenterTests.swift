@@ -192,7 +192,7 @@ struct PanelPresenterTests {
 @MainActor
 struct PanelPresenterWaitingForAListTests {
     private func storeHoldingNothing(_ fake: HeldGather) -> WindowListStore {
-        WindowListStore(gather: fake.gather, writeLine: { _ in })
+        WindowListStore(gather: fake.gather, writeLine: { _, _ in })
     }
 
     /// A press that finds a list takes it as it stands. Nothing is gathered

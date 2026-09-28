@@ -1,9 +1,11 @@
 @testable import Lanterna
+import Logging
 import Testing
 
 struct LaunchArgumentsTests {
     private static let sampleCount = LaunchArguments.sampleCountFlag
     private static let stopEvery = LaunchArguments.stopMonitorEveryFlag
+    private static let logLevel = LaunchArguments.logLevelFlag
 
     @Test func absentFlagsRequestNothing() throws {
         #expect(try LaunchArguments.parse(["Lanterna"]) == LaunchArguments.Options())
@@ -89,6 +91,37 @@ struct LaunchArgumentsTests {
         }
     }
 
+    @Test func bothFormsOfTheLevelAreAccepted() throws {
+        #expect(try LaunchArguments.parse(["Lanterna", "--log-level", "debug"]).logLevel == .debug)
+        #expect(try LaunchArguments.parse(["Lanterna", "--log-level=info"]).logLevel == .info)
+    }
+
+    @Test(arguments: ["verbose", "WARN", "warn", "trace", "", "3"])
+    func aWordOutsideTheFourIsAUsageError(value: String) {
+        #expect(throws: LaunchArguments.ParseError.invalidValue(flag: Self.logLevel, value: value)) {
+            try LaunchArguments.parse(["Lanterna", "--log-level", value])
+        }
+        #expect(throws: LaunchArguments.ParseError.invalidValue(flag: Self.logLevel, value: value)) {
+            try LaunchArguments.parse(["Lanterna", "--log-level=\(value)"])
+        }
+    }
+
+    @Test(arguments: [
+        ["Lanterna", "--log-level", "debug", "--log-level", "info"],
+        ["Lanterna", "--log-level=debug", "--log-level"],
+    ])
+    func aRepeatedLevelIsRejected(arguments: [String]) {
+        #expect(throws: LaunchArguments.ParseError.duplicateFlag(Self.logLevel)) {
+            try LaunchArguments.parse(arguments)
+        }
+    }
+
+    @Test func aLevelWithoutAValueIsAUsageError() {
+        #expect(throws: LaunchArguments.ParseError.missingValue(Self.logLevel)) {
+            try LaunchArguments.parse(["Lanterna", "--log-level"])
+        }
+    }
+
     @Test func mistypedFlagIsRejected() {
         #expect(throws: LaunchArguments.ParseError.unknownOption("--sample-cout")) {
             try LaunchArguments.parse(["Lanterna", "--sample-cout", "5"])
@@ -143,7 +176,7 @@ struct LaunchArgumentsTests {
     @Test func usageLineIsPinnedOnce() {
         #expect(
             LaunchArguments.usage
-                == "usage: Lanterna [--sample-count N] [--stop-monitor-every SECONDS]"
+                == "usage: Lanterna [--sample-count N] [--stop-monitor-every SECONDS] [--log-level LEVEL]"
         )
     }
 
@@ -162,6 +195,10 @@ struct LaunchArgumentsTests {
         #expect(
             "\(LaunchArguments.ParseError.invalidValue(flag: Self.stopEvery, value: "0"))"
                 == "\"0\" is not a whole number of one or more (--stop-monitor-every)"
+        )
+        #expect(
+            "\(LaunchArguments.ParseError.invalidValue(flag: Self.logLevel, value: "verbose"))"
+                == "\"verbose\" is not one of error, warning, info, debug (--log-level)"
         )
         #expect(
             "\(LaunchArguments.ParseError.unknownOption("--sample-cout"))"
