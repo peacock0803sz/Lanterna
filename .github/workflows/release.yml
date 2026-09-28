@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: write
+  actions: read # maincheck polls check.yml runs
 
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -109,6 +110,42 @@ jobs:
             verify_cask "$CASK_VER" || note "advisory" "existing cask $CASK_VER is stale (advisory only)"
           fi
 
+      - name: Wait for main validation
+        id: maincheck
+        run: |
+          # Skip the local debug build/test when this exact commit already
+          # passed check.yml on main. While that check is still running,
+          # wait for it instead of duplicating the work. Any inconclusive
+          # state falls back to running the checks locally.
+          SHA="$(git rev-parse HEAD)"
+          query() {
+            gh run list --commit "$SHA" --workflow check.yml --limit 1 \
+              --json status,conclusion --jq '.[0] | "\(.status // "absent") \(.conclusion // "none")"'
+          }
+          run_info="absent none"
+          # Give the main-push check a moment to appear when the tag and
+          # main advance together.
+          for _ in $(seq 1 6); do
+            run_info="$(query)"
+            [[ "$run_info" != "absent none" ]] && break
+            [[ "${GITHUB_REF}" != refs/tags/* ]] && break
+            sleep 30
+          done
+          # Wait while the check is still running (up to ~45 minutes).
+          for _ in $(seq 1 90); do
+            status="${run_info%% *}"
+            [[ "$status" == "completed" || "$status" == "absent" ]] && break
+            sleep 30
+            run_info="$(query)"
+          done
+          if [[ "${run_info##* }" == "success" ]]; then
+            echo "check.yml already passed for $SHA; skipping local build/test"
+            echo "validated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "check.yml state: $run_info; running build/test locally"
+            echo "validated=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
@@ -121,11 +158,16 @@ jobs:
           key: ${{ matrix.os }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: ${{ matrix.os }}-spm-
       # The triple is pinned; CONTRIBUTING.md says why.
+      # The debug build/test only re-validate: packaging runs its own
+      # release build, so skip when main already validated this commit.
       - name: Build
+        if: steps.validate.outputs.proceed != 'false' && steps.maincheck.outputs.validated != 'true'
         run: nix develop --command swift build --triple arm64-apple-macosx26.0
       - name: Verify architecture
+        if: steps.validate.outputs.proceed != 'false' && steps.maincheck.outputs.validated != 'true'
         run: lipo -archs .build/debug/Lanterna | grep -qx arm64
       - name: Test
+        if: steps.validate.outputs.proceed != 'false' && steps.maincheck.outputs.validated != 'true'
         run: nix develop --command swift test --triple arm64-apple-macosx26.0
       - name: Package app
         if: matrix.os == 'macos-26' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.validate.outputs.proceed != 'false'
