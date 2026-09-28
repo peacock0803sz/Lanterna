@@ -15,8 +15,7 @@ final class UpdateCheckDisplay: ObservableObject {
 ///
 /// The permission part stays display-only, like the guide it replaces:
 /// the state is the launch-time snapshot, and a grant given mid-run
-/// waits for the next launch. Future general options (update checks)
-/// join this tab.
+/// waits for the next launch.
 struct SettingsGeneralView: View {
     @Binding var values: SettingsValues
     let version: DisplayedVersion
