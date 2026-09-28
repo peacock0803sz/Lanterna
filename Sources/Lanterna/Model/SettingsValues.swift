@@ -23,9 +23,9 @@ struct SettingsValues: Equatable, Sendable {
     /// Whether subsequence queries match as well as substrings. Absent in
     /// the file means on.
     var fuzzyMatchEnabled: Bool
-    /// The raw ordering word. Absent in the file means "mru". Kept as a
-    /// string like the file; the enum arrives with T018.
-    var resultOrder: String
+    /// The ordering the narrowed rows draw in. Absent in the file means
+    /// recent use first.
+    var resultOrder: SearchOrdering
 
     /// The values for a missing or invalid file: follow the system, park
     /// the special kinds as usual, match kanji readings as well, stay
@@ -40,7 +40,7 @@ struct SettingsValues: Equatable, Sendable {
         exclusions: [],
         shortcutMemoryLength: 5,
         fuzzyMatchEnabled: true,
-        resultOrder: "mru"
+        resultOrder: .mru
     )
 
     /// The values for one run: present keys win, absent keys mean
@@ -56,7 +56,7 @@ struct SettingsValues: Equatable, Sendable {
             exclusions: config.exclusions ?? [],
             shortcutMemoryLength: config.shortcutMemoryLength ?? 5,
             fuzzyMatchEnabled: config.fuzzyMatchEnabled ?? true,
-            resultOrder: config.resultOrder ?? "mru"
+            resultOrder: SearchOrdering.effective(from: config)
         )
     }
 
@@ -87,7 +87,7 @@ struct SettingsValues: Equatable, Sendable {
         config.exclusions = exclusions.isEmpty ? nil : exclusions
         config.shortcutMemoryLength = shortcutMemoryLength
         config.fuzzyMatchEnabled = fuzzyMatchEnabled
-        config.resultOrder = resultOrder
+        config.resultOrder = resultOrder.rawValue
         return config
     }
 }

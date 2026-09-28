@@ -233,7 +233,7 @@ extension AppConfiguration {
             appearanceMode: AppearanceMode.effective(from: file),
             shortcutMemoryLength: file.shortcutMemoryLength ?? 5,
             fuzzyMatchEnabled: file.fuzzyMatchEnabled ?? true,
-            resultOrder: file.resultOrder ?? "mru",
+            resultOrder: SearchOrdering.effective(from: file),
             // The command line wins where it says anything; the file covers
             // the rest. Never written back to the file.
             logLevel: Logger.Level.effective(cli: cli.logLevel, file: file.logLevel)

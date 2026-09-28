@@ -30,8 +30,9 @@ enum LaunchArguments {
         /// Whether subsequence queries match as well as substrings. No flag
         /// sets it; the file covers it.
         var fuzzyMatchEnabled: Bool = true
-        /// The raw ordering word. No flag sets it; the file covers it.
-        var resultOrder: String = "mru"
+        /// The ordering the narrowed rows draw in. No flag sets it; the
+        /// file covers it.
+        var resultOrder: SearchOrdering = .mru
         /// How much diagnostics this run emits. `nil` leaves it to the file
         /// and the default. Never written back to the file.
         var logLevel: Logger.Level?

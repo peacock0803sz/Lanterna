@@ -69,6 +69,6 @@ struct SearchSettingsTests {
         let values = SettingsValues.effective(from: decoded.config)
         #expect(values.shortcutMemoryLength == 5)
         #expect(values.fuzzyMatchEnabled == true)
-        #expect(values.resultOrder == "mru")
+        #expect(values.resultOrder == .mru)
     }
 }
