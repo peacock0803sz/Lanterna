@@ -1,5 +1,6 @@
 import AppKit
 import Darwin
+import Logging
 
 /// Application teardown, split out when the delegate reached the
 /// file-length limit. Launch stays in `AppDelegate`; everything the
@@ -16,7 +17,7 @@ extension AppDelegate {
     func shutDown() {
         let restoreFailures = SystemSwitcherShortcuts.restore()
         if let line = SystemSwitcherShortcuts.summaryLine(restoring: restoreFailures) {
-            Diagnostics.writeLine(line)
+            Diagnostics.writeLine(line, level: .error)
         }
         hotkeys?.unregister()
         windowList?.stop()

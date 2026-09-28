@@ -1,4 +1,5 @@
 import AppKit
+import Logging
 
 /// Settings changes, split out when the delegate reached the file-length
 /// limit. Launch keeps the handles; everything a change touches hangs
@@ -71,7 +72,7 @@ extension AppDelegate {
         channel: UpdateChannel,
         display: UpdateCheckDisplay
     ) {
-        Diagnostics.writeLine(UpdateCheck.diagnosticsLine(result, channel: channel))
+        Diagnostics.writeLine(UpdateCheck.diagnosticsLine(result, channel: channel), level: .info)
         guard settingsWindow?.checkDisplay === display else { return }
         display.isChecking = false
         switch result {
