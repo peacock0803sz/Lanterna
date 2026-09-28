@@ -12,6 +12,12 @@ binary="${1:?usage: assemble-app.sh <binary> <short-version> <out-app>}"
 short="${2:?usage: assemble-app.sh <binary> <short-version> <out-app>}"
 app="${3:?usage: assemble-app.sh <binary> <short-version> <out-app>}"
 
+# Refuse dangerous destinations before rm -rf.
+if [[ -z "$app" || "$app" == "/" || "$app" != *.app ]]; then
+    echo "assemble-app: refusing unsafe app path: $app" >&2
+    exit 1
+fi
+
 cd "$(dirname "$0")/.."
 
 if [[ $(lipo -archs "$binary") != "arm64" ]]; then
