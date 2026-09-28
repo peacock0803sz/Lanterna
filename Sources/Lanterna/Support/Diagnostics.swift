@@ -18,14 +18,36 @@ final class DiagnosticLogStore: @unchecked Sendable {
     private var entries: [Diagnostics.LogEntry] = []
     private var nextSequence: UInt64 = 0
     private var pinnedSummary: String?
+    private var thresholdLevel: LogLevel = .warn
+
+    /// The level in force. Set once per launch, ahead of the first line.
+    var threshold: LogLevel {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return thresholdLevel
+        }
+        set {
+            lock.lock()
+            defer { lock.unlock() }
+            thresholdLevel = newValue
+        }
+    }
 
     /// Emits the line and mirrors it as one locked step. Two calls racing
     /// each other still land in stderr and in the mirror in the same order;
     /// anything weaker would let the on-screen log disagree with what was
     /// emitted. Tests use `append` directly, which mirrors without emitting.
-    func write(_ message: String) {
+    ///
+    /// Lines below the threshold go nowhere: neither to stderr nor to the
+    /// mirror, and they spend none of the capacity. The filtering happens
+    /// here, at emit time, so the two surfaces cannot drift apart.
+    /// A line shows when the threshold reaches it: warnings cover errors
+    /// but not the ordinary flow, and errors alone cover nothing else.
+    func write(_ message: String, level: LogLevel) {
         lock.lock()
         defer { lock.unlock() }
+        guard thresholdLevel >= level else { return }
         try? FileHandle.standardError.write(contentsOf: Data((message + "\n").utf8))
         mirror(message)
     }
@@ -87,8 +109,22 @@ enum Diagnostics {
     /// The store behind the mirror. One per process; the tests hold their own.
     private static let store = DiagnosticLogStore()
 
+    /// The level in force for this process. Read once per launch from the
+    /// effective options and set ahead of the first line; never moved after.
+    static var threshold: LogLevel {
+        get { store.threshold }
+        set { store.threshold = newValue }
+    }
+
+    static func writeLine(_ message: String, level: LogLevel) {
+        store.write(message, level: level)
+    }
+
+    /// The compatibility road for emission sites not yet carrying a level.
+    /// Routes at warnings so unconverted lines stay visible while the
+    /// conversion moves file by file. Removed once every site is explicit.
     static func writeLine(_ message: String) {
-        store.write(message)
+        store.write(message, level: .warn)
     }
 
     /// The mirrored lines, oldest first. Never longer than

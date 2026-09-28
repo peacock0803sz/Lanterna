@@ -5,9 +5,9 @@ import Foundation
 /// Mirrors the config file values (`"error"`, `"warn"`, `"info"`,
 /// `"debug"`) and the `--log-level` words. An absent key means `warn`:
 /// unless the file or the command line says otherwise, only warnings
-/// and above reach stderr and the on-screen mirror. Ordered so a
-/// threshold reads as one comparison: a line shows when its level is
-/// at or above the level in force.
+/// and above reach stderr and the on-screen mirror. Ordered by how much
+/// they let through, so a threshold reads as one comparison: a line shows
+/// when the level in force reaches it.
 enum LogLevel: String, Sendable, Comparable {
     /// Failures that end the run or leave it degraded, and invalid
     /// values. Shown under every threshold.

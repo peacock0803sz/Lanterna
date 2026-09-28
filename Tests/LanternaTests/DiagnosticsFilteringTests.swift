@@ -34,4 +34,48 @@ struct DiagnosticsFilteringTests {
         #expect(LogLevel.effective(cli: nil, file: .info) == .info)
         #expect(LogLevel.effective(cli: nil, file: nil) == .warn)
     }
+
+    /// A fresh store starts quiet: warnings and above show, the
+    /// ordinary flow does not.
+    @Test func aFreshStoreWarnsByDefault() {
+        let store = DiagnosticLogStore()
+        #expect(store.threshold == .warn)
+        store.write("filter-probe-warn", level: .warn)
+        store.write("filter-probe-info", level: .info)
+        #expect(store.recent.map(\.message) == ["filter-probe-warn"])
+    }
+
+    /// Below the threshold, a line goes nowhere: not to the mirror,
+    /// and it spends none of the capacity either.
+    @Test func belowThresholdLinesSpendNoCapacity() {
+        let store = DiagnosticLogStore()
+        store.threshold = .error
+        for index in 0 ..< DiagnosticLog.capacity {
+            store.write("filter-flood-\(index)", level: .info)
+        }
+        #expect(store.recent.isEmpty)
+        store.write("filter-probe-error", level: .error)
+        #expect(store.recent.map(\.message) == ["filter-probe-error"])
+    }
+
+    /// Errors show under every threshold, warnings and above included.
+    @Test func errorsShowUnderEveryThreshold() {
+        for threshold in [LogLevel.error, .warn, .info, .debug] {
+            let store = DiagnosticLogStore()
+            store.threshold = threshold
+            store.write("filter-probe-error", level: .error)
+            #expect(store.recent.map(\.message) == ["filter-probe-error"])
+        }
+    }
+
+    /// Lowering the threshold brings the hidden lines back, in order.
+    @Test func loweringTheThresholdRestoresTheHiddenLines() {
+        let store = DiagnosticLogStore()
+        store.write("filter-probe-info", level: .info)
+        #expect(store.recent.isEmpty)
+        store.threshold = .info
+        store.write("filter-probe-info", level: .info)
+        store.write("filter-probe-debug", level: .debug)
+        #expect(store.recent.map(\.message) == ["filter-probe-info"])
+    }
 }
