@@ -48,6 +48,9 @@ struct SwitcherView: View {
     /// How the special kinds show, read at launch from the config file.
     var modes: DisplayModes = .defaults
 
+    /// The compiled exclusion rules, read beside the modes.
+    var exclusionRules: [ExclusionRule] = []
+
     /// The ordinary rows, drawing first and in the order they arrived.
     private var ordinaryRows: [WindowItem] {
         sections.ordinary
@@ -63,7 +66,7 @@ struct SwitcherView: View {
     /// each row's place within its section, so the rows draw in the order
     /// the arrows step through them.
     private var sections: (ordinary: [WindowItem], subgroups: [(DisplaySubgroup, [WindowItem])]) {
-        DisplayModes.sections(of: windows, modes: modes, query: query)
+        DisplayModes.sections(of: windows, modes: modes, query: query, exclusions: exclusionRules)
     }
 
     /// The heading over one subgroup, in plain words.

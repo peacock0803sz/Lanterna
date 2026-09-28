@@ -33,6 +33,7 @@ final class PanelKeyCommands {
         selection: PanelSelection,
         wayOut: PanelExit,
         displayModes: DisplayModes = .defaults,
+        exclusionRules: [ExclusionRule] = [],
         now: @escaping @MainActor () -> ContinuousClock.Instant,
         operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)? = nil
     ) {
@@ -41,6 +42,7 @@ final class PanelKeyCommands {
         self.wayOut = wayOut
         filter = PanelFilter(selection: selection, surface: surface)
         filter.displayModes = displayModes
+        filter.exclusionRules = exclusionRules
         self.now = now
         self.operate = operate
     }
@@ -54,6 +56,12 @@ final class PanelKeyCommands {
     /// The rows on screen, which the choice and the panel open on.
     var shownWindows: [WindowItem] {
         filter.shownWindows
+    }
+
+    /// Hands changed rules to the live filter, so a settings change
+    /// reaches the rows without waiting for the next launch.
+    func updateExclusions(_ rules: [ExclusionRule]) {
+        filter.exclusionRules = rules
     }
 
     /// Gives the appearance up; the next one starts empty either way.

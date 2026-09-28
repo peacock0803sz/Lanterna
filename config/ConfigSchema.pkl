@@ -87,3 +87,16 @@ typealias UpdateChannel = "stable"|"beta"
 /// The releases the check covers. Absent means "stable".
 @Allowed { values { "stable" "beta" } }
 updateChannel: UpdateChannel? = null
+
+/// One entry of the exclusion list: which app and which titles to hide.
+open class ExclusionEntry {
+  /// A bundle identifier for exact matching, or a regular expression
+  /// matched against the display name. Empty means invalid.
+  app: String
+  /// A substring, or an exact title when wrapped as `^...$`. Empty means invalid.
+  titlePattern: String
+}
+
+/// Windows to keep out of the switcher list. Absent means no exclusions.
+/// Elements that are invalid on their own are ignored one by one.
+exclusions: Listing<ExclusionEntry>? = null

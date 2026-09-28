@@ -20,6 +20,8 @@ enum LaunchArguments {
         var stopMonitorEvery: Duration?
         /// How the special kinds show. No flag sets it; the file covers it.
         var displayModes: DisplayModes = .defaults
+        /// The raw exclusion entries. No flag sets them; the file covers them.
+        var exclusionEntries: [ExclusionEntry] = []
         /// Which appearance the windows use. No flag sets it; the file covers it.
         var appearanceMode: AppearanceMode = .system
         /// How much diagnostics this run emits. `nil` leaves it to the file

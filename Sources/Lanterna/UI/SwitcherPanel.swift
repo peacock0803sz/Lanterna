@@ -30,9 +30,11 @@ final class SwitcherPanel: NSPanel {
             windows: [], selectedID: nil, appearanceToken: 0, query: "", filterActive: false
         ),
         displayModes: DisplayModes = .defaults,
+        exclusionRules: [ExclusionRule] = [],
         appearanceMode: AppearanceMode = .system
     ) {
         self.displayModes = displayModes
+        self.exclusionRules = exclusionRules
         hostingView = NSHostingView(rootView: content)
         super.init(
             contentRect: NSRect(
@@ -40,7 +42,12 @@ final class SwitcherPanel: NSPanel {
                 y: 0,
                 width: PanelMetrics.width,
                 height: PanelMetrics.height(
-                    rowCount: PanelMetrics.drawnRowCount(content.windows, modes: displayModes, query: content.query)
+                    rowCount: PanelMetrics.drawnRowCount(
+                        content.windows,
+                        modes: displayModes,
+                        query: content.query,
+                        exclusions: exclusionRules
+                    )
                 )
             ),
             // Borderless is the absence of `.titled`, so it needs no flag.
@@ -88,6 +95,10 @@ final class SwitcherPanel: NSPanel {
     /// Kept here so the height counts what the view draws.
     var displayModes = DisplayModes.defaults
 
+    /// The compiled exclusion rules. Kept beside the modes for the same
+    /// reason: the height counts what the view draws, exclusions first.
+    var exclusionRules: [ExclusionRule] = []
+
     /// Whether the panel is currently on screen.
     var isPresented: Bool {
         isVisible
@@ -118,7 +129,8 @@ final class SwitcherPanel: NSPanel {
             appearanceToken: hostingView.rootView.appearanceToken,
             query: hostingView.rootView.query,
             filterActive: hostingView.rootView.filterActive,
-            modes: displayModes
+            modes: displayModes,
+            exclusionRules: exclusionRules
         )
         // The height is pushed down from the window, because the hosting view
         // has no sizing options and so cannot push one up.
@@ -129,7 +141,12 @@ final class SwitcherPanel: NSPanel {
                 width: PanelMetrics.width,
                 height: min(
                     PanelMetrics.height(
-                        rowCount: PanelMetrics.drawnRowCount(windows, modes: displayModes, query: query)
+                        rowCount: PanelMetrics.drawnRowCount(
+                            windows,
+                            modes: displayModes,
+                            query: query,
+                            exclusions: exclusionRules
+                        )
                     ) + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
                     PanelMetrics.maximumHeight
                 )
@@ -226,10 +243,16 @@ final class SwitcherPanel: NSPanel {
             appearanceToken: hostingView.rootView.appearanceToken,
             query: query,
             filterActive: filterActive,
-            modes: displayModes
+            modes: displayModes,
+            exclusionRules: exclusionRules
         )
         let height = min(
-            PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(windows, modes: displayModes, query: query))
+            PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(
+                windows,
+                modes: displayModes,
+                query: query,
+                exclusions: exclusionRules
+            ))
                 + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
             PanelMetrics.maximumHeight
         )

@@ -26,6 +26,16 @@ local function isBoolean(prop: reflect.Property): Boolean =
     prop.type is reflect.DeclaredType
       && (prop.type as reflect.DeclaredType).referent.name == "Boolean"
 
+/// Whether the property is the exclusion list (a nullable listing).
+///
+/// Matched by shape rather than by name, so a rename still renders.
+local function isExclusions(prop: reflect.Property): Boolean =
+  if (prop.type is reflect.NullableType)
+    let (inner = (prop.type as reflect.NullableType).member)
+    inner is reflect.DeclaredType
+      && (inner as reflect.DeclaredType).referent.name == "Listing"
+  else false
+
 local function fragment(prop: reflect.Property): Dynamic =
   if (allowedOf(prop) != null)
     new {
@@ -37,6 +47,24 @@ local function fragment(prop: reflect.Property): Dynamic =
     new {
       ["type"] = "boolean"
       description = prop.docComment
+    }
+  else if (isExclusions(prop))
+    new {
+      ["type"] = "array"
+      description = prop.docComment
+      ["items"] = new {
+        ["type"] = "object"
+        ["properties"] = new {
+          ["app"] = new {
+            ["type"] = "string"
+          }
+          ["titlePattern"] = new {
+            ["type"] = "string"
+          }
+        }
+        ["required"] = new Listing<String> { "app"; "titlePattern" }
+        ["additionalProperties"] = false
+      }
     }
   else if (minimumOf(prop) == null)
     new {

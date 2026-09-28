@@ -1,3 +1,5 @@
+import Logging
+
 /// Where the operated row stood before a list was swapped: the row, and the
 /// whole list it stood in. The filter counts the place among the rows it
 /// shows.
@@ -28,6 +30,19 @@ final class PanelFilter {
     /// How the special kinds show. Read at launch from the config file;
     /// the panel keeps the rows and this decides which reach the screen.
     var displayModes = DisplayModes.defaults
+    /// Where the per-appearance lines go. Wired like the presenter's, so
+    /// tests can read what an appearance reports without stderr. Falls
+    /// silent while the diagnostics logger is down (tests reading no log),
+    /// because the process only wires it on the launch path.
+    var writeLine: @MainActor (Logger.Level, String) -> Void = { level, line in
+        guard Diagnostics.logger != nil else { return }
+        Diagnostics.writeLine(line, level: level)
+    }
+
+    /// The compiled exclusion rules. Read at launch from the config file
+    /// and recompiled whenever the settings change; the panel keeps the
+    /// rows and these decide which leave before anything else sees them.
+    var exclusionRules: [ExclusionRule] = []
     private let selection: PanelSelection
     private let surface: any SwitcherSurface
 
@@ -52,6 +67,10 @@ final class PanelFilter {
         state.previousMatchedIDs = Set(shown.map(\.id))
         lastSummary = FilterLogSummary(query: "", matchedCount: shown.count, totalCount: fullWindows.count)
         isActive = filtering
+        // Without rules there is nothing to report, so stay quiet.
+        guard !exclusionRules.isEmpty else { return }
+        let excluded = fullWindows.count - WindowExclusion.excluding(fullWindows, rules: exclusionRules).count
+        writeLine(.info, "excluded \(excluded) of \(fullWindows.count) windows")
     }
 
     /// The rows on screen: the whole list narrowed by the query and the
@@ -152,7 +171,7 @@ final class PanelFilter {
     /// modes keep a row out and place it the same way whether the panel
     /// opened, a keystroke arrived, or a list was swapped in.
     private func shown(in windows: [WindowItem]) -> [WindowItem] {
-        DisplayModes.displayOrdered(windows, modes: displayModes, query: state.query)
+        DisplayModes.displayOrdered(windows, modes: displayModes, query: state.query, exclusions: exclusionRules)
     }
 
     /// Narrows the rows, follows the choice onto them, and tells the panel,

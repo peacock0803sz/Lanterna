@@ -16,6 +16,7 @@ extension AppConfiguration {
         if let appearanceMode = config.appearanceMode {
             entries.append(encodedString(key: "appearanceMode", value: appearanceMode.rawValue))
         }
+        entries.append(contentsOf: exclusionEntries(config))
         if let fullscreenMode = config.fullscreenMode {
             entries.append(encodedString(key: "fullscreenMode", value: fullscreenMode.rawValue))
         }
@@ -62,6 +63,12 @@ extension AppConfiguration {
         try encode(config).write(to: url, options: .atomic)
     }
 
+    /// The exclusion list lines, in canonical order, skipping absence.
+    private static func exclusionEntries(_ config: ValidConfiguration) -> [String] {
+        guard let exclusions = config.exclusions, !exclusions.isEmpty else { return [] }
+        return [encodedExclusions(key: "exclusions", value: exclusions)]
+    }
+
     /// The two update-check lines, in canonical order, skipping absent values.
     private static func updateCheckEntries(_ config: ValidConfiguration) -> [String] {
         var entries: [String] = []
@@ -77,6 +84,41 @@ extension AppConfiguration {
     /// One `"key": "value"` line, indented two spaces.
     private static func encodedString(key: String, value: String) -> String {
         "  \"\(key)\": \"\(value)\""
+    }
+
+    /// The exclusion list lines. Entries keep their order; absent means
+    /// no line, so a configuration without exclusions encodes unchanged.
+    private static func encodedExclusions(key: String, value: [ExclusionEntry]) -> String {
+        let rows = value.map { entry in
+            "    { \"app\": \"\(escaped(entry.app))\", \"titlePattern\": \"\(escaped(entry.titlePattern))\" }"
+        }
+        return "  \"\(key)\": [\n" + rows.joined(separator: ",\n") + "\n  ]"
+    }
+
+    /// Escapes free text for the canonical form. Control characters,
+    /// quotes and backslashes are the only ones JSON refuses raw.
+    private static func escaped(_ text: String) -> String {
+        var out = ""
+        out.reserveCapacity(text.count)
+        for scalar in text.unicodeScalars {
+            switch scalar.value {
+            case 0x22:
+                out += "\\\""
+            case 0x5C:
+                out += "\\\\"
+            case 0x0A:
+                out += "\\n"
+            case 0x0D:
+                out += "\\r"
+            case 0x09:
+                out += "\\t"
+            case 0x00 ... 0x1F:
+                out += String(format: "\\u%04x", scalar.value)
+            default:
+                out.unicodeScalars.append(scalar)
+            }
+        }
+        return out
     }
 
     /// One `"key": 1` line, indented two spaces.

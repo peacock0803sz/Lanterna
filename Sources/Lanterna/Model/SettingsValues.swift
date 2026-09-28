@@ -2,7 +2,7 @@ import Logging
 
 /// What the settings UI shows and changes, as one value.
 ///
-/// A UI-layer snapshot of the seven user-facing settings. Persistence and
+/// A UI-layer snapshot of the eight user-facing settings. Persistence and
 /// validation stay with `ValidConfiguration`; this only carries the live
 /// values between the window and the application delegate.
 struct SettingsValues: Equatable, Sendable {
@@ -15,6 +15,8 @@ struct SettingsValues: Equatable, Sendable {
     var updateChannel: UpdateChannel
     /// Whether Lanterna starts at login. Absent in the file means off.
     var launchAtLogin: Bool
+    /// The raw exclusion entries. Empty means no exclusions.
+    var exclusions: [ExclusionEntry]
 
     /// The values for a missing or invalid file: follow the system, park
     /// the special kinds as usual, match kanji readings as well, stay
@@ -25,7 +27,8 @@ struct SettingsValues: Equatable, Sendable {
         romajiScope: .kanaKanji,
         updateCheckEnabled: false,
         updateChannel: .stable,
-        launchAtLogin: false
+        launchAtLogin: false,
+        exclusions: []
     )
 
     /// The values for one run: present keys win, absent keys mean
@@ -37,7 +40,8 @@ struct SettingsValues: Equatable, Sendable {
             romajiScope: RomajiScope.effective(from: config),
             updateCheckEnabled: config.updateCheckEnabled ?? false,
             updateChannel: UpdateChannel(rawValue: config.updateChannel ?? "stable") ?? .stable,
-            launchAtLogin: config.launchAtLogin ?? false
+            launchAtLogin: config.launchAtLogin ?? false,
+            exclusions: config.exclusions ?? []
         )
     }
 
@@ -64,6 +68,8 @@ struct SettingsValues: Equatable, Sendable {
         config.launchAtLogin = launchAtLogin
         config.updateCheckEnabled = updateCheckEnabled
         config.updateChannel = updateChannel.rawValue
+        // Empty stays absent, so clearing the list removes the key.
+        config.exclusions = exclusions.isEmpty ? nil : exclusions
         return config
     }
 }
