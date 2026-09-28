@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Both fields are required and non-empty; anything else is invalid on its
 /// own and ignored without touching the other entries.
-struct ExclusionEntry: Equatable, Sendable {
+struct ExclusionEntry: Hashable, Sendable {
     var app: String
     var titlePattern: String
 }

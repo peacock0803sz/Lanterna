@@ -61,12 +61,14 @@ struct SettingsFilterView: View {
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text("Excluded windows")
-                ForEach(values.exclusions.indices, id: \.self) { index in
+                ForEach($values.exclusions, id: \.self) { $entry in
                     HStack {
-                        TextField("App", text: $values.exclusions[index].app)
-                        TextField("Title pattern", text: $values.exclusions[index].titlePattern)
+                        TextField("App", text: $entry.app)
+                        TextField("Title pattern", text: $entry.titlePattern)
                         Button("Remove") {
-                            values.exclusions.remove(at: index)
+                            if let index = values.exclusions.firstIndex(of: entry) {
+                                values.exclusions.remove(at: index)
+                            }
                         }
                     }
                 }
@@ -81,6 +83,7 @@ struct SettingsFilterView: View {
                         .foregroundStyle(.secondary)
                 }
                 Text("A window stays out when its app and title both match a row. "
+                    + "The app field is matched as a regular expression. "
                     + "A title wrapped as ^...$ must match exactly.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
