@@ -269,4 +269,10 @@ struct UpdateCheckTests {
         )
         #expect(unreadable == .failed(reason: "unreadable response"))
     }
+
+    @Test func httpPageRowsAreDropped() throws {
+        let httpPage = try #require(URL(string: "http://example.com/release"))
+        let row = GitHubRelease(tagName: "v0.7.0", prerelease: false, pageURL: httpPage)
+        #expect(PublishedRelease(github: row) == nil)
+    }
 }

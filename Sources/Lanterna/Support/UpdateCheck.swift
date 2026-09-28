@@ -121,9 +121,11 @@ struct GitHubRelease: Decodable {
 }
 
 extension PublishedRelease {
-    /// Keeps rows that name a release, dropping rows that do not.
+    /// Keeps rows that name a release over https, dropping rows that do not.
     init?(github release: GitHubRelease) {
-        guard let number = ReleaseNumber.parse(release.tagName) else {
+        guard let number = ReleaseNumber.parse(release.tagName),
+              release.pageURL.scheme == "https"
+        else {
             return nil
         }
         self.init(number: number, isPrerelease: release.prerelease, pageURL: release.pageURL)
