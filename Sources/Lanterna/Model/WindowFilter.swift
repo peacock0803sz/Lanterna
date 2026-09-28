@@ -15,7 +15,20 @@ enum WindowFilter {
     /// unchanged, judging not one row, which is what keeps the show path
     /// free of measurable work.
     static func matching(_ query: String, against windows: [WindowItem]) -> [WindowItem] {
+        matching(query, against: windows, fuzzy: false)
+    }
+
+    /// The rows matching the query, in the order they arrived.
+    ///
+    /// With fuzzy off this is the legacy substring match; with fuzzy on a
+    /// subsequence match counts too. A substring always counts as a
+    /// subsequence, so fuzzy matching never narrows the legacy result.
+    /// An empty query returns the input unchanged either way.
+    static func matching(_ query: String, against windows: [WindowItem], fuzzy: Bool) -> [WindowItem] {
         guard !query.isEmpty else { return windows }
+        if fuzzy {
+            return windows.filter { matchesSubsequence(query: query, target: combinedText(of: $0)) }
+        }
         return windows.filter { matches(query: query, target: combinedText(of: $0)) }
     }
 
@@ -28,6 +41,62 @@ enum WindowFilter {
     /// search) only widens this body. Case-insensitive substring match.
     static func matches(query: String, target: String) -> Bool {
         target.range(of: query, options: .caseInsensitive) != nil
+    }
+
+    /// Whether the query's characters appear in the target in order, gaps
+    /// allowed. Case-insensitive. An empty query answers false; callers
+    /// return the whole list without judging.
+    static func matchesSubsequence(query: String, target: String) -> Bool {
+        !subsequenceRanges(query: query, in: target).isEmpty
+    }
+
+    /// The rows ordered for score mode, keeping the input order otherwise.
+    ///
+    /// Contiguous substring matches come before scattered subsequence
+    /// matches; among those, an earlier match start comes first. Ties keep
+    /// the order they arrived in (a stable sort through the index), so
+    /// equal rows never change places. An empty query changes nothing.
+    static func scoreOrdered(_ rows: [WindowItem], query: String) -> [WindowItem] {
+        rows.enumerated().map { entry in
+            let target = combinedText(of: entry.element)
+            return (offset: entry.offset, quality: matchQuality(query: query, target: target), element: entry.element)
+        }.sorted { left, right in
+            if left.quality != right.quality {
+                return left.quality < right.quality
+            }
+            return left.offset < right.offset
+        }.map(\.element)
+    }
+
+    /// How one row ranks: contiguous matches before scattered ones, then
+    /// by where the match starts. Rows no matcher judges rank last.
+    private static func matchQuality(query: String, target: String) -> (contiguous: Int, start: Int) {
+        if let first = matchedRanges(query: query, in: target).first {
+            return (0, target.distance(from: target.startIndex, to: first.lowerBound))
+        }
+        if let first = subsequenceRanges(query: query, in: target).first {
+            return (1, target.distance(from: target.startIndex, to: first.lowerBound))
+        }
+        return (2, Int.max)
+    }
+
+    /// Where each query character matched, in order, for highlighting.
+    ///
+    /// Case-insensitive, and empty when the query never appears in order.
+    /// Ranges never overlap: searching resumes past each match. An empty
+    /// query matches nothing.
+    static func subsequenceRanges(query: String, in text: String) -> [Range<String.Index>] {
+        guard !query.isEmpty else { return [] }
+        var ranges: [Range<String.Index>] = []
+        var remainder = text.startIndex ..< text.endIndex
+        for character in query {
+            guard let found = text.range(of: String(character), options: .caseInsensitive, range: remainder) else {
+                return []
+            }
+            ranges.append(found)
+            remainder = found.upperBound ..< text.endIndex
+        }
+        return ranges
     }
 
     /// Every range where the query occurs in the text, for highlighting.

@@ -226,4 +226,81 @@ struct WindowFilterTests {
         let kanji = [filterRow(appName: "Notes", windowTitle: "議事録", windowID: 31)]
         #expect(WindowFilter.matching("gijiroku", against: kanji, engine: engine).isEmpty)
     }
+
+    /// A subsequence query matches when its characters appear in order.
+    @Test func subsequenceQueryMatchesInOrder() {
+        #expect(WindowFilter.matching("sfr", against: rows, fuzzy: true).map(\.id) == [rows[0].id])
+    }
+
+    /// A query whose characters never appear in order matches nothing.
+    @Test func outOfOrderQueryMatchesNothing() {
+        #expect(WindowFilter.matching("sdf", against: rows, fuzzy: true).isEmpty)
+    }
+
+    /// Fuzzy matching never narrows substring matching.
+    @Test func fuzzyMatchingKeepsSubstringMatches() {
+        for query in ["safari", "SAF", "download", "a"] {
+            let plain = WindowFilter.matching(query, against: rows).map(\.id)
+            let fuzzy = WindowFilter.matching(query, against: rows, fuzzy: true).map(\.id)
+            #expect(fuzzy.count >= plain.count)
+            #expect(plain.allSatisfy { fuzzy.contains($0) })
+        }
+    }
+
+    /// Fuzzy matching ignores case.
+    @Test func fuzzyMatchingIgnoresCase() {
+        #expect(WindowFilter.matching("SFR", against: rows, fuzzy: true).map(\.id) == [rows[0].id])
+    }
+
+    /// An empty fuzzy query returns the input unchanged.
+    @Test func emptyFuzzyQueryReturnsTheInputUnchanged() {
+        #expect(WindowFilter.matching("", against: rows, fuzzy: true).map(\.id) == rows.map(\.id))
+    }
+
+    /// Subsequence ranges mark each query character where it matched.
+    @Test func subsequenceRangesMarkEachCharacter() {
+        let ranges = WindowFilter.subsequenceRanges(query: "sfr", in: "Safari")
+        #expect(ranges.map { String("Safari"[$0]) } == ["S", "f", "r"])
+    }
+
+    /// Subsequence ranges are empty when the query never appears in order.
+    @Test func subsequenceRangesAreEmptyWithoutAMatch() {
+        #expect(WindowFilter.subsequenceRanges(query: "sdf", in: "Safari").isEmpty)
+    }
+
+    /// Score order puts a contiguous match before a scattered one.
+    @Test func scoreOrderPrefersContiguousMatches() {
+        let scattered = filterRow(appName: "Q", windowTitle: "a--b", windowID: 41)
+        let contiguous = filterRow(appName: "Q", windowTitle: "xab", windowID: 42)
+        let ordered = WindowFilter.scoreOrdered([scattered, contiguous], query: "ab")
+        #expect(ordered.map(\.id) == [contiguous.id, scattered.id])
+    }
+
+    /// Score order puts an earlier match start first.
+    @Test func scoreOrderPrefersEarlierMatchStarts() {
+        let later = filterRow(appName: "Q", windowTitle: "xab", windowID: 43)
+        let earlier = filterRow(appName: "Q", windowTitle: "abx", windowID: 44)
+        let ordered = WindowFilter.scoreOrdered([later, earlier], query: "ab")
+        #expect(ordered.map(\.id) == [earlier.id, later.id])
+    }
+
+    /// Score order keeps the input order when nothing ranks apart.
+    @Test func scoreOrderKeepsTiesInInputOrder() {
+        let first = filterRow(appName: "Q", windowTitle: "ab", windowID: 45)
+        let second = filterRow(appName: "Q", windowTitle: "ab", windowID: 46)
+        let ordered = WindowFilter.scoreOrdered([first, second], query: "ab")
+        #expect(ordered.map(\.id) == [first.id, second.id])
+    }
+
+    /// An empty query leaves the rows in the order they arrived in.
+    @Test func scoreOrderWithEmptyQueryKeepsInputOrder() {
+        let ordered = WindowFilter.scoreOrdered(rows, query: "")
+        #expect(ordered.map(\.id) == rows.map(\.id))
+    }
+
+    /// Rows no matcher judges keep the order they arrived in.
+    @Test func scoreOrderWithNoMatchesKeepsInputOrder() {
+        let ordered = WindowFilter.scoreOrdered(rows, query: "zzz")
+        #expect(ordered.map(\.id) == rows.map(\.id))
+    }
 }

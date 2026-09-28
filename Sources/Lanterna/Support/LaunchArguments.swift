@@ -24,6 +24,9 @@ enum LaunchArguments {
         var exclusionEntries: [ExclusionEntry] = []
         /// Which appearance the windows use. No flag sets it; the file covers it.
         var appearanceMode: AppearanceMode = .system
+        /// The three search-quality settings as one value. No flag sets
+        /// them; the file covers them.
+        var searchSettings = SearchSettings()
         /// How much diagnostics this run emits. `nil` leaves it to the file
         /// and the default. Never written back to the file.
         var logLevel: Logger.Level?

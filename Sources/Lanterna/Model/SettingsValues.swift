@@ -17,6 +17,15 @@ struct SettingsValues: Equatable, Sendable {
     var launchAtLogin: Bool
     /// The raw exclusion entries. Empty means no exclusions.
     var exclusions: [ExclusionEntry]
+    /// How many characters of a query the shortcut memory covers. Absent
+    /// in the file means 5. 0 means off.
+    var shortcutMemoryLength: Int
+    /// Whether subsequence queries match as well as substrings. Absent in
+    /// the file means on.
+    var fuzzyMatchEnabled: Bool
+    /// The ordering the narrowed rows draw in. Absent in the file means
+    /// recent use first.
+    var resultOrder: SearchOrdering
 
     /// The values for a missing or invalid file: follow the system, park
     /// the special kinds as usual, match kanji readings as well, stay
@@ -28,7 +37,10 @@ struct SettingsValues: Equatable, Sendable {
         updateCheckEnabled: false,
         updateChannel: .stable,
         launchAtLogin: false,
-        exclusions: []
+        exclusions: [],
+        shortcutMemoryLength: 5,
+        fuzzyMatchEnabled: true,
+        resultOrder: .mru
     )
 
     /// The values for one run: present keys win, absent keys mean
@@ -41,7 +53,10 @@ struct SettingsValues: Equatable, Sendable {
             updateCheckEnabled: config.updateCheckEnabled ?? false,
             updateChannel: UpdateChannel(rawValue: config.updateChannel ?? "stable") ?? .stable,
             launchAtLogin: config.launchAtLogin ?? false,
-            exclusions: config.exclusions ?? []
+            exclusions: config.exclusions ?? [],
+            shortcutMemoryLength: config.shortcutMemoryLength ?? 5,
+            fuzzyMatchEnabled: config.fuzzyMatchEnabled ?? true,
+            resultOrder: SearchOrdering.effective(from: config)
         )
     }
 
@@ -70,6 +85,17 @@ struct SettingsValues: Equatable, Sendable {
         config.updateChannel = updateChannel.rawValue
         // Empty stays absent, so clearing the list removes the key.
         config.exclusions = exclusions.isEmpty ? nil : exclusions
+        // Defaults stay absent, so a later default change reaches saved files.
+        let defaults = SettingsValues.defaults
+        if shortcutMemoryLength != defaults.shortcutMemoryLength {
+            config.shortcutMemoryLength = shortcutMemoryLength
+        }
+        if fuzzyMatchEnabled != defaults.fuzzyMatchEnabled {
+            config.fuzzyMatchEnabled = fuzzyMatchEnabled
+        }
+        if resultOrder != defaults.resultOrder {
+            config.resultOrder = resultOrder.rawValue
+        }
         return config
     }
 }

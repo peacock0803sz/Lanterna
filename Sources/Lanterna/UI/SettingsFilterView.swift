@@ -8,6 +8,11 @@ import SwiftUI
 struct SettingsFilterView: View {
     @Binding var values: SettingsValues
 
+    /// The cap as the stepper names it: a number, or off at zero.
+    private var capText: String {
+        values.shortcutMemoryLength == 0 ? "Off" : String(values.shortcutMemoryLength)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
@@ -56,6 +61,27 @@ struct SettingsFilterView: View {
                     Text("Kana and kanji readings").tag(RomajiScope.kanaKanji)
                 }
                 Text("Match kana readings only, or kanji readings too.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Stepper("Shortcut memory length: \(capText)", value: $values.shortcutMemoryLength, in: 0 ... 5)
+                Text("Remember the chosen window per query up to this many characters. 0 means off.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle("Fuzzy matching", isOn: $values.fuzzyMatchEnabled)
+                Text("Match queries whose letters appear in order, not only substrings.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Picker("Result order", selection: $values.resultOrder) {
+                    Text("MRU").tag(SearchOrdering.mru)
+                    Text("Best match").tag(SearchOrdering.score)
+                }
+                Text("Show recent windows first, or best matches first.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

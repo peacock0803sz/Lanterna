@@ -22,6 +22,15 @@ struct ChoiceAnchor {
 final class PanelFilter {
     private var fullWindows: [WindowItem] = []
     private var state = FilterState()
+    /// The shortcut memory, kept across appearances while the process
+    /// runs. The query starts over with every appearance; the habits do
+    /// not.
+    private var shortcutMemory = ShortcutMemory(maxLength: 5)
+    /// The three search-quality settings as one value. Read at launch
+    /// from the config file and whenever the settings change, like the
+    /// exclusion rules are recompiled.
+    var searchSettings = SearchSettings()
+
     private var lastSummary = FilterLogSummary(query: "", matchedCount: 0, totalCount: 0)
     /// Whether keystrokes narrow the list right now. Set only by the filter
     /// invocation; a panel shown any other way leaves it off, and typing is
@@ -127,6 +136,14 @@ final class PanelFilter {
         isActive = false
     }
 
+    /// Records one commit under the query it committed with. Movements
+    /// of the choice record nothing; only the commit path calls here.
+    /// Empty queries, overlong queries, and a zero cap record nothing.
+    func recordShortcut(query: String, id: WindowItem.Identifier) {
+        shortcutMemory.maxLength = searchSettings.shortcutMemoryLength
+        shortcutMemory.record(query: query, id: id)
+    }
+
     /// What the commit and cancel lines will say about this appearance.
     ///
     /// Read at the exits, which write their lines after the closing: the
@@ -166,17 +183,66 @@ final class PanelFilter {
         return true
     }
 
-    /// The rows one list shows under the current query and modes, in the
-    /// order the panel draws them. Every entry narrows through here, so the
-    /// modes keep a row out and place it the same way whether the panel
-    /// opened, a keystroke arrived, or a list was swapped in.
-    private func shown(in windows: [WindowItem]) -> [WindowItem] {
-        DisplayModes.displayOrdered(windows, modes: displayModes, query: state.query, exclusions: exclusionRules)
+    /// The remembered row for the current query, if one applies: the panel
+    /// is filtering, the query is non-empty, and the memory holds its key.
+    /// Membership in the shown rows is checked by the caller, so this asks
+    /// nothing twice and survives matcher changes.
+    private var rememberedID: WindowItem.Identifier? {
+        // Synced here rather than in `didSet`: nested edits of the
+        // settings skip `didSet`, and the cap must hold for them too.
+        shortcutMemory.maxLength = searchSettings.shortcutMemoryLength
+        guard isActive, !state.query.isEmpty else { return nil }
+        return shortcutMemory.lookup(query: state.query)
     }
 
-    /// Narrows the rows, follows the choice onto them, and tells the panel,
-    /// drawing once. The exits resolve off the whole shown list: identities
-    /// are unique, so a narrowed row reads back as itself either way.
+    /// Moves the remembered row to the front of its own section, leaving
+    /// every other row where the ranking put it. Parking and hiding stand:
+    /// a remembered row never leaves its section for another one.
+    private func memoryFirstInSections(
+        ordinary: [WindowItem],
+        subgroups: [(DisplaySubgroup, [WindowItem])],
+        remembered: WindowItem.Identifier
+    ) -> [WindowItem] {
+        var ordinary = ordinary
+        var subgroups = subgroups
+        if let index = ordinary.firstIndex(where: { $0.id == remembered }) {
+            let row = ordinary.remove(at: index)
+            ordinary.insert(row, at: 0)
+            return ordinary + subgroups.flatMap(\.1)
+        }
+        for section in subgroups.indices {
+            if let index = subgroups[section].1.firstIndex(where: { $0.id == remembered }) {
+                let row = subgroups[section].1.remove(at: index)
+                subgroups[section].1.insert(row, at: 0)
+                break
+            }
+        }
+        return ordinary + subgroups.flatMap(\.1)
+    }
+
+    /// modes keep a row out and place it the same way whether the panel
+    /// opened, a keystroke arrived, or a list was swapped in. Sections are
+    /// split first and the remembered row moves within its own section, so
+    /// the choice and the drawing read one order in both orderings.
+    private func shown(in windows: [WindowItem]) -> [WindowItem] {
+        let (ordinary, subgroups) = DisplayModes.sections(
+            of: windows,
+            modes: displayModes,
+            query: state.query,
+            exclusions: exclusionRules,
+            fuzzy: searchSettings.fuzzyMatchEnabled,
+            ordering: searchSettings.ordering
+        )
+        guard let remembered = rememberedID else {
+            return ordinary + subgroups.flatMap(\.1)
+        }
+        return memoryFirstInSections(ordinary: ordinary, subgroups: subgroups, remembered: remembered)
+    }
+
+    /// Narrows the rows, puts the remembered row first in its section,
+    /// follows the choice onto them, and tells the panel, drawing once.
+    /// The exits resolve off the whole shown list: identities are unique,
+    /// so a narrowed row reads back as itself either way.
     private func apply() {
         let matched = shownWindows
         let matchedList = matched.map(\.id)

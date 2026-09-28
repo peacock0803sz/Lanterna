@@ -24,6 +24,7 @@ enum AppConfiguration {
         "otherSpaceMode", "hiddenAppMode", "minimizedMode", "fullscreenMode",
         "appearanceMode", "romajiScope", "launchAtLogin", "logLevel",
         "updateCheckEnabled", "updateChannel", "exclusions",
+        "shortcutMemoryLength", "fuzzyMatchEnabled", "resultOrder",
     ]
 
     /// The scaffold written when no file exists (FR-012).
@@ -53,6 +54,15 @@ struct ValidConfiguration: Equatable, Sendable {
     var updateChannel: String?
     /// The raw exclusion entries. Nil means absent, which means no exclusions.
     var exclusions: [ExclusionEntry]?
+    /// How many characters of a query the shortcut memory covers. Nil means
+    /// absent, which means 5. 0 means off.
+    var shortcutMemoryLength: Int?
+    /// Whether subsequence queries match as well as substrings. Nil means
+    /// absent, which means on.
+    var fuzzyMatchEnabled: Bool?
+    /// The raw ordering word. Nil means absent, which means "mru".
+    /// Kept as a string like `updateChannel`; the enum lives with T018.
+    var resultOrder: String?
 
     init(
         version: Int,
@@ -68,7 +78,10 @@ struct ValidConfiguration: Equatable, Sendable {
         logLevel: Logger.Level? = nil,
         updateCheckEnabled: Bool? = nil,
         updateChannel: String? = nil,
-        exclusions: [ExclusionEntry]? = nil
+        exclusions: [ExclusionEntry]? = nil,
+        shortcutMemoryLength: Int? = nil,
+        fuzzyMatchEnabled: Bool? = nil,
+        resultOrder: String? = nil
     ) {
         self.version = version
         self.sampleCount = sampleCount
@@ -84,6 +97,9 @@ struct ValidConfiguration: Equatable, Sendable {
         self.updateCheckEnabled = updateCheckEnabled
         self.updateChannel = updateChannel
         self.exclusions = exclusions
+        self.shortcutMemoryLength = shortcutMemoryLength
+        self.fuzzyMatchEnabled = fuzzyMatchEnabled
+        self.resultOrder = resultOrder
     }
 }
 
@@ -215,6 +231,7 @@ extension AppConfiguration {
             displayModes: DisplayModes.effective(from: file),
             exclusionEntries: file.exclusions ?? [],
             appearanceMode: AppearanceMode.effective(from: file),
+            searchSettings: SearchSettings.effective(from: file),
             // The command line wins where it says anything; the file covers
             // the rest. Never written back to the file.
             logLevel: Logger.Level.effective(cli: cli.logLevel, file: file.logLevel)
@@ -333,6 +350,8 @@ extension AppConfiguration {
         case let .failure(error):
             return .failure(error)
         }
-        return .success(config)
+        // Chained without another switch: this function already stands at
+        // the complexity limit, and the helper reports its own failures.
+        return checkedSearchSettings(dict, into: &config).map { _ in config }
     }
 }

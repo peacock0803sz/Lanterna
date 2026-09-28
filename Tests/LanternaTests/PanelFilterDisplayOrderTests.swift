@@ -81,4 +81,147 @@ struct PanelFilterDisplayOrderTests {
         }
         #expect(lap == drawn)
     }
+
+    /// A recorded row comes first under its query in the next appearance.
+    @Test func aRecordedRowComesFirstUnderItsQuery() {
+        let surface = FakeSurface()
+        surface.isPresented = true
+        let selection = PanelSelection(surface: surface)
+        let filter = PanelFilter(selection: selection, surface: surface)
+        let rows = [
+            orderRow(windowID: 1, title: "Front page"),
+            orderRow(windowID: 2, title: "Downloads"),
+            orderRow(windowID: 3, title: "Applications"),
+        ]
+        filter.begin(fullWindows: rows, filtering: true)
+        selection.beginSecond(filter.shownWindows.map(\.id))
+        filter.append("app")
+        filter.recordShortcut(query: "app", id: rows[1].id)
+        filter.begin(fullWindows: rows, filtering: true)
+        filter.append("app")
+        #expect(surface.updatedLists.last?.map(\.id) == [rows[1].id, rows[0].id, rows[2].id])
+    }
+
+    /// A recorded row that is gone is ignored, leaving the usual order.
+    @Test func aGoneRecordedRowLeavesTheUsualOrder() {
+        let surface = FakeSurface()
+        surface.isPresented = true
+        let selection = PanelSelection(surface: surface)
+        let filter = PanelFilter(selection: selection, surface: surface)
+        let rows = [
+            orderRow(windowID: 1, title: "Front page"),
+            orderRow(windowID: 2, title: "Downloads"),
+            orderRow(windowID: 3, title: "Applications"),
+        ]
+        filter.begin(fullWindows: rows, filtering: true)
+        selection.beginSecond(filter.shownWindows.map(\.id))
+        filter.append("app")
+        filter.recordShortcut(query: "app", id: WindowItem.Identifier(windowID: 99))
+        filter.begin(fullWindows: rows, filtering: true)
+        filter.append("app")
+        #expect(surface.updatedLists.last?.map(\.id) == rows.map(\.id))
+    }
+
+    /// A zero cap records nothing, leaving the usual order.
+    @Test func aZeroCapRecordsNothing() {
+        let surface = FakeSurface()
+        surface.isPresented = true
+        let selection = PanelSelection(surface: surface)
+        let filter = PanelFilter(selection: selection, surface: surface)
+        filter.searchSettings.shortcutMemoryLength = 0
+        let rows = [
+            orderRow(windowID: 1, title: "Front page"),
+            orderRow(windowID: 2, title: "Downloads"),
+            orderRow(windowID: 3, title: "Applications"),
+        ]
+        filter.begin(fullWindows: rows, filtering: true)
+        selection.beginSecond(filter.shownWindows.map(\.id))
+        filter.append("app")
+        filter.recordShortcut(query: "app", id: rows[1].id)
+        filter.begin(fullWindows: rows, filtering: true)
+        filter.append("app")
+        #expect(surface.updatedLists.last?.map(\.id) == rows.map(\.id))
+    }
+
+    /// A subsequence query narrows when fuzzy matching is on.
+    @Test func aSubsequenceQueryNarrowsWhenFuzzyIsOn() {
+        let surface = FakeSurface()
+        surface.isPresented = true
+        let selection = PanelSelection(surface: surface)
+        let filter = PanelFilter(selection: selection, surface: surface)
+        filter.searchSettings.fuzzyMatchEnabled = true
+        let rows = [
+            orderRow(windowID: 1, title: "Safari start"),
+            orderRow(windowID: 2, title: "Downloads"),
+            orderRow(windowID: 3, title: "Front page"),
+        ]
+        filter.begin(fullWindows: rows, filtering: true)
+        selection.beginSecond(filter.shownWindows.map(\.id))
+        filter.append("sfr")
+        #expect(surface.updatedLists.last?.map(\.id) == [rows[0].id])
+    }
+
+    /// A subsequence query narrows nothing when fuzzy matching is off.
+    @Test func aSubsequenceQueryNarrowsNothingWhenFuzzyIsOff() {
+        let surface = FakeSurface()
+        surface.isPresented = true
+        let selection = PanelSelection(surface: surface)
+        let filter = PanelFilter(selection: selection, surface: surface)
+        filter.searchSettings.fuzzyMatchEnabled = false
+        let rows = [
+            orderRow(windowID: 1, title: "Safari start"),
+            orderRow(windowID: 2, title: "Downloads"),
+            orderRow(windowID: 3, title: "Front page"),
+        ]
+        filter.begin(fullWindows: rows, filtering: true)
+        selection.beginSecond(filter.shownWindows.map(\.id))
+        filter.append("sfr")
+        #expect(surface.updatedLists.last?.isEmpty == true)
+    }
+
+    /// Score order puts the contiguous match first through the filter.
+    @Test func scoreOrderPutsTheContiguousMatchFirst() {
+        let surface = FakeSurface()
+        surface.isPresented = true
+        let selection = PanelSelection(surface: surface)
+        let filter = PanelFilter(selection: selection, surface: surface)
+        filter.searchSettings.ordering = .score
+        let rows = [
+            orderRow(windowID: 1, title: "a--b"),
+            orderRow(windowID: 2, title: "xab"),
+        ]
+        filter.begin(fullWindows: rows, filtering: true)
+        selection.beginSecond(filter.shownWindows.map(\.id))
+        filter.append("ab")
+        #expect(surface.updatedLists.last?.map(\.id) == [rows[1].id, rows[0].id])
+    }
+
+    /// A remembered row stays at its section front under score order.
+    @Test func rememberedRowStaysAtSubgroupFrontInScoreOrder() {
+        let surface = FakeSurface()
+        surface.isPresented = true
+        let selection = PanelSelection(surface: surface)
+        let filter = PanelFilter(selection: selection, surface: surface)
+        filter.searchSettings.ordering = .score
+        let ordinaryScattered = orderRow(windowID: 1, title: "a--b")
+        let ordinaryContiguous = orderRow(windowID: 2, title: "xab")
+        let minimizedContiguous = orderRow(windowID: 3, title: "xab", isMinimized: true)
+        let minimizedScattered = orderRow(windowID: 4, title: "a--b", isMinimized: true)
+        let rows = [ordinaryScattered, ordinaryContiguous, minimizedContiguous, minimizedScattered]
+        filter.begin(fullWindows: rows, filtering: true)
+        selection.beginSecond(filter.shownWindows.map(\.id))
+        for character in "ab" {
+            filter.append(String(character))
+        }
+        filter.recordShortcut(query: "ab", id: minimizedScattered.id)
+        filter.begin(fullWindows: rows, filtering: true)
+        for character in "ab" {
+            filter.append(String(character))
+        }
+        #expect(
+            surface.updatedLists.last?.map(\.id) == [
+                ordinaryContiguous.id, ordinaryScattered.id, minimizedScattered.id, minimizedContiguous.id,
+            ]
+        )
+    }
 }

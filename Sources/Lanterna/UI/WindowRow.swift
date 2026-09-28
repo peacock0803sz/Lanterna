@@ -9,6 +9,9 @@ struct WindowRow: View {
     let window: WindowItem
     let isSelected: Bool
     let query: String
+    /// Whether subsequence queries match as well as substrings. Decides
+    /// which ranges the highlight paints; judging is not done here.
+    var fuzzy: Bool = true
 
     var body: some View {
         HStack(spacing: 8) {
@@ -55,6 +58,9 @@ struct WindowRow: View {
         let ranges: [Range<String.Index>]
         if RomajiMatcher.engine.isOpen {
             ranges = WindowFilter.matchedRanges(query: query, in: text, engine: RomajiMatcher.engine)
+        } else if fuzzy {
+            let conventional = WindowFilter.matchedRanges(query: query, in: text)
+            ranges = conventional.isEmpty ? WindowFilter.subsequenceRanges(query: query, in: text) : conventional
         } else {
             ranges = WindowFilter.matchedRanges(query: query, in: text)
         }

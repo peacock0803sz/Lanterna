@@ -161,13 +161,15 @@ extension AppDelegate {
         let panel = SwitcherPanel(
             displayModes: options.displayModes,
             exclusionRules: compiled.rules,
-            appearanceMode: options.appearanceMode
+            appearanceMode: options.appearanceMode,
+            searchSettings: options.searchSettings
         )
         let presenter = PanelPresenter(
             surface: panel,
             store: windowList,
             displayModes: options.displayModes,
             exclusionRules: compiled.rules,
+            searchSettings: options.searchSettings,
             closesOnCommandRelease: { [weak self] in self?.monitor?.isMonitoring ?? false },
             switcher: OwnWindowSwitcher(wrapped: LiveWindowSwitcher())
         )
@@ -195,7 +197,14 @@ extension AppDelegate {
         }
         panel?.displayModes = values.displayModes
         panel?.appearance = values.appearanceMode.nsAppearance
+        let searchSettings = SearchSettings(
+            fuzzyMatchEnabled: values.fuzzyMatchEnabled,
+            shortcutMemoryLength: values.shortcutMemoryLength,
+            ordering: values.resultOrder
+        )
+        panel?.searchSettings = searchSettings
         presenter?.displayModes = values.displayModes
+        presenter?.searchSettings = searchSettings
         // Recompile exclusions only when the entries changed, so unrelated
         // tweaks leave the panel and presenter rules alone.
         if exclusionsChanged {

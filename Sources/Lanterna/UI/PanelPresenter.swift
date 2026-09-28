@@ -18,6 +18,18 @@ final class PanelPresenter {
         didSet { keyCommands.updateExclusions(exclusionRules) }
     }
 
+    /// The three search-quality settings as one value, handed to the key
+    /// commands beside the modes. A change lands on the live filter at
+    /// once, like the exclusion rules.
+    var searchSettings = SearchSettings() {
+        didSet { pushSearchSettings() }
+    }
+
+    /// Hands the search settings to the live key commands.
+    private func pushSearchSettings() {
+        keyCommands.updateSearchSettings(searchSettings)
+    }
+
     let ownProcessIdentifier: pid_t
     /// Handed on to the way out, built beside the presenter.
     let now: @MainActor () -> ContinuousClock.Instant
@@ -136,6 +148,7 @@ final class PanelPresenter {
         wayOut: wayOut,
         displayModes: displayModes,
         exclusionRules: exclusionRules,
+        searchSettings: searchSettings,
         now: now,
         operate: { [weak self] operation, chosen in
             self?.startOperation(operation, naming: chosen)
@@ -151,6 +164,7 @@ final class PanelPresenter {
         store: WindowListStore,
         displayModes: DisplayModes = .defaults,
         exclusionRules: [ExclusionRule] = [],
+        searchSettings: SearchSettings = SearchSettings(),
         ownProcessIdentifier: pid_t = getpid(),
         now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
         writeLine: @escaping @MainActor (Logger.Level, String) -> Void = { Diagnostics.writeLine($1, level: $0) },
@@ -168,6 +182,7 @@ final class PanelPresenter {
         self.store = store
         self.displayModes = displayModes
         self.exclusionRules = exclusionRules
+        self.searchSettings = searchSettings
         self.ownProcessIdentifier = ownProcessIdentifier
         self.now = now
         self.writeLine = writeLine

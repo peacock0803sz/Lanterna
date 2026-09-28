@@ -41,6 +41,25 @@ typealias RomajiScope = "kana"|"kanji"
 @Allowed { values { "kana" "kanji" } }
 romajiScope: RomajiScope? = null
 
+/// How many characters of a query the shortcut memory covers: a longer
+/// query is neither recorded nor applied. 0 means off. Absent means 5.
+/// Values above 5 invalidate the whole file (mirrored by the Swift
+/// validation, which also enforces the upper bound).
+@Minimum { value = 0 }
+shortcutMemoryLength: Int? = null
+
+/// Whether the filter also matches subsequence queries, not only
+/// substrings. Absent means on.
+fuzzyMatchEnabled: Boolean? = null
+
+/// The order the narrowed rows draw in: recent use first, or best match
+/// first.
+typealias ResultOrder = "mru"|"score"
+
+/// The order the narrowed rows draw in. Absent means "mru".
+@Allowed { values { "mru" "score" } }
+resultOrder: ResultOrder? = null
+
 /// Windows on other Spaces. Absent means "show".
 @Allowed { values { "show" "hide" "separateAtBottom" } }
 otherSpaceMode: DisplayMode? = null

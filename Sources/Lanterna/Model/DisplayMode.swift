@@ -132,21 +132,61 @@ struct DisplayModes: Equatable, Sendable {
         of rows: [WindowItem],
         modes: DisplayModes,
         query: String,
-        exclusions: [ExclusionRule] = []
+        exclusions: [ExclusionRule] = [],
+        fuzzy: Bool = false,
+        ordering: SearchOrdering = .mru
     ) -> (ordinary: [WindowItem], subgroups: [(DisplaySubgroup, [WindowItem])]) {
         let listed = WindowExclusion.excluding(rows, rules: exclusions)
         let matched: [WindowItem]
         if RomajiMatcher.engine.isOpen {
             matched = WindowFilter.matching(query, against: listed, engine: RomajiMatcher.engine)
+        } else if fuzzy {
+            matched = WindowFilter.matching(query, against: listed, fuzzy: true)
         } else {
             matched = WindowFilter.matching(query, against: listed)
         }
-        return sections(
+        let (ordinary, subgroups) = sections(
             of: matched,
             modes: modes,
             queryIsEmpty: query.isEmpty,
             matches: Set(matched.map(\.id))
         )
+        guard ordering == .score, !query.isEmpty else {
+            return (ordinary, subgroups)
+        }
+        return (
+            ordinary: scoreRanked(ordinary, query: query),
+            subgroups: subgroups.map { ($0.0, scoreRanked($0.1, query: query)) }
+        )
+    }
+
+    /// One section ranked best-match-first: contiguous substring matches,
+    /// then earlier match starts, with ties in the order they arrived in.
+    /// Ranking stays inside the section, so parking and hiding policies
+    /// stand however the rows order. A romaji match counts as contiguous,
+    /// ranked by where its span starts.
+    private static func scoreRanked(_ rows: [WindowItem], query: String) -> [WindowItem] {
+        guard RomajiMatcher.engine.isOpen else {
+            return WindowFilter.scoreOrdered(rows, query: query)
+        }
+        return rows.enumerated().map { entry in
+            (offset: entry.offset, start: engineMatchStart(of: entry.element, query: query), row: entry.element)
+        }.sorted {
+            if $0.start != $1.start {
+                return $0.start < $1.start
+            }
+            return $0.offset < $1.offset
+        }.map(\.row)
+    }
+
+    /// Where the romaji match starts, or last when the row never matched
+    /// through the engine.
+    private static func engineMatchStart(of row: WindowItem, query: String) -> Int {
+        let text = WindowFilter.combinedText(of: row)
+        guard let first = WindowFilter.matchedRanges(query: query, in: text, engine: RomajiMatcher.engine).first else {
+            return Int.max
+        }
+        return text.distance(from: text.startIndex, to: first.lowerBound)
     }
 
     /// The rows the panel shows for a query, in the order it draws them: the
@@ -157,9 +197,18 @@ struct DisplayModes: Equatable, Sendable {
         _ rows: [WindowItem],
         modes: DisplayModes,
         query: String,
-        exclusions: [ExclusionRule] = []
+        exclusions: [ExclusionRule] = [],
+        fuzzy: Bool = false,
+        ordering: SearchOrdering = .mru
     ) -> [WindowItem] {
-        let (ordinary, subgroups) = sections(of: rows, modes: modes, query: query, exclusions: exclusions)
+        let (ordinary, subgroups) = sections(
+            of: rows,
+            modes: modes,
+            query: query,
+            exclusions: exclusions,
+            fuzzy: fuzzy,
+            ordering: ordering
+        )
         return ordinary + subgroups.flatMap(\.1)
     }
 }
