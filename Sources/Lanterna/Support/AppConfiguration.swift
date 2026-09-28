@@ -22,6 +22,7 @@ enum AppConfiguration {
         "version", "sampleCount", "stopMonitorEvery",
         "otherSpaceMode", "hiddenAppMode", "minimizedMode", "fullscreenMode",
         "appearanceMode", "romajiScope", "launchAtLogin",
+        "updateCheckEnabled", "updateChannel",
     ]
 
     /// The scaffold written when no file exists (FR-012).
@@ -46,6 +47,8 @@ struct ValidConfiguration: Equatable, Sendable {
     var appearanceMode: AppearanceMode?
     var romajiScope: RomajiScope?
     var launchAtLogin: Bool?
+    var updateCheckEnabled: Bool?
+    var updateChannel: String?
 
     init(
         version: Int,
@@ -57,7 +60,9 @@ struct ValidConfiguration: Equatable, Sendable {
         fullscreenMode: DisplayMode? = nil,
         appearanceMode: AppearanceMode? = nil,
         romajiScope: RomajiScope? = nil,
-        launchAtLogin: Bool? = nil
+        launchAtLogin: Bool? = nil,
+        updateCheckEnabled: Bool? = nil,
+        updateChannel: String? = nil
     ) {
         self.version = version
         self.sampleCount = sampleCount
@@ -69,6 +74,8 @@ struct ValidConfiguration: Equatable, Sendable {
         self.appearanceMode = appearanceMode
         self.romajiScope = romajiScope
         self.launchAtLogin = launchAtLogin
+        self.updateCheckEnabled = updateCheckEnabled
+        self.updateChannel = updateChannel
     }
 }
 
@@ -249,40 +256,6 @@ extension AppConfiguration {
         return .success((version, false))
     }
 
-    /// Reads one optional integer key with its lower bound.
-    private static func checkedOptionalInt(
-        _ dict: [String: Any],
-        key: String,
-        minimum: Int
-    ) -> Result<Int?, ConfigDecodeError> {
-        guard let rawValue = dict[key] else { return .success(nil) }
-        guard let value = jsonInt(rawValue), value >= minimum else {
-            return .failure(.invalidValue(key: key))
-        }
-        return .success(value)
-    }
-
-    /// Reads the count keys together, so `decode` stays small.
-    private static func checkedCountOptions(_ dict: [String: Any]) -> Result<
-        (Int?, Int?), ConfigDecodeError
-    > {
-        let sampleCount: Int?
-        switch checkedOptionalInt(dict, key: "sampleCount", minimum: 0) {
-        case let .success(found):
-            sampleCount = found
-        case let .failure(error):
-            return .failure(error)
-        }
-        let stopMonitorEvery: Int?
-        switch checkedOptionalInt(dict, key: "stopMonitorEvery", minimum: 1) {
-        case let .success(found):
-            stopMonitorEvery = found
-        case let .failure(error):
-            return .failure(error)
-        }
-        return .success((sampleCount, stopMonitorEvery))
-    }
-
     /// Assembles the validated configuration, reading the display modes,
     /// then the appearance mode, and then, last, the romaji scope.
     private static func checkedConfiguration(
@@ -322,79 +295,11 @@ extension AppConfiguration {
         case let .failure(error):
             return .failure(error)
         }
-        switch checkedOptionalBool(dict, key: "launchAtLogin") {
-        case let .success(found):
-            config.launchAtLogin = found
+        switch checkedSwitches(dict, into: &config) {
+        case .success:
+            return .success(config)
         case let .failure(error):
             return .failure(error)
         }
-        return .success(config)
-    }
-
-    /// Reads one optional boolean key. Only a real boolean counts:
-    /// integers are refused the way booleans are refused for integers.
-    private static func checkedOptionalBool(
-        _ dict: [String: Any],
-        key: String
-    ) -> Result<Bool?, ConfigDecodeError> {
-        guard let rawValue = dict[key] else { return .success(nil) }
-        guard let number = rawValue as? NSNumber,
-              String(cString: number.objCType) == "c"
-        else {
-            return .failure(.invalidValue(key: key))
-        }
-        return .success(number.boolValue)
-    }
-
-    /// Reads one optional display-mode key. Anything but a `DisplayMode`
-    /// word invalidates the whole file, like any other bad value.
-    private static func checkedOptionalMode(
-        _ dict: [String: Any],
-        key: String
-    ) -> Result<DisplayMode?, ConfigDecodeError> {
-        guard let rawValue = dict[key] else { return .success(nil) }
-        guard let text = rawValue as? String, let mode = DisplayMode(rawValue: text) else {
-            return .failure(.invalidValue(key: key))
-        }
-        return .success(mode)
-    }
-
-    /// Reads the optional appearance-mode key. Anything but an
-    /// `AppearanceMode` word invalidates the whole file, like any other
-    /// bad value.
-    private static func checkedOptionalAppearance(
-        _ dict: [String: Any],
-        key: String
-    ) -> Result<AppearanceMode?, ConfigDecodeError> {
-        guard let rawValue = dict[key] else { return .success(nil) }
-        guard let text = rawValue as? String, let mode = AppearanceMode(rawValue: text) else {
-            return .failure(.invalidValue(key: key))
-        }
-        return .success(mode)
-    }
-
-    /// Reads the optional romaji-scope key. Anything but a
-    /// `RomajiScope` word invalidates the whole file, like any other
-    /// bad value.
-    private static func checkedOptionalRomajiScope(
-        _ dict: [String: Any],
-        key: String
-    ) -> Result<RomajiScope?, ConfigDecodeError> {
-        guard let rawValue = dict[key] else { return .success(nil) }
-        guard let text = rawValue as? String, let scope = RomajiScope(rawValue: text) else {
-            return .failure(.invalidValue(key: key))
-        }
-        return .success(scope)
-    }
-
-    /// A JSON integer and nothing else.
-    ///
-    /// Booleans are refused by their Objective-C type: an `is Bool` check
-    /// wrongly matches integer 1, so only the `c` type is turned away.
-    private static func jsonInt(_ value: Any) -> Int? {
-        if let number = value as? NSNumber, String(cString: number.objCType) == "c" {
-            return nil
-        }
-        return value as? Int
     }
 }

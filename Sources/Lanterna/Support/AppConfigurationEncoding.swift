@@ -40,6 +40,7 @@ extension AppConfiguration {
         if let stopMonitorEverySeconds = config.stopMonitorEverySeconds {
             entries.append(encodedInt(key: "stopMonitorEvery", value: stopMonitorEverySeconds))
         }
+        entries.append(contentsOf: updateCheckEntries(config))
         entries.append(encodedInt(key: "version", value: config.version))
         return Data(("{\n" + entries.joined(separator: ",\n") + "\n}\n").utf8)
     }
@@ -56,6 +57,18 @@ extension AppConfiguration {
             withIntermediateDirectories: true
         )
         try encode(config).write(to: url, options: .atomic)
+    }
+
+    /// The two update-check lines, in canonical order, skipping absent values.
+    private static func updateCheckEntries(_ config: ValidConfiguration) -> [String] {
+        var entries: [String] = []
+        if let updateChannel = config.updateChannel {
+            entries.append(encodedString(key: "updateChannel", value: updateChannel))
+        }
+        if let updateCheckEnabled = config.updateCheckEnabled {
+            entries.append(encodedBool(key: "updateCheckEnabled", value: updateCheckEnabled))
+        }
+        return entries
     }
 
     /// One `"key": "value"` line, indented two spaces.

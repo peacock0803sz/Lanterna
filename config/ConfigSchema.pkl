@@ -69,3 +69,13 @@ stopMonitorEvery: Int? = null
 
 /// Whether Lanterna starts at login. Absent means off.
 launchAtLogin: Boolean? = null
+
+/// Whether Lanterna checks for newer releases. Absent means off.
+updateCheckEnabled: Boolean? = null
+
+/// Which releases the check covers: full releases only, or prereleases too.
+typealias UpdateChannel = "stable"|"beta"
+
+/// The releases the check covers. Absent means "stable".
+@Allowed { values { "stable" "beta" } }
+updateChannel: UpdateChannel? = null

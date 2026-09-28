@@ -75,6 +75,18 @@
     "launchAtLogin": {
       "description": "Whether Lanterna starts at login. Absent means off.",
       "type": "boolean"
+    },
+    "updateCheckEnabled": {
+      "description": "Whether Lanterna checks for newer releases. Absent means off.",
+      "type": "boolean"
+    },
+    "updateChannel": {
+      "description": "The releases the check covers. Absent means \"stable\".",
+      "type": "string",
+      "enum": [
+        "stable",
+        "beta"
+      ]
     }
   },
   "additionalProperties": false

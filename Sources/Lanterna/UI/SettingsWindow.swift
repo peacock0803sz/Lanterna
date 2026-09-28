@@ -10,6 +10,11 @@ import SwiftUI
 /// once through the single change handler.
 @MainActor
 final class SettingsWindow: NSWindow {
+    /// What the General tab shows about the last manual check.
+    ///
+    /// Held here so reopening the window starts unconfirmed again.
+    let checkDisplay = UpdateCheckDisplay()
+
     /// Builds the window showing the given values. Changes flow back
     /// through `onChange` as they happen; saving and confirmation live
     /// with the caller, not here.
@@ -19,6 +24,7 @@ final class SettingsWindow: NSWindow {
         permissionState: PermissionState,
         opener: @escaping SettingsOpener,
         appearanceMode: AppearanceMode = .system,
+        onCheckNow: @escaping () -> Void = {},
         onChange: @escaping (SettingsValues) -> Void
     ) {
         self.init(
@@ -34,6 +40,8 @@ final class SettingsWindow: NSWindow {
             version: version,
             permissionState: permissionState,
             opener: opener,
+            checkDisplay: checkDisplay,
+            onCheckNow: onCheckNow,
             onChange: onChange
         ))
         center()
@@ -50,6 +58,8 @@ struct SettingsView: View {
     let version: DisplayedVersion
     let permissionState: PermissionState
     let opener: SettingsOpener
+    @ObservedObject var checkDisplay: UpdateCheckDisplay
+    let onCheckNow: () -> Void
     let onChange: (SettingsValues) -> Void
 
     init(
@@ -57,12 +67,16 @@ struct SettingsView: View {
         version: DisplayedVersion,
         permissionState: PermissionState,
         opener: @escaping SettingsOpener,
+        checkDisplay: UpdateCheckDisplay = UpdateCheckDisplay(),
+        onCheckNow: @escaping () -> Void = {},
         onChange: @escaping (SettingsValues) -> Void
     ) {
         self.values = values
         self.version = version
         self.permissionState = permissionState
         self.opener = opener
+        self.checkDisplay = checkDisplay
+        self.onCheckNow = onCheckNow
         self.onChange = onChange
     }
 
@@ -72,7 +86,10 @@ struct SettingsView: View {
                 values: $values,
                 version: version,
                 missing: MissingPermission.list(for: permissionState),
-                opener: opener
+                opener: opener,
+                checkResultText: checkDisplay.resultText,
+                isChecking: checkDisplay.isChecking,
+                onCheckNow: onCheckNow
             )
             .tabItem { Text("General") }
             SettingsAppearanceView(values: $values)
