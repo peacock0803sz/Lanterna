@@ -29,9 +29,15 @@ enum PanelMetrics {
     static func drawnRowCount(
         _ windows: [WindowItem],
         modes: DisplayModes = .defaults,
-        query: String = ""
+        query: String = "",
+        exclusions: [ExclusionRule] = []
     ) -> Int {
-        let (ordinary, subgroups) = DisplayModes.sections(of: windows, modes: modes, query: query)
+        let (ordinary, subgroups) = DisplayModes.sections(
+            of: windows,
+            modes: modes,
+            query: query,
+            exclusions: exclusions
+        )
         let separator = (!ordinary.isEmpty && !subgroups.isEmpty) ? 1 : 0
         let subgroupRows = subgroups.reduce(0) { $0 + $1.1.count }
         return ordinary.count + subgroupRows + separator + subgroups.count

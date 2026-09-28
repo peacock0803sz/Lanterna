@@ -76,4 +76,44 @@ enum WindowExclusion {
         }
         return (true, String(pattern.dropFirst().dropLast()))
     }
+
+    /// The rows surviving the rules, in the order they arrived.
+    ///
+    /// Excluding keeps the order; it never sorts, so the relative order
+    /// without exclusions survives. No rules returns the input unchanged,
+    /// judging not one row, which is what keeps the show path free of
+    /// measurable work.
+    static func excluding(_ windows: [WindowItem], rules: [ExclusionRule]) -> [WindowItem] {
+        guard !rules.isEmpty else { return windows }
+        return windows.filter { !isExcluded($0, rules: rules) }
+    }
+
+    /// Whether one row leaves the list under any rule.
+    static func isExcluded(_ item: WindowItem, rules: [ExclusionRule]) -> Bool {
+        rules.contains { matches(item, rule: $0) }
+    }
+
+    /// Both halves must match; one half alone excludes nothing.
+    private static func matches(_ item: WindowItem, rule: ExclusionRule) -> Bool {
+        guard matchesApp(item, rule: rule) else { return false }
+        return matchesTitle(item.windowTitle, rule: rule)
+    }
+
+    /// A bundle id match (ignoring case) or a display-name pattern match.
+    private static func matchesApp(_ item: WindowItem, rule: ExclusionRule) -> Bool {
+        if let bundle = item.bundleIdentifier, bundle.lowercased() == rule.app.lowercased() {
+            return true
+        }
+        let range = NSRange(item.appName.startIndex..., in: item.appName)
+        return rule.appRegex.firstMatch(in: item.appName, range: range) != nil
+    }
+
+    /// An exact match for anchored patterns, a substring match otherwise,
+    /// both ignoring case.
+    private static func matchesTitle(_ title: String, rule: ExclusionRule) -> Bool {
+        if rule.titleExact {
+            return title.compare(rule.titleNeedle, options: .caseInsensitive) == .orderedSame
+        }
+        return title.range(of: rule.titleNeedle, options: .caseInsensitive) != nil
+    }
 }

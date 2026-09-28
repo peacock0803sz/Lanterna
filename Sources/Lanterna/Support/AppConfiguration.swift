@@ -213,6 +213,7 @@ extension AppConfiguration {
             stopMonitorEvery: cli.stopMonitorEvery
                 ?? file.stopMonitorEverySeconds.map { .seconds($0) },
             displayModes: DisplayModes.effective(from: file),
+            exclusionEntries: file.exclusions ?? [],
             appearanceMode: AppearanceMode.effective(from: file),
             // The command line wins where it says anything; the file covers
             // the rest. Never written back to the file.

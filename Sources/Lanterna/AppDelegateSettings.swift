@@ -133,6 +133,47 @@ extension AppDelegate {
         alert.beginSheetModal(for: window) { _ in }
     }
 
+    /// Compiles the exclusion entries and hands the rules to the panel
+    /// and the presenter, so both judge the same rows out. Changed rules
+    /// apply at once; unreadable entries are reported and skipped.
+    func refreshExclusions(from entries: [ExclusionEntry]) {
+        let compiled = WindowExclusion.compile(entries)
+        panel?.exclusionRules = compiled.rules
+        presenter?.exclusionRules = compiled.rules
+        if compiled.invalid > 0 {
+            Diagnostics.writeLine(
+                "ignored \(compiled.invalid) invalid exclusion entries",
+                level: .info
+            )
+        }
+    }
+
+    /// Builds the panel and its presenter together, so the two judge the
+    /// same rows out from the first appearance on.
+    func makePanelAndPresenter(windowList: WindowListStore) -> (SwitcherPanel, PanelPresenter) {
+        let compiled = WindowExclusion.compile(options.exclusionEntries)
+        if compiled.invalid > 0 {
+            Diagnostics.writeLine(
+                "ignored \(compiled.invalid) invalid exclusion entries",
+                level: .info
+            )
+        }
+        let panel = SwitcherPanel(
+            displayModes: options.displayModes,
+            exclusionRules: compiled.rules,
+            appearanceMode: options.appearanceMode
+        )
+        let presenter = PanelPresenter(
+            surface: panel,
+            store: windowList,
+            displayModes: options.displayModes,
+            exclusionRules: compiled.rules,
+            closesOnCommandRelease: { [weak self] in self?.monitor?.isMonitoring ?? false },
+            switcher: OwnWindowSwitcher(wrapped: LiveWindowSwitcher())
+        )
+        return (panel, presenter)
+    }
+
     /// Applies changed settings to the running app and saves them.
     ///
     /// Everything happens synchronously on the main thread, so a change
@@ -154,6 +195,7 @@ extension AppDelegate {
         panel?.displayModes = values.displayModes
         panel?.appearance = values.appearanceMode.nsAppearance
         presenter?.displayModes = values.displayModes
+        refreshExclusions(from: values.exclusions)
         guideWindows?.update(appearanceMode: values.appearanceMode)
         // Reopening rebuilds the engine, so only a scope change pays
         // for it. Appearance and display tweaks leave matching alone.

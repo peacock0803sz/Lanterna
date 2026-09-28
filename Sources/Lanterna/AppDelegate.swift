@@ -96,9 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Built now and left off screen. Nothing shows until a key is pressed,
         // and building the window ahead of time keeps its cost off the path
         // between that press and the panel.
-        let panel = SwitcherPanel(displayModes: options.displayModes, appearanceMode: options.appearanceMode)
-        self.panel = panel
-
+        //
         // Before the hotkeys are claimed, so that the first pass has a head
         // start on the first press and that press is unlikely to find nothing
         // to show.
@@ -107,13 +105,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // The panel is held by the presenter, the presenter by the manager's
         // press handler, and the manager by this delegate.
-        let presenter = PanelPresenter(
-            surface: panel,
-            store: windowList,
-            displayModes: options.displayModes,
-            closesOnCommandRelease: { [weak self] in self?.monitor?.isMonitoring ?? false },
-            switcher: OwnWindowSwitcher(wrapped: LiveWindowSwitcher())
-        )
+        let (panel, presenter) = makePanelAndPresenter(windowList: windowList)
+        self.panel = panel
         let hotkeys = HotkeyManager { combination, deliveryDelay in
             presenter.handleHotkey(combination, deliveryDelay: deliveryDelay)
         }

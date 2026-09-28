@@ -126,17 +126,20 @@ struct DisplayModes: Equatable, Sendable {
     /// The rows the panel draws for a query, split as above: the rows the
     /// query matches, less the ones the modes keep out. The filter, the
     /// view and the height all ask this, so what is kept out is decided
-    /// one way wherever it is asked.
+    /// one way wherever it is asked. Exclusions run first: an excluded row
+    /// reaches neither the narrowing nor the modes.
     static func sections(
         of rows: [WindowItem],
         modes: DisplayModes,
-        query: String
+        query: String,
+        exclusions: [ExclusionRule] = []
     ) -> (ordinary: [WindowItem], subgroups: [(DisplaySubgroup, [WindowItem])]) {
+        let listed = WindowExclusion.excluding(rows, rules: exclusions)
         let matched: [WindowItem]
         if RomajiMatcher.engine.isOpen {
-            matched = WindowFilter.matching(query, against: rows, engine: RomajiMatcher.engine)
+            matched = WindowFilter.matching(query, against: listed, engine: RomajiMatcher.engine)
         } else {
-            matched = WindowFilter.matching(query, against: rows)
+            matched = WindowFilter.matching(query, against: listed)
         }
         return sections(
             of: matched,
@@ -153,9 +156,10 @@ struct DisplayModes: Equatable, Sendable {
     static func displayOrdered(
         _ rows: [WindowItem],
         modes: DisplayModes,
-        query: String
+        query: String,
+        exclusions: [ExclusionRule] = []
     ) -> [WindowItem] {
-        let (ordinary, subgroups) = sections(of: rows, modes: modes, query: query)
+        let (ordinary, subgroups) = sections(of: rows, modes: modes, query: query, exclusions: exclusions)
         return ordinary + subgroups.flatMap(\.1)
     }
 }

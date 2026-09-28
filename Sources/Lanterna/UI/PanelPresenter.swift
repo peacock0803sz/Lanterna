@@ -10,6 +10,14 @@ final class PanelPresenter {
     /// Where the rows come from: already gathered, in the ordinary case.
     let store: WindowListStore
     var displayModes: DisplayModes
+    /// The compiled exclusion rules, handed to the key commands beside
+    /// the modes, so the filter and the panel judge the same rows out.
+    /// A change lands on the live filter at once: settings edits apply
+    /// without waiting for the next launch.
+    var exclusionRules: [ExclusionRule] {
+        didSet { keyCommands.updateExclusions(exclusionRules) }
+    }
+
     let ownProcessIdentifier: pid_t
     /// Handed on to the way out, built beside the presenter.
     let now: @MainActor () -> ContinuousClock.Instant
@@ -127,6 +135,7 @@ final class PanelPresenter {
         selection: selection,
         wayOut: wayOut,
         displayModes: displayModes,
+        exclusionRules: exclusionRules,
         now: now,
         operate: { [weak self] operation, chosen in
             self?.startOperation(operation, naming: chosen)
@@ -141,6 +150,7 @@ final class PanelPresenter {
         surface: any SwitcherSurface,
         store: WindowListStore,
         displayModes: DisplayModes = .defaults,
+        exclusionRules: [ExclusionRule] = [],
         ownProcessIdentifier: pid_t = getpid(),
         now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
         writeLine: @escaping @MainActor (Logger.Level, String) -> Void = { Diagnostics.writeLine($1, level: $0) },
@@ -157,6 +167,7 @@ final class PanelPresenter {
         selection = PanelSelection(surface: surface)
         self.store = store
         self.displayModes = displayModes
+        self.exclusionRules = exclusionRules
         self.ownProcessIdentifier = ownProcessIdentifier
         self.now = now
         self.writeLine = writeLine
