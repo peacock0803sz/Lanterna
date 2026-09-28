@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 
 /// The command-line options the app understands.
 ///
@@ -17,13 +18,13 @@ enum LaunchArguments {
         /// Stop the modifier monitor this often, so that it can be watched
         /// putting itself back. Absent in an ordinary run.
         var stopMonitorEvery: Duration?
-        /// How much diagnostics this run emits. `nil` leaves it to the file
-        /// and the default. Never written back to the file.
-        var logLevel: LogLevel?
         /// How the special kinds show. No flag sets it; the file covers it.
         var displayModes: DisplayModes = .defaults
         /// Which appearance the windows use. No flag sets it; the file covers it.
         var appearanceMode: AppearanceMode = .system
+        /// How much diagnostics this run emits. `nil` leaves it to the file
+        /// and the default. Never written back to the file.
+        var logLevel: Logger.Level?
     }
 
     /// What a flag will take, as one closed choice.
@@ -95,9 +96,10 @@ enum LaunchArguments {
         accepts: .oneOrMore
     )
 
-    /// Four words, and only those four. The list mirrors `LogLevel`: a word
-    /// added there wants adding here, and the refusal below reads the list
-    /// back so the two cannot drift apart unnoticed.
+    /// Four words, and only those four. The list mirrors the words
+    /// `Logger.Level/parse(word:)` reads: a word added there wants adding
+    /// here, and the refusal below reads the list back so the two cannot
+    /// drift apart unnoticed.
     static let logLevelFlag = Flag(
         name: "--log-level",
         accepts: .allowedWords(["error", "warning", "info", "debug"])
@@ -191,7 +193,7 @@ enum LaunchArguments {
         return Options(
             sampleCount: values[sampleCountFlag.name],
             stopMonitorEvery: values[stopMonitorEveryFlag.name].map { .seconds($0) },
-            logLevel: words[logLevelFlag.name].flatMap(LogLevel.parse)
+            logLevel: words[logLevelFlag.name].flatMap(Logger.Level.parse(word:))
         )
     }
 
