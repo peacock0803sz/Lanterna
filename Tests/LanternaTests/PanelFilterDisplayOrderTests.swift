@@ -81,4 +81,65 @@ struct PanelFilterDisplayOrderTests {
         }
         #expect(lap == drawn)
     }
+
+    /// A recorded row comes first under its query in the next appearance.
+    @Test func aRecordedRowComesFirstUnderItsQuery() {
+        let surface = FakeSurface()
+        surface.isPresented = true
+        let selection = PanelSelection(surface: surface)
+        let filter = PanelFilter(selection: selection, surface: surface)
+        let rows = [
+            orderRow(windowID: 1, title: "Front page"),
+            orderRow(windowID: 2, title: "Downloads"),
+            orderRow(windowID: 3, title: "Applications"),
+        ]
+        filter.begin(fullWindows: rows, filtering: true)
+        selection.beginSecond(filter.shownWindows.map(\.id))
+        filter.append("app")
+        filter.recordShortcut(query: "app", id: rows[1].id)
+        filter.begin(fullWindows: rows, filtering: true)
+        filter.append("app")
+        #expect(surface.updatedLists.last?.map(\.id) == [rows[1].id, rows[0].id, rows[2].id])
+    }
+
+    /// A recorded row that is gone is ignored, leaving the usual order.
+    @Test func aGoneRecordedRowLeavesTheUsualOrder() {
+        let surface = FakeSurface()
+        surface.isPresented = true
+        let selection = PanelSelection(surface: surface)
+        let filter = PanelFilter(selection: selection, surface: surface)
+        let rows = [
+            orderRow(windowID: 1, title: "Front page"),
+            orderRow(windowID: 2, title: "Downloads"),
+            orderRow(windowID: 3, title: "Applications"),
+        ]
+        filter.begin(fullWindows: rows, filtering: true)
+        selection.beginSecond(filter.shownWindows.map(\.id))
+        filter.append("app")
+        filter.recordShortcut(query: "app", id: WindowItem.Identifier(windowID: 99))
+        filter.begin(fullWindows: rows, filtering: true)
+        filter.append("app")
+        #expect(surface.updatedLists.last?.map(\.id) == rows.map(\.id))
+    }
+
+    /// A zero cap records nothing, leaving the usual order.
+    @Test func aZeroCapRecordsNothing() {
+        let surface = FakeSurface()
+        surface.isPresented = true
+        let selection = PanelSelection(surface: surface)
+        let filter = PanelFilter(selection: selection, surface: surface)
+        filter.shortcutMemoryLength = 0
+        let rows = [
+            orderRow(windowID: 1, title: "Front page"),
+            orderRow(windowID: 2, title: "Downloads"),
+            orderRow(windowID: 3, title: "Applications"),
+        ]
+        filter.begin(fullWindows: rows, filtering: true)
+        selection.beginSecond(filter.shownWindows.map(\.id))
+        filter.append("app")
+        filter.recordShortcut(query: "app", id: rows[1].id)
+        filter.begin(fullWindows: rows, filtering: true)
+        filter.append("app")
+        #expect(surface.updatedLists.last?.map(\.id) == rows.map(\.id))
+    }
 }

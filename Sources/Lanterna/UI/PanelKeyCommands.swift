@@ -64,6 +64,13 @@ final class PanelKeyCommands {
         filter.exclusionRules = rules
     }
 
+    /// Records one commit for shortcut memory. Empty queries, overlong
+    /// queries, and a zero cap record nothing, as does no row at all.
+    private func recordShortcut(query: String, id: WindowItem.Identifier?) {
+        guard let id else { return }
+        filter.recordShortcut(query: query, id: id)
+    }
+
     /// Gives the appearance up; the next one starts empty either way.
     func endFiltering() {
         filter.reset()
@@ -151,7 +158,13 @@ final class PanelKeyCommands {
             }
             wayOut.cancel(by: key, since: startedAt, filter: filter.logSummary())
         case let .commit(key):
-            wayOut.commit(by: key, naming: selection.chosenID, since: startedAt, filter: filter.logSummary())
+            // Read before the commit: taking the panel down throws the
+            // list away. Recorded after the commit returns, so the write
+            // lands outside the measured close interval.
+            let committedID = selection.chosenID
+            let committedQuery = filter.logSummary().query
+            wayOut.commit(by: key, naming: committedID, since: startedAt, filter: filter.logSummary())
+            recordShortcut(query: committedQuery, id: committedID)
         case let .windowOperation(operation):
             operate?(operation, selection.chosenID)
         case let .filterText(text):
