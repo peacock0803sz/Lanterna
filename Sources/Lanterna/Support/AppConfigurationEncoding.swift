@@ -16,6 +16,7 @@ extension AppConfiguration {
         if let appearanceMode = config.appearanceMode {
             entries.append(encodedString(key: "appearanceMode", value: appearanceMode.rawValue))
         }
+        entries.append(contentsOf: exclusionEntries(config))
         if let fullscreenMode = config.fullscreenMode {
             entries.append(encodedString(key: "fullscreenMode", value: fullscreenMode.rawValue))
         }
@@ -44,7 +45,6 @@ extension AppConfiguration {
             entries.append(encodedInt(key: "stopMonitorEvery", value: stopMonitorEverySeconds))
         }
         entries.append(contentsOf: updateCheckEntries(config))
-        entries.append(contentsOf: exclusionEntries(config))
         entries.append(encodedInt(key: "version", value: config.version))
         return Data(("{\n" + entries.joined(separator: ",\n") + "\n}\n").utf8)
     }
@@ -65,7 +65,7 @@ extension AppConfiguration {
 
     /// The exclusion list lines, in canonical order, skipping absence.
     private static func exclusionEntries(_ config: ValidConfiguration) -> [String] {
-        guard let exclusions = config.exclusions else { return [] }
+        guard let exclusions = config.exclusions, !exclusions.isEmpty else { return [] }
         return [encodedExclusions(key: "exclusions", value: exclusions)]
     }
 

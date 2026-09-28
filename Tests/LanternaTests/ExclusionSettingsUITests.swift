@@ -38,7 +38,10 @@ struct ExclusionSettingsUITests {
         let cleared = values.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
         #expect(SettingsSaver.save(cleared, to: url, replacingInvalidFile: false) == .saved)
         let decoded = try #require(AppConfiguration.decode(Data(contentsOf: url)).successValue)
+        #expect(decoded.config.exclusions == nil)
         #expect(SettingsValues.effective(from: decoded.config).exclusions == [])
+        let text = try String(contentsOf: url, encoding: .utf8)
+        #expect(!text.contains("exclusions"))
     }
 
     @Test func validityRuleMarksWhatTheEditorFlags() {

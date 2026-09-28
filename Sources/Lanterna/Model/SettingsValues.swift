@@ -68,7 +68,8 @@ struct SettingsValues: Equatable, Sendable {
         config.launchAtLogin = launchAtLogin
         config.updateCheckEnabled = updateCheckEnabled
         config.updateChannel = updateChannel.rawValue
-        config.exclusions = exclusions
+        // Empty stays absent, so clearing the list removes the key.
+        config.exclusions = exclusions.isEmpty ? nil : exclusions
         return config
     }
 }
