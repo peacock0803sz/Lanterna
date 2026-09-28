@@ -40,3 +40,10 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: docs
           command: pages deploy dist --project-name lanterna-docs
+      - name: Purge Cloudflare cache for docs domain
+        run: |
+          curl -fsS -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/purge_cache" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{"prefixes":["https://lanterna.p3ac0ck.net"]}'
