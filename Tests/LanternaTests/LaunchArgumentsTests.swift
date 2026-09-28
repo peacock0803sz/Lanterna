@@ -143,7 +143,7 @@ struct LaunchArgumentsTests {
     @Test func usageLineIsPinnedOnce() {
         #expect(
             LaunchArguments.usage
-                == "usage: Lanterna [--sample-count N] [--stop-monitor-every SECONDS]"
+                == "usage: Lanterna [--sample-count N] [--stop-monitor-every SECONDS] [--log-level LEVEL]"
         )
     }
 
