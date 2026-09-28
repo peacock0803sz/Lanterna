@@ -23,7 +23,7 @@ enum AppConfiguration {
         "version", "sampleCount", "stopMonitorEvery",
         "otherSpaceMode", "hiddenAppMode", "minimizedMode", "fullscreenMode",
         "appearanceMode", "romajiScope", "launchAtLogin", "logLevel",
-        "updateCheckEnabled", "updateChannel",
+        "updateCheckEnabled", "updateChannel", "exclusions",
     ]
 
     /// The scaffold written when no file exists (FR-012).
@@ -51,6 +51,8 @@ struct ValidConfiguration: Equatable, Sendable {
     var logLevel: Logger.Level?
     var updateCheckEnabled: Bool?
     var updateChannel: String?
+    /// The raw exclusion entries. Nil means absent, which means no exclusions.
+    var exclusions: [ExclusionEntry]?
 
     init(
         version: Int,
@@ -65,7 +67,8 @@ struct ValidConfiguration: Equatable, Sendable {
         launchAtLogin: Bool? = nil,
         logLevel: Logger.Level? = nil,
         updateCheckEnabled: Bool? = nil,
-        updateChannel: String? = nil
+        updateChannel: String? = nil,
+        exclusions: [ExclusionEntry]? = nil
     ) {
         self.version = version
         self.sampleCount = sampleCount
@@ -80,6 +83,7 @@ struct ValidConfiguration: Equatable, Sendable {
         self.logLevel = logLevel
         self.updateCheckEnabled = updateCheckEnabled
         self.updateChannel = updateChannel
+        self.exclusions = exclusions
     }
 }
 
@@ -263,19 +267,11 @@ extension AppConfiguration {
         return .success((version, false))
     }
 
-    /// Assembles the validated configuration, reading the display modes,
-    /// then the appearance mode, and then, last, the romaji scope.
-    private static func checkedConfiguration(
+    /// Reads the four display-mode keys into the configuration.
+    private static func checkedDisplayModes(
         _ dict: [String: Any],
-        version: Int,
-        sampleCount: Int?,
-        stopMonitorEverySeconds: Int?
-    ) -> Result<ValidConfiguration, ConfigDecodeError> {
-        var config = ValidConfiguration(
-            version: version,
-            sampleCount: sampleCount,
-            stopMonitorEverySeconds: stopMonitorEverySeconds
-        )
+        into config: inout ValidConfiguration
+    ) -> Result<Void, ConfigDecodeError> {
         let keys: [(String, WritableKeyPath<ValidConfiguration, DisplayMode?>)] = [
             ("otherSpaceMode", \.otherSpaceMode),
             ("hiddenAppMode", \.hiddenAppMode),
@@ -289,6 +285,28 @@ extension AppConfiguration {
             case let .failure(error):
                 return .failure(error)
             }
+        }
+        return .success(())
+    }
+
+    /// Assembles the validated configuration, reading the display modes,
+    /// then the appearance mode, and then, last, the romaji scope.
+    private static func checkedConfiguration(
+        _ dict: [String: Any],
+        version: Int,
+        sampleCount: Int?,
+        stopMonitorEverySeconds: Int?
+    ) -> Result<ValidConfiguration, ConfigDecodeError> {
+        var config = ValidConfiguration(
+            version: version,
+            sampleCount: sampleCount,
+            stopMonitorEverySeconds: stopMonitorEverySeconds
+        )
+        switch checkedDisplayModes(dict, into: &config) {
+        case .success:
+            break
+        case let .failure(error):
+            return .failure(error)
         }
         switch checkedOptionalAppearance(dict, key: "appearanceMode") {
         case let .success(found):
@@ -304,9 +322,16 @@ extension AppConfiguration {
         }
         switch checkedSwitches(dict, into: &config) {
         case .success:
-            return .success(config)
+            break
         case let .failure(error):
             return .failure(error)
         }
+        switch checkedOptionalExclusions(dict, key: "exclusions") {
+        case let .success(found):
+            config.exclusions = found
+        case let .failure(error):
+            return .failure(error)
+        }
+        return .success(config)
     }
 }

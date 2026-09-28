@@ -155,6 +155,31 @@ extension AppConfiguration {
         return .success(text)
     }
 
+    /// Reads the optional exclusion list. The key must hold an array of
+    /// `{app, titlePattern}` string pairs; anything else invalidates the
+    /// whole file, like any other bad value. Entries stay raw here, even
+    /// the invalid ones: compiling reports what it skips, so decoding
+    /// never decides what counts as unreadable.
+    static func checkedOptionalExclusions(
+        _ dict: [String: Any],
+        key: String
+    ) -> Result<[ExclusionEntry]?, ConfigDecodeError> {
+        guard let rawValue = dict[key] else { return .success(nil) }
+        guard let items = rawValue as? [[String: Any]] else {
+            return .failure(.invalidValue(key: key))
+        }
+        var entries: [ExclusionEntry] = []
+        for item in items {
+            guard let app = item["app"] as? String,
+                  let titlePattern = item["titlePattern"] as? String
+            else {
+                return .failure(.invalidValue(key: key))
+            }
+            entries.append(ExclusionEntry(app: app, titlePattern: titlePattern))
+        }
+        return .success(entries)
+    }
+
     /// A JSON integer and nothing else.
     ///
     /// Booleans are refused by their Objective-C type: an `is Bool` check
