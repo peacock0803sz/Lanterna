@@ -97,6 +97,26 @@
         "stable",
         "beta"
       ]
+    },
+    "exclusions": {
+      "description": "Windows to keep out of the switcher list. Absent means no exclusions.\nElements that are invalid on their own are ignored one by one.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "app": {
+            "type": "string"
+          },
+          "titlePattern": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "app",
+          "titlePattern"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false
