@@ -303,6 +303,22 @@ jobs:
           echo "cask push failed after 3 attempts"
           exit 1
 
+      # The stable tracking ref for nix installs follows published tags.
+      # It moves only when CI (including the nix package check) passed on
+      # the tag commit; otherwise stable stays where it is.
+      - name: Advance stable branch
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          SHA="$(git rev-parse HEAD)"
+          state="$(gh run list --commit "$SHA" --workflow check-swift.yml --limit 1 \
+            --json status,conclusion --jq '.[0] | "\(.status // "absent") \(.conclusion // "none")"')"
+          if [[ "$state" != "completed success" ]]; then
+            echo "check-swift is $state for $SHA; not advancing stable"
+            exit 0
+          fi
+          git push origin "$SHA:refs/heads/stable"
+          echo "stable now at $TAG"
+
   deploy-docs:
     # Docs deploy stays independent of the app jobs: it runs on every tag
     # push even when the app side skips (already-released tag) or fails.
