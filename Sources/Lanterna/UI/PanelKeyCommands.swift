@@ -34,6 +34,8 @@ final class PanelKeyCommands {
         wayOut: PanelExit,
         displayModes: DisplayModes = .defaults,
         exclusionRules: [ExclusionRule] = [],
+        fuzzyMatchEnabled: Bool = true,
+        shortcutMemoryLength: Int = 5,
         now: @escaping @MainActor () -> ContinuousClock.Instant,
         operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)? = nil
     ) {
@@ -43,6 +45,8 @@ final class PanelKeyCommands {
         filter = PanelFilter(selection: selection, surface: surface)
         filter.displayModes = displayModes
         filter.exclusionRules = exclusionRules
+        filter.fuzzyMatchEnabled = fuzzyMatchEnabled
+        filter.shortcutMemoryLength = shortcutMemoryLength
         self.now = now
         self.operate = operate
     }
@@ -62,6 +66,12 @@ final class PanelKeyCommands {
     /// reaches the rows without waiting for the next launch.
     func updateExclusions(_ rules: [ExclusionRule]) {
         filter.exclusionRules = rules
+    }
+
+    /// Hands changed search settings to the live filter, the same way.
+    func updateSearchSettings(fuzzyMatchEnabled: Bool, shortcutMemoryLength: Int) {
+        filter.fuzzyMatchEnabled = fuzzyMatchEnabled
+        filter.shortcutMemoryLength = shortcutMemoryLength
     }
 
     /// Records one commit for shortcut memory. Empty queries, overlong

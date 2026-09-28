@@ -161,13 +161,16 @@ extension AppDelegate {
         let panel = SwitcherPanel(
             displayModes: options.displayModes,
             exclusionRules: compiled.rules,
-            appearanceMode: options.appearanceMode
+            appearanceMode: options.appearanceMode,
+            fuzzyMatchEnabled: options.fuzzyMatchEnabled
         )
         let presenter = PanelPresenter(
             surface: panel,
             store: windowList,
             displayModes: options.displayModes,
             exclusionRules: compiled.rules,
+            fuzzyMatchEnabled: options.fuzzyMatchEnabled,
+            shortcutMemoryLength: options.shortcutMemoryLength,
             closesOnCommandRelease: { [weak self] in self?.monitor?.isMonitoring ?? false },
             switcher: OwnWindowSwitcher(wrapped: LiveWindowSwitcher())
         )
@@ -195,7 +198,10 @@ extension AppDelegate {
         }
         panel?.displayModes = values.displayModes
         panel?.appearance = values.appearanceMode.nsAppearance
+        panel?.fuzzyMatchEnabled = values.fuzzyMatchEnabled
         presenter?.displayModes = values.displayModes
+        presenter?.fuzzyMatchEnabled = values.fuzzyMatchEnabled
+        presenter?.shortcutMemoryLength = values.shortcutMemoryLength
         // Recompile exclusions only when the entries changed, so unrelated
         // tweaks leave the panel and presenter rules alone.
         if exclusionsChanged {

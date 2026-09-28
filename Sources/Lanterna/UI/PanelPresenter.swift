@@ -18,6 +18,27 @@ final class PanelPresenter {
         didSet { keyCommands.updateExclusions(exclusionRules) }
     }
 
+    /// Whether subsequence queries match as well as substrings, handed to
+    /// the key commands beside the modes. A change lands on the live
+    /// filter at once, like the exclusion rules.
+    var fuzzyMatchEnabled = true {
+        didSet { pushSearchSettings() }
+    }
+
+    /// How many query characters the shortcut memory covers, handed over
+    /// beside the fuzzy flag.
+    var shortcutMemoryLength = 5 {
+        didSet { pushSearchSettings() }
+    }
+
+    /// Hands the search settings to the live key commands.
+    private func pushSearchSettings() {
+        keyCommands.updateSearchSettings(
+            fuzzyMatchEnabled: fuzzyMatchEnabled,
+            shortcutMemoryLength: shortcutMemoryLength
+        )
+    }
+
     let ownProcessIdentifier: pid_t
     /// Handed on to the way out, built beside the presenter.
     let now: @MainActor () -> ContinuousClock.Instant
@@ -136,6 +157,8 @@ final class PanelPresenter {
         wayOut: wayOut,
         displayModes: displayModes,
         exclusionRules: exclusionRules,
+        fuzzyMatchEnabled: fuzzyMatchEnabled,
+        shortcutMemoryLength: shortcutMemoryLength,
         now: now,
         operate: { [weak self] operation, chosen in
             self?.startOperation(operation, naming: chosen)
@@ -151,6 +174,8 @@ final class PanelPresenter {
         store: WindowListStore,
         displayModes: DisplayModes = .defaults,
         exclusionRules: [ExclusionRule] = [],
+        fuzzyMatchEnabled: Bool = true,
+        shortcutMemoryLength: Int = 5,
         ownProcessIdentifier: pid_t = getpid(),
         now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
         writeLine: @escaping @MainActor (Logger.Level, String) -> Void = { Diagnostics.writeLine($1, level: $0) },
@@ -168,6 +193,8 @@ final class PanelPresenter {
         self.store = store
         self.displayModes = displayModes
         self.exclusionRules = exclusionRules
+        self.fuzzyMatchEnabled = fuzzyMatchEnabled
+        self.shortcutMemoryLength = shortcutMemoryLength
         self.ownProcessIdentifier = ownProcessIdentifier
         self.now = now
         self.writeLine = writeLine
