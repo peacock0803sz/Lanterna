@@ -25,6 +25,9 @@ extension AppConfiguration {
         if let launchAtLogin = config.launchAtLogin {
             entries.append(encodedBool(key: "launchAtLogin", value: launchAtLogin))
         }
+        if let logLevel = config.logLevel {
+            entries.append(encodedString(key: "logLevel", value: logLevel.rawValue))
+        }
         if let minimizedMode = config.minimizedMode {
             entries.append(encodedString(key: "minimizedMode", value: minimizedMode.rawValue))
         }

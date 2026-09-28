@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 import ServiceManagement
 
 /// What the launch-time sync wants from the login item.
@@ -62,15 +63,26 @@ enum LaunchAtLogin {
         }
     }
 
+    /// What the sync reports: the line and the level it carries. Changes
+    /// are ordinary news; failures ride along as warnings so they stay
+    /// visible under the default threshold.
+    struct Report: Equatable, Sendable {
+        var line: String
+        var level: Logger.Level
+    }
+
     /// Applies the setting, returning the diagnostics line.
     ///
     /// Returns nil when nothing changed and nothing failed. A failure
     /// never stops the run; the reason rides along in the line instead.
-    static func sync(desired: Bool, service: (any LoginItemControlling)?) -> String? {
+    static func sync(desired: Bool, service: (any LoginItemControlling)?) -> Report? {
         let state = desired ? "on" : "off"
         guard let service else {
             guard desired else { return nil }
-            return "login item unchanged (not a bundled app) (launch at login is on)"
+            return Report(
+                line: "login item unchanged (not a bundled app) (launch at login is on)",
+                level: .warning
+            )
         }
         switch action(desired: desired, status: service.status) {
         case .none:
@@ -78,18 +90,24 @@ enum LaunchAtLogin {
         case .register:
             do {
                 try service.register()
-                return "login item registered (launch at login is on)"
+                return Report(line: "login item registered (launch at login is on)", level: .info)
             } catch {
                 let reason = (error as NSError).localizedDescription
-                return "login item unchanged (register failed: \(reason)) (launch at login is \(state))"
+                return Report(
+                    line: "login item unchanged (register failed: \(reason)) (launch at login is \(state))",
+                    level: .warning
+                )
             }
         case .unregister:
             do {
                 try service.unregister()
-                return "login item unregistered (launch at login is off)"
+                return Report(line: "login item unregistered (launch at login is off)", level: .info)
             } catch {
                 let reason = (error as NSError).localizedDescription
-                return "login item unchanged (unregister failed: \(reason)) (launch at login is \(state))"
+                return Report(
+                    line: "login item unchanged (unregister failed: \(reason)) (launch at login is \(state))",
+                    level: .warning
+                )
             }
         }
     }

@@ -1,11 +1,16 @@
 import AppKit
 import Darwin
+import Logging
+
+// Wired before anything can write: the first diagnostics line below
+// already goes through the mirror backend.
+Diagnostics.bootstrap()
 
 let cliOptions: LaunchArguments.Options
 do {
     cliOptions = try LaunchArguments.parse(ProcessInfo.processInfo.arguments)
 } catch {
-    Diagnostics.writeLine("\(error)\n\(LaunchArguments.usage)")
+    Diagnostics.writeLine("\(error)\n\(LaunchArguments.usage)", level: .error)
     exit(EX_USAGE)
 }
 
@@ -31,6 +36,7 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
     switch outcome {
     case let .loaded(decoded):
         options = AppConfiguration.effectiveOptions(file: decoded.config, cli: cliOptions)
+        Diagnostics.threshold = options.logLevel ?? .warning
         initialValues = SettingsValues.effective(from: decoded.config)
         launchDesired = decoded.config.launchAtLogin ?? false
         openSharedMatcher(
@@ -38,44 +44,47 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
             lanternaDirectory: url.deletingLastPathComponent()
         )
         if decoded.assumedVersion {
-            Diagnostics.writeLine("config loaded (version 1, assumed): \(url.path)")
+            Diagnostics.writeLine("config loaded (version 1, assumed): \(url.path)", level: .info)
         } else {
-            Diagnostics.writeLine("config loaded (version \(decoded.config.version)): \(url.path)")
+            Diagnostics.writeLine("config loaded (version \(decoded.config.version)): \(url.path)", level: .info)
         }
     case .created:
         options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
+        Diagnostics.threshold = options.logLevel ?? .warning
         initialValues = SettingsValues.defaults
         launchDesired = defaults.launchAtLogin ?? false
         openSharedMatcher(
             scope: .kanaKanji,
             lanternaDirectory: url.deletingLastPathComponent()
         )
-        Diagnostics.writeLine("config not found; created with defaults: \(url.path)")
+        Diagnostics.writeLine("config not found; created with defaults: \(url.path)", level: .info)
     case let .failed(reason):
         options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
+        Diagnostics.threshold = options.logLevel ?? .warning
         initialValues = SettingsValues.defaults
         launchDesired = defaults.launchAtLogin ?? false
         openSharedMatcher(
             scope: .kanaKanji,
             lanternaDirectory: url.deletingLastPathComponent()
         )
-        Diagnostics.writeLine("config invalid (\(reason)); using defaults: \(url.path)")
+        Diagnostics.writeLine("config invalid (\(reason)); using defaults: \(url.path)", level: .error)
     }
 } else {
     options = cliOptions
+    Diagnostics.threshold = options.logLevel ?? .warning
     initialValues = SettingsValues.defaults
     launchDesired = false
     configFileURL = nil
     lanternaDirectory = nil
     openSharedMatcher(scope: .kanaKanji, lanternaDirectory: nil)
-    Diagnostics.writeLine("config invalid (cannot resolve directory); using defaults")
+    Diagnostics.writeLine("config invalid (cannot resolve directory); using defaults", level: .error)
 }
 
 // Brings the login item in line with the saved setting, ahead of the run
 // loop and off the path with a time budget. A change or a failure leaves
 // one diagnostics line; quiet runs stay silent. Never stops the launch.
-if let line = LaunchAtLogin.sync(desired: launchDesired, service: LaunchAtLogin.liveIfBundled()) {
-    Diagnostics.writeLine(line)
+if let report = LaunchAtLogin.sync(desired: launchDesired, service: LaunchAtLogin.liveIfBundled()) {
+    Diagnostics.writeLine(report.line, level: report.level)
 }
 
 /// Opens the shared matcher for one run, ahead of the run loop.
@@ -93,7 +102,10 @@ func openSharedMatcher(scope: RomajiScope, lanternaDirectory: URL?) {
     if scope == .kanaKanji, let lanternaDirectory {
         let dictURL = lanternaDirectory.appendingPathComponent("migemo-dict", isDirectory: false)
         if FileManager.default.fileExists(atPath: dictURL.path), !active {
-            Diagnostics.writeLine("dict invalid (unreadable format); matching kana only: \(dictURL.path)")
+            Diagnostics.writeLine(
+                "dict invalid (unreadable format); matching kana only: \(dictURL.path)",
+                level: .warning
+            )
         }
     }
 }
