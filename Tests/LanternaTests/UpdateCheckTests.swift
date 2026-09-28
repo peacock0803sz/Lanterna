@@ -91,6 +91,23 @@ struct UpdateCheckTests {
         #expect(text == expected)
     }
 
+    @Test func scaffoldEncodesToVersionAlone() throws {
+        let config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+        let text = try #require(String(bytes: AppConfiguration.encode(config), encoding: .utf8))
+        #expect(text == AppConfiguration.scaffoldJSON)
+    }
+
+    @Test func singleKeysEncodeAlone() throws {
+        var enabledOnly = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+        enabledOnly.updateCheckEnabled = true
+        let enabledText = try #require(String(bytes: AppConfiguration.encode(enabledOnly), encoding: .utf8))
+        #expect(enabledText == "{\n  \"updateCheckEnabled\": true,\n  \"version\": 1\n}\n")
+        var channelOnly = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+        channelOnly.updateChannel = "beta"
+        let channelText = try #require(String(bytes: AppConfiguration.encode(channelOnly), encoding: .utf8))
+        #expect(channelText == "{\n  \"updateChannel\": \"beta\",\n  \"version\": 1\n}\n")
+    }
+
     @Test func settingsValuesRoundTrips() {
         var file = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
         file.updateCheckEnabled = true
@@ -108,6 +125,17 @@ struct UpdateCheckTests {
         let saved = values.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
         #expect(saved.updateCheckEnabled == true)
         #expect(saved.updateChannel == "beta")
+    }
+
+    @Test func disabledBetaKeepsBothValues() throws {
+        let decoded = try #require(decode(
+            "{\"version\": 1, \"updateCheckEnabled\": false, \"updateChannel\": \"beta\"}"
+        ).successValue)
+        #expect(decoded.config.updateCheckEnabled == false)
+        #expect(decoded.config.updateChannel == "beta")
+        let values = SettingsValues.effective(from: decoded.config)
+        #expect(values.updateCheckEnabled == false)
+        #expect(values.updateChannel == .beta)
     }
 
     // MARK: - Release numbers
@@ -133,7 +161,9 @@ struct UpdateCheckTests {
         #expect(older < ReleaseNumber(major: 1, minor: 0, patch: 0))
         #expect(!(older < ReleaseNumber(major: 0, minor: 6, patch: 0)))
     }
+}
 
+extension UpdateCheckTests {
     // MARK: - The decision
 
     @Test func newerReleasesAreFound() {
@@ -147,6 +177,61 @@ struct UpdateCheckTests {
             return
         }
         #expect(version == "0.7.0")
+    }
+
+    @Test func newestAmongSeveralWinsRegardlessOfOrder() {
+        let ordered = [release("v0.7.0"), release("v0.8.0"), release("v0.7.1")]
+        let shuffled = [release("v0.8.0"), release("v0.7.1"), release("v0.7.0")]
+        for releases in [ordered, shuffled] {
+            let result = UpdateCheck.decide(
+                currentVersion: "0.6.0",
+                releases: releases,
+                channel: .stable
+            )
+            guard case let .found(version, _) = result else {
+                Issue.record("expected a newer release")
+                return
+            }
+            #expect(version == "0.8.0")
+        }
+    }
+
+    @Test func emptyListingStaysUpToDate() async {
+        #expect(UpdateCheck.decide(
+            currentVersion: "0.6.0",
+            releases: [],
+            channel: .stable
+        ) == .upToDate(version: "0.6.0"))
+        let result = await UpdateCheck.perform(
+            channel: .stable,
+            currentVersion: "0.6.0",
+            fetcher: FakeReleases(releases: [], error: nil)
+        )
+        #expect(result == .upToDate(version: "0.6.0"))
+    }
+
+    @Test func eachChannelPicksItsOwnNewest() {
+        let releases = [release("v0.7.0"), release("v0.8.0", prerelease: true)]
+        let stable = UpdateCheck.decide(
+            currentVersion: "0.6.0",
+            releases: releases,
+            channel: .stable
+        )
+        guard case let .found(stableVersion, _) = stable else {
+            Issue.record("expected a stable release")
+            return
+        }
+        #expect(stableVersion == "0.7.0")
+        let beta = UpdateCheck.decide(
+            currentVersion: "0.6.0",
+            releases: releases,
+            channel: .beta
+        )
+        guard case let .found(betaVersion, _) = beta else {
+            Issue.record("expected a prerelease")
+            return
+        }
+        #expect(betaVersion == "0.8.0")
     }
 
     @Test func equalVersionsAreNotNewer() {
@@ -273,6 +358,12 @@ struct UpdateCheckTests {
     @Test func httpPageRowsAreDropped() throws {
         let httpPage = try #require(URL(string: "http://example.com/release"))
         let row = GitHubRelease(tagName: "v0.7.0", prerelease: false, pageURL: httpPage)
+        #expect(PublishedRelease(github: row) == nil)
+    }
+
+    @Test func invalidTagRowsAreDropped() throws {
+        let page = try #require(URL(string: "https://example.com/release"))
+        let row = GitHubRelease(tagName: "not a version", prerelease: false, pageURL: page)
         #expect(PublishedRelease(github: row) == nil)
     }
 }
