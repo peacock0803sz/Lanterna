@@ -267,6 +267,11 @@ extension AppDelegate {
     /// Split out when `applySettings` stood at the length limit.
     private func applyKeyBindings(_ bindings: KeyBindingTable) {
         hotkeys?.unregister()
+        // The panel takes the table even with no manager, so a missing
+        // manager never blocks what the panel shows.
+        if hotkeys == nil {
+            presenter?.keyBindings = bindings
+        }
         guard let hotkeys else { return }
         // The system's shortcuts come back first, so a combination the new
         // table no longer holds is not left switched off; the disable below
