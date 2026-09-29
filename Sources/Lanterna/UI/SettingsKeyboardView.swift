@@ -143,8 +143,8 @@ struct SettingsKeyboardView: View {
 
     /// Assigns the pressed key, refusing what the table would refuse.
     /// Only the four schema modifiers count: anything else the keyboard
-    /// reports with the press is narrowed away first. Emptied rows read
-    /// as their defaults here, the way they do downstream.
+    /// reports with the press is narrowed away first. The rules themselves
+    /// live with the table, so this only words the refusal.
     private func assign(
         action: KeyBindingAction, slot: Int?, keyCode: UInt16,
         modifiers: NSEvent.ModifierFlags
@@ -152,18 +152,18 @@ struct SettingsKeyboardView: View {
         let narrowed = modifiers.intersection([.shift, .control, .option, .command])
         let key = ResolvedKey(keyCode: keyCode, modifiers: narrowed)
         let row = displayName(for: action)
-        guard KeyBindingTable.allows(modifiers: narrowed, mode: action.mode) else {
+        switch KeyBindingTable.refusal(assigning: key, to: action, in: values.keyBindings) {
+        case .none:
+            break
+        case .needsModifiers:
             notice = "\(key.displayName) needs Cmd, Ctrl or Opt for \(row)."
             stopCapture()
             return
-        }
-        if effectiveTable()[action].contains(key) {
+        case .alreadyHeld:
             notice = "\(row) already holds \(key.displayName)."
             stopCapture()
             return
-        }
-        let holders = effectiveTable().holders(of: key, except: action)
-        guard holders.isEmpty else {
+        case let .heldBy(holders):
             let names = holders.map { displayName(for: $0) }.joined(separator: ", ")
             notice = "\(key.displayName) is already used by \(names); not added to \(row)."
             stopCapture()
@@ -178,17 +178,6 @@ struct SettingsKeyboardView: View {
         values.keyBindings.keys[action] = keys
         stopCapture()
         notice = nil
-    }
-
-    /// The table with emptied rows reading as their defaults, the way
-    /// resolution reads them downstream. Both the duplicate check and the
-    /// already-holds check go through here.
-    private func effectiveTable() -> KeyBindingTable {
-        var table = values.keyBindings
-        for action in KeyBindingAction.allCases where table[action].isEmpty {
-            table.keys[action] = KeyBindingTable.defaults[action]
-        }
-        return table
     }
 
     /// The row name for an action, for the notices naming the edited row.

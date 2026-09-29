@@ -243,6 +243,40 @@ struct KeyBindingTableTests {
         #expect(acceptedIssues.isEmpty)
     }
 
+    @Test func assignmentRefusalSpellsTheRules() {
+        #expect(KeyBindingTable.refusal(assigning: key(96), to: .next, in: .defaults) == nil)
+        #expect(KeyBindingTable.refusal(
+            assigning: key(kVK_Tab, .shift), to: .show, in: .defaults
+        ) == .needsModifiers)
+        #expect(KeyBindingTable.refusal(
+            assigning: key(kVK_DownArrow), to: .next, in: .defaults
+        ) == .alreadyHeld)
+    }
+
+    @Test func assignmentRefusalReadsEmptiesAsDefaults() {
+        var emptied = KeyBindingTable.defaults
+        emptied.keys[.next] = []
+        #expect(KeyBindingTable.refusal(
+            assigning: key(kVK_DownArrow), to: .next, in: emptied
+        ) == .alreadyHeld)
+        var displaced = KeyBindingTable.defaults
+        displaced.keys[.closeWindow] = []
+        #expect(KeyBindingTable.refusal(
+            assigning: key(kVK_ANSI_W, .command), to: .quitApplication, in: displaced
+        ) == .heldBy([.closeWindow]))
+    }
+
+    @Test func assignmentRefusalExcusesClearAndCancel() {
+        var table = KeyBindingTable.defaults
+        table.keys[.cancel] = [key(kVK_ANSI_Period, .command)]
+        #expect(KeyBindingTable.refusal(
+            assigning: key(kVK_Escape), to: .cancel, in: table
+        ) == nil)
+        #expect(KeyBindingTable.refusal(
+            assigning: key(kVK_Escape), to: .next, in: .defaults
+        ) == .heldBy([.cancel, .clearQuery]))
+    }
+
     @Test func kanaIndependentByConstruction() {
         // Resolution never sees characters: the same physical key resolves
         // the same way whatever the input source produced.

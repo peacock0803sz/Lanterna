@@ -149,6 +149,14 @@ struct KeyBindingIssue: Equatable, Sendable {
     }
 }
 
+/// Why a pressed key cannot join a row. The duplicate case carries who
+/// holds it, so the notice can name names.
+enum KeyAssignmentRefusal: Equatable, Sendable {
+    case needsModifiers
+    case alreadyHeld
+    case heldBy([KeyBindingAction])
+}
+
 /// The resolved table: what each action answers to.
 ///
 /// Built once at launch (and again on every settings save) so no press
@@ -186,6 +194,38 @@ struct KeyBindingTable: Equatable, Sendable {
             .hideApplication: [ResolvedKey(keyCode: UInt16(kVK_ANSI_H), modifiers: .command)],
             .minimizeWindow: [ResolvedKey(keyCode: UInt16(kVK_ANSI_M), modifiers: .command)],
         ])
+    }
+
+    /// Whether the key may join the action's row of this table. Emptied
+    /// rows read as their defaults, the way resolution reads them
+    /// downstream. Nothing refused means allowed. The settings UI goes
+    /// through here, so the rules stay testable without the window.
+    static func refusal(
+        assigning key: ResolvedKey,
+        to action: KeyBindingAction,
+        in table: KeyBindingTable
+    ) -> KeyAssignmentRefusal? {
+        guard allows(modifiers: key.modifiers, mode: action.mode) else {
+            return .needsModifiers
+        }
+        let effective = table.fillingEmptiesWithDefaults()
+        if effective[action].contains(key) {
+            return .alreadyHeld
+        }
+        let holders = effective.holders(of: key, except: action)
+        guard holders.isEmpty else {
+            return .heldBy(holders)
+        }
+        return nil
+    }
+
+    /// This table with emptied rows reading as their defaults.
+    func fillingEmptiesWithDefaults() -> KeyBindingTable {
+        var filled = self
+        for action in KeyBindingAction.allCases where filled[action].isEmpty {
+            filled.keys[action] = KeyBindingTable.defaults[action]
+        }
+        return filled
     }
 
     /// Whether these modifiers may drive the mode at all, before any
