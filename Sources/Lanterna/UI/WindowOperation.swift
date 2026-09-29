@@ -43,3 +43,19 @@ extension ActivationFailure {
         }
     }
 }
+
+extension WindowOperation {
+    /// The keybindings action holding this operation's keys.
+    var binding: KeyBindingAction {
+        switch self {
+        case .closeWindow:
+            .closeWindow
+        case .quitApplication:
+            .quitApplication
+        case .hideApplication:
+            .hideApplication
+        case .minimizeWindow:
+            .minimizeWindow
+        }
+    }
+}
