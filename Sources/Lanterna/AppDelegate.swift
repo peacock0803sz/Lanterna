@@ -113,8 +113,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.hotkeys = hotkeys
         self.presenter = presenter
 
-        let outcome = hotkeys.register()
+        let outcome = hotkeys.register(bindings: HotkeyBinding.bindings(for: options.keyBindings))
         Diagnostics.writeLine(outcome.summaryLine, level: outcome.logLevel)
+        for detail in hotkeys.refusedDetails {
+            Diagnostics.writeLine(detail, level: .warning)
+        }
         guard !outcome.isTotalFailure else {
             // Nothing has been taken from the system yet, so there is nothing
             // to give back on the way out.

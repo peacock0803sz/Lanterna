@@ -268,6 +268,7 @@ extension AppConfiguration {
             exclusionEntries: file.exclusions ?? [],
             appearanceMode: AppearanceMode.effective(from: file),
             searchSettings: SearchSettings.effective(from: file),
+            keyBindings: file.keyBindings,
             // The command line wins where it says anything; the file covers
             // the rest. Never written back to the file.
             logLevel: Logger.Level.effective(cli: cli.logLevel, file: file.logLevel)

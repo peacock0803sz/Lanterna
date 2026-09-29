@@ -27,6 +27,9 @@ enum LaunchArguments {
         /// The three search-quality settings as one value. No flag sets
         /// them; the file covers them.
         var searchSettings = SearchSettings()
+        /// The resolved key bindings. No flag sets them; the file covers
+        /// them.
+        var keyBindings = KeyBindingTable.defaults
         /// How much diagnostics this run emits. `nil` leaves it to the file
         /// and the default. Never written back to the file.
         var logLevel: Logger.Level?

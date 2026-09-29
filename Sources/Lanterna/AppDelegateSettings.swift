@@ -170,6 +170,7 @@ extension AppDelegate {
             displayModes: options.displayModes,
             exclusionRules: compiled.rules,
             searchSettings: options.searchSettings,
+            keyBindings: options.keyBindings,
             closesOnCommandRelease: { [weak self] in self?.monitor?.isMonitoring ?? false },
             switcher: OwnWindowSwitcher(wrapped: LiveWindowSwitcher())
         )
