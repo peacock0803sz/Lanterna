@@ -56,7 +56,8 @@ struct TextScaleConfigTests {
 
     @Test func textScaleEncodesOnlyWhenSet() throws {
         var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
-        #expect(try !(#require(String(data: AppConfiguration.encode(config), encoding: .utf8)?.contains("textScale"))))
+        let bare = try #require(String(data: AppConfiguration.encode(config), encoding: .utf8))
+        #expect(!bare.contains("textScale"))
         config.textScale = 1.12
         let encoded = try #require(String(data: AppConfiguration.encode(config), encoding: .utf8))
         #expect(encoded.contains("\"textScale\": 1.12"))
