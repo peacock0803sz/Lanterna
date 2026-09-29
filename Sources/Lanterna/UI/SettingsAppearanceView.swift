@@ -3,7 +3,7 @@ import SwiftUI
 /// The Appearance tab: which look the windows use.
 ///
 /// One picker for the single appearance value, with a note on what each
-/// choice means. Future panel options (width, text size) join this tab.
+/// choice means. Future panel options (width) join this tab.
 struct SettingsAppearanceView: View {
     @Binding var values: SettingsValues
 
@@ -12,7 +12,7 @@ struct SettingsAppearanceView: View {
     private var textScaleIndex: Binding<Double> {
         Binding(
             get: { Double(values.textScale.rawValue) },
-            set: { values.textScale = TextScaleLevel(rawValue: Int($0)) ?? .standard }
+            set: { values.textScale = TextScaleLevel(rawValue: Int($0.rounded())) ?? .standard }
         )
     }
 
