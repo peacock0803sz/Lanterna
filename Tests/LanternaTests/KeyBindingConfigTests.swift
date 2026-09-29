@@ -132,6 +132,41 @@ struct KeyBindingConfigTests {
         }
     }
 
+    @Test func losingCustomizationSurvivesEncoding() throws {
+        let key = "{\"keyCode\": \(kVK_ANSI_W), \"modifiers\": [\"cmd\"]}"
+        let first = decodeBindings(
+            "{\"commit\": [\(key)], \"closeWindow\": [\(key)]}"
+        )
+        guard case let .success(decoded) = first else {
+            Issue.record("expected the clashing section to decode")
+            return
+        }
+        let text = try #require(
+            String(bytes: AppConfiguration.encode(decoded.config), encoding: .utf8)
+        )
+        #expect(text.contains("closeWindow"))
+        #expect(text.contains("commit"))
+        switch AppConfiguration.decode(Data(text.utf8)) {
+        case let .success(again):
+            #expect(again.config.keyBindingSection == decoded.config.keyBindingSection)
+        case .failure:
+            Issue.record("expected the encoded section to decode")
+        }
+    }
+
+    @Test func settingsValuesKeepOnlyDifferences() {
+        let defaults = SettingsValues.defaults.configuration(
+            version: 1, sampleCount: nil, stopMonitorEverySeconds: nil
+        )
+        #expect(defaults.keyBindingSection == nil)
+        var values = SettingsValues.defaults
+        values.keyBindings.keys[.commit] = [ResolvedKey(keyCode: UInt16(kVK_Return), modifiers: [])]
+        let customized = values.configuration(
+            version: 1, sampleCount: nil, stopMonitorEverySeconds: nil
+        )
+        #expect(customized.keyBindingSection == [.commit: [RawKeyBinding(keyCode: kVK_Return, modifiers: [])]])
+    }
+
     @Test func modifierWordsAreLowercase() {
         let result = decodeBindings(
             "{\"show\": [{\"keyCode\": \(kVK_Tab), \"modifiers\": [\"CMD\"]}]}"

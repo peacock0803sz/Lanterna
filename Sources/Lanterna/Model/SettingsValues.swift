@@ -102,6 +102,25 @@ struct SettingsValues: Equatable, Sendable {
             config.resultOrder = resultOrder.rawValue
         }
         config.keyBindings = keyBindings
+        config.keyBindingSection = Self.customizedSection(keyBindings)
         return config
+    }
+
+    /// The customized section for saving: actions differing from their
+    /// defaults, as the file spells them. Empty actions and an empty
+    /// section read as absent, so defaults never reach the disk.
+    private static func customizedSection(
+        _ table: KeyBindingTable
+    ) -> [KeyBindingAction: [RawKeyBinding]]? {
+        let customized = KeyBindingAction.allCases.filter { action in
+            let keys = table[action]
+            return !keys.isEmpty && keys != KeyBindingTable.defaults[action]
+        }
+        guard !customized.isEmpty else { return nil }
+        return Dictionary(uniqueKeysWithValues: customized.map { action in
+            (action, table[action].map {
+                RawKeyBinding(keyCode: Int($0.keyCode), modifiers: $0.modifierWords)
+            })
+        })
     }
 }

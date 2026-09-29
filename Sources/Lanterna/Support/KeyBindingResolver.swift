@@ -175,10 +175,10 @@ private struct ClaimTable {
         effective[action] = kept
     }
 
-    /// Fills an emptied action with its defaults minus taken keys.
-    /// No issue: the loss that led here was already recorded, and an
-    /// action left with nothing simply stays unbound rather than
-    /// taking somebody else's key.
+    /// Fills an emptied action with its defaults minus taken keys. When
+    /// nothing is free the action stays unbound rather than taking
+    /// somebody else's key, recorded as a conflict saying so: silence
+    /// would read as a working default.
     mutating func refill(_ action: KeyBindingAction) {
         let free = KeyBindingTable.defaults[action].filter { key in
             guard let holder = holders[key] else { return true }
@@ -187,6 +187,12 @@ private struct ClaimTable {
         effective[action] = free
         for key in free {
             holders[key] = action
+        }
+        if free.isEmpty {
+            issues.append(KeyBindingIssue(
+                action: action, reason: .conflict,
+                detail: "every default key is taken; stays unbound"
+            ))
         }
     }
 }

@@ -66,6 +66,9 @@ struct ValidConfiguration: Equatable, Sendable {
     var resultOrder: String?
     /// The resolved key bindings. Never nil: absent means all defaults.
     var keyBindings: KeyBindingTable
+    /// The customized section as spelled, kept so saving writes back what
+    /// lost rather than what won. Nil means absent, meaning all defaults.
+    var keyBindingSection: [KeyBindingAction: [RawKeyBinding]]?
 
     init(
         version: Int,
@@ -85,7 +88,8 @@ struct ValidConfiguration: Equatable, Sendable {
         shortcutMemoryLength: Int? = nil,
         fuzzyMatchEnabled: Bool? = nil,
         resultOrder: String? = nil,
-        keyBindings: KeyBindingTable = .defaults
+        keyBindings: KeyBindingTable = .defaults,
+        keyBindingSection: [KeyBindingAction: [RawKeyBinding]]? = nil
     ) {
         self.version = version
         self.sampleCount = sampleCount
@@ -105,6 +109,7 @@ struct ValidConfiguration: Equatable, Sendable {
         self.fuzzyMatchEnabled = fuzzyMatchEnabled
         self.resultOrder = resultOrder
         self.keyBindings = keyBindings
+        self.keyBindingSection = keyBindingSection
     }
 }
 
@@ -243,6 +248,7 @@ extension AppConfiguration {
             let order = KeyBindingResolver.declarationOrder(in: text)
             let (table, resolveIssues) = KeyBindingResolver.resolve(section, order: order)
             config.keyBindings = table
+            config.keyBindingSection = section.isEmpty ? nil : section
             return .success(DecodedConfiguration(
                 config: config, assumedVersion: assumed,
                 keyBindingIssues: decodeIssues + resolveIssues

@@ -92,9 +92,12 @@ struct KeyBindingTableTests {
         )
         // The customized show displaces the untouched showReverse default.
         #expect(accepted[.show] == [key(kVK_Tab, [.command, .shift])])
-        #expect(acceptedIssues.count == 1)
+        #expect(accepted[.showReverse] == [])
+        #expect(acceptedIssues.count == 2)
         #expect(acceptedIssues[0].action == .showReverse)
         #expect(acceptedIssues[0].reason == .conflict)
+        #expect(acceptedIssues[1].action == .showReverse)
+        #expect(acceptedIssues[1].detail.contains("unbound"))
     }
 
     @Test func bareActionsAcceptBareKeys() {
@@ -153,8 +156,11 @@ struct KeyBindingTableTests {
         )
         #expect(table[.show] == [key(kVK_Space, .command)])
         #expect(!table[.showFilter].contains(key(kVK_Space, .command)))
-        #expect(issues.count == 1)
+        #expect(table[.showFilter] == [])
+        #expect(issues.count == 2)
         #expect(issues[0].action == .showFilter)
+        #expect(issues[1].action == .showFilter)
+        #expect(issues[1].detail.contains("unbound"))
     }
 
     @Test func clearQueryAndCancelMayShareKeys() {
@@ -179,9 +185,11 @@ struct KeyBindingTableTests {
         )
         #expect(table[.commit] == [key(kVK_ANSI_W, .command)])
         #expect(table[.closeWindow] == [])
-        #expect(issues.count == 1)
+        #expect(issues.count == 2)
         #expect(issues[0].action == .closeWindow)
         #expect(issues[0].reason == .conflict)
+        #expect(issues[1].action == .closeWindow)
+        #expect(issues[1].detail.contains("unbound"))
     }
 
     @Test func refillWaitsForLaterCustomizationsInTier() {
@@ -196,7 +204,9 @@ struct KeyBindingTableTests {
         )
         #expect(table[.quitApplication] == [key(kVK_ANSI_W, .command)])
         #expect(table[.closeWindow] == [])
-        #expect(issues.count == 1)
+        #expect(issues.count == 2)
+        #expect(issues[1].action == .closeWindow)
+        #expect(issues[1].detail.contains("unbound"))
     }
 
     @Test func kanaIndependentByConstruction() {

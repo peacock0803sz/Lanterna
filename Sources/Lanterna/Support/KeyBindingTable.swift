@@ -60,6 +60,25 @@ struct ResolvedKey: Equatable, Hashable, Sendable {
         hasher.combine(modifiers.rawValue)
     }
 
+    /// The config file's words for these modifiers, in canonical order.
+    /// Shared with the settings save, so the disk spells what the UI holds.
+    var modifierWords: [String] {
+        var words: [String] = []
+        if modifiers.contains(.command) {
+            words.append("cmd")
+        }
+        if modifiers.contains(.control) {
+            words.append("ctrl")
+        }
+        if modifiers.contains(.option) {
+            words.append("opt")
+        }
+        if modifiers.contains(.shift) {
+            words.append("shift")
+        }
+        return words
+    }
+
     /// How lines and controls name it: modifiers first, then the key.
     /// Anything but Tab and Space goes down by number, because a
     /// physical position has no layout-independent letter to spell.
