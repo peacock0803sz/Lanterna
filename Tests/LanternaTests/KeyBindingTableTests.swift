@@ -209,6 +209,17 @@ struct KeyBindingTableTests {
         #expect(issues[1].detail.contains("unbound"))
     }
 
+    @Test func declarationOrderSkipsBracesInsideStrings() {
+        let text = "{\"keybindings\": {\"commit\": [{\"keyCode\": 1, \"modifiers\": [\"c}\"]}], "
+            + "\"next\": [{\"keyCode\": 125, \"modifiers\": []}]}}"
+        #expect(KeyBindingResolver.declarationOrder(in: text) == [.commit, .next])
+    }
+
+    @Test func declarationOrderSkipsEscapedQuotes() {
+        let text = #"{"keybindings": {"commit": [{"keyCode": 1, "modifiers": ["c\"}"]}], "next": []}}"#
+        #expect(KeyBindingResolver.declarationOrder(in: text) == [.commit, .next])
+    }
+
     @Test func kanaIndependentByConstruction() {
         // Resolution never sees characters: the same physical key resolves
         // the same way whatever the input source produced.

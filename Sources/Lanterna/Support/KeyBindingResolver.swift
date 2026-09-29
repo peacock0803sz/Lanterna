@@ -118,26 +118,78 @@ enum KeyBindingResolver {
     }
 
     /// The `keybindings` object's span in the file text, by brace matching.
+    /// Strings are skipped with their escapes throughout, so braces or
+    /// quotes inside values cannot move the span, and a value spelling
+    /// the section's name cannot stand in for the section itself.
     private static func keybindingsSpan(in text: String) -> Range<String.Index>? {
-        guard let keyRange = text.range(of: "\"keybindings\""),
-              let open = text[keyRange.upperBound...].firstIndex(of: "{")
-        else {
-            return nil
-        }
-        var depth = 0
-        var index = open
+        var index = text.startIndex
         while index < text.endIndex {
-            if text[index] == "{" {
-                depth += 1
-            }
-            if text[index] == "}" {
-                depth -= 1
-                if depth == 0 {
-                    let afterOpen = text.index(after: open)
-                    return afterOpen ..< index
+            if text[index] == "\"" {
+                let (word, next) = quotedWord(from: index, in: text)
+                if word == "keybindings" {
+                    return objectSpan(from: next, in: text)
                 }
+                index = next
+            } else {
+                index = text.index(after: index)
             }
-            index = text.index(after: index)
+        }
+        return nil
+    }
+
+    /// The string opening here and the index past its closing quote. A
+    /// backslash swallows the next character, so an escaped quote cannot
+    /// end the word early. An unterminated string runs to the text's end.
+    private static func quotedWord(from open: String.Index, in text: String) -> (String, String.Index) {
+        var word = ""
+        var index = text.index(after: open)
+        while index < text.endIndex {
+            if text[index] == "\\" {
+                let escaped = text.index(after: index)
+                if escaped < text.endIndex {
+                    word.append(text[escaped])
+                    index = text.index(after: escaped)
+                } else {
+                    index = escaped
+                }
+            } else if text[index] == "\"" {
+                return (word, text.index(after: index))
+            } else {
+                word.append(text[index])
+                index = text.index(after: index)
+            }
+        }
+        return (word, index)
+    }
+
+    /// The object opening after the given index: the first brace outside
+    /// strings opens it and its match closes it. A closing brace before
+    /// any opening means malformed text and no span.
+    private static func objectSpan(from start: String.Index, in text: String) -> Range<String.Index>? {
+        var depth = 0
+        var open: String.Index?
+        var index = start
+        while index < text.endIndex {
+            if text[index] == "\"" {
+                index = quotedWord(from: index, in: text).1
+            } else {
+                if text[index] == "{" {
+                    if depth == 0 {
+                        open = index
+                    }
+                    depth += 1
+                }
+                if text[index] == "}" {
+                    depth -= 1
+                    if depth == 0, let open {
+                        return text.index(after: open) ..< index
+                    }
+                    if depth < 0 {
+                        return nil
+                    }
+                }
+                index = text.index(after: index)
+            }
         }
         return nil
     }
