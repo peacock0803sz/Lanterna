@@ -167,6 +167,25 @@ struct KeyBindingConfigTests {
         #expect(customized.keyBindingSection == [.commit: [RawKeyBinding(keyCode: kVK_Return, modifiers: [])]])
     }
 
+    @Test func unrelatedSaveKeepsLosingEntry() {
+        let key = "{\"keyCode\": \(kVK_Space), \"modifiers\": [\"cmd\"]}"
+        let first = decodeBindings(
+            "{\"show\": [\(key)], \"showFilter\": [\(key)]}"
+        )
+        guard case let .success(decoded) = first else {
+            Issue.record("expected the clashing section to decode")
+            return
+        }
+        #expect(decoded.config.keyBindings[.showFilter] == [])
+        var values = SettingsValues.effective(from: decoded.config)
+        values.appearanceMode = .dark
+        let saved = values.configuration(
+            version: 1, sampleCount: nil, stopMonitorEverySeconds: nil
+        )
+        #expect(saved.keyBindingSection == decoded.config.keyBindingSection)
+        #expect(saved.keyBindingSection?[.showFilter] != nil)
+    }
+
     @Test func modifierWordsAreLowercase() {
         let result = decodeBindings(
             "{\"show\": [{\"keyCode\": \(kVK_Tab), \"modifiers\": [\"CMD\"]}]}"

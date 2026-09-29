@@ -29,6 +29,12 @@ struct SettingsValues: Equatable, Sendable {
     /// The resolved key bindings. Never partial: absent in the file
     /// means all defaults.
     var keyBindings: KeyBindingTable
+    /// The section as spelled in the file, kept so an unrelated save
+    /// does not drop a customization that lost resolution.
+    var keyBindingSection: [KeyBindingAction: [RawKeyBinding]]?
+    /// The table as loaded, for telling an untouched round trip apart
+    /// from an edited table.
+    var loadedKeyBindings: KeyBindingTable
 
     /// The values for a missing or invalid file: follow the system, park
     /// the special kinds as usual, match kanji readings as well, stay
@@ -44,7 +50,9 @@ struct SettingsValues: Equatable, Sendable {
         shortcutMemoryLength: 5,
         fuzzyMatchEnabled: true,
         resultOrder: .mru,
-        keyBindings: .defaults
+        keyBindings: .defaults,
+        keyBindingSection: nil,
+        loadedKeyBindings: .defaults
     )
 
     /// The values for one run: present keys win, absent keys mean
@@ -61,7 +69,9 @@ struct SettingsValues: Equatable, Sendable {
             shortcutMemoryLength: config.shortcutMemoryLength ?? 5,
             fuzzyMatchEnabled: config.fuzzyMatchEnabled ?? true,
             resultOrder: SearchOrdering.effective(from: config),
-            keyBindings: config.keyBindings
+            keyBindings: config.keyBindings,
+            keyBindingSection: config.keyBindingSection,
+            loadedKeyBindings: config.keyBindings
         )
     }
 
@@ -102,7 +112,11 @@ struct SettingsValues: Equatable, Sendable {
             config.resultOrder = resultOrder.rawValue
         }
         config.keyBindings = keyBindings
-        config.keyBindingSection = Self.customizedSection(keyBindings)
+        if keyBindings == loadedKeyBindings {
+            config.keyBindingSection = keyBindingSection
+        } else {
+            config.keyBindingSection = Self.customizedSection(keyBindings)
+        }
         return config
     }
 
