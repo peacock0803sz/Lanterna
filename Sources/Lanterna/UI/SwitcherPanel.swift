@@ -134,6 +134,11 @@ final class SwitcherPanel: NSPanel {
     /// back exactly what showing took. A swapped list sizes the frame
     /// without it, and a new appearance starts without one.
     var notice: String?
+
+    /// How much the frame grew for the note on screen now. Kept beside
+    /// the note so clearing gives back exactly what showing took, even
+    /// when showing was capped to stay within the height limit.
+    var noticeGrowth: CGFloat = 0
     /// Ordered front regardless rather than made key and ordered front.
     /// Apple says of the ordinary order-front that a window cannot be moved
     /// in front of the key window unless the two belong to the same

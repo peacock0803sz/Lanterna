@@ -42,6 +42,9 @@ extension SwitcherPanel {
     /// presenter went on believing one was — the sort of failure that shows
     /// on screen and nowhere else.
     func update(windows: [WindowItem]) {
+        // Both are dropped here because the size below counts no note.
+        notice = nil
+        noticeGrowth = 0
         hostingView.rootView = swappedView(
             windows: windows,
             selectedID: hostingView.rootView.selectedID,
@@ -86,7 +89,9 @@ extension SwitcherPanel {
         query: String,
         filterActive: Bool
     ) {
+        // Both are dropped here because the size below counts no note.
         notice = nil
+        noticeGrowth = 0
         hostingView.rootView = swappedView(
             windows: windows,
             selectedID: selecting,
@@ -123,7 +128,12 @@ extension SwitcherPanel {
         notice = text
         hostingView.rootView.notice = text
         var frame = frame
-        let grown = PanelMetrics.noticeHeight(for: appearanceScale)
+        // The growth stops at the height limit, so a full panel stays on screen.
+        let grown = min(
+            PanelMetrics.noticeHeight(for: appearanceScale),
+            max(PanelMetrics.maximumHeight - frame.height, 0)
+        )
+        noticeGrowth = grown
         frame.origin.y -= grown
         frame.size.height += grown
         setFrame(frame, display: true)
@@ -137,7 +147,9 @@ extension SwitcherPanel {
         notice = nil
         hostingView.rootView.notice = nil
         var frame = frame
-        let grown = PanelMetrics.noticeHeight(for: appearanceScale)
+        // Gives back what showing took, rather than recomputing it.
+        let grown = noticeGrowth
+        noticeGrowth = 0
         frame.origin.y += grown
         frame.size.height -= grown
         setFrame(frame, display: true)
