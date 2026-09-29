@@ -373,11 +373,11 @@ enum PanelKeyInput {
         }.map { $0.modifiers.intersection(schema).rawValue.nonzeroBitCount }.max()
     }
 
-    /// Whether the table binds Tab anywhere. Only an explicit binding
-    /// lifts the reservation; a Tab that lost its binding to a conflict
-    /// reads as unbound here, so the reservation stands back up.
+    /// Whether show, showReverse or showFilter holds Tab. Only an explicit
+    /// invocation binding lifts the reservation, so any other action holding
+    /// Tab cannot answer a press Carbon already claimed for invocation.
     private static func holdsTab(_ table: KeyBindingTable) -> Bool {
-        table.keys.values.joined().contains { $0.keyCode == kVK_Tab }
+        [.show, .showReverse, .showFilter].contains { table[$0].contains { $0.keyCode == kVK_Tab } }
     }
 }
 
