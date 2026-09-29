@@ -184,6 +184,21 @@ struct KeyBindingTableTests {
         #expect(issues[0].reason == .conflict)
     }
 
+    @Test func refillWaitsForLaterCustomizationsInTier() {
+        // closeWindow's entry is invalid, so it refills only after
+        // quitApplication has claimed Cmd+W: the refill must not steal it.
+        let (table, issues) = KeyBindingResolver.resolve(
+            [
+                .closeWindow: [raw(-1, "cmd")],
+                .quitApplication: [raw(kVK_ANSI_W, "cmd")],
+            ],
+            order: [.closeWindow, .quitApplication]
+        )
+        #expect(table[.quitApplication] == [key(kVK_ANSI_W, .command)])
+        #expect(table[.closeWindow] == [])
+        #expect(issues.count == 1)
+    }
+
     @Test func kanaIndependentByConstruction() {
         // Resolution never sees characters: the same physical key resolves
         // the same way whatever the input source produced.

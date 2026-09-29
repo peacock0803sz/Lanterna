@@ -28,8 +28,9 @@ enum KeyBindingResolver {
     }
 
     /// Claims one tier in order. Customized actions resolve their entries
-    /// while untouched ones take their defaults; an action left empty
-    /// refills with its free defaults.
+    /// while untouched ones take their defaults; emptied actions refill
+    /// with their free defaults only once every action in the tier has
+    /// claimed, so a refill cannot steal a key a later custom would take.
     private static func claimTier(
         _ actions: [KeyBindingAction],
         from section: [KeyBindingAction: [RawKeyBinding]]?,
@@ -43,9 +44,9 @@ enum KeyBindingResolver {
             } else {
                 table.claim(action, KeyBindingTable.defaults[action])
             }
-            if table.effective[action]?.isEmpty == true {
-                table.refill(action)
-            }
+        }
+        for action in actions where table.effective[action]?.isEmpty == true {
+            table.refill(action)
         }
     }
 
