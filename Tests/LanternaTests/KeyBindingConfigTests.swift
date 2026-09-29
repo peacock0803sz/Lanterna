@@ -9,6 +9,24 @@ private func decodeBindings(_ fragment: String) -> Result<DecodedConfiguration, 
 }
 
 struct KeyBindingConfigTests {
+    @Test func customizedTableRoundTrips() {
+        let first = decodeBindings(
+            "{\"commit\": [{\"keyCode\": 96, \"modifiers\": []}]}"
+        )
+        guard case let .success(decoded) = first else {
+            Issue.record("expected the custom section to decode")
+            return
+        }
+        let encoded = AppConfiguration.encode(decoded.config)
+        switch AppConfiguration.decode(encoded) {
+        case let .success(again):
+            #expect(again.config.keyBindings == decoded.config.keyBindings)
+            #expect(again.keyBindingIssues.isEmpty)
+        case .failure:
+            Issue.record("expected the encoded table to decode cleanly")
+        }
+    }
+
     @Test func validSectionDecodes() {
         let result = decodeBindings(
             "{\"next\": [{\"keyCode\": \(kVK_DownArrow), \"modifiers\": []}]}"
