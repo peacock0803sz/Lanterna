@@ -58,3 +58,44 @@ struct PanelMetricsTests {
         #expect(PanelMetrics.height(rowCount: 30) == PanelMetrics.maximumHeight)
     }
 }
+
+extension PanelMetricsTests {
+    @Test func scaledRowHeightsRoundToWholePoints() {
+        let expected: [TextScaleLevel: CGFloat] = [
+            .small: 31, .smallMedium: 33, .standard: 36, .largeMedium: 40, .large: 45,
+        ]
+        for level in TextScaleLevel.allCases {
+            #expect(PanelMetrics.rowHeight(for: level) == expected[level], "for \(level)")
+        }
+        #expect(PanelMetrics.rowHeight(for: .standard) == PanelMetrics.rowHeight)
+    }
+
+    @Test func scaledWidthsRoundToWholePoints() {
+        let expected: [TextScaleLevel: CGFloat] = [
+            .small: 578, .smallMedium: 632, .standard: 680, .largeMedium: 762, .large: 850,
+        ]
+        for level in TextScaleLevel.allCases {
+            #expect(PanelMetrics.width(for: level) == expected[level], "for \(level)")
+        }
+        #expect(PanelMetrics.width(for: .standard) == PanelMetrics.width)
+    }
+
+    @Test func scaledHeightKeepsTheCapOverTheTotal() {
+        let chrome = PanelMetrics.filterChromeHeight(query: "x", filterActive: true, for: .large)
+        let total = PanelMetrics.height(rowCount: 30, for: .large) + chrome
+            + PanelMetrics.noticeHeight(for: .large)
+        let largeTotal = PanelMetrics.totalHeight(
+            rowCount: 30, query: "x", filterActive: true, notice: true, for: .large
+        )
+        #expect(largeTotal == PanelMetrics.maximumHeight)
+        #expect(total > PanelMetrics.maximumHeight)
+    }
+
+    @Test func scaledChromeAndNoticeFollowTheStep() {
+        #expect(PanelMetrics.filterChromeHeight(query: "", filterActive: true, for: .large) == (28 * 1.25).rounded())
+        #expect(PanelMetrics.filterChromeHeight(query: "x", filterActive: true, for: .large) == (62 * 1.25).rounded())
+        #expect(PanelMetrics.noticeHeight(for: .large) == (22 * 1.25).rounded())
+        #expect(PanelMetrics.filterChromeHeight(query: "", filterActive: true, for: .standard)
+            == PanelMetrics.filterChromeHeight(query: "", filterActive: true))
+    }
+}
