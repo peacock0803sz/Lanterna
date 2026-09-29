@@ -198,8 +198,9 @@ extension AppConfiguration {
     ///
     /// A pure function over bytes so every accepted and rejected shape is
     /// unit-testable, the way `LaunchArguments.parse` is over arguments.
-    /// Anything outside the schema invalidates the whole file (FR-004);
-    /// there is no per-key recovery.
+    /// Anything outside the schema invalidates the whole file, except the
+    /// lenient keybindings entries and text scale, which fall back with
+    /// diagnostics instead of failing the file.
     static func decode(_ data: Data) -> Result<DecodedConfiguration, ConfigDecodeError> {
         let dict: [String: Any]
         switch parseObject(data) {

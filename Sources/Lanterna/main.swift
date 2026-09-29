@@ -54,7 +54,7 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
             Diagnostics.writeLine(issue.diagnosticsLine, level: .warning)
         }
         if let textScaleIssue = decoded.textScaleIssue {
-            Diagnostics.writeLine(textScaleIssue, level: .warning)
+            Diagnostics.writeLine("\(textScaleIssue): \(url.path)", level: .warning)
         }
     case .created:
         options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)

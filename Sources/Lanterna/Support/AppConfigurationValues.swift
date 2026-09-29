@@ -253,14 +253,18 @@ extension AppConfiguration {
     }
 
     /// Reads the optional text-scale key leniently: absent means the
-    /// standard size, one of the five steps wins, and anything else
-    /// falls back to standard with a note instead of failing the file.
+    /// standard size, a non-standard step wins, the standard step reads
+    /// as absent so an explicit 1.0 stays omitted on save, and anything
+    /// else falls back to standard with a note instead of failing the file.
     static func checkedOptionalTextScale(
         _ dict: [String: Any]
     ) -> (value: Double?, issue: String?) {
         guard let rawValue = dict["textScale"] else { return (nil, nil) }
-        guard let factor = jsonDouble(rawValue), TextScaleLevel(factor: factor) != nil else {
+        guard let factor = jsonDouble(rawValue), let level = TextScaleLevel(factor: factor) else {
             return (nil, "textScale is not a valid value; using 1.0")
+        }
+        if level == .standard {
+            return (nil, nil)
         }
         return (factor, nil)
     }
