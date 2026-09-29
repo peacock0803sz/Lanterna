@@ -75,9 +75,10 @@ enum KeyBindingResolver {
         return (kept.filter { seen.insert($0).inserted }, issues)
     }
 
-    /// One entry against its mode. `nil` means dropped.
+    /// One entry against its mode. `nil` means dropped. Key codes run 0
+    /// to 127 on this keyboard; anything wider is not a key at all.
     private static func validatedEntry(_ raw: RawKeyBinding, mode: BindingMode) -> ResolvedKey? {
-        guard raw.keyCode >= 0, raw.keyCode <= Int(UInt16.max) else { return nil }
+        guard raw.keyCode >= 0, raw.keyCode <= 127 else { return nil }
         var flags = NSEvent.ModifierFlags()
         for word in raw.modifiers {
             switch word {

@@ -229,6 +229,20 @@ struct KeyBindingTableTests {
         #expect(issues.isEmpty)
     }
 
+    @Test func keyCodeOutside127IsDropped() {
+        let (rejected, rejectedIssues) = KeyBindingResolver.resolve(
+            [.next: [raw(128)]], order: [.next]
+        )
+        #expect(rejected[.next] == KeyBindingTable.defaults[.next])
+        #expect(rejectedIssues.count == 1)
+        #expect(rejectedIssues[0].reason == .invalid)
+        let (accepted, acceptedIssues) = KeyBindingResolver.resolve(
+            [.next: [raw(127)]], order: [.next]
+        )
+        #expect(accepted[.next] == [key(127)])
+        #expect(acceptedIssues.isEmpty)
+    }
+
     @Test func kanaIndependentByConstruction() {
         // Resolution never sees characters: the same physical key resolves
         // the same way whatever the input source produced.
