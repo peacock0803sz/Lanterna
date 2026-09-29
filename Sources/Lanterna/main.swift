@@ -53,6 +53,9 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
         for issue in decoded.keyBindingIssues {
             Diagnostics.writeLine(issue.diagnosticsLine, level: .warning)
         }
+        if let textScaleIssue = decoded.textScaleIssue {
+            Diagnostics.writeLine(textScaleIssue, level: .warning)
+        }
     case .created:
         options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
         Diagnostics.threshold = options.logLevel ?? .warning
