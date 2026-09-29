@@ -54,6 +54,46 @@ struct TextScaleConfigTests {
         }
     }
 
+    /// False, an object and null are not numbers, so they fall back
+    /// with a note instead of failing the file.
+    @Test func falseEmptyObjectAndNullFallBackWithANote() throws {
+        for text in [
+            "{\"version\": 1, \"textScale\": false}",
+            "{\"version\": 1, \"textScale\": {}}",
+            "{\"version\": 1, \"textScale\": null}",
+        ] {
+            let decoded = try #require(decode(text).successValue)
+            #expect(decoded.config.textScale == nil, "for \(text)")
+            #expect(
+                decoded.textScaleIssue == "textScale is not a valid value; using 1.0",
+                "for \(text)"
+            )
+            #expect(TextScaleLevel.effective(from: decoded.config) == .standard, "for \(text)")
+        }
+    }
+
+    /// An explicit standard step reads as absent, so saving omits it
+    /// the way absent does.
+    @Test func explicitStandardReadsAsAbsent() throws {
+        for text in [
+            "{\"version\": 1, \"textScale\": 1.0}",
+            "{\"version\": 1, \"textScale\": 1}",
+        ] {
+            let decoded = try #require(decode(text).successValue)
+            #expect(decoded.config.textScale == nil, "for \(text)")
+            #expect(decoded.textScaleIssue == nil, "for \(text)")
+            #expect(TextScaleLevel.effective(from: decoded.config) == .standard, "for \(text)")
+        }
+    }
+
+    /// The fallback note keeps one wording, so the launch line stays stable.
+    @Test func invalidValueReportsExactNote() throws {
+        let decoded = try #require(decode("{\"version\": 1, \"textScale\": 2.0}").successValue)
+        #expect(decoded.config.textScale == nil)
+        #expect(decoded.textScaleIssue == "textScale is not a valid value; using 1.0")
+        #expect(TextScaleLevel.effective(from: decoded.config) == .standard)
+    }
+
     @Test func textScaleEncodesOnlyWhenSet() throws {
         var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
         let bare = try #require(String(data: AppConfiguration.encode(config), encoding: .utf8))
