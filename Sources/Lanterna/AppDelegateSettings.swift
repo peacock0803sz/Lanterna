@@ -193,7 +193,7 @@ extension AppDelegate {
             || values.updateChannel != currentValues.updateChannel
         let exclusionsChanged = values.exclusions != currentValues.exclusions
         let keyBindingsChanged = values.keyBindings != currentValues.keyBindings
-        let previousKeyBindings = currentValues.keyBindings
+        let previousValues = currentValues
         currentValues = values
         if checkContextChanged {
             settingsWindow?.checkDisplay.resultText = nil
@@ -216,7 +216,7 @@ extension AppDelegate {
         // Reclaims the invocation keys and hands the panel the new
         // table, so a change answers at once; the save below keeps it.
         let valuesForSave = appliedKeyBindingValues(
-            values, previous: previousKeyBindings, changed: keyBindingsChanged
+            values, previous: previousValues, changed: keyBindingsChanged
         )
         guideWindows?.update(appearanceMode: values.appearanceMode)
         // Reopening rebuilds the engine, so only a scope change pays
@@ -245,14 +245,20 @@ extension AppDelegate {
     /// still opens; partial failures keep the new table with warnings.
     private func appliedKeyBindingValues(
         _ values: SettingsValues,
-        previous: KeyBindingTable,
+        previous: SettingsValues,
         changed: Bool
     ) -> SettingsValues {
         guard changed else { return values }
-        guard applyKeyBindings(values.keyBindings) else { return values }
-        currentValues.keyBindings = previous
+        guard didApplyKeyBindings(values.keyBindings, previous: previous.keyBindings) else {
+            return values
+        }
+        currentValues.keyBindings = previous.keyBindings
+        currentValues.keyBindingSection = previous.keyBindingSection
+        currentValues.loadedKeyBindings = previous.loadedKeyBindings
         var restored = values
-        restored.keyBindings = previous
+        restored.keyBindings = previous.keyBindings
+        restored.keyBindingSection = previous.keyBindingSection
+        restored.loadedKeyBindings = previous.loadedKeyBindings
         return restored
     }
 
@@ -281,16 +287,19 @@ extension AppDelegate {
     }
 
     /// Reclaims the invocation keys and hands the panel the new table.
-    /// Split out when `applySettings` stood at the length limit.
-    private func applyKeyBindings(_ bindings: KeyBindingTable) -> Bool {
+    /// Answers whether the new table went live: a total failure keeps
+    /// everything previous and puts the old keys back, so the panel
+    /// still opens. Split out when `applySettings` stood at the
+    /// length limit.
+    private func didApplyKeyBindings(_ bindings: KeyBindingTable, previous: KeyBindingTable) -> Bool {
         hotkeys?.unregister()
         // The panel takes the table even with no manager, so a missing
         // manager never blocks what the panel shows.
         if hotkeys == nil {
             presenter?.keyBindings = bindings
-            return false
+            return true
         }
-        guard let hotkeys else { return false }
+        guard let hotkeys else { return true }
         // The system's shortcuts come back first, so a combination the new
         // table no longer holds is not left switched off; the disable below
         // then takes only what the new table claimed.
@@ -310,14 +319,17 @@ extension AppDelegate {
                 "new keybindings registered nothing; keeping the previous table",
                 level: .error
             )
-            return true
+            hotkeys.unregister()
+            let recovery = hotkeys.register(bindings: HotkeyBinding.bindings(for: previous))
+            Diagnostics.writeLine(recovery.summaryLine, level: recovery.logLevel)
+            return false
         }
         presenter?.keyBindings = bindings
         let disabling = SystemSwitcherShortcuts.disable(outcome.registered)
         if let line = SystemSwitcherShortcuts.summaryLine(disabling: disabling) {
             Diagnostics.writeLine(line, level: .warning)
         }
-        return false
+        return true
     }
 
     /// The debug keys the settings UI hides, as the disk file holds them.
