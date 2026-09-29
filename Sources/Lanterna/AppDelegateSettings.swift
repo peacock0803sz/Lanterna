@@ -266,7 +266,6 @@ extension AppDelegate {
     /// Reclaims the invocation keys and hands the panel the new table.
     /// Split out when `applySettings` stood at the length limit.
     private func applyKeyBindings(_ bindings: KeyBindingTable) {
-        presenter?.keyBindings = bindings
         hotkeys?.unregister()
         guard let hotkeys else { return }
         // The system's shortcuts come back first, so a combination the new
@@ -281,6 +280,16 @@ extension AppDelegate {
         for detail in hotkeys.refusedDetails {
             Diagnostics.writeLine(detail, level: .warning)
         }
+        // The panel takes the new table only once something answers for
+        // it: a total failure keeps the previous table, which still opens.
+        guard !outcome.isTotalFailure else {
+            Diagnostics.writeLine(
+                "new keybindings registered nothing; keeping the previous table",
+                level: .error
+            )
+            return
+        }
+        presenter?.keyBindings = bindings
         let disabling = SystemSwitcherShortcuts.disable(outcome.registered)
         if let line = SystemSwitcherShortcuts.summaryLine(disabling: disabling) {
             Diagnostics.writeLine(line, level: .warning)
