@@ -125,6 +125,22 @@ struct PanelKeyInputTableTests {
         #expect(PanelKeyInput.action(for: tablePress(96), table: table) == .selectNext)
     }
 
+    @Test func tabLostFromInvocationStaysAbsorbed() {
+        // No invocation action holds Tab anymore: show moved to Cmd+S,
+        // crowding showFilter out, and showReverse moved to Cmd+R. The
+        // reservation stands back up, even though next still binds Tab.
+        let section: [KeyBindingAction: [RawKeyBinding]] = [
+            .show: [RawKeyBinding(keyCode: kVK_ANSI_S, modifiers: ["cmd"])],
+            .showReverse: [RawKeyBinding(keyCode: kVK_ANSI_R, modifiers: ["cmd"])],
+            .showFilter: [RawKeyBinding(keyCode: kVK_ANSI_S, modifiers: ["cmd"])],
+            .next: [RawKeyBinding(keyCode: kVK_Tab, modifiers: [])],
+        ]
+        let (table, _) = KeyBindingResolver.resolve(
+            section, order: [.show, .showReverse, .showFilter, .next]
+        )
+        #expect(PanelKeyInput.action(for: tablePress(kVK_Tab), table: table) == .absorb)
+    }
+
     @Test func clearQueryMatchFollowsTheTable() {
         let table = KeyBindingTable.defaults
         #expect(table.matches(tablePress(kVK_Escape), action: .clearQuery))

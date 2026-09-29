@@ -82,6 +82,18 @@ struct PanelKeyCommandsKeyBindingTests {
         #expect(fixture.surface.isPresented)
     }
 
+    /// A custom delete key shortens the query and leaves the panel up.
+    @Test func customDeleteKeyShortensQuery() {
+        var table = KeyBindingTable.defaults
+        table.keys[.deleteBackward] = [ResolvedKey(keyCode: 96, modifiers: [])]
+        let fixture = KeyCommandFixture(rows: commandRows(), keyBindings: table)
+        fixture.typeCharacter(kVK_ANSI_S, "s")
+        fixture.typeCharacter(kVK_ANSI_A, "a")
+        fixture.pressKey(96)
+        #expect(fixture.surface.updatedQueries.last == "s")
+        #expect(fixture.surface.isPresented)
+    }
+
     /// A cancel key outside the clear list cancels at once, query or not.
     @Test func cancelOutsideClearListCancelsAtOnce() {
         var table = KeyBindingTable.defaults
