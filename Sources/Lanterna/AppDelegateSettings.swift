@@ -192,6 +192,7 @@ extension AppDelegate {
         let checkContextChanged = values.updateCheckEnabled != currentValues.updateCheckEnabled
             || values.updateChannel != currentValues.updateChannel
         let exclusionsChanged = values.exclusions != currentValues.exclusions
+        let keyBindingsChanged = values.keyBindings != currentValues.keyBindings
         currentValues = values
         if checkContextChanged {
             settingsWindow?.checkDisplay.resultText = nil
@@ -210,6 +211,11 @@ extension AppDelegate {
         // tweaks leave the panel and presenter rules alone.
         if exclusionsChanged {
             refreshExclusions(from: values.exclusions)
+        }
+        // Reclaims the invocation keys and hands the panel the new
+        // table, so a change answers at once; the save below keeps it.
+        if keyBindingsChanged {
+            applyKeyBindings(values.keyBindings)
         }
         guideWindows?.update(appearanceMode: values.appearanceMode)
         // Reopening rebuilds the engine, so only a scope change pays
@@ -230,6 +236,16 @@ extension AppDelegate {
         ) {
             Diagnostics.writeLine(report.line, level: report.level)
         }
+        return saveSettings(values, replacingInvalidFile: replacingInvalidFile)
+    }
+
+    /// Writes the current values to the file, keeping the debug keys
+    /// the UI hides. Split out when `applySettings` stood at the
+    /// length limit.
+    private func saveSettings(
+        _ values: SettingsValues,
+        replacingInvalidFile: Bool
+    ) -> SettingsSaveOutcome {
         guard let configFileURL else {
             return .failed(reason: "cannot resolve directory")
         }
@@ -245,6 +261,19 @@ extension AppDelegate {
             to: configFileURL,
             replacingInvalidFile: replacingInvalidFile
         )
+    }
+
+    /// Reclaims the invocation keys and hands the panel the new table.
+    /// Split out when `applySettings` stood at the length limit.
+    private func applyKeyBindings(_ bindings: KeyBindingTable) {
+        presenter?.keyBindings = bindings
+        hotkeys?.unregister()
+        guard let hotkeys else { return }
+        let outcome = hotkeys.register(bindings: HotkeyBinding.bindings(for: bindings))
+        Diagnostics.writeLine(outcome.summaryLine, level: outcome.logLevel)
+        for detail in hotkeys.refusedDetails {
+            Diagnostics.writeLine(detail, level: .warning)
+        }
     }
 
     /// The debug keys the settings UI hides, as the disk file holds them.
