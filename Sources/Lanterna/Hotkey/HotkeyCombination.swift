@@ -107,7 +107,7 @@ struct HotkeyBinding: Equatable, Sendable {
                     slot: slot,
                     keyCode: UInt32(key.keyCode),
                     carbonModifiers: carbonModifiers(for: key.modifiers),
-                    name: spelled(modifiers: key.modifiers, keyCode: key.keyCode)
+                    name: key.displayName
                 )
             }
         }
@@ -140,39 +140,5 @@ struct HotkeyBinding: Equatable, Sendable {
             modifiers |= UInt32(shiftKey)
         }
         return modifiers
-    }
-
-    /// Spells modifiers the way the long-standing names do: Shift first,
-    /// then control, option and Command, and the key last.
-    private static func spelled(modifiers: NSEvent.ModifierFlags, keyCode: UInt16) -> String {
-        var parts: [String] = []
-        if modifiers.contains(.shift) {
-            parts.append("Shift")
-        }
-        if modifiers.contains(.control) {
-            parts.append("Ctrl")
-        }
-        if modifiers.contains(.option) {
-            parts.append("Opt")
-        }
-        if modifiers.contains(.command) {
-            parts.append("Cmd")
-        }
-        parts.append(keyName(keyCode))
-        return parts.joined(separator: "+")
-    }
-
-    /// Names the keys diagnostics readers already know. Anything else
-    /// goes down by number: the physical position is layout-dependent
-    /// in every wording but its own, so no letter is ever spelled.
-    private static func keyName(_ keyCode: UInt16) -> String {
-        switch Int(keyCode) {
-        case kVK_Tab:
-            "Tab"
-        case kVK_Space:
-            "Space"
-        default:
-            "key \(keyCode)"
-        }
     }
 }
