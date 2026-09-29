@@ -505,6 +505,10 @@
         }
       },
       "additionalProperties": false
+    },
+    "textScale": {
+      "description": "The panel text and icon scale as a multiplier: one of the five steps.\nAbsent means 1.0 (the current size). The value allowlist lives in\nSwift, like the upper bound of `shortcutMemoryLength`.",
+      "type": "number"
     }
   },
   "additionalProperties": false

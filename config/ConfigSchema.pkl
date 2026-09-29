@@ -153,3 +153,8 @@ open class KeyBindings {
 
 /// User-configurable keybindings. Absent means all defaults.
 keybindings: KeyBindings? = null
+
+/// The panel text and icon scale as a multiplier: one of the five steps.
+/// Absent means 1.0 (the current size). The value allowlist lives in
+/// Swift, like the upper bound of `shortcutMemoryLength`.
+textScale: Number? = null
