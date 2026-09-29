@@ -30,6 +30,9 @@ enum LaunchArguments {
         /// The resolved key bindings. No flag sets them; the file covers
         /// them.
         var keyBindings = KeyBindingTable.defaults
+        /// The panel text and icon scale step. No flag sets it; the file
+        /// covers it.
+        var textScale = TextScaleLevel.standard
         /// How much diagnostics this run emits. `nil` leaves it to the file
         /// and the default. Never written back to the file.
         var logLevel: Logger.Level?
