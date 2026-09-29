@@ -55,6 +55,14 @@ struct SwitcherView: View {
     /// beside the modes.
     var fuzzyMatchEnabled = true
 
+    /// The text and icon scale step, handed down from the panel.
+    var textScale: TextScaleLevel = .standard
+
+    /// One scaled point size: the base size times the step, in whole points.
+    private func scaled(_ base: Double) -> Double {
+        (base * textScale.factor).rounded()
+    }
+
     /// The ordinary rows, drawing first and in the order they arrived.
     private var ordinaryRows: [WindowItem] {
         sections.ordinary
@@ -97,14 +105,17 @@ struct SwitcherView: View {
     }
 
     private func row(_ window: WindowItem) -> some View {
-        WindowRow(window: window, isSelected: window.id == selectedID, query: query, fuzzy: fuzzyMatchEnabled)
-            // Vertical insets and separators are removed so the List
-            // adds nothing to WindowRow's fixed height; the horizontal
-            // insets stay.
-            .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-            .id(window.id)
+        WindowRow(
+            window: window, isSelected: window.id == selectedID, query: query,
+            fuzzy: fuzzyMatchEnabled, textScale: textScale
+        )
+        // Vertical insets and separators are removed so the List
+        // adds nothing to WindowRow's fixed height; the horizontal
+        // insets stay.
+        .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .id(window.id)
     }
 
     var body: some View {
@@ -116,7 +127,7 @@ struct SwitcherView: View {
         VStack(spacing: 0) {
             if filterActive, !query.isEmpty {
                 Text(query)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: scaled(17), weight: .semibold))
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 12)
@@ -125,7 +136,7 @@ struct SwitcherView: View {
             }
             if filterActive {
                 Text("All Results")
-                    .font(.system(size: 11))
+                    .font(.system(size: scaled(11)))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 4)
@@ -144,16 +155,16 @@ struct SwitcherView: View {
                                 // A row like the others, on every OS: without an
                                 // explicit height the list's default decides, and
                                 // that default is not the same on every macOS.
-                                .frame(height: PanelMetrics.rowHeight)
+                                .frame(height: PanelMetrics.rowHeight(for: textScale))
                                 .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
                         }
                         ForEach(subgroupRows, id: \.0) { subgroup, rows in
                             Text(heading(for: subgroup))
-                                .font(.system(size: 11))
+                                .font(.system(size: scaled(11)))
                                 .foregroundStyle(.secondary)
-                                .frame(height: PanelMetrics.rowHeight)
+                                .frame(height: PanelMetrics.rowHeight(for: textScale))
                                 .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
@@ -164,7 +175,7 @@ struct SwitcherView: View {
                     }
                 }
                 .listStyle(.plain)
-                .environment(\.defaultMinListRowHeight, PanelMetrics.rowHeight)
+                .environment(\.defaultMinListRowHeight, PanelMetrics.rowHeight(for: textScale))
                 .scrollContentBackground(.hidden)
                 // The panel is never the place typing goes, so it must never
                 // draw the ring that says it is. What is not added here matters
@@ -194,7 +205,7 @@ struct SwitcherView: View {
             }
             if let notice {
                 Text(notice)
-                    .font(.system(size: 11))
+                    .font(.system(size: scaled(11)))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 4)
