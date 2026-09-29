@@ -25,6 +25,7 @@ enum AppConfiguration {
         "appearanceMode", "romajiScope", "launchAtLogin", "logLevel",
         "updateCheckEnabled", "updateChannel", "exclusions",
         "shortcutMemoryLength", "fuzzyMatchEnabled", "resultOrder",
+        "keybindings",
     ]
 
     /// The scaffold written when no file exists (FR-012).
@@ -63,6 +64,11 @@ struct ValidConfiguration: Equatable, Sendable {
     /// The raw ordering word. Nil means absent, which means "mru".
     /// Kept as a string like `updateChannel`; the enum lives with T018.
     var resultOrder: String?
+    /// The resolved key bindings. Never nil: absent means all defaults.
+    var keyBindings: KeyBindingTable
+    /// The customized section as spelled, kept so saving writes back what
+    /// lost rather than what won. Nil means absent, meaning all defaults.
+    var keyBindingSection: [KeyBindingAction: [RawKeyBinding]]?
 
     init(
         version: Int,
@@ -81,7 +87,9 @@ struct ValidConfiguration: Equatable, Sendable {
         exclusions: [ExclusionEntry]? = nil,
         shortcutMemoryLength: Int? = nil,
         fuzzyMatchEnabled: Bool? = nil,
-        resultOrder: String? = nil
+        resultOrder: String? = nil,
+        keyBindings: KeyBindingTable = .defaults,
+        keyBindingSection: [KeyBindingAction: [RawKeyBinding]]? = nil
     ) {
         self.version = version
         self.sampleCount = sampleCount
@@ -100,6 +108,8 @@ struct ValidConfiguration: Equatable, Sendable {
         self.shortcutMemoryLength = shortcutMemoryLength
         self.fuzzyMatchEnabled = fuzzyMatchEnabled
         self.resultOrder = resultOrder
+        self.keyBindings = keyBindings
+        self.keyBindingSection = keyBindingSection
     }
 }
 
@@ -136,6 +146,8 @@ struct DecodedConfiguration: Equatable, Sendable {
     var config: ValidConfiguration
     /// True when the file held no version and 1 was assumed (R4).
     var assumedVersion: Bool
+    /// One entry per keybinding fallback, for the diagnostics lines.
+    var keyBindingIssues: [KeyBindingIssue] = []
 }
 
 // What the launch-time load found.
@@ -210,7 +222,37 @@ extension AppConfiguration {
             stopMonitorEverySeconds: stopMonitorEvery
         ) {
         case let .success(config):
-            return .success(DecodedConfiguration(config: config, assumedVersion: assumed))
+            return resolvedKeyBindings(dict, data: data, config: config, assumed: assumed)
+        case let .failure(error):
+            return .failure(error)
+        }
+    }
+
+    /// Resolves the keybindings section over an otherwise valid file.
+    ///
+    /// The section is lenient where the rest of the file is strict: bad
+    /// entries fall back per item with diagnostics, while a section that
+    /// is not an object at all invalidates the whole file like any other
+    /// bad value. Declaration order comes from the file text, because
+    /// JSON objects carry no order of their own.
+    private static func resolvedKeyBindings(
+        _ dict: [String: Any],
+        data: Data,
+        config: ValidConfiguration,
+        assumed: Bool
+    ) -> Result<DecodedConfiguration, ConfigDecodeError> {
+        switch checkedOptionalKeyBindings(dict) {
+        case let .success((section, decodeIssues)):
+            var config = config
+            let text = String(data: data, encoding: .utf8) ?? ""
+            let order = KeyBindingResolver.declarationOrder(in: text)
+            let (table, resolveIssues) = KeyBindingResolver.resolve(section, order: order)
+            config.keyBindings = table
+            config.keyBindingSection = section.isEmpty ? nil : section
+            return .success(DecodedConfiguration(
+                config: config, assumedVersion: assumed,
+                keyBindingIssues: decodeIssues + resolveIssues
+            ))
         case let .failure(error):
             return .failure(error)
         }
@@ -232,6 +274,7 @@ extension AppConfiguration {
             exclusionEntries: file.exclusions ?? [],
             appearanceMode: AppearanceMode.effective(from: file),
             searchSettings: SearchSettings.effective(from: file),
+            keyBindings: file.keyBindings,
             // The command line wins where it says anything; the file covers
             // the rest. Never written back to the file.
             logLevel: Logger.Level.effective(cli: cli.logLevel, file: file.logLevel)

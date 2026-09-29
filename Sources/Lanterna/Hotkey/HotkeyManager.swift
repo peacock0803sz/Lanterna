@@ -18,16 +18,34 @@ struct HotkeyRegistrationOutcome: Sendable {
     struct Failure: Sendable {
         let combination: HotkeyCombination
         let status: OSStatus
+        /// How the line names it, when the registered key is not the
+        /// long-standing one. Absent means the combination's own name.
+        let displayName: String?
+
+        init(combination: HotkeyCombination, status: OSStatus, displayName: String? = nil) {
+            self.combination = combination
+            self.status = status
+            self.displayName = displayName
+        }
     }
 
     let registered: [HotkeyCombination]
     let failures: [Failure]
+    /// How the line names a taken combination, when its keys are not
+    /// the long-standing ones. Combinations absent here keep their own
+    /// names, so outcomes built without custom keys read exactly as
+    /// before.
+    let displayNames: [HotkeyCombination: String]
 
     /// `assert` rather than `precondition`: a combination on both lists, or
     /// on neither, is loud in debug builds and under test, but a misworded
     /// line must never take the app down in release — an app that cannot
     /// claim its hotkeys is the very thing this line exists to report.
-    init(registered: [HotkeyCombination], failures: [Failure]) {
+    init(
+        registered: [HotkeyCombination],
+        failures: [Failure],
+        displayNames: [HotkeyCombination: String] = [:]
+    ) {
         // Two clauses because each catches a case the other passes: a
         // duplicate standing in for a missing combination keeps the count
         // right and is caught only by the set, while a duplicate on top of
@@ -41,6 +59,7 @@ struct HotkeyRegistrationOutcome: Sendable {
         )
         self.registered = registered
         self.failures = failures
+        self.displayNames = displayNames
     }
 
     /// Nothing was registered, so there is no way left to reach the switcher
@@ -61,10 +80,19 @@ struct HotkeyRegistrationOutcome: Sendable {
     var summaryLine: String {
         var segments: [String] = []
         if !registered.isEmpty {
-            segments.append("registered " + registered.map(\.name).joined(separator: ", "))
+            segments.append(
+                "registered "
+                    + registered.map { displayNames[$0] ?? $0.name }.joined(separator: ", ")
+            )
         }
         if !failures.isEmpty {
-            let reasons = failures.map { "\($0.combination.name) (error \($0.status))" }
+            let reasons = failures.map { failure in
+                let name = failure.displayName ?? failure.combination.name
+                if failure.status == noErr {
+                    return "\(name) (no key is bound)"
+                }
+                return "\(name) (error \(failure.status))"
+            }
             segments.append("could not register " + reasons.joined(separator: ", "))
         }
         if isTotalFailure {
@@ -96,14 +124,24 @@ final class HotkeyManager {
     /// `unregister()`, and the reason a repeat call need attempt nothing.
     private var registrationOutcome: HotkeyRegistrationOutcome?
 
+    /// Refused keys whose combination still registered on other keys.
+    /// Fully refused combinations read on the outcome line itself, so
+    /// only the partial ones need a line of their own. The caller writes
+    /// them; this manager never touches diagnostics.
+    private(set) var refusedDetails: [String] = []
+
     init(onPress: @escaping @MainActor (HotkeyCombination, Duration?) -> Void) {
         self.onPress = onPress
     }
 
-    /// Installs the handler and claims both combinations.
+    /// Installs the handler and claims the given bindings.
     ///
-    /// Called once at launch. Either combination can be refused on its own, so
-    /// the result says which were taken rather than whether the call worked.
+    /// Called once at launch with the resolved invocation keys. Each
+    /// combination lands taken when at least one of its keys was handed
+    /// over, and refused only when none was: a half-working invocation
+    /// still opens the switcher. An invocation with no keys at all is
+    /// refused without asking, so the line says what is missing rather
+    /// than printing a zero status.
     ///
     /// The answer is remembered: a second call reports what the first
     /// achieved rather than attempting any of it again, because Carbon would
@@ -111,7 +149,7 @@ final class HotkeyManager {
     /// reads as a total failure — or accept them a second time and fire
     /// `onPress` twice for one press. `unregister()` is what lets a later
     /// call start over.
-    func register() -> HotkeyRegistrationOutcome {
+    func register(bindings: [HotkeyBinding] = HotkeyBinding.defaults) -> HotkeyRegistrationOutcome {
         if let registrationOutcome {
             return registrationOutcome
         }
@@ -130,39 +168,83 @@ final class HotkeyManager {
             return outcome
         }
 
-        var registered: [HotkeyCombination] = []
-        var failures: [HotkeyRegistrationOutcome.Failure] = []
-        for combination in HotkeyCombination.all {
-            var reference: EventHotKeyRef?
-            let status = RegisterEventHotKey(
-                combination.keyCode,
-                combination.carbonModifiers,
-                EventHotKeyID(signature: hotkeySignature, id: combination.id),
-                GetEventDispatcherTarget(),
-                // Shared rather than exclusive, and not as a preference.
-                // Asking exclusively was tried: it came back
-                // `eventHotKeyExistsErr` for both combinations, so exclusive
-                // is not a stricter form of this call but one that never
-                // hands back a hotkey at all. Something already holds them
-                // when this runs, and the system's own assignment is the one
-                // thing known to — it is switched off only after this loop
-                // has succeeded. Shared is also what lets this app run
-                // alongside another switcher, with both answering.
-                OptionBits(kEventHotKeyNoOptions),
-                &reference
-            )
-            if status == noErr, let reference {
-                hotKeys.append(reference)
-                registered.append(combination)
-            } else {
-                failures.append(
-                    HotkeyRegistrationOutcome.Failure(combination: combination, status: status)
-                )
-            }
+        var taken: [HotkeyCombination: [String]] = [:]
+        var refused: [HotkeyCombination: [(name: String, status: OSStatus)]] = [:]
+        for binding in bindings {
+            attempt(binding, taken: &taken, refused: &refused)
         }
-        let outcome = HotkeyRegistrationOutcome(registered: registered, failures: failures)
+        let outcome = assembleOutcome(taken: taken, refused: refused)
         registrationOutcome = outcome
         return outcome
+    }
+
+    /// Attempts one binding, keeping the take or the refusal.
+    private func attempt(
+        _ binding: HotkeyBinding,
+        taken: inout [HotkeyCombination: [String]],
+        refused: inout [HotkeyCombination: [(name: String, status: OSStatus)]]
+    ) {
+        var reference: EventHotKeyRef?
+        let status = RegisterEventHotKey(
+            binding.keyCode,
+            binding.carbonModifiers,
+            EventHotKeyID(signature: hotkeySignature, id: binding.eventID),
+            GetEventDispatcherTarget(),
+            // Shared rather than exclusive, and not as a preference.
+            // Asking exclusively was tried: it came back
+            // `eventHotKeyExistsErr` for every combination, so exclusive
+            // is not a stricter form of this call but one that never
+            // hands back a hotkey at all. Something already holds them
+            // when this runs, and the system's own assignment is the one
+            // thing known to — it is switched off only after this loop
+            // has succeeded. Shared is also what lets this app run
+            // alongside another switcher, with both answering.
+            OptionBits(kEventHotKeyNoOptions),
+            &reference
+        )
+        if status == noErr, let reference {
+            hotKeys.append(reference)
+            taken[binding.combination, default: []].append(binding.name)
+        } else {
+            refused[binding.combination, default: []].append((binding.name, status))
+        }
+    }
+
+    /// Folds takes and refusals into the combination-level outcome.
+    ///
+    /// Partial refusals get their own lines on the side: the outcome
+    /// only has room for one status per combination.
+    private func assembleOutcome(
+        taken: [HotkeyCombination: [String]],
+        refused: [HotkeyCombination: [(name: String, status: OSStatus)]]
+    ) -> HotkeyRegistrationOutcome {
+        var registered: [HotkeyCombination] = []
+        var failures: [HotkeyRegistrationOutcome.Failure] = []
+        var displayNames: [HotkeyCombination: String] = [:]
+        for combination in HotkeyCombination.all {
+            if let names = taken[combination], !names.isEmpty {
+                registered.append(combination)
+                displayNames[combination] = names.joined(separator: ", ")
+                for refusal in refused[combination] ?? [] {
+                    refusedDetails.append("could not register \(refusal.name) (error \(refusal.status))")
+                }
+            } else if let refusals = refused[combination], let first = refusals.first {
+                failures.append(HotkeyRegistrationOutcome.Failure(
+                    combination: combination,
+                    status: first.status,
+                    displayName: refusals.map(\.name).joined(separator: ", ")
+                ))
+            } else {
+                failures.append(HotkeyRegistrationOutcome.Failure(
+                    combination: combination,
+                    status: noErr,
+                    displayName: combination.name
+                ))
+            }
+        }
+        return HotkeyRegistrationOutcome(
+            registered: registered, failures: failures, displayNames: displayNames
+        )
     }
 
     /// Gives every claimed combination back, takes the handler down and
@@ -174,6 +256,7 @@ final class HotkeyManager {
             UnregisterEventHotKey(reference)
         }
         hotKeys.removeAll()
+        refusedDetails = []
         if let eventHandler {
             RemoveEventHandler(eventHandler)
             self.eventHandler = nil
@@ -240,7 +323,7 @@ private func handleHotkeyEvent(
     guard read == noErr,
           identifier.signature == hotkeySignature,
           GetEventKind(event) == UInt32(kEventHotKeyPressed),
-          let combination = HotkeyCombination(id: identifier.id)
+          let combination = HotkeyBinding.combination(forEventID: identifier.id)
     else {
         return OSStatus(eventNotHandledErr)
     }

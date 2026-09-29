@@ -26,6 +26,15 @@ struct SettingsValues: Equatable, Sendable {
     /// The ordering the narrowed rows draw in. Absent in the file means
     /// recent use first.
     var resultOrder: SearchOrdering
+    /// The resolved key bindings. Never partial: absent in the file
+    /// means all defaults.
+    var keyBindings: KeyBindingTable
+    /// The section as spelled in the file, kept so an unrelated save
+    /// does not drop a customization that lost resolution.
+    var keyBindingSection: [KeyBindingAction: [RawKeyBinding]]?
+    /// The table as loaded, for telling an untouched round trip apart
+    /// from an edited table.
+    var loadedKeyBindings: KeyBindingTable
 
     /// The values for a missing or invalid file: follow the system, park
     /// the special kinds as usual, match kanji readings as well, stay
@@ -40,7 +49,10 @@ struct SettingsValues: Equatable, Sendable {
         exclusions: [],
         shortcutMemoryLength: 5,
         fuzzyMatchEnabled: true,
-        resultOrder: .mru
+        resultOrder: .mru,
+        keyBindings: .defaults,
+        keyBindingSection: nil,
+        loadedKeyBindings: .defaults
     )
 
     /// The values for one run: present keys win, absent keys mean
@@ -56,7 +68,10 @@ struct SettingsValues: Equatable, Sendable {
             exclusions: config.exclusions ?? [],
             shortcutMemoryLength: config.shortcutMemoryLength ?? 5,
             fuzzyMatchEnabled: config.fuzzyMatchEnabled ?? true,
-            resultOrder: SearchOrdering.effective(from: config)
+            resultOrder: SearchOrdering.effective(from: config),
+            keyBindings: config.keyBindings,
+            keyBindingSection: config.keyBindingSection,
+            loadedKeyBindings: config.keyBindings
         )
     }
 
@@ -96,6 +111,30 @@ struct SettingsValues: Equatable, Sendable {
         if resultOrder != defaults.resultOrder {
             config.resultOrder = resultOrder.rawValue
         }
+        config.keyBindings = keyBindings
+        if keyBindings == loadedKeyBindings {
+            config.keyBindingSection = keyBindingSection
+        } else {
+            config.keyBindingSection = Self.customizedSection(keyBindings)
+        }
         return config
+    }
+
+    /// The customized section for saving: actions differing from their
+    /// defaults, as the file spells them. Empty actions and an empty
+    /// section read as absent, so defaults never reach the disk.
+    private static func customizedSection(
+        _ table: KeyBindingTable
+    ) -> [KeyBindingAction: [RawKeyBinding]]? {
+        let customized = KeyBindingAction.allCases.filter { action in
+            let keys = table[action]
+            return !keys.isEmpty && keys != KeyBindingTable.defaults[action]
+        }
+        guard !customized.isEmpty else { return nil }
+        return Dictionary(uniqueKeysWithValues: customized.map { action in
+            (action, table[action].map {
+                RawKeyBinding(keyCode: Int($0.keyCode), modifiers: $0.modifierWords)
+            })
+        })
     }
 }

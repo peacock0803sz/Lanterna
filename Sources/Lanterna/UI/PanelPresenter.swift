@@ -25,6 +25,12 @@ final class PanelPresenter {
         didSet { pushSearchSettings() }
     }
 
+    /// The resolved key bindings, handed to the key commands. A change
+    /// lands on the live panel at once, like the exclusion rules.
+    var keyBindings = KeyBindingTable.defaults {
+        didSet { keyCommands.updateKeyBindings(keyBindings) }
+    }
+
     /// Hands the search settings to the live key commands.
     private func pushSearchSettings() {
         keyCommands.updateSearchSettings(searchSettings)
@@ -149,6 +155,7 @@ final class PanelPresenter {
         displayModes: displayModes,
         exclusionRules: exclusionRules,
         searchSettings: searchSettings,
+        keyBindings: keyBindings,
         now: now,
         operate: { [weak self] operation, chosen in
             self?.startOperation(operation, naming: chosen)
@@ -165,6 +172,7 @@ final class PanelPresenter {
         displayModes: DisplayModes = .defaults,
         exclusionRules: [ExclusionRule] = [],
         searchSettings: SearchSettings = SearchSettings(),
+        keyBindings: KeyBindingTable = .defaults,
         ownProcessIdentifier: pid_t = getpid(),
         now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
         writeLine: @escaping @MainActor (Logger.Level, String) -> Void = { Diagnostics.writeLine($1, level: $0) },
@@ -183,6 +191,7 @@ final class PanelPresenter {
         self.displayModes = displayModes
         self.exclusionRules = exclusionRules
         self.searchSettings = searchSettings
+        self.keyBindings = keyBindings
         self.ownProcessIdentifier = ownProcessIdentifier
         self.now = now
         self.writeLine = writeLine

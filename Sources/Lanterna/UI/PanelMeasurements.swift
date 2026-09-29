@@ -139,11 +139,13 @@ struct PanelExitMeasurement: Sendable {
             case .commandRelease: "Command was released"
             case .commitKey(.returnKey): "Return"
             case .commitKey(.keypadEnter): "keypad Enter"
+            case let .commitKey(.custom(code)): "key \(code)"
             // Spelled out rather than written `⌘.`: a full stop is a regular
             // expression's wildcard, and one at the end of a line of prose
             // reads as punctuation.
             case .cancelKey(.commandPeriod): "Cmd+Period"
             case .cancelKey(.escape): "Escape"
+            case let .cancelKey(.custom(code)): "key \(code)"
             }
         }
 

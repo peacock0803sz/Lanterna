@@ -35,12 +35,14 @@ final class PanelKeyCommands {
         displayModes: DisplayModes = .defaults,
         exclusionRules: [ExclusionRule] = [],
         searchSettings: SearchSettings = SearchSettings(),
+        keyBindings: KeyBindingTable = .defaults,
         now: @escaping @MainActor () -> ContinuousClock.Instant,
         operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)? = nil
     ) {
         self.surface = surface
         self.selection = selection
         self.wayOut = wayOut
+        self.keyBindings = keyBindings
         filter = PanelFilter(selection: selection, surface: surface)
         filter.displayModes = displayModes
         filter.exclusionRules = exclusionRules
@@ -69,6 +71,30 @@ final class PanelKeyCommands {
     /// Hands changed search settings to the live filter, the same way.
     func updateSearchSettings(_ settings: SearchSettings) {
         filter.searchSettings = settings
+    }
+
+    /// The resolved key bindings this panel goes by. Replaced wholesale
+    /// when settings change, the way the exclusion rules are.
+    private(set) var keyBindings: KeyBindingTable
+
+    /// Hands changed bindings to the live panel, so a settings change
+    /// reaches the keys without waiting for the next launch.
+    func updateKeyBindings(_ bindings: KeyBindingTable) {
+        keyBindings = bindings
+    }
+
+    /// Decides a cancel press: a clear key clears the query first and
+    /// only cancels on an empty one. The table cannot tell the two
+    /// apart: it keeps no state, and the filter is where the question
+    /// is answered.
+    private func cancelOrClear(_ keystroke: PanelKeystroke, since startedAt: ContinuousClock.Instant) {
+        if keyBindings.matches(keystroke, action: .clearQuery), filter.clear() {
+            return
+        }
+        wayOut.cancel(
+            by: PanelKeyInput.cancelKey(for: keystroke), since: startedAt,
+            filter: filter.logSummary()
+        )
     }
 
     /// Records one commit for shortcut memory. Empty queries, overlong
@@ -151,27 +177,28 @@ final class PanelKeyCommands {
         // A new press answers the old failure: the note goes before
         // anything the press means is done.
         surface.clearNotice()
-        switch PanelKeyInput.action(for: keystroke) {
+        switch PanelKeyInput.action(for: keystroke, table: keyBindings) {
         case .selectNext:
             selection.moveToNext()
         case .selectPrevious:
             selection.moveToPrevious()
-        case let .cancel(key):
-            // Escape clears the query first and only cancels on an empty
-            // one. The table cannot tell the two apart: it keeps no state,
-            // and the filter is where the question is answered.
-            if key == .escape, filter.clear() {
-                break
-            }
-            wayOut.cancel(by: key, since: startedAt, filter: filter.logSummary())
-        case let .commit(key):
+        case .cancel:
+            cancelOrClear(keystroke, since: startedAt)
+        case .commit:
             // Read before the commit: taking the panel down throws the
             // list away. Recorded after the commit returns, so the write
             // lands outside the measured close interval.
             let committedID = selection.chosenID
             let committedQuery = filter.logSummary().query
-            wayOut.commit(by: key, naming: committedID, since: startedAt, filter: filter.logSummary())
+            wayOut.commit(
+                by: PanelKeyInput.commitKey(for: keystroke), naming: committedID, since: startedAt,
+                filter: filter.logSummary()
+            )
             recordShortcut(query: committedQuery, id: committedID)
+        case .clearQuery:
+            // Clearing an empty query changes nothing, and the panel
+            // stays up either way: there is nothing to cancel here.
+            _ = filter.clear()
         case let .windowOperation(operation):
             operate?(operation, selection.chosenID)
         case let .filterText(text):

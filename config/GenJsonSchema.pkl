@@ -36,6 +36,55 @@ local function isExclusions(prop: reflect.Property): Boolean =
       && (inner as reflect.DeclaredType).referent.name == "Listing"
   else false
 
+/// Whether the property is the keybindings section (a nullable class).
+///
+/// Matched by shape rather than by name, so a rename still renders.
+local function isKeyBindings(prop: reflect.Property): Boolean =
+  if (prop.type is reflect.NullableType)
+    let (inner = (prop.type as reflect.NullableType).member)
+    inner is reflect.DeclaredType
+      && (inner as reflect.DeclaredType).referent.name == "KeyBindings"
+  else false
+
+/// One keybinding entry: a physical key code plus modifier words.
+local keyBindingItem: Dynamic = new {
+  ["type"] = "object"
+  ["properties"] = new {
+    ["keyCode"] = new {
+      ["type"] = "integer"
+    }
+    ["modifiers"] = new {
+      ["type"] = "array"
+      ["items"] = new {
+        ["type"] = "string"
+        ["enum"] = new Listing<String> { "cmd"; "ctrl"; "opt"; "shift" }
+      }
+    }
+  }
+  ["required"] = new Listing<String> { "keyCode"; "modifiers" }
+  ["additionalProperties"] = false
+}
+
+/// The per-action key lists, one array per action. Absent actions keep
+/// their defaults; the fallback rules live in Swift, not here.
+local function keyBindingsFragment(prop: reflect.Property): Dynamic = new {
+  ["type"] = "object"
+  description = prop.docComment
+  ["properties"] = new {
+    for (action in new Listing<String> {
+      "show"; "showReverse"; "showFilter"; "next"; "previous";
+      "commit"; "cancel"; "deleteBackward"; "clearQuery";
+      "closeWindow"; "quitApplication"; "hideApplication"; "minimizeWindow"
+    }) {
+      [action] = new {
+        ["type"] = "array"
+        ["items"] = keyBindingItem
+      }
+    }
+  }
+  ["additionalProperties"] = false
+}
+
 local function fragment(prop: reflect.Property): Dynamic =
   if (allowedOf(prop) != null)
     new {
@@ -66,6 +115,8 @@ local function fragment(prop: reflect.Property): Dynamic =
         ["additionalProperties"] = false
       }
     }
+  else if (isKeyBindings(prop))
+    keyBindingsFragment(prop)
   else if (minimumOf(prop) == null)
     new {
       ["type"] = "integer"

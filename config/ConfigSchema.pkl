@@ -119,3 +119,37 @@ open class ExclusionEntry {
 /// Windows to keep out of the switcher list. Absent means no exclusions.
 /// Elements that are invalid on their own are ignored one by one.
 exclusions: Listing<ExclusionEntry>? = null
+
+/// One modifier key held with a key binding.
+typealias KeyModifier = "cmd"|"ctrl"|"opt"|"shift"
+
+/// One physical key assignment: where the key sits plus the modifiers held
+/// with it. Input-source independent: the code names a position, not a character.
+open class KeyBinding {
+  /// The physical key, in the same numbering `PanelKeystroke.keyCode` carries.
+  keyCode: Int
+  /// The modifiers held with it. Empty means the bare key.
+  modifiers: Listing<KeyModifier>
+}
+
+/// The per-action key lists. Absent actions keep their defaults.
+/// Entries that are invalid on their own are ignored one by one,
+/// falling back to the default for that action.
+open class KeyBindings {
+  show: Listing<KeyBinding>? = null
+  showReverse: Listing<KeyBinding>? = null
+  showFilter: Listing<KeyBinding>? = null
+  next: Listing<KeyBinding>? = null
+  previous: Listing<KeyBinding>? = null
+  commit: Listing<KeyBinding>? = null
+  cancel: Listing<KeyBinding>? = null
+  deleteBackward: Listing<KeyBinding>? = null
+  clearQuery: Listing<KeyBinding>? = null
+  closeWindow: Listing<KeyBinding>? = null
+  quitApplication: Listing<KeyBinding>? = null
+  hideApplication: Listing<KeyBinding>? = null
+  minimizeWindow: Listing<KeyBinding>? = null
+}
+
+/// User-configurable keybindings. Absent means all defaults.
+keybindings: KeyBindings? = null

@@ -58,12 +58,16 @@ struct PanelKeystroke: Equatable, Sendable {
 enum CommitKey: Equatable, Sendable {
     case returnKey
     case keypadEnter
+    /// A customized commit key, by physical position.
+    case custom(UInt16)
 }
 
 /// Which key cancelled, kept apart for the reason the commit keys are.
 enum CancelKey: Equatable, Sendable {
     case commandPeriod
     case escape
+    /// A customized cancel key, by physical position.
+    case custom(UInt16)
 }
 
 /// What a keystroke means to a panel that is up.
@@ -80,6 +84,8 @@ enum PanelKeyAction: Equatable, Sendable {
     case filterText(String)
     /// Backspace: shortens the query by one character.
     case filterBackspace
+    /// Clears the query, leaving the panel up.
+    case clearQuery
     /// No meaning was given to this key. It is swallowed all the same.
     case absorb
 }
@@ -259,87 +265,119 @@ final class LocalKeyEventChannel: PanelKeyChannel {
 enum PanelKeyInput {
     /// What the panel should do about this press.
     static func action(for keystroke: PanelKeystroke) -> PanelKeyAction {
-        let action = meaning(of: keystroke)
+        action(for: keystroke, table: .defaults)
+    }
+
+    /// What the panel should do about this press under custom bindings.
+    ///
+    /// Reads the resolved table and nothing else: every row below holds
+    /// for the defaults key for key, and a customized table only moves
+    /// the rows. The repeat rule stays outside, as before.
+    static func action(for keystroke: PanelKeystroke, table: KeyBindingTable) -> PanelKeyAction {
+        let action = meaning(of: keystroke, table: table)
         guard keystroke.isARepeat else { return action }
         return action.whenTheKeyboardIsRepeating
     }
 
+    /// Which commit key arrived, for the line that says so.
+    ///
+    /// The two long-standing keys keep their names; anything else goes
+    /// down by position, which is the same evidence in plainer words.
+    static func commitKey(for keystroke: PanelKeystroke) -> CommitKey {
+        switch Int(keystroke.keyCode) {
+        case kVK_Return:
+            .returnKey
+        case kVK_ANSI_KeypadEnter:
+            .keypadEnter
+        default:
+            .custom(keystroke.keyCode)
+        }
+    }
+
+    /// Which cancel key arrived, for the line that says so.
+    static func cancelKey(for keystroke: PanelKeystroke) -> CancelKey {
+        switch Int(keystroke.keyCode) {
+        case kVK_Escape:
+            .escape
+        case kVK_ANSI_Period where keystroke.modifiers.contains(.command):
+            .commandPeriod
+        default:
+            .custom(keystroke.keyCode)
+        }
+    }
+
     /// The table itself, with the repeating question left out.
     ///
-    /// Split from `action(for:)` so that neither half grows to where it has
-    /// to be read twice. A `switch` over the key codes plus the test above
-    /// would sit against the complexity limit with no room for the row that
-    /// gets added next, and this codebase suppresses no lint rule.
-    private static func meaning(of keystroke: PanelKeystroke) -> PanelKeyAction {
-        if let early = earlyMeaning(of: keystroke) {
-            return early
+    /// Split from `action(for:table:)` so that neither half grows to where
+    /// it has to be read twice. Tab stays reserved unless the table holds
+    /// it somewhere: Carbon has claimed Cmd+Tab and Shift+Cmd+Tab, and a
+    /// Tab acted on here as well would move the selection twice for one
+    /// press. Operations read before filtering, as before: an operation
+    /// key held with Command is an operation even where its letter
+    /// would type.
+    private static func meaning(of keystroke: PanelKeystroke, table: KeyBindingTable) -> PanelKeyAction {
+        if Int(keystroke.keyCode) == kVK_Tab, !holdsTab(table) {
+            return .absorb
         }
-        switch Int(keystroke.keyCode) {
-        case kVK_DownArrow:
-            return .selectNext
-        case kVK_UpArrow:
-            return .selectPrevious
-        case kVK_Return:
-            return .commit(.returnKey)
-        case kVK_ANSI_KeypadEnter:
-            return .commit(.keypadEnter)
-        case kVK_Escape:
-            return .cancel(.escape)
-        // The one row of this table that asks about modifiers. A bare full
-        // stop is somebody typing, and typing must not cancel; the
-        // operations asked ahead of the table hold Command for the same
-        // reason. Every other row ignores them on purpose: the ordinary
-        // press is made with Command still down, while a run whose modifier
-        // monitor never started sees the same keys arrive bare after Command
-        // has been let go, and both have to work the same way.
-        case kVK_ANSI_Period where keystroke.modifiers.contains(.command):
-            return .cancel(.commandPeriod)
-        case kVK_Delete:
-            return .filterBackspace
-        default:
-            // Going by key code and not by the character is what keeps this
-            // whole table independent of the input source and the physical
-            // layout — in kana mode the full stop's key reports 。 What the
-            // key made is only read here, where a row means filtering, and
-            // nowhere else in the table.
-            guard let text = WindowFilter.allowedText(keystroke.characters) else {
-                return .absorb
+        if let winner = mostSpecificMatch(for: keystroke, table: table) {
+            return winner
+        }
+        // Going by key code and not by the character is what keeps the
+        // whole table independent of the input source and the physical
+        // layout. What the key made is only read here, where a row means
+        // filtering, and nowhere else in the table.
+        guard let text = WindowFilter.allowedText(keystroke.characters) else {
+            return .absorb
+        }
+        return .filterText(text)
+    }
+
+    /// The matching action holding the most required modifiers, ties in
+    /// fixed order. Without this a bare default would shadow a narrower
+    /// custom binding on the same key: Shift+Down meant as commit reading
+    /// as next, Shift+Cmd+W meant as one operation reading as another.
+    private static func mostSpecificMatch(
+        for keystroke: PanelKeystroke, table: KeyBindingTable
+    ) -> PanelKeyAction? {
+        var ordered: [(KeyBindingAction, PanelKeyAction)] = WindowOperation.allCases.map {
+            ($0.binding, .windowOperation($0))
+        }
+        ordered += [
+            (.next, .selectNext),
+            (.previous, .selectPrevious),
+            (.commit, .commit(commitKey(for: keystroke))),
+            (.cancel, .cancel(cancelKey(for: keystroke))),
+            (.clearQuery, .clearQuery),
+            (.deleteBackward, .filterBackspace),
+        ]
+        let ranked = ordered.enumerated().compactMap { order, entry in
+            narrowness(of: keystroke, action: entry.0, table: table).map {
+                (narrowness: $0, order: order, action: entry.1)
             }
-            return .filterText(text)
         }
+        return ranked.max {
+            $0.narrowness == $1.narrowness ? $0.order > $1.order : $0.narrowness < $1.narrowness
+        }?.action
     }
 
-    /// Tab and the window operations, asked ahead of the table below. Tab
-    /// first, and whatever is held with it: Carbon has claimed Cmd+Tab and
-    /// Shift+Cmd+Tab, and the selection moves through that route, so a Tab
-    /// acted on here as well would move the selection two rows for one
-    /// press. Whether Carbon lets a Tab through at all is not the point:
-    /// if it does not, this row costs a comparison and nothing else.
-    /// The operations go by key code and Command held, as the full stop
-    /// does: what the key would type is not asked. Out here so the table
-    /// below stays within the complexity the linter allows.
-    private static func earlyMeaning(of keystroke: PanelKeystroke) -> PanelKeyAction? {
-        guard Int(keystroke.keyCode) != kVK_Tab else { return .absorb }
-        if let operation = operation(of: keystroke) {
-            return .windowOperation(operation)
-        }
-        return nil
+    /// How many modifiers the closest matching key demands, else nothing.
+    /// Reads the same per-key test as `KeyBindingTable.matches`, adding
+    /// how narrow the fit is.
+    private static func narrowness(
+        of keystroke: PanelKeystroke, action: KeyBindingAction, table: KeyBindingTable
+    ) -> Int? {
+        let schema: NSEvent.ModifierFlags = [.shift, .control, .option, .command]
+        return table[action].filter { key in
+            key.keyCode == keystroke.keyCode && key.modifiers.isSubset(of: keystroke.modifiers)
+                && (!key.modifiers.isEmpty || WindowFilter.allowedText(keystroke.characters) == nil)
+        }.map { $0.modifiers.intersection(schema).rawValue.nonzeroBitCount }.max()
     }
 
-    private static func operation(of keystroke: PanelKeystroke) -> WindowOperation? {
-        guard keystroke.modifiers.contains(.command) else { return nil }
-        switch Int(keystroke.keyCode) {
-        case kVK_ANSI_W:
-            return .closeWindow
-        case kVK_ANSI_Q:
-            return .quitApplication
-        case kVK_ANSI_H:
-            return .hideApplication
-        case kVK_ANSI_M:
-            return .minimizeWindow
-        default:
-            return nil
-        }
+    /// Whether show, showReverse or showFilter holds Tab. Only an explicit
+    /// invocation binding lifts the reservation, so any other action holding
+    /// Tab cannot answer a press Carbon already claimed for invocation.
+    private static func holdsTab(_ table: KeyBindingTable) -> Bool {
+        [.show, .showReverse, .showFilter].contains { table[$0].contains { $0.keyCode == kVK_Tab } }
     }
 }
 
@@ -353,7 +391,7 @@ private extension PanelKeyAction {
     /// second one would land on whatever the first one left behind.
     var whenTheKeyboardIsRepeating: PanelKeyAction {
         switch self {
-        case .selectNext, .selectPrevious, .filterText, .filterBackspace:
+        case .selectNext, .selectPrevious, .filterText, .filterBackspace, .clearQuery:
             self
         case .commit, .cancel, .windowOperation, .absorb:
             .absorb

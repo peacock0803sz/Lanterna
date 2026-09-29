@@ -46,7 +46,12 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
         if decoded.assumedVersion {
             Diagnostics.writeLine("config loaded (version 1, assumed): \(url.path)", level: .info)
         } else {
-            Diagnostics.writeLine("config loaded (version \(decoded.config.version)): \(url.path)", level: .info)
+            Diagnostics.writeLine(
+                "config loaded (version \(decoded.config.version)): \(url.path)", level: .info
+            )
+        }
+        for issue in decoded.keyBindingIssues {
+            Diagnostics.writeLine(issue.diagnosticsLine, level: .warning)
         }
     case .created:
         options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)

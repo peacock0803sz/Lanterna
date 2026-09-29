@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// Encoding side of the config file, split out when the decoding file
@@ -26,6 +27,7 @@ extension AppConfiguration {
         if let launchAtLogin = config.launchAtLogin {
             entries.append(encodedBool(key: "launchAtLogin", value: launchAtLogin))
         }
+        entries.append(contentsOf: keyBindingEntries(config))
         if let logLevel = config.logLevel {
             entries.append(encodedString(key: "logLevel", value: logLevel.rawValue))
         }
@@ -66,7 +68,24 @@ extension AppConfiguration {
         try encode(config).write(to: url, options: .atomic)
     }
 
-    /// The search-quality lines, skipping absence like every other key.
+    /// The keybindings section lines, from the stored customized section
+    /// rather than the effective table, so a binding that lost still reads
+    /// back as written. Absent or empty means no line, so defaults encode
+    /// to nothing here like every other absent key.
+    private static func keyBindingEntries(_ config: ValidConfiguration) -> [String] {
+        guard let section = config.keyBindingSection, !section.isEmpty else { return [] }
+        let actions = section.keys.sorted { $0.rawValue < $1.rawValue }
+        let rows = actions.map { action in
+            let bindings = (section[action] ?? []).map { raw in
+                let spelled = raw.modifiers.map { "\"\($0)\"" }.joined(separator: ", ")
+                return "      { \"keyCode\": \(raw.keyCode), \"modifiers\": [\(spelled)] }"
+            }
+            return "    \"\(action.rawValue)\": [\n" + bindings.joined(separator: ",\n")
+                + "\n    ]"
+        }
+        return ["  \"keybindings\": {\n" + rows.joined(separator: ",\n") + "\n  }"]
+    }
+
     private static func searchSettingEntries(_ config: ValidConfiguration) -> [String] {
         var lines: [String] = []
         if let fuzzyMatchEnabled = config.fuzzyMatchEnabled {
