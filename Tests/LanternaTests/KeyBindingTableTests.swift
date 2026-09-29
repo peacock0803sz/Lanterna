@@ -23,6 +23,16 @@ struct KeyBindingTableTests {
         #expect(table[.closeWindow] == [key(kVK_ANSI_W, .command)])
     }
 
+    @Test func issueWordsDiagnosticsLine() {
+        let issue = KeyBindingIssue(
+            action: .commit, reason: .conflict, detail: "keyCode 13 is already taken"
+        )
+        #expect(
+            issue.diagnosticsLine
+                == "config keybinding (commit conflict: keyCode 13 is already taken); using default"
+        )
+    }
+
     @Test func absentSectionMeansDefaultsWithoutIssues() {
         let (table, issues) = KeyBindingResolver.resolve([:], order: [])
         #expect(table == .defaults)
@@ -58,8 +68,11 @@ struct KeyBindingTableTests {
         let (accepted, acceptedIssues) = KeyBindingResolver.resolve(
             [.show: [raw(kVK_Tab, "cmd", "shift")]], order: [.show]
         )
+        // The customized show displaces the untouched showReverse default.
         #expect(accepted[.show] == [key(kVK_Tab, [.command, .shift])])
-        #expect(acceptedIssues.isEmpty)
+        #expect(acceptedIssues.count == 1)
+        #expect(acceptedIssues[0].action == .showReverse)
+        #expect(acceptedIssues[0].reason == .conflict)
     }
 
     @Test func bareActionsAcceptBareKeys() {
@@ -96,13 +109,15 @@ struct KeyBindingTableTests {
     }
 
     @Test func panelCustomizationLosesToGlobalDefault() {
-        // commit takes Cmd+W, which closeWindow holds by default.
+        // commit takes Cmd+Tab, which show holds by default: invocation
+        // wins, and commit falls back to its own free defaults.
         let (table, issues) = KeyBindingResolver.resolve(
-            [.commit: [raw(kVK_ANSI_W, "cmd")]], order: [.commit]
+            [.commit: [raw(kVK_Tab, "cmd")]], order: [.commit]
         )
-        #expect(!table[.commit].contains(key(kVK_ANSI_W, .command)))
-        #expect(table[.closeWindow] == KeyBindingTable.defaults[.closeWindow])
+        #expect(table[.commit] == KeyBindingTable.defaults[.commit])
+        #expect(table[.show] == KeyBindingTable.defaults[.show])
         #expect(issues.count == 1)
+        #expect(issues[0].action == .commit)
         #expect(issues[0].reason == .conflict)
     }
 
@@ -134,13 +149,17 @@ struct KeyBindingTableTests {
         #expect(issues.isEmpty)
     }
 
-    @Test func customBeatsDefaultAndLoserFallsBack() {
-        // commit takes Cmd+W from closeWindow's defaults; commit loses the
-        // key and falls back to its own defaults, which are free.
-        let (table, _) = KeyBindingResolver.resolve(
+    @Test func panelCustomizationDisplacesUntouchedDefaults() {
+        // commit takes Cmd+W, which closeWindow holds only by default:
+        // the untouched default gives way and ends up unbound.
+        let (table, issues) = KeyBindingResolver.resolve(
             [.commit: [raw(kVK_ANSI_W, "cmd")]], order: [.commit]
         )
-        #expect(table[.commit] == KeyBindingTable.defaults[.commit])
+        #expect(table[.commit] == [key(kVK_ANSI_W, .command)])
+        #expect(table[.closeWindow] == [])
+        #expect(issues.count == 1)
+        #expect(issues[0].action == .closeWindow)
+        #expect(issues[0].reason == .conflict)
     }
 
     @Test func kanaIndependentByConstruction() {
