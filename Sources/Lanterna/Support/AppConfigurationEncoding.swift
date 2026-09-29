@@ -47,6 +47,7 @@ extension AppConfiguration {
             entries.append(encodedInt(key: "stopMonitorEvery", value: stopMonitorEverySeconds))
         }
         entries.append(contentsOf: searchSettingEntries(config))
+        entries.append(contentsOf: textScaleEntries(config))
         entries.append(contentsOf: updateCheckEntries(config))
         entries.append(encodedInt(key: "version", value: config.version))
         // Every line opens with two spaces and its quoted key, so sorting
@@ -156,6 +157,17 @@ extension AppConfiguration {
             }
         }
         return out
+    }
+
+    /// The text-scale line, skipping absence like every other absent key.
+    private static func textScaleEntries(_ config: ValidConfiguration) -> [String] {
+        guard let textScale = config.textScale else { return [] }
+        return [encodedDouble(key: "textScale", value: textScale)]
+    }
+
+    /// One `"key": 1.12` line, indented two spaces.
+    private static func encodedDouble(key: String, value: Double) -> String {
+        "  \"\(key)\": \(value)"
     }
 
     /// One `"key": 1` line, indented two spaces.

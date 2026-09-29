@@ -162,7 +162,8 @@ extension AppDelegate {
             displayModes: options.displayModes,
             exclusionRules: compiled.rules,
             appearanceMode: options.appearanceMode,
-            searchSettings: options.searchSettings
+            searchSettings: options.searchSettings,
+            textScale: options.textScale
         )
         let presenter = PanelPresenter(
             surface: panel,
@@ -200,6 +201,7 @@ extension AppDelegate {
         }
         panel?.displayModes = values.displayModes
         panel?.appearance = values.appearanceMode.nsAppearance
+        panel?.textScale = values.textScale
         let searchSettings = SearchSettings(
             fuzzyMatchEnabled: values.fuzzyMatchEnabled,
             shortcutMemoryLength: values.shortcutMemoryLength,

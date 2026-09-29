@@ -50,7 +50,73 @@ enum PanelMetrics {
     /// Height for a given number of rows. The panel grows with its content until
     /// the cap, past which the list scrolls instead of the panel growing.
     static func height(rowCount: Int) -> CGFloat {
+        height(rowCount: rowCount, for: .standard)
+    }
+
+    /// The row height one step draws, in whole points.
+    static func rowHeight(for scale: TextScaleLevel) -> CGFloat {
+        scale.scaledRowHeight
+    }
+
+    /// The panel width one step draws, in whole points.
+    static func width(for scale: TextScaleLevel) -> CGFloat {
+        scale.scaledWidth
+    }
+
+    /// Height for a given number of rows at one step. The cap stays put
+    /// while the rows grow, so a large step scrolls sooner rather than
+    /// outgrowing the screen.
+    static func height(rowCount: Int, for scale: TextScaleLevel) -> CGFloat {
         precondition(rowCount >= 0, "rowCount must not be negative")
-        return min(CGFloat(rowCount) * rowHeight + verticalPadding * 2, maximumHeight)
+        return min(CGFloat(rowCount) * rowHeight(for: scale) + verticalPadding * 2, maximumHeight)
+    }
+
+    /// Extra height for the filter chrome at one step, scaled the way
+    /// the query text scales. An estimate, for the reason the unscaled
+    /// one is.
+    static func filterChromeHeight(query: String, filterActive: Bool, for scale: TextScaleLevel) -> CGFloat {
+        (filterChromeHeight(query: query, filterActive: filterActive) * scale.factor).rounded()
+    }
+
+    /// Extra height for the failure note at one step, scaled the way
+    /// the note text scales. An estimate, for the reason above.
+    static func noticeHeight(for scale: TextScaleLevel) -> CGFloat {
+        (noticeHeight * scale.factor).rounded()
+    }
+
+    /// The full content height at one step: rows plus chrome plus the
+    /// note when one shows, capped as one total so a large step never
+    /// outgrows the screen.
+    static func totalHeight(
+        rowCount: Int,
+        query: String,
+        filterActive: Bool,
+        notice: Bool,
+        for scale: TextScaleLevel
+    ) -> CGFloat {
+        var total = height(rowCount: rowCount, for: scale)
+            + filterChromeHeight(query: query, filterActive: filterActive, for: scale)
+        if notice {
+            total += noticeHeight(for: scale)
+        }
+        return min(total, maximumHeight)
+    }
+
+    /// The content size for a row count at one step, so the panel and
+    /// its tests take all three numbers from one place.
+    static func panelSize(
+        rowCount: Int,
+        query: String,
+        filterActive: Bool,
+        notice: Bool,
+        for scale: TextScaleLevel
+    ) -> CGSize {
+        CGSize(
+            width: width(for: scale),
+            height: totalHeight(
+                rowCount: rowCount, query: query,
+                filterActive: filterActive, notice: notice, for: scale
+            )
+        )
     }
 }

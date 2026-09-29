@@ -26,6 +26,9 @@ struct SettingsValues: Equatable, Sendable {
     /// The ordering the narrowed rows draw in. Absent in the file means
     /// recent use first.
     var resultOrder: SearchOrdering
+    /// The panel text and icon scale step. Absent in the file means
+    /// the standard size the panel always had.
+    var textScale: TextScaleLevel
     /// The resolved key bindings. Never partial: absent in the file
     /// means all defaults.
     var keyBindings: KeyBindingTable
@@ -50,6 +53,7 @@ struct SettingsValues: Equatable, Sendable {
         shortcutMemoryLength: 5,
         fuzzyMatchEnabled: true,
         resultOrder: .mru,
+        textScale: .standard,
         keyBindings: .defaults,
         keyBindingSection: nil,
         loadedKeyBindings: .defaults
@@ -69,6 +73,7 @@ struct SettingsValues: Equatable, Sendable {
             shortcutMemoryLength: config.shortcutMemoryLength ?? 5,
             fuzzyMatchEnabled: config.fuzzyMatchEnabled ?? true,
             resultOrder: SearchOrdering.effective(from: config),
+            textScale: TextScaleLevel.effective(from: config),
             keyBindings: config.keyBindings,
             keyBindingSection: config.keyBindingSection,
             loadedKeyBindings: config.keyBindings
@@ -110,6 +115,10 @@ struct SettingsValues: Equatable, Sendable {
         }
         if resultOrder != defaults.resultOrder {
             config.resultOrder = resultOrder.rawValue
+        }
+        // Standard stays absent, so the scaffold keeps reading as standard.
+        if textScale != .standard {
+            config.textScale = textScale.factor
         }
         config.keyBindings = keyBindings
         if keyBindings == loadedKeyBindings {

@@ -241,6 +241,34 @@ extension AppConfiguration {
         return value as? Int
     }
 
+    /// A JSON number and nothing else.
+    ///
+    /// Booleans are refused the way `jsonInt` refuses them. Integers
+    /// count as their double value, so a spelled `1` reads as `1.0`.
+    static func jsonDouble(_ value: Any) -> Double? {
+        if let number = value as? NSNumber, String(cString: number.objCType) == "c" {
+            return nil
+        }
+        return (value as? NSNumber)?.doubleValue
+    }
+
+    /// Reads the optional text-scale key leniently: absent means the
+    /// standard size, a non-standard step wins, the standard step reads
+    /// as absent so an explicit 1.0 stays omitted on save, and anything
+    /// else falls back to standard with a note instead of failing the file.
+    static func checkedOptionalTextScale(
+        _ dict: [String: Any]
+    ) -> (value: Double?, issue: String?) {
+        guard let rawValue = dict["textScale"] else { return (nil, nil) }
+        guard let factor = jsonDouble(rawValue), let level = TextScaleLevel(factor: factor) else {
+            return (nil, "textScale is not a valid value; using 1.0")
+        }
+        if level == .standard {
+            return (nil, nil)
+        }
+        return (factor, nil)
+    }
+
     /// Reads the keybindings section leniently: malformed entries and
     /// unknown actions are dropped one by one with issues, never failing
     /// the file. Only a section that is not an object at all is a bad
@@ -286,5 +314,40 @@ extension AppConfiguration {
             out[action] = entries
         }
         return .success((out, issues))
+    }
+
+    /// Resolves the lenient sections over an otherwise valid file.
+    ///
+    /// The keybindings section is lenient where the rest of the file is
+    /// strict: bad entries fall back per item with diagnostics, while a
+    /// section that is not an object at all invalidates the whole file
+    /// like any other bad value. Declaration order comes from the file
+    /// text, because JSON objects carry no order of their own. The text
+    /// scale is lenient the same way on its own: a present but invalid
+    /// value falls back to standard with a note.
+    static func resolvedKeyBindings(
+        _ dict: [String: Any],
+        data: Data,
+        config: ValidConfiguration,
+        assumed: Bool
+    ) -> Result<DecodedConfiguration, ConfigDecodeError> {
+        switch checkedOptionalKeyBindings(dict) {
+        case let .success((section, decodeIssues)):
+            var config = config
+            let text = String(data: data, encoding: .utf8) ?? ""
+            let order = KeyBindingResolver.declarationOrder(in: text)
+            let (table, resolveIssues) = KeyBindingResolver.resolve(section, order: order)
+            config.keyBindings = table
+            config.keyBindingSection = section.isEmpty ? nil : section
+            let (textScale, textScaleIssue) = checkedOptionalTextScale(dict)
+            config.textScale = textScale
+            return .success(DecodedConfiguration(
+                config: config, assumedVersion: assumed,
+                keyBindingIssues: decodeIssues + resolveIssues,
+                textScaleIssue: textScaleIssue
+            ))
+        case let .failure(error):
+            return .failure(error)
+        }
     }
 }

@@ -12,7 +12,7 @@ import SwiftUI
 final class SwitcherPanel: NSPanel {
     /// Held rather than dropped at the end of `init`: swapping the list in
     /// place needs a handle on the view that holds it.
-    private let hostingView: NSHostingView<SwitcherView>
+    let hostingView: NSHostingView<SwitcherView>
 
     /// Counts the appearances, so the view can tell one from the next. The
     /// scrolled position survives a reused panel, and without something that
@@ -32,26 +32,34 @@ final class SwitcherPanel: NSPanel {
         displayModes: DisplayModes = .defaults,
         exclusionRules: [ExclusionRule] = [],
         appearanceMode: AppearanceMode = .system,
-        searchSettings: SearchSettings = SearchSettings()
+        searchSettings: SearchSettings = SearchSettings(),
+        textScale: TextScaleLevel = .standard
     ) {
         self.displayModes = displayModes
         self.exclusionRules = exclusionRules
         self.searchSettings = searchSettings
+        self.textScale = textScale
+        appearanceScale = textScale
         hostingView = NSHostingView(rootView: content)
+        let initial = PanelMetrics.panelSize(
+            rowCount: PanelMetrics.drawnRowCount(
+                content.windows,
+                modes: displayModes,
+                query: content.query,
+                exclusions: exclusionRules,
+                fuzzy: searchSettings.fuzzyMatchEnabled
+            ),
+            query: content.query,
+            filterActive: content.filterActive,
+            notice: false,
+            for: textScale
+        )
         super.init(
             contentRect: NSRect(
                 x: 0,
                 y: 0,
-                width: PanelMetrics.width,
-                height: PanelMetrics.height(
-                    rowCount: PanelMetrics.drawnRowCount(
-                        content.windows,
-                        modes: displayModes,
-                        query: content.query,
-                        exclusions: exclusionRules,
-                        fuzzy: searchSettings.fuzzyMatchEnabled
-                    )
-                )
+                width: initial.width,
+                height: initial.height
             ),
             // Borderless is the absence of `.titled`, so it needs no flag.
             styleMask: [.nonactivatingPanel],
@@ -106,6 +114,16 @@ final class SwitcherPanel: NSPanel {
     /// modes: the height counts what the view draws.
     var searchSettings = SearchSettings()
 
+    /// The text and icon scale step, read at launch from the config file.
+    /// A change takes effect on the next appearance, never on the one
+    /// already up: resizing under an open panel would move the choice
+    /// the eye is following.
+    var textScale = TextScaleLevel.standard
+
+    /// The step the appearance on screen opened with. Frozen at `present`
+    /// so narrowing or a notice mid-appearance cannot resize what is up.
+    var appearanceScale = TextScaleLevel.standard
+
     /// Whether the panel is currently on screen.
     var isPresented: Bool {
         isVisible
@@ -115,55 +133,12 @@ final class SwitcherPanel: NSPanel {
     /// knows whether the note's height is in its frame, and clearing gives
     /// back exactly what showing took. A swapped list sizes the frame
     /// without it, and a new appearance starts without one.
-    private var notice: String?
+    var notice: String?
 
-    /// Replaces the list and resizes to it, leaving the panel where it was:
-    /// off screen if it was off screen, on screen if it was on.
-    ///
-    /// `SwitcherView` holds nothing but its array and the package has no
-    /// observable state anywhere, so assigning a new root view is a complete
-    /// swap; SwiftUI diffs the rows by their identity from there.
-    ///
-    /// Carries the chosen row across the swap. Assigning a new root view
-    /// replaces every field of it, so a list arriving without the selection
-    /// beside it would leave the panel drawing no row as chosen while the
-    /// presenter went on believing one was — the sort of failure that shows
-    /// on screen and nowhere else.
-    func update(windows: [WindowItem]) {
-        hostingView.rootView = SwitcherView(
-            windows: windows,
-            selectedID: hostingView.rootView.selectedID,
-            appearanceToken: hostingView.rootView.appearanceToken,
-            query: hostingView.rootView.query,
-            filterActive: hostingView.rootView.filterActive,
-            modes: displayModes,
-            exclusionRules: exclusionRules,
-            fuzzyMatchEnabled: searchSettings.fuzzyMatchEnabled
-        )
-        // The height is pushed down from the window, because the hosting view
-        // has no sizing options and so cannot push one up.
-        let query = hostingView.rootView.query
-        let filterActive = hostingView.rootView.filterActive
-        setContentSize(
-            NSSize(
-                width: PanelMetrics.width,
-                height: min(
-                    PanelMetrics.height(
-                        rowCount: PanelMetrics.drawnRowCount(
-                            windows,
-                            modes: displayModes,
-                            query: query,
-                            exclusions: exclusionRules,
-                            fuzzy: searchSettings.fuzzyMatchEnabled
-                        )
-                    ) + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
-                    PanelMetrics.maximumHeight
-                )
-            )
-        )
-        centerOnMainDisplay()
-    }
-
+    /// How much the frame grew for the note on screen now. Kept beside
+    /// the note so clearing gives back exactly what showing took, even
+    /// when showing was capped to stay within the height limit.
+    var noticeGrowth: CGFloat = 0
     /// Ordered front regardless rather than made key and ordered front.
     /// Apple says of the ordinary order-front that a window cannot be moved
     /// in front of the key window unless the two belong to the same
@@ -186,6 +161,8 @@ final class SwitcherPanel: NSPanel {
     func present(windows: [WindowItem], selecting: WindowItem.Identifier?, filterActive: Bool = false) {
         appearances += 1
         notice = nil
+        noticeGrowth = 0
+        appearanceScale = textScale
         hostingView.rootView.query = ""
         hostingView.rootView.filterActive = filterActive
         update(windows: windows)
@@ -227,78 +204,6 @@ final class SwitcherPanel: NSPanel {
     /// a panel the eye has to find again on every keystroke.
     func showSelection(_ id: WindowItem.Identifier?) {
         hostingView.rootView.selectedID = id
-    }
-
-    /// Swaps the rows for a narrowed set, and changes nothing else about
-    /// the panel's place.
-    ///
-    /// A new root view like `update(windows:)` swaps, but without the centre
-    /// that call decides: narrowing happens a keystroke at a time, and a
-    /// panel that jumped on every one would be one the eye has to find
-    /// again. Only the height follows the content, with the top edge staying
-    /// where it was, so the first rows keep their place while the list
-    /// narrows. The appearance token travels across untouched, so the
-    /// scrolled position is left where it was.
-    func updateList(
-        windows: [WindowItem],
-        selecting: WindowItem.Identifier?,
-        query: String,
-        filterActive: Bool
-    ) {
-        notice = nil
-        hostingView.rootView = SwitcherView(
-            windows: windows,
-            selectedID: selecting,
-            appearanceToken: hostingView.rootView.appearanceToken,
-            query: query,
-            filterActive: filterActive,
-            modes: displayModes,
-            exclusionRules: exclusionRules,
-            fuzzyMatchEnabled: searchSettings.fuzzyMatchEnabled
-        )
-        let height = min(
-            PanelMetrics.height(rowCount: PanelMetrics.drawnRowCount(
-                windows,
-                modes: displayModes,
-                query: query,
-                exclusions: exclusionRules,
-                fuzzy: searchSettings.fuzzyMatchEnabled
-            ))
-                + PanelMetrics.filterChromeHeight(query: query, filterActive: filterActive),
-            PanelMetrics.maximumHeight
-        )
-        var frame = frame
-        frame.origin.y -= height - frame.height
-        frame.size.height = height
-        setFrame(frame, display: true)
-    }
-
-    /// Shows a small failure note under the list, growing the panel for it
-    /// with the top edge staying where it was.
-    func showNotice(_ text: String) {
-        guard notice == nil else {
-            hostingView.rootView.notice = text
-            return
-        }
-        notice = text
-        hostingView.rootView.notice = text
-        var frame = frame
-        frame.origin.y -= PanelMetrics.noticeHeight
-        frame.size.height += PanelMetrics.noticeHeight
-        setFrame(frame, display: true)
-    }
-
-    /// Takes the failure note down, giving its height back.
-    func clearNotice() {
-        guard notice != nil else {
-            return
-        }
-        notice = nil
-        hostingView.rootView.notice = nil
-        var frame = frame
-        frame.origin.y += PanelMetrics.noticeHeight
-        frame.size.height -= PanelMetrics.noticeHeight
-        setFrame(frame, display: true)
     }
 
     /// Which row the panel is drawing as chosen at this instant.
@@ -375,7 +280,7 @@ final class SwitcherPanel: NSPanel {
     /// any display.
     ///
     /// Run on every update, because a resize leaves the panel off centre.
-    private func centerOnMainDisplay() {
+    func centerOnMainDisplay() {
         guard let area = NSScreen.screens.first?.visibleFrame else {
             center()
             return
