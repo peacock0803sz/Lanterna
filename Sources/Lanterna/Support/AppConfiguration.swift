@@ -25,7 +25,7 @@ enum AppConfiguration {
         "appearanceMode", "romajiScope", "launchAtLogin", "logLevel",
         "updateCheckEnabled", "updateChannel", "exclusions",
         "shortcutMemoryLength", "fuzzyMatchEnabled", "resultOrder",
-        "keybindings",
+        "keybindings", "textScale",
     ]
 
     /// The scaffold written when no file exists (FR-012).
@@ -64,6 +64,10 @@ struct ValidConfiguration: Equatable, Sendable {
     /// The raw ordering word. Nil means absent, which means "mru".
     /// Kept as a string like `updateChannel`; the enum lives with T018.
     var resultOrder: String?
+    /// The panel text and icon scale multiplier. Nil means absent, which
+    /// means 1.0 (the current size). Only the five steps count; anything
+    /// else falls back with a note instead of invalidating the file.
+    var textScale: Double?
     /// The resolved key bindings. Never nil: absent means all defaults.
     var keyBindings: KeyBindingTable
     /// The customized section as spelled, kept so saving writes back what
@@ -88,6 +92,7 @@ struct ValidConfiguration: Equatable, Sendable {
         shortcutMemoryLength: Int? = nil,
         fuzzyMatchEnabled: Bool? = nil,
         resultOrder: String? = nil,
+        textScale: Double? = nil,
         keyBindings: KeyBindingTable = .defaults,
         keyBindingSection: [KeyBindingAction: [RawKeyBinding]]? = nil
     ) {
@@ -108,6 +113,7 @@ struct ValidConfiguration: Equatable, Sendable {
         self.shortcutMemoryLength = shortcutMemoryLength
         self.fuzzyMatchEnabled = fuzzyMatchEnabled
         self.resultOrder = resultOrder
+        self.textScale = textScale
         self.keyBindings = keyBindings
         self.keyBindingSection = keyBindingSection
     }
@@ -148,6 +154,9 @@ struct DecodedConfiguration: Equatable, Sendable {
     var assumedVersion: Bool
     /// One entry per keybinding fallback, for the diagnostics lines.
     var keyBindingIssues: [KeyBindingIssue] = []
+    /// The fallback note when the text scale was present but invalid.
+    /// Nil means absent or valid, which means nothing to report.
+    var textScaleIssue: String?
 }
 
 // What the launch-time load found.
@@ -223,36 +232,6 @@ extension AppConfiguration {
         ) {
         case let .success(config):
             return resolvedKeyBindings(dict, data: data, config: config, assumed: assumed)
-        case let .failure(error):
-            return .failure(error)
-        }
-    }
-
-    /// Resolves the keybindings section over an otherwise valid file.
-    ///
-    /// The section is lenient where the rest of the file is strict: bad
-    /// entries fall back per item with diagnostics, while a section that
-    /// is not an object at all invalidates the whole file like any other
-    /// bad value. Declaration order comes from the file text, because
-    /// JSON objects carry no order of their own.
-    private static func resolvedKeyBindings(
-        _ dict: [String: Any],
-        data: Data,
-        config: ValidConfiguration,
-        assumed: Bool
-    ) -> Result<DecodedConfiguration, ConfigDecodeError> {
-        switch checkedOptionalKeyBindings(dict) {
-        case let .success((section, decodeIssues)):
-            var config = config
-            let text = String(data: data, encoding: .utf8) ?? ""
-            let order = KeyBindingResolver.declarationOrder(in: text)
-            let (table, resolveIssues) = KeyBindingResolver.resolve(section, order: order)
-            config.keyBindings = table
-            config.keyBindingSection = section.isEmpty ? nil : section
-            return .success(DecodedConfiguration(
-                config: config, assumedVersion: assumed,
-                keyBindingIssues: decodeIssues + resolveIssues
-            ))
         case let .failure(error):
             return .failure(error)
         }

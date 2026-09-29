@@ -47,3 +47,11 @@ enum TextScaleLevel: Int, CaseIterable, Equatable, Sendable {
         (680 * factor).rounded()
     }
 }
+
+extension TextScaleLevel {
+    /// The step one run uses: a spelled step wins, anything missing
+    /// means the standard size the panel always had.
+    static func effective(from config: ValidConfiguration) -> TextScaleLevel {
+        config.textScale.flatMap(TextScaleLevel.init(factor:)) ?? .standard
+    }
+}
