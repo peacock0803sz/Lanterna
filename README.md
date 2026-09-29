@@ -64,6 +64,26 @@ Under Privacy & Security in System Settings, confirm that only these two entries
 - `Cmd+Tab` shows the switcher. Keep holding `Cmd` and press `Tab` to move, then release `Cmd` to switch.
 - `Shift+Cmd+Tab` moves in the reverse direction.
 
+All keybindings are configurable through the config file and the Keyboard tab of Settings. Keys are physical positions, so they work the same under any input source.
+
+### Default keybindings
+
+| Action | Default keys |
+|--------|--------------|
+| Show | `Cmd+Tab` |
+| Show in reverse | `Shift+Cmd+Tab` |
+| Show for filtering | `Cmd+Space` |
+| Next | `Down` |
+| Previous | `Up` |
+| Commit | `Return`, keypad `Enter` |
+| Cancel | `Esc`, `Cmd+Period` |
+| Delete backward | `Backspace` |
+| Clear query | `Esc` |
+| Close window | `Cmd+W` |
+| Quit application | `Cmd+Q` |
+| Hide application | `Cmd+H` |
+| Minimize window | `Cmd+M` |
+
 ## Troubleshooting
 
 See the [troubleshooting guide](https://lanterna.p3ac0ck.net/en/usage/#troubleshooting) on the website. To report a bug, [open a bug report](https://github.com/peacock0803sz/Lanterna/issues/new?template=bug_report.yml) using the Bug report template.
