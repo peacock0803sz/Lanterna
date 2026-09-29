@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// Encoding side of the config file, split out when the decoding file
@@ -26,6 +27,7 @@ extension AppConfiguration {
         if let launchAtLogin = config.launchAtLogin {
             entries.append(encodedBool(key: "launchAtLogin", value: launchAtLogin))
         }
+        entries.append(contentsOf: keyBindingEntries(config))
         if let logLevel = config.logLevel {
             entries.append(encodedString(key: "logLevel", value: logLevel.rawValue))
         }
@@ -66,7 +68,37 @@ extension AppConfiguration {
         try encode(config).write(to: url, options: .atomic)
     }
 
-    /// The search-quality lines, skipping absence like every other key.
+    /// The keybindings section lines, skipping defaults like every other
+    /// absent key. A table holding only defaults encodes to no line, so a
+    /// configuration without custom bindings encodes unchanged.
+    private static func keyBindingEntries(_ config: ValidConfiguration) -> [String] {
+        guard config.keyBindings != .defaults else { return [] }
+        let actions = KeyBindingAction.allCases.sorted { $0.rawValue < $1.rawValue }
+        let rows = actions.map { action in
+            let bindings = config.keyBindings[action].map { key in
+                let words = ["cmd", "ctrl", "opt", "shift"].filter { word in
+                    key.modifiers.contains(modifierFlag(word))
+                }
+                let spelled = words.map { "\"\($0)\"" }.joined(separator: ", ")
+                return "      { \"keyCode\": \(key.keyCode), \"modifiers\": [\(spelled)] }"
+            }
+            return "    \"\(action.rawValue)\": [\n" + bindings.joined(separator: ",\n")
+                + "\n    ]"
+        }
+        return ["  \"keybindings\": {\n" + rows.joined(separator: ",\n") + "\n  }"]
+    }
+
+    /// One modifier word back to its flag. Only the four schema words
+    /// arrive here, because resolution refuses anything else.
+    private static func modifierFlag(_ word: String) -> NSEvent.ModifierFlags {
+        switch word {
+        case "cmd": .command
+        case "ctrl": .control
+        case "opt": .option
+        default: .shift
+        }
+    }
+
     private static func searchSettingEntries(_ config: ValidConfiguration) -> [String] {
         var lines: [String] = []
         if let fuzzyMatchEnabled = config.fuzzyMatchEnabled {
