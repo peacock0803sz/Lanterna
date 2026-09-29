@@ -56,6 +56,7 @@ struct SettingsKeyboardView: View {
             }
             .padding(.vertical, 4)
         }
+        .onDisappear(perform: stopCapture)
     }
 
     /// One action's row: its keys as chips, each removable and
@@ -64,15 +65,16 @@ struct SettingsKeyboardView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(name)
             HStack(spacing: 6) {
-                ForEach(values.keyBindings[action].indices, id: \.self) { index in
-                    let key = values.keyBindings[action][index]
+                ForEach(values.keyBindings[action], id: \.self) { key in
                     Button(key.displayName) {
-                        startCapture(action, slot: index)
+                        startCapture(action, slot: values.keyBindings[action].firstIndex(of: key))
                     }
                     .help("Press a replacement key")
                     .contextMenu {
                         Button("Remove") {
-                            removeKey(action: action, at: index)
+                            if let slot = values.keyBindings[action].firstIndex(of: key) {
+                                removeKey(action: action, at: slot)
+                            }
                         }
                     }
                 }
@@ -101,15 +103,21 @@ struct SettingsKeyboardView: View {
         }
     }
 
-    /// Removes one key. An emptied row reads as defaults downstream,
-    /// so removing the last key is a reset by another name.
+    /// Removes one key. Removing the last key restores the row's defaults
+    /// with a notice, because an emptied row would read as defaults
+    /// downstream while looking empty here.
     private func removeKey(action: KeyBindingAction, at index: Int) {
         stopCapture()
         var keys = values.keyBindings[action]
         guard keys.indices.contains(index) else { return }
         keys.remove(at: index)
+        if keys.isEmpty {
+            keys = KeyBindingTable.defaults[action]
+            notice = "Removing the last key restored \(displayName(for: action)) defaults."
+        } else {
+            notice = nil
+        }
         values.keyBindings.keys[action] = keys
-        notice = nil
     }
 
     /// Arms the capture: the next key down goes to this row.
@@ -135,22 +143,29 @@ struct SettingsKeyboardView: View {
 
     /// Assigns the pressed key, refusing what the table would refuse.
     /// Only the four schema modifiers count: anything else the keyboard
-    /// reports with the press is narrowed away first.
+    /// reports with the press is narrowed away first. Emptied rows read
+    /// as their defaults here, the way they do downstream.
     private func assign(
         action: KeyBindingAction, slot: Int?, keyCode: UInt16,
         modifiers: NSEvent.ModifierFlags
     ) {
         let narrowed = modifiers.intersection([.shift, .control, .option, .command])
         let key = ResolvedKey(keyCode: keyCode, modifiers: narrowed)
+        let row = displayName(for: action)
         guard KeyBindingTable.allows(modifiers: narrowed, mode: action.mode) else {
-            notice = "\(key.displayName) needs Cmd, Ctrl or Opt for this action."
+            notice = "\(key.displayName) needs Cmd, Ctrl or Opt for \(row)."
             stopCapture()
             return
         }
-        let holders = values.keyBindings.holders(of: key, except: action)
+        if effectiveTable()[action].contains(key) {
+            notice = "\(row) already holds \(key.displayName)."
+            stopCapture()
+            return
+        }
+        let holders = effectiveTable().holders(of: key, except: action)
         guard holders.isEmpty else {
             let names = holders.map { displayName(for: $0) }.joined(separator: ", ")
-            notice = "\(key.displayName) is already used by \(names)."
+            notice = "\(key.displayName) is already used by \(names); not added to \(row)."
             stopCapture()
             return
         }
@@ -165,7 +180,18 @@ struct SettingsKeyboardView: View {
         notice = nil
     }
 
-    /// The row name for an action, for the duplicate notice.
+    /// The table with emptied rows reading as their defaults, the way
+    /// resolution reads them downstream. Both the duplicate check and the
+    /// already-holds check go through here.
+    private func effectiveTable() -> KeyBindingTable {
+        var table = values.keyBindings
+        for action in KeyBindingAction.allCases where table[action].isEmpty {
+            table.keys[action] = KeyBindingTable.defaults[action]
+        }
+        return table
+    }
+
+    /// The row name for an action, for the notices naming the edited row.
     private func displayName(for action: KeyBindingAction) -> String {
         Self.rows.first { $0.0 == action }?.1 ?? action.rawValue
     }
