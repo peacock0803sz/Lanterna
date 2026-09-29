@@ -26,6 +26,9 @@ struct SettingsValues: Equatable, Sendable {
     /// The ordering the narrowed rows draw in. Absent in the file means
     /// recent use first.
     var resultOrder: SearchOrdering
+    /// The resolved key bindings. Never partial: absent in the file
+    /// means all defaults.
+    var keyBindings: KeyBindingTable
 
     /// The values for a missing or invalid file: follow the system, park
     /// the special kinds as usual, match kanji readings as well, stay
@@ -40,7 +43,8 @@ struct SettingsValues: Equatable, Sendable {
         exclusions: [],
         shortcutMemoryLength: 5,
         fuzzyMatchEnabled: true,
-        resultOrder: .mru
+        resultOrder: .mru,
+        keyBindings: .defaults
     )
 
     /// The values for one run: present keys win, absent keys mean
@@ -56,7 +60,8 @@ struct SettingsValues: Equatable, Sendable {
             exclusions: config.exclusions ?? [],
             shortcutMemoryLength: config.shortcutMemoryLength ?? 5,
             fuzzyMatchEnabled: config.fuzzyMatchEnabled ?? true,
-            resultOrder: SearchOrdering.effective(from: config)
+            resultOrder: SearchOrdering.effective(from: config),
+            keyBindings: config.keyBindings
         )
     }
 
@@ -96,6 +101,7 @@ struct SettingsValues: Equatable, Sendable {
         if resultOrder != defaults.resultOrder {
             config.resultOrder = resultOrder.rawValue
         }
+        config.keyBindings = keyBindings
         return config
     }
 }
