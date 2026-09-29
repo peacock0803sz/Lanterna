@@ -66,3 +66,20 @@ struct TextScaleConfigTests {
         #expect(roundTripped.textScaleIssue == nil)
     }
 }
+
+extension TextScaleConfigTests {
+    @Test func settingsRoundTripPreservesTheStep() {
+        var values = SettingsValues.defaults
+        values.textScale = .large
+        let config = values.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+        #expect(config.textScale == 1.25)
+        #expect(TextScaleLevel.effective(from: config) == .large)
+    }
+
+    @Test func standardStepStaysAbsentOnSave() {
+        let config = SettingsValues.defaults.configuration(
+            version: 1, sampleCount: nil, stopMonitorEverySeconds: nil
+        )
+        #expect(config.textScale == nil)
+    }
+}
