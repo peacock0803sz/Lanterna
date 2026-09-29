@@ -134,6 +134,377 @@
         ],
         "additionalProperties": false
       }
+    },
+    "keybindings": {
+      "description": "User-configurable keybindings. Absent means all defaults.",
+      "type": "object",
+      "properties": {
+        "show": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyCode": {
+                "type": "integer"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "cmd",
+                    "ctrl",
+                    "opt",
+                    "shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "keyCode",
+              "modifiers"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "showReverse": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyCode": {
+                "type": "integer"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "cmd",
+                    "ctrl",
+                    "opt",
+                    "shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "keyCode",
+              "modifiers"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "showFilter": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyCode": {
+                "type": "integer"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "cmd",
+                    "ctrl",
+                    "opt",
+                    "shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "keyCode",
+              "modifiers"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "next": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyCode": {
+                "type": "integer"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "cmd",
+                    "ctrl",
+                    "opt",
+                    "shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "keyCode",
+              "modifiers"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "previous": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyCode": {
+                "type": "integer"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "cmd",
+                    "ctrl",
+                    "opt",
+                    "shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "keyCode",
+              "modifiers"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "commit": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyCode": {
+                "type": "integer"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "cmd",
+                    "ctrl",
+                    "opt",
+                    "shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "keyCode",
+              "modifiers"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "cancel": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyCode": {
+                "type": "integer"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "cmd",
+                    "ctrl",
+                    "opt",
+                    "shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "keyCode",
+              "modifiers"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "deleteBackward": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyCode": {
+                "type": "integer"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "cmd",
+                    "ctrl",
+                    "opt",
+                    "shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "keyCode",
+              "modifiers"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "clearQuery": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyCode": {
+                "type": "integer"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "cmd",
+                    "ctrl",
+                    "opt",
+                    "shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "keyCode",
+              "modifiers"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "closeWindow": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyCode": {
+                "type": "integer"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "cmd",
+                    "ctrl",
+                    "opt",
+                    "shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "keyCode",
+              "modifiers"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "quitApplication": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyCode": {
+                "type": "integer"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "cmd",
+                    "ctrl",
+                    "opt",
+                    "shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "keyCode",
+              "modifiers"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "hideApplication": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyCode": {
+                "type": "integer"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "cmd",
+                    "ctrl",
+                    "opt",
+                    "shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "keyCode",
+              "modifiers"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "minimizeWindow": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyCode": {
+                "type": "integer"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "cmd",
+                    "ctrl",
+                    "opt",
+                    "shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "keyCode",
+              "modifiers"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
