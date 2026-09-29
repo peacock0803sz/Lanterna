@@ -12,26 +12,33 @@ struct WindowRow: View {
     /// Whether subsequence queries match as well as substrings. Decides
     /// which ranges the highlight paints; judging is not done here.
     var fuzzy: Bool = true
+    /// The text and icon scale step, handed down from the panel.
+    var textScale: TextScaleLevel = .standard
+
+    /// One scaled point size: the base size times the step, in whole points.
+    private func scaled(_ base: Double) -> Double {
+        (base * textScale.factor).rounded()
+    }
 
     var body: some View {
         HStack(spacing: 8) {
             Text(window.shortcutHint)
-                .font(.system(size: 11, design: .monospaced))
+                .font(.system(size: scaled(11), design: .monospaced))
                 .foregroundStyle(rowStyle(AnyShapeStyle(.tertiary)))
                 .frame(width: 24, alignment: .trailing)
 
             highlighted(window.appName, base: AnyShapeStyle(.secondary))
-                .font(.system(size: 13))
+                .font(.system(size: scaled(13)))
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(width: 110, alignment: .trailing)
 
             Image(nsImage: window.icon)
                 .resizable()
-                .frame(width: 18, height: 18)
+                .frame(width: scaled(18), height: scaled(18))
 
             highlighted(window.displayTitle, base: AnyShapeStyle(.primary))
-                .font(.system(size: 13))
+                .font(.system(size: scaled(13)))
                 .lineLimit(1)
                 .truncationMode(.tail)
 
@@ -39,7 +46,7 @@ struct WindowRow: View {
         }
         .padding(.horizontal, 8)
         // The fixed height is what keeps the panel-height formula exact.
-        .frame(height: PanelMetrics.rowHeight)
+        .frame(height: PanelMetrics.rowHeight(for: textScale))
         .background(selectionHighlight)
     }
 
