@@ -240,4 +240,51 @@ extension AppConfiguration {
         }
         return value as? Int
     }
+
+    /// Reads the keybindings section leniently: malformed entries and
+    /// unknown actions are dropped one by one with issues, never failing
+    /// the file. Only a section that is not an object at all is a bad
+    /// value, like any other misshapen key.
+    static func checkedOptionalKeyBindings(
+        _ dict: [String: Any]
+    ) -> Result<([KeyBindingAction: [RawKeyBinding]], [KeyBindingIssue]), ConfigDecodeError> {
+        guard let rawValue = dict["keybindings"] else { return .success(([:], [])) }
+        guard let section = rawValue as? [String: Any] else {
+            return .failure(.invalidValue(key: "keybindings"))
+        }
+        var out: [KeyBindingAction: [RawKeyBinding]] = [:]
+        var issues: [KeyBindingIssue] = []
+        for name in section.keys.sorted() {
+            guard let action = KeyBindingAction(rawValue: name) else {
+                issues.append(KeyBindingIssue(
+                    action: nil, reason: .invalid, detail: "unknown action \(name)"
+                ))
+                continue
+            }
+            guard let raws = section[name] as? [Any] else {
+                issues.append(KeyBindingIssue(
+                    action: action, reason: .invalid,
+                    detail: "\(name) is not a list"
+                ))
+                continue
+            }
+            var entries: [RawKeyBinding] = []
+            for raw in raws {
+                guard let entry = raw as? [String: Any],
+                      Set(entry.keys) == Set(["keyCode", "modifiers"]),
+                      let keyCode = jsonInt(entry["keyCode"] as Any),
+                      let modifiers = entry["modifiers"] as? [String]
+                else {
+                    issues.append(KeyBindingIssue(
+                        action: action, reason: .invalid,
+                        detail: "\(name) holds a malformed entry"
+                    ))
+                    continue
+                }
+                entries.append(RawKeyBinding(keyCode: keyCode, modifiers: modifiers))
+            }
+            out[action] = entries
+        }
+        return .success((out, issues))
+    }
 }
