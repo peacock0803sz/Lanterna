@@ -193,6 +193,7 @@ extension AppDelegate {
             || values.updateChannel != currentValues.updateChannel
         let exclusionsChanged = values.exclusions != currentValues.exclusions
         let keyBindingsChanged = values.keyBindings != currentValues.keyBindings
+        let previousKeyBindings = currentValues.keyBindings
         currentValues = values
         if checkContextChanged {
             settingsWindow?.checkDisplay.resultText = nil
@@ -214,9 +215,9 @@ extension AppDelegate {
         }
         // Reclaims the invocation keys and hands the panel the new
         // table, so a change answers at once; the save below keeps it.
-        if keyBindingsChanged {
-            applyKeyBindings(values.keyBindings)
-        }
+        let valuesForSave = appliedKeyBindingValues(
+            values, previous: previousKeyBindings, changed: keyBindingsChanged
+        )
         guideWindows?.update(appearanceMode: values.appearanceMode)
         // Reopening rebuilds the engine, so only a scope change pays
         // for it. Appearance and display tweaks leave matching alone.
@@ -236,7 +237,23 @@ extension AppDelegate {
         ) {
             Diagnostics.writeLine(report.line, level: report.level)
         }
-        return saveSettings(values, replacingInvalidFile: replacingInvalidFile)
+        return saveSettings(valuesForSave, replacingInvalidFile: replacingInvalidFile)
+    }
+
+    /// The values to save after attempting the keybinding change. A total
+    /// failure keeps the previous table live and on disk, so the panel
+    /// still opens; partial failures keep the new table with warnings.
+    private func appliedKeyBindingValues(
+        _ values: SettingsValues,
+        previous: KeyBindingTable,
+        changed: Bool
+    ) -> SettingsValues {
+        guard changed else { return values }
+        guard applyKeyBindings(values.keyBindings) else { return values }
+        currentValues.keyBindings = previous
+        var restored = values
+        restored.keyBindings = previous
+        return restored
     }
 
     /// Writes the current values to the file, keeping the debug keys
@@ -265,14 +282,15 @@ extension AppDelegate {
 
     /// Reclaims the invocation keys and hands the panel the new table.
     /// Split out when `applySettings` stood at the length limit.
-    private func applyKeyBindings(_ bindings: KeyBindingTable) {
+    private func applyKeyBindings(_ bindings: KeyBindingTable) -> Bool {
         hotkeys?.unregister()
         // The panel takes the table even with no manager, so a missing
         // manager never blocks what the panel shows.
         if hotkeys == nil {
             presenter?.keyBindings = bindings
+            return false
         }
-        guard let hotkeys else { return }
+        guard let hotkeys else { return false }
         // The system's shortcuts come back first, so a combination the new
         // table no longer holds is not left switched off; the disable below
         // then takes only what the new table claimed.
@@ -292,13 +310,14 @@ extension AppDelegate {
                 "new keybindings registered nothing; keeping the previous table",
                 level: .error
             )
-            return
+            return true
         }
         presenter?.keyBindings = bindings
         let disabling = SystemSwitcherShortcuts.disable(outcome.registered)
         if let line = SystemSwitcherShortcuts.summaryLine(disabling: disabling) {
             Diagnostics.writeLine(line, level: .warning)
         }
+        return false
     }
 
     /// The debug keys the settings UI hides, as the disk file holds them.
