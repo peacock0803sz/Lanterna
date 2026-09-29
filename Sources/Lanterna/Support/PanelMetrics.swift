@@ -101,4 +101,22 @@ enum PanelMetrics {
         }
         return min(total, maximumHeight)
     }
+
+    /// The content size for a row count at one step, so the panel and
+    /// its tests take all three numbers from one place.
+    static func panelSize(
+        rowCount: Int,
+        query: String,
+        filterActive: Bool,
+        notice: Bool,
+        for scale: TextScaleLevel
+    ) -> CGSize {
+        CGSize(
+            width: width(for: scale),
+            height: totalHeight(
+                rowCount: rowCount, query: query,
+                filterActive: filterActive, notice: notice, for: scale
+            )
+        )
+    }
 }
