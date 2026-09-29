@@ -89,6 +89,17 @@ struct PanelKeyInputTableTests {
         )
     }
 
+    @Test func customOperationResolves() {
+        let table = tableWith(.closeWindow, resolved(kVK_ANSI_H, .control))
+        #expect(
+            PanelKeyInput.action(for: tablePress(kVK_ANSI_H, .control), table: table)
+                == .windowOperation(.closeWindow)
+        )
+        #expect(
+            PanelKeyInput.action(for: tablePress(kVK_ANSI_H), table: table) == .absorb
+        )
+    }
+
     @Test func clearQueryMatchFollowsTheTable() {
         let table = KeyBindingTable.defaults
         #expect(table.matches(tablePress(kVK_Escape), action: .clearQuery))
