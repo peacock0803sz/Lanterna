@@ -161,6 +161,7 @@ final class SwitcherPanel: NSPanel {
     func present(windows: [WindowItem], selecting: WindowItem.Identifier?, filterActive: Bool = false) {
         appearances += 1
         notice = nil
+        noticeGrowth = 0
         appearanceScale = textScale
         hostingView.rootView.query = ""
         hostingView.rootView.filterActive = filterActive
