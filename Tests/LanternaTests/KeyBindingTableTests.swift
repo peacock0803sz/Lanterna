@@ -220,6 +220,12 @@ struct KeyBindingTableTests {
         #expect(KeyBindingResolver.declarationOrder(in: text) == [.commit, .next])
     }
 
+    @Test func declarationOrderIgnoresKeybindingsValue() {
+        let text = "{\"note\": \"keybindings\", \"keybindings\": "
+            + "{\"next\": [{\"keyCode\": 125, \"modifiers\": []}]}}"
+        #expect(KeyBindingResolver.declarationOrder(in: text) == [.next])
+    }
+
     @Test func duplicateKeysWithinOneActionCountOnce() {
         let (table, issues) = KeyBindingResolver.resolve(
             [.next: [raw(kVK_DownArrow), raw(kVK_DownArrow)]],

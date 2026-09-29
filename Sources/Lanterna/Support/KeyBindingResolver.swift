@@ -130,7 +130,7 @@ enum KeyBindingResolver {
         while index < text.endIndex {
             if text[index] == "\"" {
                 let (word, next) = quotedWord(from: index, in: text)
-                if word == "keybindings" {
+                if word == "keybindings", followsColon(next, in: text) {
                     return objectSpan(from: next, in: text)
                 }
                 index = next
@@ -139,6 +139,16 @@ enum KeyBindingResolver {
             }
         }
         return nil
+    }
+
+    /// Whether a colon follows, skipping whitespace, so a string value
+    /// spelling the section name never stands in for the section key.
+    private static func followsColon(_ from: String.Index, in text: String) -> Bool {
+        var cursor = from
+        while cursor < text.endIndex, text[cursor].isWhitespace {
+            cursor = text.index(after: cursor)
+        }
+        return cursor < text.endIndex && text[cursor] == ":"
     }
 
     /// The string opening here and the index past its closing quote. A
