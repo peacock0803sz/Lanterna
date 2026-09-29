@@ -96,6 +96,8 @@ struct SettingsView: View {
                 .tabItem { Text("Appearance") }
             SettingsFilterView(values: $values)
                 .tabItem { Text("Filter") }
+            SettingsKeyboardView(values: $values)
+                .tabItem { Text("Keyboard") }
         }
         .onChange(of: values) { _, newValues in
             onChange(newValues)
