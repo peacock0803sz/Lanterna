@@ -319,28 +319,8 @@ enum PanelKeyInput {
         if Int(keystroke.keyCode) == kVK_Tab, !holdsTab(table) {
             return .absorb
         }
-        if let operation = WindowOperation.allCases.first(where: {
-            table.matches(keystroke, action: $0.binding)
-        }) {
-            return .windowOperation(operation)
-        }
-        if table.matches(keystroke, action: .next) {
-            return .selectNext
-        }
-        if table.matches(keystroke, action: .previous) {
-            return .selectPrevious
-        }
-        if table.matches(keystroke, action: .commit) {
-            return .commit(commitKey(for: keystroke))
-        }
-        if table.matches(keystroke, action: .cancel) {
-            return .cancel(cancelKey(for: keystroke))
-        }
-        if table.matches(keystroke, action: .clearQuery) {
-            return .clearQuery
-        }
-        if table.matches(keystroke, action: .deleteBackward) {
-            return .filterBackspace
+        if let winner = mostSpecificMatch(for: keystroke, table: table) {
+            return winner
         }
         // Going by key code and not by the character is what keeps the
         // whole table independent of the input source and the physical
@@ -350,6 +330,47 @@ enum PanelKeyInput {
             return .absorb
         }
         return .filterText(text)
+    }
+
+    /// The matching action holding the most required modifiers, ties in
+    /// fixed order. Without this a bare default would shadow a narrower
+    /// custom binding on the same key: Shift+Down meant as commit reading
+    /// as next, Shift+Cmd+W meant as one operation reading as another.
+    private static func mostSpecificMatch(
+        for keystroke: PanelKeystroke, table: KeyBindingTable
+    ) -> PanelKeyAction? {
+        var ordered: [(KeyBindingAction, PanelKeyAction)] = WindowOperation.allCases.map {
+            ($0.binding, .windowOperation($0))
+        }
+        ordered += [
+            (.next, .selectNext),
+            (.previous, .selectPrevious),
+            (.commit, .commit(commitKey(for: keystroke))),
+            (.cancel, .cancel(cancelKey(for: keystroke))),
+            (.clearQuery, .clearQuery),
+            (.deleteBackward, .filterBackspace),
+        ]
+        let ranked = ordered.enumerated().compactMap { order, entry in
+            narrowness(of: keystroke, action: entry.0, table: table).map {
+                (narrowness: $0, order: order, action: entry.1)
+            }
+        }
+        return ranked.max {
+            $0.narrowness == $1.narrowness ? $0.order > $1.order : $0.narrowness < $1.narrowness
+        }?.action
+    }
+
+    /// How many modifiers the closest matching key demands, else nothing.
+    /// Reads the same per-key test as `KeyBindingTable.matches`, adding
+    /// how narrow the fit is.
+    private static func narrowness(
+        of keystroke: PanelKeystroke, action: KeyBindingAction, table: KeyBindingTable
+    ) -> Int? {
+        let schema: NSEvent.ModifierFlags = [.shift, .control, .option, .command]
+        return table[action].filter { key in
+            key.keyCode == keystroke.keyCode && key.modifiers.isSubset(of: keystroke.modifiers)
+                && (!key.modifiers.isEmpty || WindowFilter.allowedText(keystroke.characters) == nil)
+        }.map { $0.modifiers.intersection(schema).rawValue.nonzeroBitCount }.max()
     }
 
     /// Whether the table binds Tab anywhere. Only an explicit binding

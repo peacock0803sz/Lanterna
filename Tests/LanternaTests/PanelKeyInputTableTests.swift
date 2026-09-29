@@ -100,6 +100,31 @@ struct PanelKeyInputTableTests {
         )
     }
 
+    @Test func narrowerCustomCommitBeatsBareNextDefault() {
+        let table = tableWith(.commit, resolved(kVK_DownArrow, .shift))
+        #expect(
+            PanelKeyInput.action(for: tablePress(kVK_DownArrow, .shift), table: table)
+                == .commit(.custom(UInt16(kVK_DownArrow)))
+        )
+        #expect(PanelKeyInput.action(for: tablePress(kVK_DownArrow), table: table) == .selectNext)
+    }
+
+    @Test func narrowerCustomOperationBeatsWiderDefault() {
+        var table = KeyBindingTable.defaults
+        table.keys[.quitApplication] = [resolved(kVK_ANSI_W, [.shift, .command])]
+        #expect(
+            PanelKeyInput.action(for: tablePress(kVK_ANSI_W, [.shift, .command]), table: table)
+                == .windowOperation(.quitApplication)
+        )
+    }
+
+    @Test func tieKeepsNextBeforePrevious() {
+        var table = KeyBindingTable.defaults
+        table.keys[.next] = [resolved(96)]
+        table.keys[.previous] = [resolved(96)]
+        #expect(PanelKeyInput.action(for: tablePress(96), table: table) == .selectNext)
+    }
+
     @Test func clearQueryMatchFollowsTheTable() {
         let table = KeyBindingTable.defaults
         #expect(table.matches(tablePress(kVK_Escape), action: .clearQuery))
