@@ -23,6 +23,28 @@ struct KeyBindingTableTests {
         #expect(table[.closeWindow] == [key(kVK_ANSI_W, .command)])
     }
 
+    @Test func displayNamesSpellModifiersFirst() {
+        #expect(KeyBindingTable.defaults[.show].first?.displayName == "Cmd+Tab")
+        #expect(KeyBindingTable.defaults[.showReverse].first?.displayName == "Shift+Cmd+Tab")
+        #expect(KeyBindingTable.defaults[.commit].first?.displayName == "Return")
+        #expect(KeyBindingTable.defaults[.cancel].first?.displayName == "Esc")
+        #expect(ResolvedKey(keyCode: 96, modifiers: []).displayName == "key 96")
+    }
+
+    @Test func modeAllowsBareAndRefusesShiftOnly() {
+        #expect(KeyBindingTable.allows(modifiers: [], mode: .bare))
+        #expect(!KeyBindingTable.allows(modifiers: [], mode: .global))
+        #expect(!KeyBindingTable.allows(modifiers: .shift, mode: .guarded))
+        #expect(KeyBindingTable.allows(modifiers: [.command, .shift], mode: .global))
+    }
+
+    @Test func holdersSkipSelfAndExcusedPair() {
+        let table = KeyBindingTable.defaults
+        let escape = ResolvedKey(keyCode: UInt16(kVK_Escape), modifiers: [])
+        #expect(table.holders(of: escape, except: .cancel) == [])
+        #expect(table.holders(of: escape, except: .next) == [.cancel, .clearQuery])
+    }
+
     @Test func issueWordsDiagnosticsLine() {
         let issue = KeyBindingIssue(
             action: .commit, reason: .conflict, detail: "keyCode 13 is already taken"
