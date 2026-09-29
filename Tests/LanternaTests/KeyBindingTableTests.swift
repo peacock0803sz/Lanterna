@@ -220,6 +220,15 @@ struct KeyBindingTableTests {
         #expect(KeyBindingResolver.declarationOrder(in: text) == [.commit, .next])
     }
 
+    @Test func duplicateKeysWithinOneActionCountOnce() {
+        let (table, issues) = KeyBindingResolver.resolve(
+            [.next: [raw(kVK_DownArrow), raw(kVK_DownArrow)]],
+            order: [.next]
+        )
+        #expect(table[.next] == [key(kVK_DownArrow)])
+        #expect(issues.isEmpty)
+    }
+
     @Test func kanaIndependentByConstruction() {
         // Resolution never sees characters: the same physical key resolves
         // the same way whatever the input source produced.

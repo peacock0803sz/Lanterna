@@ -52,6 +52,8 @@ enum KeyBindingResolver {
 
     /// Validates one action's entries, dropping the bad ones with issues.
     /// An empty result reads as absent, so the tier takes the defaults.
+    /// A key spelled twice counts once, silently: repeating oneself is
+    /// not a conflict with anyone.
     private static func validated(
         _ action: KeyBindingAction,
         in section: [KeyBindingAction: [RawKeyBinding]]
@@ -69,7 +71,8 @@ enum KeyBindingResolver {
             }
             kept.append(resolved)
         }
-        return (kept, issues)
+        var seen = Set<ResolvedKey>()
+        return (kept.filter { seen.insert($0).inserted }, issues)
     }
 
     /// One entry against its mode. `nil` means dropped.
