@@ -269,10 +269,21 @@ extension AppDelegate {
         presenter?.keyBindings = bindings
         hotkeys?.unregister()
         guard let hotkeys else { return }
+        // The system's shortcuts come back first, so a combination the new
+        // table no longer holds is not left switched off; the disable below
+        // then takes only what the new table claimed.
+        let restoreFailures = SystemSwitcherShortcuts.restore()
+        if let line = SystemSwitcherShortcuts.summaryLine(restoring: restoreFailures) {
+            Diagnostics.writeLine(line, level: .warning)
+        }
         let outcome = hotkeys.register(bindings: HotkeyBinding.bindings(for: bindings))
         Diagnostics.writeLine(outcome.summaryLine, level: outcome.logLevel)
         for detail in hotkeys.refusedDetails {
             Diagnostics.writeLine(detail, level: .warning)
+        }
+        let disabling = SystemSwitcherShortcuts.disable(outcome.registered)
+        if let line = SystemSwitcherShortcuts.summaryLine(disabling: disabling) {
+            Diagnostics.writeLine(line, level: .warning)
         }
     }
 
