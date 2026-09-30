@@ -170,6 +170,14 @@ enum LogPersistence {
       + "launch_id, build_version, payload) VALUES " + values.joined(separator: ", ")
   }
 
+  /// Keeps the newest rows in store order, dropping the oldest
+  /// past the cap. Used for the non-persisted store after each
+  /// spill so the in-memory file never grows without bound.
+  static func trimStatement(limit: Int = 5000) -> String {
+    "DELETE FROM entries WHERE seq NOT IN ("
+      + "SELECT seq FROM entries ORDER BY ts_ms DESC, seq DESC LIMIT \(limit))"
+  }
+
   // MARK: Private
 
   private static func prepare(

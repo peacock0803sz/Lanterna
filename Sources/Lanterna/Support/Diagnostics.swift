@@ -251,6 +251,7 @@ enum Diagnostics {
           try connection.execute(
             LogPersistence.insertStatement(rows: rows, launchID: launchID, buildVersion: buildVersion)
           )
+          try connection.execute(LogPersistence.trimStatement())
         }
       }
       let writer = LogSpillWriter(
