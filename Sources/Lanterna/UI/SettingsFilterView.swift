@@ -1,5 +1,7 @@
 import SwiftUI
 
+// MARK: - SettingsFilterView
+
 /// The Filter tab: which windows reach the switcher list.
 ///
 /// One picker per special window kind, each with a note on what the
@@ -98,13 +100,9 @@ struct SettingsFilterView: View {
       }
       Section {
         ForEach($values.exclusions) { $entry in
-          HStack {
-            TextField("App", text: $entry.app)
-            TextField("Title pattern", text: $entry.titlePattern)
-            Button("Remove") {
-              if let index = values.exclusions.firstIndex(where: { $0.id == entry.id }) {
-                values.exclusions.remove(at: index)
-              }
+          ExclusionRow(entry: $entry) {
+            if let index = values.exclusions.firstIndex(where: { $0.id == entry.id }) {
+              values.exclusions.remove(at: index)
             }
           }
         }
@@ -141,4 +139,36 @@ struct SettingsFilterView: View {
     })
   }
 
+}
+
+// MARK: - ExclusionRow
+
+/// One exclusion row with its app icon and match note.
+private struct ExclusionRow: View {
+  @Binding var entry: ExclusionEntry
+
+  let onRemove: () -> Void
+
+  var body: some View {
+    let resolved = ExclusionAppResolver.resolve(app: entry.app)
+    HStack(alignment: .top) {
+      Image(nsImage: AppIconResolver.icon(forBundleIdentifier: resolved?.bundleIdentifier))
+        .resizable()
+        .frame(width: 22, height: 22)
+      VStack(alignment: .leading) {
+        TextField("App", text: $entry.app)
+        if let resolved {
+          Text("\(resolved.name) · \(resolved.bundleIdentifier)")
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+        } else {
+          Text("No matching app found")
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+        }
+        TextField("Title pattern", text: $entry.titlePattern)
+      }
+      Button("Remove", action: onRemove)
+    }
+  }
 }
