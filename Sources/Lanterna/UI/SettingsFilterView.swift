@@ -222,11 +222,11 @@ extension ExclusionRow {
     }
 
     /// The note under the app field, blank until the first lookup lands.
-    /// The blank line keeps its height, so the row does not grow when the
-    /// note arrives.
+    /// The note line is laid out even while blank, so the row does not
+    /// grow when the note arrives.
     var note: String {
       switch self {
-      case .pending: " "
+      case .pending: ""
       case .none: "No installed bundle ID or running app matched"
       case .found(let app): "\(app.name) · \(app.bundleIdentifier)"
       }
