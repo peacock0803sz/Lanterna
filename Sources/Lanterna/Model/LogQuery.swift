@@ -169,7 +169,7 @@ enum LightweightFilter {
     case ("before", ":"):
       return timeCondition(bound: rawValue, lower: false, source: token)
     default:
-      if split.op == ":", !looksLikePath(key) {
+      guard isValidPayloadPath(key) else {
         return messageContains(bare, source: token)
       }
       return payloadCondition(path: key, op: split.op, value: rawValue, source: token)
@@ -201,12 +201,27 @@ enum LightweightFilter {
     return nil
   }
 
-  private static func looksLikePath(_ key: String) -> Bool {
-    guard let first = key.first, first.isLetter || first == "_" else {
+  private static func isValidPayloadPath(_ key: String) -> Bool {
+    guard !key.isEmpty, key.count <= 128 else {
       return false
     }
-    return key.contains(".") || key.contains("[]")
-      || key.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" }
+    let segments = key.split(separator: ".", omittingEmptySubsequences: false)
+    for segment in segments {
+      var name = segment
+      if name.hasSuffix("[]") {
+        name = name.dropLast(2)
+      }
+      guard !name.isEmpty, name.count <= 64 else {
+        return false
+      }
+      guard let first = name.first, first.isLetter || first == "_" else {
+        return false
+      }
+      guard name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) else {
+        return false
+      }
+    }
+    return true
   }
 
   private static func messageContains(_ value: String, source: String) -> FilterCondition? {
