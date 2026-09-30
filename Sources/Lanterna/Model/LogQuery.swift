@@ -147,7 +147,8 @@ enum LightweightFilter {
     guard let split = splitOperator(in: token) else {
       return messageContains(bare, source: token)
     }
-    let key = String(split.key).lowercased()
+    let rawKey = String(split.key)
+    let key = rawKey.lowercased()
     let rawValue = String(split.value).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
     switch (key, split.op) {
     case ("level", _):
@@ -169,10 +170,10 @@ enum LightweightFilter {
     case ("before", ":"):
       return timeCondition(bound: rawValue, lower: false, source: token)
     default:
-      guard isValidPayloadPath(key) else {
+      guard isValidPayloadPath(rawKey) else {
         return messageContains(bare, source: token)
       }
-      return payloadCondition(path: key, op: split.op, value: rawValue, source: token)
+      return payloadCondition(path: rawKey, op: split.op, value: rawValue, source: token)
     }
   }
 
