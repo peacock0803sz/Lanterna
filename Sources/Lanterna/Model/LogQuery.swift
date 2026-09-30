@@ -418,6 +418,7 @@ enum DatabaseStatementCheck {
 
   private static let forbidden: Set = [
     "insert",
+    "into",
     "update",
     "delete",
     "drop",
