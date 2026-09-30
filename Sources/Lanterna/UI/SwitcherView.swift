@@ -103,15 +103,11 @@ struct SwitcherView: View {
                 .tracking(0.3)
                 .foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: PanelMetrics.headingRowHeight(for: textScale))
-                .listRowInsets(
-                  EdgeInsets(
-                    top: PanelMetrics.headingVerticalInset,
-                    leading: 12,
-                    bottom: PanelMetrics.headingVerticalInset,
-                    trailing: 12
-                  )
-                )
+                .frame(height: PanelMetrics.rowHeight(for: textScale))
+                // A List row adds its vertical insets to the frame, so any
+                // here would draw the heading taller than the one row the
+                // panel height counts for it.
+                .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
               ForEach(rows) { window in

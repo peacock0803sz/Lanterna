@@ -11,12 +11,6 @@ enum PanelMetrics {
   /// filter chrome's is.
   static let noticeHeight: CGFloat = 22
 
-  /// The vertical inset the subgroup heading carries on each side. Zero, so
-  /// the heading draws exactly one row: a List row adds its insets to its
-  /// content height, and anything more would overflow the panel height the
-  /// row count computes.
-  static let headingVerticalInset: CGFloat = 0
-
   /// Extra height for the filter chrome while filtering is on, whether the query
   /// reads anything or not. An estimate, because SwiftUI lays the query row
   /// out.
@@ -58,12 +52,6 @@ enum PanelMetrics {
   /// The row height one step draws, in whole points.
   static func rowHeight(for scale: TextScaleLevel) -> CGFloat {
     scale.scaledRowHeight
-  }
-
-  /// The content height the subgroup heading draws at one step. One row,
-  /// so the heading counts in the panel height exactly as drawn.
-  static func headingRowHeight(for scale: TextScaleLevel) -> CGFloat {
-    rowHeight(for: scale)
   }
 
   /// The panel width one step draws, in whole points.

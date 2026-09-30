@@ -62,20 +62,6 @@ struct PanelMetricsTests {
     #expect(PanelMetrics.height(rowCount: 11) == PanelMetrics.maximumHeight)
     #expect(PanelMetrics.height(rowCount: 30) == PanelMetrics.maximumHeight)
   }
-
-  /// The subgroup heading occupies exactly one row: its frame plus its
-  /// vertical insets must equal one row height, or the list content
-  /// overflows the panel height and shows a scroll bar.
-  @Test
-  func headingDrawsExactlyOneRowHeight() {
-    for level in TextScaleLevel.allCases {
-      #expect(
-        PanelMetrics.headingRowHeight(for: level) + 2 * PanelMetrics.headingVerticalInset
-          == PanelMetrics.rowHeight(for: level),
-        "for \(level)"
-      )
-    }
-  }
 }
 
 extension PanelMetricsTests {

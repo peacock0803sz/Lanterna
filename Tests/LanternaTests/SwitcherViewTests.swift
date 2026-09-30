@@ -45,6 +45,35 @@ struct SwitcherViewTests {
     #expect(table?.numberOfRows == PanelMetrics.drawnRowCount(windows))
   }
 
+  /// A subgroup heading is as tall as a window row, since the panel height
+  /// counts it as one. Said relative to the window row laid out beside it
+  /// rather than as an absolute number, which is OS-version layout output.
+  @Test(arguments: TextScaleLevel.allCases)
+  func theHeadingIsAsTallAsAWindowRow(level: TextScaleLevel) throws {
+    let sample = SampleWindows.make(count: 2)
+    let windows = [sample[0], sample[1].settingHidden(true)]
+    let host = NSHostingView(rootView: SwitcherView(
+      windows: windows,
+      selectedID: nil,
+      appearanceToken: 0,
+      query: "",
+      filterActive: false,
+      textScale: level
+    ))
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: PanelMetrics.width(for: level), height: PanelMetrics.maximumHeight),
+      styleMask: [],
+      backing: .buffered,
+      defer: false
+    )
+    window.contentView = host
+    host.layoutSubtreeIfNeeded()
+    let table = try #require(tables(in: host).first)
+    // The ordinary row, then the heading, then the hidden window under it.
+    try #require(table.numberOfRows == 3)
+    #expect(table.rect(ofRow: 1).height == table.rect(ofRow: 0).height)
+  }
+
   /// The view draws whichever row it is told to, and nothing about the list
   /// decides that any more. Said by handing in a row that is not the first
   /// one: with the old derivation in place this could only ever have read
