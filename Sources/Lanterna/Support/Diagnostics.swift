@@ -263,7 +263,7 @@ enum Diagnostics {
           DiagnosticRow(
             sequence: entry.sequence,
             recordedAtMilliseconds: Int64(entry.capturedAt.timeIntervalSince1970 * 1000),
-            level: entry.level.rawValue,
+            level: storedLevel(for: entry.level),
             category: entry.category,
             message: entry.message,
             launchID: launchID,
@@ -302,6 +302,24 @@ enum Diagnostics {
   /// loop; read from emitting threads after that.
   private nonisolated(unsafe) static var spillWriter: LogSpillWriter?
   private nonisolated(unsafe) static var launchStore: LogLaunchStore?
+
+  /// The four stored severity words. Non-standard logger levels
+  /// fold into them at record time so level filters never miss.
+  private static func storedLevel(for level: Logger.Level) -> String {
+    switch level {
+    case .trace,
+         .debug:
+      "debug"
+    case .info,
+         .notice:
+      "info"
+    case .warning:
+      "warning"
+    case .error,
+         .critical:
+      "error"
+    }
+  }
 
 }
 
