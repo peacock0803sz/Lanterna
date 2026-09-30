@@ -4,7 +4,7 @@ import SwiftUI
 
 /// What the General tab shows about the last manual check.
 ///
-/// Owned by the settings window; the settings view only observes it.
+/// Owned by the settings window; the General tab root only observes it.
 /// The text starts unset and is replaced on every check, never carried
 /// across launches.
 @MainActor
@@ -18,9 +18,9 @@ final class UpdateCheckDisplay: ObservableObject {
 /// The General tab in a grouped form.
 ///
 /// About sits at the top without a header, followed by startup,
-/// update, and permission sections. Permission state stays display
-/// only from the launch time snapshot, waiting for the next launch
-/// after a grant given mid run.
+/// update, and permission sections. Permission rows show the state
+/// captured at launch; a grant given while running appears after the
+/// next launch.
 struct SettingsGeneralView: View {
   @Binding var values: SettingsValues
 
