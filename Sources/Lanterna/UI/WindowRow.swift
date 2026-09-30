@@ -17,8 +17,8 @@ struct WindowRow: View {
   var fuzzy = true
   /// The text and icon scale step, handed down from the panel.
   var textScale = TextScaleLevel.standard
-  /// Whether the row sits in a subgroup under a heading, parked or on
-  /// another space alike. Subgroup rows draw dimmed unless they are chosen.
+  /// Whether the row sits in a subgroup under a heading, whatever put it
+  /// there. Such rows draw dimmed unless they are chosen.
   var isInSubgroup = false
 
   var body: some View {

@@ -13,14 +13,14 @@ enum PanelMetrics {
 
   /// Extra height for the filter chrome while filtering is on, whether the query
   /// reads anything or not. An estimate, because SwiftUI lays the query row
-  /// out: the screenshot check holds it.
+  /// out.
   static func filterChromeHeight(query _: String, filterActive: Bool) -> CGFloat {
     guard filterActive else { return 0 }
     return 43
   }
 
   /// How many rows the list draws for these windows under this query:
-  /// one for each row it draws, and one heading row for each non-empty
+  /// one for each window row, and one heading row for each non-empty
   /// subgroup. Split the way the view splits them, so a row the modes keep
   /// out takes no height. The list gives every row at least `rowHeight`.
   static func drawnRowCount(
