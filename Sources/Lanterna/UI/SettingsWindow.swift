@@ -1,5 +1,4 @@
 import AppKit
-import Logging
 import SwiftUI
 
 // MARK: - SettingsTab
@@ -55,8 +54,7 @@ final class SettingsWindow: NSWindow {
     opener: @escaping SettingsOpener,
     appearanceMode: AppearanceMode = .system,
     onCheckNow: @escaping () -> Void = { },
-    onChange: @escaping (SettingsValues) -> Void,
-    runLogLevel: Logger.Level = .warning
+    onChange: @escaping (SettingsValues) -> Void
   ) {
     let model = SettingsModel(values: values, onChange: onChange)
     let display = UpdateCheckDisplay()
@@ -70,7 +68,6 @@ final class SettingsWindow: NSWindow {
     )
     settingsModel = model
     checkDisplay = display
-    self.runLogLevel = runLogLevel
     // Held strongly by the delegate; releasing on close would dangle that reference.
     isReleasedWhenClosed = false
     title = "Lanterna Settings"
@@ -136,9 +133,6 @@ final class SettingsWindow: NSWindow {
   ///
   /// Held here so reopening the window starts unconfirmed again.
   private(set) var checkDisplay = UpdateCheckDisplay()
-
-  /// The level this run uses, shown beside the stored choice.
-  private(set) var runLogLevel = Logger.Level.warning
 
   /// The content height for one visible height.
   static func contentHeight(visibleHeight: CGFloat) -> CGFloat {
