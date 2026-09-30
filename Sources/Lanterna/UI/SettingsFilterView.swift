@@ -227,7 +227,7 @@ extension ExclusionRow {
     var note: String {
       switch self {
       case .pending: " "
-      case .none: "No installed bundle ID or running app matches right now"
+      case .none: "No installed bundle ID or running app matched"
       case .found(let app): "\(app.name) · \(app.bundleIdentifier)"
       }
     }
