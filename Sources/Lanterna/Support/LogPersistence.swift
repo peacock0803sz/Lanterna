@@ -1,3 +1,4 @@
+import DuckDB
 import Foundation
 
 /// Where spilled diagnostic lines live and under which shape.
@@ -12,6 +13,12 @@ enum LogPersistence {
   enum Origin: String {
     case installed = "app"
     case development = "dev"
+  }
+
+  /// What opening a store can report. The shape case means the
+  /// file belongs to another version and stays untouched.
+  enum OpenError: Error, Equatable {
+    case incompatibleShape(found: String?)
   }
 
   /// The stored shape this build reads and writes. A file carrying
@@ -78,5 +85,47 @@ enum LogPersistence {
   static func fileURL(in directory: URL, launchID: String, part: Int = 0) -> URL {
     let name = part == 0 ? "\(launchID).duckdb" : "\(launchID)-part\(part).duckdb"
     return directory.appendingPathComponent(name)
+  }
+
+  /// Opens a store file for one launch: creates the tables, stamps
+  /// the launch row, and confirms the shape marker. Throws the
+  /// shape error for files of another version instead of reading
+  /// them.
+  static func openStore(
+    at url: URL,
+    launchID: String,
+    origin: Origin,
+    buildVersion: String,
+    startedAtMilliseconds: Int64
+  ) throws -> Database {
+    let database = try Database(store: .file(at: url))
+    let connection = try database.connect()
+    for statement in schemaStatements {
+      try connection.execute(statement)
+    }
+    let stamped = try connection.query(
+      "SELECT value FROM meta WHERE key = 'format_version' AND value = '\(formatVersion)'"
+    )
+    if stamped.rowCount == 0 {
+      let metaRows = try connection.query("SELECT key FROM meta")
+      if metaRows.rowCount > 0 {
+        throw OpenError.incompatibleShape(found: nil)
+      }
+      try connection.execute(
+        "INSERT INTO launches(launch_id, started_at_ms, origin, build_version) VALUES ("
+          + "\(literal(launchID)), \(startedAtMilliseconds), \(literal(origin.rawValue)), \(literal(buildVersion)))"
+      )
+      try connection.execute(
+        "INSERT INTO meta(key, value) VALUES ('format_version', '\(formatVersion)')"
+      )
+    }
+    return database
+  }
+
+  /// Quotes one value for an embedded statement. The store only
+  /// ever carries this process's own lines, and quoting the one
+  /// delimiter keeps every byte intact.
+  static func literal(_ value: String) -> String {
+    "'" + value.replacing("\0", with: "").replacing("'", with: "''") + "'"
   }
 }
