@@ -45,13 +45,32 @@ final class DiagnosticLogStore: @unchecked Sendable {
     lock.lock()
     defer { lock.unlock() }
     try? FileHandle.standardError.write(contentsOf: Data((message + "\n").utf8))
-    mirror(message)
+    mirror(message, level: .info, category: nil, payloadJSON: nil)
+  }
+
+  /// Emits a structured line: the message goes to stderr exactly as
+  /// given, while the level, grouping, and extra context ride
+  /// alongside in the mirror only.
+  func write(_ message: String, level: Logger.Level, metadata: Logger.Metadata) {
+    lock.lock()
+    defer { lock.unlock() }
+    try? FileHandle.standardError.write(contentsOf: Data((message + "\n").utf8))
+    mirror(message, level: level, category: metadata.category, payloadJSON: metadata.payloadJSON)
   }
 
   func append(_ message: String) {
     lock.lock()
     defer { lock.unlock() }
-    mirror(message)
+    mirror(message, level: .info, category: nil, payloadJSON: nil)
+  }
+
+  /// Records a line that must not leave the process: no stderr echo
+  /// and no spill. Used for failures of the spill path itself, where
+  /// emitting would recurse back into the failing writer.
+  func remember(_ message: String, level: Logger.Level) {
+    lock.lock()
+    defer { lock.unlock() }
+    mirror(message, level: level, category: nil, payloadJSON: nil)
   }
 
   func pin(_ summary: String) {
@@ -68,9 +87,16 @@ final class DiagnosticLogStore: @unchecked Sendable {
   private var pinnedSummary: String?
 
   /// Adds one line under the caller's lock.
-  private func mirror(_ message: String) {
+  private func mirror(_ message: String, level: Logger.Level, category: String?, payloadJSON: String?) {
     entries.append(
-      Diagnostics.LogEntry(sequence: nextSequence, capturedAt: Date(), message: message)
+      Diagnostics.LogEntry(
+        sequence: nextSequence,
+        capturedAt: Date(),
+        message: message,
+        level: level,
+        category: category,
+        payloadJSON: payloadJSON
+      )
     )
     nextSequence += 1
     if entries.count > DiagnosticLog.capacity {
@@ -90,10 +116,10 @@ enum Diagnostics {
 
   // MARK: Internal
 
-  /// One mirrored line: what went to stderr, with when and in what order.
-  ///
-  /// The time and the number are display metadata only. They never reach
-  /// stderr, so the emitted lines keep the shape 005 through 007 defined.
+  /// One mirrored line: what went to stderr, with when and in what order,
+  /// plus the fields the views filter on. The time, the number, and the
+  /// extra fields are display metadata only. They never reach stderr,
+  /// so the emitted lines keep the shape 005 through 007 defined.
   struct LogEntry: Equatable, Sendable {
     /// Increases with every line. Two lines never share one.
     let sequence: UInt64
@@ -101,6 +127,12 @@ enum Diagnostics {
     let capturedAt: Date
     /// The line itself, byte for byte what stderr received.
     let message: String
+    /// How severe the line is. Mirrors the logger words.
+    let level: Logger.Level
+    /// Where the line comes from, when the caller said so.
+    let category: String?
+    /// Extra context as JSON text. Absent when the caller attached none.
+    let payloadJSON: String?
   }
 
   /// The logger this process writes through. Wired once by `bootstrap`,
@@ -145,6 +177,12 @@ enum Diagnostics {
     logger.log(level: level, "\(message)")
   }
 
+  /// Records a spill-path failure where it stays visible: in the
+  /// mirror only, without echoing or spilling.
+  static func mirrorSpillFailure(_ message: String) {
+    store.remember(message, level: .warning)
+  }
+
   /// Pins the launch summary. Called once per launch; later calls replace it.
   static func pinLaunchSummary(_ summary: String) {
     store.pin(summary)
@@ -166,6 +204,71 @@ enum Diagnostics {
   /// The store behind the mirror. One per process; the tests hold their own.
   private static let store = DiagnosticLogStore()
 
+}
+
+// MARK: - Logger Metadata grouping
+
+extension Logger.Metadata {
+  /// The grouping word the caller attached under the shared key,
+  /// if any. Kept out of the emitted line and read by the views.
+  var category: String? {
+    guard case .string(let word) = self["category"] else {
+      return nil
+    }
+    return word
+  }
+
+  /// The attached context as JSON text, keeping nested keys and
+  /// arrays. Absent when nothing was attached.
+  var payloadJSON: String? {
+    guard !isEmpty else {
+      return nil
+    }
+    return "{\(map { "\($0.key.jsonQuoted):\($0.value.jsonText)" }.joined(separator: ","))}"
+  }
+}
+
+extension Logger.MetadataValue {
+  /// Renders one metadata value as JSON text. Convertible values
+  /// read through their description, so every shape survives.
+  fileprivate var jsonText: String {
+    switch self {
+    case .string(let text):
+      text.jsonQuoted
+    case .stringConvertible(let convertible):
+      convertible.description.jsonQuoted
+    case .array(let values):
+      "[\(values.map(\.jsonText).joined(separator: ","))]"
+    case .dictionary(let pairs):
+      "{\(pairs.lazy.map { "\($0.key.jsonQuoted):\($0.value.jsonText)" }.joined(separator: ","))}"
+    }
+  }
+}
+
+extension String {
+  /// Quotes one string for JSON, escaping what JSON forbids raw.
+  fileprivate var jsonQuoted: String {
+    var out = "\""
+    for scalar in unicodeScalars {
+      switch scalar {
+      case "\"": out += "\\\""
+      case "\\": out += "\\\\"
+      case "\n": out += "\\n"
+      case "\r": out += "\\r"
+      case "\t": out += "\\t"
+      case Unicode.Scalar(0x08): out += "\\b"
+      case Unicode.Scalar(0x0C): out += "\\f"
+      default:
+        if scalar.value < 0x20 {
+          out += String(format: "\\u%04x", scalar.value)
+        } else {
+          out.unicodeScalars.append(scalar)
+        }
+      }
+    }
+    out += "\""
+    return out
+  }
 }
 
 // MARK: - DiagnosticLogHandler
@@ -234,7 +337,7 @@ final class DiagnosticLogHandler: LogHandler, @unchecked Sendable {
   }
 
   func log(event: LogEvent) {
-    store.write(event.message.description)
+    store.write(event.message.description, level: event.level, metadata: event.metadata ?? [:])
   }
 
   // MARK: Private
