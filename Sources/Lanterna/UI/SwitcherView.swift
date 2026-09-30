@@ -116,6 +116,9 @@ struct SwitcherView: View {
         .listStyle(.plain)
         .environment(\.defaultMinListRowHeight, PanelMetrics.rowHeight(for: textScale))
         .scrollContentBackground(.hidden)
+        // The list scrolls under the choice, but the bar itself stays out of
+        // the panel, so the rows read the way the mock reads.
+        .scrollIndicators(.never)
         // The panel is never the place typing goes, so it must never
         // draw the ring that says it is. What is not added here matters
         // as much: a `List(selection:)` binding would hand the arrow
