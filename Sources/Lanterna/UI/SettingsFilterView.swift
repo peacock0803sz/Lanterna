@@ -154,12 +154,25 @@ struct SettingsFilterView: View {
 
 /// One exclusion row with its app icon and match note.
 private struct ExclusionRow: View {
+
+  // MARK: Lifecycle
+
+  @MainActor
+  init(entry: Binding<ExclusionEntry>, onRemove: @escaping () -> Void) {
+    _entry = entry
+    self.onRemove = onRemove
+    // Seed cache from starting wording so first paint needs no extra pass.
+    _resolved = State(initialValue: ExclusionAppResolver.resolve(app: entry.wrappedValue.app))
+    _resolvedInput = State(initialValue: entry.wrappedValue.app)
+  }
+
+  // MARK: Internal
+
   @Binding var entry: ExclusionEntry
 
   let onRemove: () -> Void
 
   var body: some View {
-    let resolved = ExclusionAppResolver.resolve(app: entry.app)
     HStack(alignment: .top) {
       Image(nsImage: AppIconResolver.icon(forBundleIdentifier: resolved?.bundleIdentifier))
         .resizable()
@@ -181,5 +194,17 @@ private struct ExclusionRow: View {
         .buttonStyle(.bordered)
         .controlSize(.small)
     }
+    .onChange(of: entry.app) { _, newValue in
+      // Refresh cache only when this row wording alters, leaving other rows alone.
+      guard newValue != resolvedInput else { return }
+      resolvedInput = newValue
+      resolved = ExclusionAppResolver.resolve(app: newValue)
+    }
   }
+
+  // MARK: Private
+
+  @State private var resolved: ResolvedExclusionApp?
+  @State private var resolvedInput: String
+
 }
