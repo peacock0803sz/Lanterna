@@ -7,22 +7,22 @@ import Logging
 /// names outright, so there is no table to drift: anything else,
 /// including `warn`, refuses the way out-of-range numbers do.
 extension Logger.Level {
-    /// Reads one word exactly as written. Only the four lowercase words
-    /// count.
-    static func parse(word: String) -> Logger.Level? {
-        switch word {
-        case "error": .error
-        case "warning": .warning
-        case "info": .info
-        case "debug": .debug
-        default: nil
-        }
+  /// Reads one word exactly as written. Only the four lowercase words
+  /// count.
+  static func parse(word: String) -> Logger.Level? {
+    switch word {
+    case "error": .error
+    case "warning": .warning
+    case "info": .info
+    case "debug": .debug
+    default: nil
     }
+  }
 
-    /// The level one run uses. The command line wins where it says
-    /// anything; the file covers the rest; silence on both means
-    /// warnings and above.
-    static func effective(cli: Logger.Level?, file: Logger.Level?) -> Logger.Level {
-        cli ?? file ?? .warning
-    }
+  /// The level one run uses. The command line wins where it says
+  /// anything; the file covers the rest; silence on both means
+  /// warnings and above.
+  static func effective(cli: Logger.Level?, file: Logger.Level?) -> Logger.Level {
+    cli ?? file ?? .warning
+  }
 }

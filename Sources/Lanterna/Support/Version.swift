@@ -5,8 +5,8 @@
 /// string verbatim and derives the short form, so the window always names
 /// the binary at hand rather than the last release.
 enum AppVersion {
-    /// The full describe string, for on-screen display.
-    static let full = StampedVersion.describe
-    /// The normalized X.Y.Z, for the bundle Info.plist.
-    static let short = VersionDescriptor.shortName(from: StampedVersion.describe)
+  /// The full describe string, for on-screen display.
+  static let full = StampedVersion.describe
+  /// The normalized X.Y.Z, for the bundle Info.plist.
+  static let short = VersionDescriptor.shortName(from: StampedVersion.describe)
 }

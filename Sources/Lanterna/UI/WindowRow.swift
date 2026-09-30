@@ -6,89 +6,95 @@ import SwiftUI
 /// are. Judging is not done here: the ranges come from the same pure
 /// function the narrowing does, and this only paints what it is given.
 struct WindowRow: View {
-    let window: WindowItem
-    let isSelected: Bool
-    let query: String
-    /// Whether subsequence queries match as well as substrings. Decides
-    /// which ranges the highlight paints; judging is not done here.
-    var fuzzy: Bool = true
-    /// The text and icon scale step, handed down from the panel.
-    var textScale: TextScaleLevel = .standard
 
-    /// One scaled point size: the base size times the step, in whole points.
-    private func scaled(_ base: Double) -> Double {
-        (base * textScale.factor).rounded()
+  // MARK: Internal
+
+  let window: WindowItem
+  let isSelected: Bool
+  let query: String
+  /// Whether subsequence queries match as well as substrings. Decides
+  /// which ranges the highlight paints; judging is not done here.
+  var fuzzy = true
+  /// The text and icon scale step, handed down from the panel.
+  var textScale = TextScaleLevel.standard
+
+  var body: some View {
+    HStack(spacing: 8) {
+      Text(window.shortcutHint)
+        .font(.system(size: scaled(11), design: .monospaced))
+        .foregroundStyle(rowStyle(AnyShapeStyle(.tertiary)))
+        .frame(width: 24, alignment: .trailing)
+
+      highlighted(window.appName, base: AnyShapeStyle(.secondary))
+        .font(.system(size: scaled(13)))
+        .lineLimit(1)
+        .truncationMode(.tail)
+        .frame(width: 110, alignment: .trailing)
+
+      Image(nsImage: window.icon)
+        .resizable()
+        .frame(width: scaled(18), height: scaled(18))
+
+      highlighted(window.displayTitle, base: AnyShapeStyle(.primary))
+        .font(.system(size: scaled(13)))
+        .lineLimit(1)
+        .truncationMode(.tail)
+
+      Spacer(minLength: 0)
     }
+    .padding(.horizontal, 8)
+    // The fixed height is what keeps the panel-height formula exact.
+    .frame(height: PanelMetrics.rowHeight(for: textScale))
+    .background(selectionHighlight)
+  }
 
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(window.shortcutHint)
-                .font(.system(size: scaled(11), design: .monospaced))
-                .foregroundStyle(rowStyle(AnyShapeStyle(.tertiary)))
-                .frame(width: 24, alignment: .trailing)
+  // MARK: Private
 
-            highlighted(window.appName, base: AnyShapeStyle(.secondary))
-                .font(.system(size: scaled(13)))
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(width: 110, alignment: .trailing)
-
-            Image(nsImage: window.icon)
-                .resizable()
-                .frame(width: scaled(18), height: scaled(18))
-
-            highlighted(window.displayTitle, base: AnyShapeStyle(.primary))
-                .font(.system(size: scaled(13)))
-                .lineLimit(1)
-                .truncationMode(.tail)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 8)
-        // The fixed height is what keeps the panel-height formula exact.
-        .frame(height: PanelMetrics.rowHeight(for: textScale))
-        .background(selectionHighlight)
+  @ViewBuilder
+  private var selectionHighlight: some View {
+    if isSelected {
+      RoundedRectangle(cornerRadius: 6)
+        .fill(Color.accentColor)
     }
+  }
 
-    /// The style a run wears when it is not a match: white on the chosen
-    /// row, the usual style everywhere else.
-    private func rowStyle(_ normal: AnyShapeStyle) -> AnyShapeStyle {
-        isSelected ? AnyShapeStyle(.white) : normal
-    }
+  /// One scaled point size: the base size times the step, in whole points.
+  private func scaled(_ base: Double) -> Double {
+    (base * textScale.factor).rounded()
+  }
 
-    /// The text with every match of the query in red. The chosen row stays
-    /// all white: red on blue is unreadable, and the choice is already said
-    /// by the fill.
-    private func highlighted(_ text: String, base: AnyShapeStyle) -> Text {
-        let plain = Text(text).foregroundStyle(rowStyle(base))
-        guard !isSelected else { return plain }
-        let ranges: [Range<String.Index>]
-        if RomajiMatcher.engine.isOpen {
-            ranges = WindowFilter.matchedRanges(query: query, in: text, engine: RomajiMatcher.engine)
-        } else if fuzzy {
-            let conventional = WindowFilter.matchedRanges(query: query, in: text)
-            ranges = conventional.isEmpty ? WindowFilter.subsequenceRanges(query: query, in: text) : conventional
-        } else {
-            ranges = WindowFilter.matchedRanges(query: query, in: text)
-        }
-        guard !ranges.isEmpty else { return plain }
-        var out = Text("")
-        var cursor = text.startIndex
-        for range in ranges {
-            let before = Text(String(text[cursor ..< range.lowerBound])).foregroundStyle(rowStyle(base))
-            let hit = Text(String(text[range])).foregroundColor(.red)
-            out = Text("\(out)\(before)\(hit)")
-            cursor = range.upperBound
-        }
-        let tail = Text(String(text[cursor...])).foregroundStyle(rowStyle(base))
-        return Text("\(out)\(tail)")
-    }
+  /// The style a run wears when it is not a match: white on the chosen
+  /// row, the usual style everywhere else.
+  private func rowStyle(_ normal: AnyShapeStyle) -> AnyShapeStyle {
+    isSelected ? AnyShapeStyle(.white) : normal
+  }
 
-    @ViewBuilder
-    private var selectionHighlight: some View {
-        if isSelected {
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color.accentColor)
-        }
+  /// The text with every match of the query in red. The chosen row stays
+  /// all white: red on blue is unreadable, and the choice is already said
+  /// by the fill.
+  private func highlighted(_ text: String, base: AnyShapeStyle) -> Text {
+    let plain = Text(text).foregroundStyle(rowStyle(base))
+    guard !isSelected else { return plain }
+    let ranges: [Range<String.Index>]
+    if RomajiMatcher.engine.isOpen {
+      ranges = WindowFilter.matchedRanges(query: query, in: text, engine: RomajiMatcher.engine)
+    } else if fuzzy {
+      let conventional = WindowFilter.matchedRanges(query: query, in: text)
+      ranges = conventional.isEmpty ? WindowFilter.subsequenceRanges(query: query, in: text) : conventional
+    } else {
+      ranges = WindowFilter.matchedRanges(query: query, in: text)
     }
+    guard !ranges.isEmpty else { return plain }
+    var out = Text("")
+    var cursor = text.startIndex
+    for range in ranges {
+      let before = Text(String(text[cursor ..< range.lowerBound])).foregroundStyle(rowStyle(base))
+      let hit = Text(String(text[range])).foregroundColor(.red)
+      out = Text("\(out)\(before)\(hit)")
+      cursor = range.upperBound
+    }
+    let tail = Text(String(text[cursor...])).foregroundStyle(rowStyle(base))
+    return Text("\(out)\(tail)")
+  }
+
 }

@@ -8,78 +8,84 @@ import Foundation
 /// pass finishing while the panel is up replaces what is held without
 /// disturbing what is on screen.
 struct WindowListSnapshot {
-    /// An application whose read failed. Named in the diagnostics line so a
-    /// missing application is explained rather than silently absent. The
-    /// owner travels along so the sweep can tell a skipped application from
-    /// a gone window: absence from a list that never looked is not absence.
-    struct SkippedApplication {
-        let name: String
-        let reason: ReadFailure
-        let processIdentifier: pid_t
+
+  // MARK: Lifecycle
+
+  /// `assert` rather than `precondition`: a duplicated id is loud in debug
+  /// builds and under test, but a doubled row must never take the panel
+  /// down in release.
+  init(
+    items: [WindowItem],
+    applicationCount: Int,
+    gatheringDuration: Duration,
+    skipped: [SkippedApplication],
+    droppedWithoutID: Int,
+    gatheredAt: ContinuousClock.Instant
+  ) {
+    assert(Set(items.map(\.id)).count == items.count, "window ids must be unique")
+    self.items = items
+    self.applicationCount = applicationCount
+    self.gatheringDuration = gatheringDuration
+    self.skipped = skipped
+    self.droppedWithoutID = droppedWithoutID
+    self.gatheredAt = gatheredAt
+  }
+
+  // MARK: Internal
+
+  /// An application whose read failed. Named in the diagnostics line so a
+  /// missing application is explained rather than silently absent. The
+  /// owner travels along so the sweep can tell a skipped application from
+  /// a gone window: absence from a list that never looked is not absence.
+  struct SkippedApplication {
+    let name: String
+    let reason: ReadFailure
+    let processIdentifier: pid_t
+  }
+
+  /// Grouped by application in process-identifier order, and within an
+  /// application in window-id order.
+  let items: [WindowItem]
+  /// Every application the pass looked at, including the skipped ones.
+  let applicationCount: Int
+  /// From the start of the pass, before applications are collected, to the
+  /// assembled list: everything the panel waited for.
+  let gatheringDuration: Duration
+  let skipped: [SkippedApplication]
+  let droppedWithoutID: Int
+  /// When this pass started observing. The sweep spares records newer
+  /// than this: a snapshot that predates a use could not have observed it.
+  let gatheredAt: ContinuousClock.Instant
+
+  // When this pass finished assembling. The sweep spares records newer
+  // than this: a snapshot that predates a use could not have observed it.
+
+  /// The owners a pass failed to read. Records for these stay put when
+  /// sweeping: their rows are missing because the look missed, not
+  /// because the windows closed.
+  var skippedOwners: Set<pid_t> {
+    Set(skipped.map(\.processIdentifier))
+  }
+
+  /// The one line written after a pass. Counts, timings and skipped
+  /// application names only — never a window title. Rows on another
+  /// Space are counted only when there are some, so a pass with every
+  /// window in view reads as it always has.
+  var summaryLine: String {
+    var line = "listed \(items.count) windows from \(applicationCount) applications "
+      + "in \(Diagnostics.millisecondsText(gatheringDuration)) ms"
+    let onOtherSpace = items.count(where: \.isOnOtherSpace)
+    if onOtherSpace > 0 {
+      line += "; \(onOtherSpace) on other Spaces"
     }
-
-    /// Grouped by application in process-identifier order, and within an
-    /// application in window-id order.
-    let items: [WindowItem]
-    /// Every application the pass looked at, including the skipped ones.
-    let applicationCount: Int
-    /// From the start of the pass, before applications are collected, to the
-    /// assembled list: everything the panel waited for.
-    let gatheringDuration: Duration
-    let skipped: [SkippedApplication]
-    let droppedWithoutID: Int
-    /// When this pass started observing. The sweep spares records newer
-    /// than this: a snapshot that predates a use could not have observed it.
-    let gatheredAt: ContinuousClock.Instant
-
-    // When this pass finished assembling. The sweep spares records newer
-    // than this: a snapshot that predates a use could not have observed it.
-
-    /// The owners a pass failed to read. Records for these stay put when
-    /// sweeping: their rows are missing because the look missed, not
-    /// because the windows closed.
-    var skippedOwners: Set<pid_t> {
-        Set(skipped.map(\.processIdentifier))
+    if !skipped.isEmpty {
+      let reasons = skipped.map { "\($0.name) (\($0.reason))" }
+      line += "; skipped " + reasons.joined(separator: ", ")
     }
-
-    /// `assert` rather than `precondition`: a duplicated id is loud in debug
-    /// builds and under test, but a doubled row must never take the panel
-    /// down in release.
-    init(
-        items: [WindowItem],
-        applicationCount: Int,
-        gatheringDuration: Duration,
-        skipped: [SkippedApplication],
-        droppedWithoutID: Int,
-        gatheredAt: ContinuousClock.Instant
-    ) {
-        assert(Set(items.map(\.id)).count == items.count, "window ids must be unique")
-        self.items = items
-        self.applicationCount = applicationCount
-        self.gatheringDuration = gatheringDuration
-        self.skipped = skipped
-        self.droppedWithoutID = droppedWithoutID
-        self.gatheredAt = gatheredAt
+    if droppedWithoutID > 0 {
+      line += "; dropped \(droppedWithoutID) elements without a window id"
     }
+    return line
+  }
 
-    /// The one line written after a pass. Counts, timings and skipped
-    /// application names only — never a window title. Rows on another
-    /// Space are counted only when there are some, so a pass with every
-    /// window in view reads as it always has.
-    var summaryLine: String {
-        var line = "listed \(items.count) windows from \(applicationCount) applications "
-            + "in \(Diagnostics.millisecondsText(gatheringDuration)) ms"
-        let onOtherSpace = items.count(where: \.isOnOtherSpace)
-        if onOtherSpace > 0 {
-            line += "; \(onOtherSpace) on other Spaces"
-        }
-        if !skipped.isEmpty {
-            let reasons = skipped.map { "\($0.name) (\($0.reason))" }
-            line += "; skipped " + reasons.joined(separator: ", ")
-        }
-        if droppedWithoutID > 0 {
-            line += "; dropped \(droppedWithoutID) elements without a window id"
-        }
-        return line
-    }
 }

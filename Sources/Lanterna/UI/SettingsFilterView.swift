@@ -6,116 +6,124 @@ import SwiftUI
 /// choices do. Future filtering options (exclusion lists, grouping)
 /// join this tab.
 struct SettingsFilterView: View {
-    @Binding var values: SettingsValues
 
-    /// The cap as the stepper names it: a number, or off at zero.
-    private var capText: String {
-        values.shortcutMemoryLength == 0 ? "Off" : String(values.shortcutMemoryLength)
-    }
+  // MARK: Internal
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Picker("Windows on other spaces", selection: $values.displayModes.otherSpace) {
-                    Text("Show").tag(DisplayMode.show)
-                    Text("Hide").tag(DisplayMode.hide)
-                    Text("Separate at bottom").tag(DisplayMode.separateAtBottom)
-                }
-                Text("Windows living on another Space: mix them in, keep them out, or park them below.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Picker("Windows of hidden apps", selection: $values.displayModes.hiddenApp) {
-                    Text("Show").tag(DisplayMode.show)
-                    Text("Hide").tag(DisplayMode.hide)
-                    Text("Separate at bottom").tag(DisplayMode.separateAtBottom)
-                }
-                Text("Windows of hidden applications: mix them in, keep them out, or park them below.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Picker("Minimized windows", selection: $values.displayModes.minimized) {
-                    Text("Show").tag(DisplayMode.show)
-                    Text("Hide").tag(DisplayMode.hide)
-                    Text("Separate at bottom").tag(DisplayMode.separateAtBottom)
-                }
-                Text("Windows folded into the Dock: mix them in, keep them out, or park them below.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Picker("Fullscreen windows", selection: $values.displayModes.fullscreen) {
-                    Text("Show").tag(DisplayMode.show)
-                    Text("Hide").tag(DisplayMode.hide)
-                    Text("Separate at bottom").tag(DisplayMode.separateAtBottom)
-                }
-                Text("Windows filling their own Space: mix them in, keep them out, or park them below.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Picker("Romaji matching", selection: $values.romajiScope) {
-                    Text("Kana only").tag(RomajiScope.kanaOnly)
-                    Text("Kana and kanji readings").tag(RomajiScope.kanaKanji)
-                }
-                Text("Match kana readings only, or kanji readings too.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Stepper("Shortcut memory length: \(capText)", value: $values.shortcutMemoryLength, in: 0 ... 5)
-                Text("Remember the chosen window per query up to this many characters. 0 means off.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Toggle("Fuzzy matching", isOn: $values.fuzzyMatchEnabled)
-                Text("Match queries whose letters appear in order, not only substrings.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Picker("Result order", selection: $values.resultOrder) {
-                    Text("MRU").tag(SearchOrdering.mru)
-                    Text("Best match").tag(SearchOrdering.score)
-                }
-                Text("Show recent windows first, or best matches first.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Excluded windows")
-                ForEach($values.exclusions) { $entry in
-                    HStack {
-                        TextField("App", text: $entry.app)
-                        TextField("Title pattern", text: $entry.titlePattern)
-                        Button("Remove") {
-                            if let index = values.exclusions.firstIndex(where: { $0.id == entry.id }) {
-                                values.exclusions.remove(at: index)
-                            }
-                        }
-                    }
-                }
-                Button("Add excluded window") {
-                    values.exclusions.append(ExclusionEntry(app: "", titlePattern: ""))
-                }
-                if values.exclusions.contains(where: {
-                    !WindowExclusion.isValid(app: $0.app, titlePattern: $0.titlePattern)
-                }) {
-                    Text("Rows with an empty field or an unreadable app pattern are ignored.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                Text("A window stays out when its app and title both match a row. "
-                    + "The app field is matched as a regular expression. "
-                    + "A title wrapped as ^...$ must match exactly.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+  @Binding var values: SettingsValues
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      VStack(alignment: .leading, spacing: 4) {
+        Picker("Windows on other spaces", selection: $values.displayModes.otherSpace) {
+          Text("Show").tag(DisplayMode.show)
+          Text("Hide").tag(DisplayMode.hide)
+          Text("Separate at bottom").tag(DisplayMode.separateAtBottom)
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        Text("Windows living on another Space: mix them in, keep them out, or park them below.")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+      VStack(alignment: .leading, spacing: 4) {
+        Picker("Windows of hidden apps", selection: $values.displayModes.hiddenApp) {
+          Text("Show").tag(DisplayMode.show)
+          Text("Hide").tag(DisplayMode.hide)
+          Text("Separate at bottom").tag(DisplayMode.separateAtBottom)
+        }
+        Text("Windows of hidden applications: mix them in, keep them out, or park them below.")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+      VStack(alignment: .leading, spacing: 4) {
+        Picker("Minimized windows", selection: $values.displayModes.minimized) {
+          Text("Show").tag(DisplayMode.show)
+          Text("Hide").tag(DisplayMode.hide)
+          Text("Separate at bottom").tag(DisplayMode.separateAtBottom)
+        }
+        Text("Windows folded into the Dock: mix them in, keep them out, or park them below.")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+      VStack(alignment: .leading, spacing: 4) {
+        Picker("Fullscreen windows", selection: $values.displayModes.fullscreen) {
+          Text("Show").tag(DisplayMode.show)
+          Text("Hide").tag(DisplayMode.hide)
+          Text("Separate at bottom").tag(DisplayMode.separateAtBottom)
+        }
+        Text("Windows filling their own Space: mix them in, keep them out, or park them below.")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+      VStack(alignment: .leading, spacing: 4) {
+        Picker("Romaji matching", selection: $values.romajiScope) {
+          Text("Kana only").tag(RomajiScope.kanaOnly)
+          Text("Kana and kanji readings").tag(RomajiScope.kanaKanji)
+        }
+        Text("Match kana readings only, or kanji readings too.")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+      VStack(alignment: .leading, spacing: 4) {
+        Stepper("Shortcut memory length: \(capText)", value: $values.shortcutMemoryLength, in: 0 ... 5)
+        Text("Remember the chosen window per query up to this many characters. 0 means off.")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+      VStack(alignment: .leading, spacing: 4) {
+        Toggle("Fuzzy matching", isOn: $values.fuzzyMatchEnabled)
+        Text("Match queries whose letters appear in order, not only substrings.")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+      VStack(alignment: .leading, spacing: 4) {
+        Picker("Result order", selection: $values.resultOrder) {
+          Text("MRU").tag(SearchOrdering.mru)
+          Text("Best match").tag(SearchOrdering.score)
+        }
+        Text("Show recent windows first, or best matches first.")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+      VStack(alignment: .leading, spacing: 4) {
+        Text("Excluded windows")
+        ForEach($values.exclusions) { $entry in
+          HStack {
+            TextField("App", text: $entry.app)
+            TextField("Title pattern", text: $entry.titlePattern)
+            Button("Remove") {
+              if let index = values.exclusions.firstIndex(where: { $0.id == entry.id }) {
+                values.exclusions.remove(at: index)
+              }
+            }
+          }
+        }
+        Button("Add excluded window") {
+          values.exclusions.append(ExclusionEntry(app: "", titlePattern: ""))
+        }
+        if
+          values.exclusions.contains(where: {
+            !WindowExclusion.isValid(app: $0.app, titlePattern: $0.titlePattern)
+          })
+        {
+          Text("Rows with an empty field or an unreadable app pattern are ignored.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+        Text("A window stays out when its app and title both match a row. "
+          + "The app field is matched as a regular expression. "
+          + "A title wrapped as ^...$ must match exactly.")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
     }
+    .padding(20)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+  }
+
+  // MARK: Private
+
+  /// The cap as the stepper names it: a number, or off at zero.
+  private var capText: String {
+    values.shortcutMemoryLength == 0 ? "Off" : String(values.shortcutMemoryLength)
+  }
+
 }

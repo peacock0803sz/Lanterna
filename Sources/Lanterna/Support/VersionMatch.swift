@@ -7,10 +7,10 @@ import Foundation
 /// suffix behind, and a string without the `v` never had the tag's shape, so
 /// neither matches.
 enum VersionMatch {
-    static func matches(full: String, short: String) -> Bool {
-        guard !short.isEmpty, full.hasPrefix("v") else {
-            return false
-        }
-        return full.dropFirst() == short[...]
+  static func matches(full: String, short: String) -> Bool {
+    guard !short.isEmpty, full.hasPrefix("v") else {
+      return false
     }
+    return full.dropFirst() == short[...]
+  }
 }
