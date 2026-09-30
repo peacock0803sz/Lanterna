@@ -32,6 +32,41 @@ brew install --cask peacock0803sz/lanterna/lanterna
 brew upgrade --cask peacock0803sz/lanterna/lanterna  # 更新
 ```
 
+### Nix (flake)で
+
+Apple SiliconのmacOS 26以降と、ホストのツールチェインでビルドするためのXcodeまたはCommand Line Toolsが必要です。
+
+```bash
+nix run github:peacock0803sz/Lanterna
+```
+
+自分のflakeに固定する場合 ([peacock0803sz/dotfiles](https://github.com/peacock0803sz/dotfiles)と同様)は、次のようにinputを追加します。
+
+```nix
+inputs.lanterna = {
+  url = "github:peacock0803sz/Lanterna";
+  inputs.nixpkgs.follows = "nixpkgs";
+  inputs.flake-parts.follows = "flake-parts";
+};
+```
+
+あとは`inputs.lanterna.packages.${system}.default`を使います。直接インストールする場合は次のコマンドを使います。
+
+```bash
+nix profile install github:peacock0803sz/Lanterna
+```
+
+:::note
+アプリは再ビルドのたびにad-hoc署名し直されるため、cdhashが変わります。そのため付与済みのアクセシビリティや入力監視の許可が外れます。[peacock0803sz/dotfiles](https://github.com/peacock0803sz/dotfiles)では[nix-mac-app-identity](https://github.com/natsukium/nix-mac-app-identity)を使っています。`targets.darwin.appIdentity.apps`経由でbundle identifier基準に署名し直して入れています。
+
+```nix
+targets.darwin.appIdentity.apps = [
+  inputs.lanterna.packages.${pkgs.stdenv.hostPlatform.system}.default
+];
+```
+
+:::
+
 ## 初回起動と権限
 
 初回起動時に次の2つの権限を求められるので、どちらも許可してください。
