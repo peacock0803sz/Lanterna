@@ -9,7 +9,7 @@ struct PanelMetricsTests {
   func heightGrowsWithRowCount() {
     // One literal pin on the contract, so changing a constant fails here
     // and not only inside the formula the other cases share.
-    #expect(PanelMetrics.height(rowCount: 3) == 124)
+    #expect(PanelMetrics.height(rowCount: 3) == 120)
 
     for rowCount in [0, 1, 3, 10] {
       let expected = CGFloat(rowCount) * PanelMetrics.rowHeight
@@ -18,20 +18,17 @@ struct PanelMetricsTests {
     }
   }
 
-  /// The separator above the subgroups is one more row, drawn only when
-  /// ordinary rows stand above them, and each non-empty subgroup carries
-  /// one heading row.
+  /// Parked rows draw with one heading row for each non-empty subgroup.
   @Test @MainActor
-  func theSeparatorCountsAsARowWhenAnyRowIsParked() {
+  func aHeadingCountsAsARowWhenAnyRowIsParked() {
     let windows = SampleWindows.make(count: 3)
     #expect(PanelMetrics.drawnRowCount([]) == 0)
     #expect(PanelMetrics.drawnRowCount(windows) == 3)
-    #expect(PanelMetrics.drawnRowCount([windows[0], windows[1].settingMinimized(true)]) == 4)
+    #expect(PanelMetrics.drawnRowCount([windows[0], windows[1].settingMinimized(true)]) == 3)
     #expect(PanelMetrics.drawnRowCount(windows.map { $0.settingHidden(true) }) == 4)
   }
 
-  /// Each non-empty subgroup carries one heading row, and the separator
-  /// only divides when ordinary rows stand above the subgroups.
+  /// Each non-empty subgroup carries one heading row.
   @Test @MainActor
   func subgroupsAndHeadingsCountAsRows() {
     let windows = SampleWindows.make(count: 3)
@@ -45,7 +42,7 @@ struct PanelMetricsTests {
     let lone = [windows[0].settingMinimized(true)]
     #expect(PanelMetrics.drawnRowCount(lone, modes: .defaults) == 2)
     let mixed = [windows[0], windows[1].settingMinimized(true)]
-    #expect(PanelMetrics.drawnRowCount(mixed, modes: .defaults) == 4)
+    #expect(PanelMetrics.drawnRowCount(mixed, modes: .defaults) == 3)
     let twoGroups = [
       windows[0].settingMinimized(true),
       windows[1].settingHidden(true),
@@ -55,7 +52,7 @@ struct PanelMetricsTests {
 
   @Test
   func widthIsFixedByTheUIContract() {
-    #expect(PanelMetrics.width == 680)
+    #expect(PanelMetrics.width == 720)
   }
 
   @Test
@@ -85,11 +82,11 @@ extension PanelMetricsTests {
   @Test
   func scaledWidthsRoundToWholePoints() {
     let expected: [TextScaleLevel: CGFloat] = [
-      .small: 578,
-      .smallMedium: 632,
-      .standard: 680,
-      .largeMedium: 762,
-      .large: 850,
+      .small: 612,
+      .smallMedium: 670,
+      .standard: 720,
+      .largeMedium: 806,
+      .large: 900,
     ]
     for level in TextScaleLevel.allCases {
       #expect(PanelMetrics.width(for: level) == expected[level], "for \(level)")
@@ -116,19 +113,12 @@ extension PanelMetricsTests {
   /// Fixed points, not the formula, so a constant change fails here.
   @Test
   func scaledChromeAndNoticeMatchFixedPoints() {
-    let headerOnly: [TextScaleLevel: CGFloat] = [
-      .small: 24,
-      .smallMedium: 26,
-      .standard: 28,
-      .largeMedium: 31,
-      .large: 35,
-    ]
-    let withQuery: [TextScaleLevel: CGFloat] = [
-      .small: 53,
-      .smallMedium: 58,
-      .standard: 62,
-      .largeMedium: 69,
-      .large: 78,
+    let chrome: [TextScaleLevel: CGFloat] = [
+      .small: 37,
+      .smallMedium: 40,
+      .standard: 43,
+      .largeMedium: 48,
+      .large: 54,
     ]
     let notice: [TextScaleLevel: CGFloat] = [
       .small: 19,
@@ -140,12 +130,12 @@ extension PanelMetricsTests {
     for level in TextScaleLevel.allCases {
       #expect(
         PanelMetrics.filterChromeHeight(query: "", filterActive: true, for: level)
-          == headerOnly[level],
-        "header for \(level)"
+          == chrome[level],
+        "chrome for \(level)"
       )
       #expect(
         PanelMetrics.filterChromeHeight(query: "x", filterActive: true, for: level)
-          == withQuery[level],
+          == chrome[level],
         "query for \(level)"
       )
       #expect(PanelMetrics.noticeHeight(for: level) == notice[level], "notice for \(level)")
@@ -184,9 +174,9 @@ extension PanelMetricsTests {
   /// step scrolls sooner rather than outgrowing the screen.
   @Test
   func paddingAndCapStayFixedAcrossSteps() {
-    #expect(PanelMetrics.verticalPadding == 8)
+    #expect(PanelMetrics.verticalPadding == 6)
     #expect(PanelMetrics.maximumHeight == 400)
-    #expect(PanelMetrics.height(rowCount: 0, for: .large) == 16)
+    #expect(PanelMetrics.height(rowCount: 0, for: .large) == 12)
     #expect(PanelMetrics.height(rowCount: 30, for: .large) == PanelMetrics.maximumHeight)
   }
 }

@@ -14,8 +14,7 @@ private func tables(in view: NSView) -> [NSTableView] {
 @MainActor
 struct SwitcherViewTests {
   /// The rows the list draws are the rows the panel's height counts: one
-  /// for each window, and one more for the separator above the parked
-  /// rows when any are parked. Said of the count alone: measuring row
+  /// for each window, and one heading row for each non-empty subgroup. Said of the count alone: measuring row
   /// rects off a window that was never shown reads OS-version layout
   /// output, which is not the same on every macOS. Heights hold by
   /// construction instead — every row carries an explicit frame of one

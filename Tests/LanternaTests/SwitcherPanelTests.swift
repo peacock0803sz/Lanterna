@@ -61,23 +61,21 @@ struct SwitcherPanelTests {
     #expect(contentRect.height == PanelMetrics.height(rowCount: rowCount))
   }
 
-  /// A list with parked rows draws the separator above them as a row of
-  /// its own, with one heading row for the subgroup, and the height makes
-  /// room for both, so the last parked row is not cut off below the
-  /// panel's edge.
+  /// A list with parked rows draws one heading row for the subgroup, and the height
+  /// makes room for it, so the last parked row stays clear of the panel edge.
   @Test
-  func aParkedGroupMakesRoomForItsSeparator() {
+  func aParkedGroupMakesRoomForItsHeading() {
     let panel = panel(rowCount: 5)
     let windows = SampleWindows.make(count: 3)
     panel.update(windows: [windows[0], windows[1], windows[2].settingHidden(true)])
     let contentRect = panel.contentRect(forFrameRect: panel.frame)
-    #expect(contentRect.height == PanelMetrics.height(rowCount: 5))
+    #expect(contentRect.height == PanelMetrics.height(rowCount: 4))
   }
 
-  /// A list swapped in while the panel is up makes the same room for the
-  /// separator, and a failure note grows the panel from that height.
+  /// A list swapped in while the panel is up makes the same room for the heading,
+  /// and a failure note grows the panel from that height.
   @Test
-  func aSwappedInParkedGroupMakesRoomForItsSeparator() {
+  func aSwappedInParkedGroupMakesRoomForItsHeading() {
     let panel = panel(rowCount: 5)
     let windows = SampleWindows.make(count: 3)
     panel.updateList(
@@ -86,16 +84,15 @@ struct SwitcherPanelTests {
       query: "",
       filterActive: false
     )
-    #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 5))
+    #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 4))
     panel.showNotice("Couldn't minimize")
     #expect(
       panel.contentRect(forFrameRect: panel.frame).height
-        == PanelMetrics.height(rowCount: 5) + PanelMetrics.noticeHeight
+        == PanelMetrics.height(rowCount: 4) + PanelMetrics.noticeHeight
     )
   }
 
-  /// A row its mode keeps out takes no height: no row, no separator and
-  /// no heading for it. A query that matches it brings its row and its
+  /// A row its mode keeps out takes no height: no row and no heading for it. A query that matches it brings its row and its
   /// heading back.
   @Test
   func aRowItsModeKeepsOutTakesNoHeight() {
