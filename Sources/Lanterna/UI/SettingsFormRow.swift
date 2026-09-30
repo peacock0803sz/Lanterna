@@ -27,7 +27,7 @@ struct SettingsFormLabel: View {
   private let caption: String?
 }
 
-// MARK: - SettingsBackground
+// MARK: - View + settingsBackground
 
 extension View {
   /// The gray behind grouped settings content.
