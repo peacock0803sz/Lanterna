@@ -229,7 +229,7 @@ struct PanelWindowOperationsTests {
     #expect(made.log.lines.contains { $0.contains("window operation (quit Safari/Tabs)") })
   }
 
-  /// Hiding parks every row of the application below the separator, and
+  /// Hiding parks every row of the application below the ordinary rows, and
   /// the choice stays at the place the chosen row left: the row in use
   /// now standing there takes it.
   @Test
@@ -255,7 +255,7 @@ struct PanelWindowOperationsTests {
     #expect(made.counts.emptied == 1)
   }
 
-  /// Minimizing parks the row below the separator, and the choice stays
+  /// Minimizing parks the row below the ordinary rows, and the choice stays
   /// at the place the row left: the next row in use takes it.
   @Test
   func minimizingParksTheRow() async {

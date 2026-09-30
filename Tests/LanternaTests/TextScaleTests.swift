@@ -52,13 +52,13 @@ struct TextScaleTests {
 
   @Test
   func scaledWidthRoundsToWholePoints() {
-    #expect(TextScaleLevel.small.scaledWidth == 578)
-    #expect(TextScaleLevel.smallMedium.scaledWidth == 632)
-    #expect(TextScaleLevel.standard.scaledWidth == 680)
-    #expect(TextScaleLevel.largeMedium.scaledWidth == 762)
-    #expect(TextScaleLevel.large.scaledWidth == 850)
+    #expect(TextScaleLevel.small.scaledWidth == 612)
+    #expect(TextScaleLevel.smallMedium.scaledWidth == 670)
+    #expect(TextScaleLevel.standard.scaledWidth == 720)
+    #expect(TextScaleLevel.largeMedium.scaledWidth == 806)
+    #expect(TextScaleLevel.large.scaledWidth == 900)
     for level in TextScaleLevel.allCases {
-      #expect(level.scaledWidth == (680 * level.factor).rounded())
+      #expect(level.scaledWidth == (Double(PanelMetrics.width) * level.factor).rounded())
     }
   }
 }

@@ -17,43 +17,89 @@ struct WindowRow: View {
   var fuzzy = true
   /// The text and icon scale step, handed down from the panel.
   var textScale = TextScaleLevel.standard
+  /// Whether the row sits in a subgroup under a heading, whatever put it
+  /// there. Such rows draw dimmed unless they are chosen.
+  var isInSubgroup = false
 
   var body: some View {
-    HStack(spacing: 8) {
+    HStack(spacing: 12) {
       Text(window.shortcutHint)
         .font(.system(size: scaled(11), design: .monospaced))
-        .foregroundStyle(rowStyle(AnyShapeStyle(.tertiary)))
-        .frame(width: 24, alignment: .trailing)
+        .foregroundStyle(hintTextStyle)
+        .frame(width: scaled(30), alignment: .center)
+        .background(hintBackground)
+        .overlay(
+          RoundedRectangle(cornerRadius: 5)
+            .stroke(hintBorder)
+        )
 
-      highlighted(window.appName, base: AnyShapeStyle(.secondary))
-        .font(.system(size: scaled(13)))
-        .lineLimit(1)
-        .truncationMode(.tail)
-        .frame(width: 110, alignment: .trailing)
+      highlighted(
+        window.appName,
+        normal: AnyShapeStyle(.secondary),
+        selected: AnyShapeStyle(Color.white.opacity(0.85))
+      )
+      .font(.system(size: scaled(14)))
+      .lineLimit(1)
+      .truncationMode(.tail)
+      .frame(width: scaled(96), alignment: .trailing)
 
       Image(nsImage: window.icon)
         .resizable()
-        .frame(width: scaled(18), height: scaled(18))
+        .frame(width: scaled(22), height: scaled(22))
 
-      highlighted(window.displayTitle, base: AnyShapeStyle(.primary))
-        .font(.system(size: scaled(13)))
-        .lineLimit(1)
-        .truncationMode(.tail)
+      highlighted(
+        window.displayTitle,
+        normal: AnyShapeStyle(.primary),
+        selected: AnyShapeStyle(.white)
+      )
+      .font(.system(size: scaled(14)))
+      .lineLimit(1)
+      .truncationMode(.tail)
 
       Spacer(minLength: 0)
     }
-    .padding(.horizontal, 8)
+    .padding(.horizontal, 12)
     // The fixed height is what keeps the panel-height formula exact.
     .frame(height: PanelMetrics.rowHeight(for: textScale))
     .background(selectionHighlight)
+    .opacity(isInSubgroup && !isSelected ? 0.55 : 1)
   }
 
   // MARK: Private
 
+  @Environment(\.colorScheme) private var colorScheme
+
+  /// The hint frame fill, following the choice and the appearance.
+  private var hintBackground: some ShapeStyle {
+    if isSelected {
+      AnyShapeStyle(Color.white.opacity(0.18))
+    } else if colorScheme == .dark {
+      AnyShapeStyle(Color.white.opacity(0.07))
+    } else {
+      AnyShapeStyle(Color.primary.opacity(0.04))
+    }
+  }
+
+  /// The hint frame edge, following the choice and the appearance.
+  private var hintBorder: some ShapeStyle {
+    if isSelected {
+      AnyShapeStyle(Color.white.opacity(0.25))
+    } else if colorScheme == .dark {
+      AnyShapeStyle(Color.white.opacity(0.1))
+    } else {
+      AnyShapeStyle(Color.primary.opacity(0.08))
+    }
+  }
+
+  /// The hint wording, white on the chosen row and secondary elsewhere.
+  private var hintTextStyle: AnyShapeStyle {
+    isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary)
+  }
+
   @ViewBuilder
   private var selectionHighlight: some View {
     if isSelected {
-      RoundedRectangle(cornerRadius: 6)
+      RoundedRectangle(cornerRadius: 10)
         .fill(Color.accentColor)
     }
   }
@@ -63,18 +109,20 @@ struct WindowRow: View {
     (base * textScale.factor).rounded()
   }
 
-  /// The style a run wears when it is not a match: white on the chosen
-  /// row, the usual style everywhere else.
-  private func rowStyle(_ normal: AnyShapeStyle) -> AnyShapeStyle {
-    isSelected ? AnyShapeStyle(.white) : normal
+  /// The style a run wears when it is not a match: the chosen style on
+  /// the chosen row, the usual style everywhere else.
+  private func rowStyle(normal: AnyShapeStyle, selected: AnyShapeStyle) -> AnyShapeStyle {
+    isSelected ? selected : normal
   }
 
-  /// The text with every match of the query in red. The chosen row stays
-  /// all white: red on blue is unreadable, and the choice is already said
-  /// by the fill.
-  private func highlighted(_ text: String, base: AnyShapeStyle) -> Text {
-    let plain = Text(text).foregroundStyle(rowStyle(base))
-    guard !isSelected else { return plain }
+  /// The text with every match of the query in bold, wearing the row style
+  /// throughout, chosen or otherwise.
+  private func highlighted(
+    _ text: String,
+    normal: AnyShapeStyle,
+    selected: AnyShapeStyle
+  ) -> Text {
+    let base = rowStyle(normal: normal, selected: selected)
     let ranges: [Range<String.Index>]
     if RomajiMatcher.engine.isOpen {
       ranges = WindowFilter.matchedRanges(query: query, in: text, engine: RomajiMatcher.engine)
@@ -84,16 +132,16 @@ struct WindowRow: View {
     } else {
       ranges = WindowFilter.matchedRanges(query: query, in: text)
     }
-    guard !ranges.isEmpty else { return plain }
+    guard !ranges.isEmpty else { return Text(text).foregroundStyle(base) }
     var out = Text("")
     var cursor = text.startIndex
     for range in ranges {
-      let before = Text(String(text[cursor ..< range.lowerBound])).foregroundStyle(rowStyle(base))
-      let hit = Text(String(text[range])).foregroundColor(.red)
+      let before = Text(String(text[cursor ..< range.lowerBound])).foregroundStyle(base)
+      let hit = Text(String(text[range])).bold().foregroundStyle(base)
       out = Text("\(out)\(before)\(hit)")
       cursor = range.upperBound
     }
-    let tail = Text(String(text[cursor...])).foregroundStyle(rowStyle(base))
+    let tail = Text(String(text[cursor...])).foregroundStyle(base)
     return Text("\(out)\(tail)")
   }
 

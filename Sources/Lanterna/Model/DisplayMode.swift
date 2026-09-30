@@ -19,7 +19,7 @@ enum DisplayMode: String, Sendable {
 
 // MARK: - DisplaySubgroup
 
-/// One row's subgroup below the separator, in drawing order.
+/// One row's subgroup below the ordinary rows, in drawing order.
 enum DisplaySubgroup: Sendable, Hashable {
   case otherSpace
   case hiddenApp

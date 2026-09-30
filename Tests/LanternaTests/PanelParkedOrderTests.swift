@@ -1,7 +1,7 @@
 @testable import Lanterna
 import Testing
 
-/// Parked rows sit below the separator, and the list everyone counts in
+/// Parked rows sit below the ordinary rows, and the list everyone counts in
 /// has them there too: the second row an appearance opens on, the place an
 /// operation's choice lands on, and the arrows all step through the rows in
 /// the order the panel draws them.
@@ -11,7 +11,7 @@ struct PanelParkedOrderTests {
   // MARK: Internal
 
   /// An appearance opens on the second row the panel draws: a parked row
-  /// between two rows in use goes below the separator, and the choice
+  /// between two rows in use goes below the ordinary rows, and the choice
   /// opens on the row in use after the first.
   @Test
   func theSecondRowIsTheNextRowInUse() {
@@ -24,7 +24,7 @@ struct PanelParkedOrderTests {
 
   /// Closing the row above a parked group hands the choice to the next
   /// row in use, not to a parked row the list once held between them.
-  /// The arrows then cross the separator where the panel draws it.
+  /// The arrows then move across the heading where the panel draws it.
   @Test
   func closingAboveAParkedGroupChoosesTheNextRowInUse() async {
     let rows = rows
@@ -38,7 +38,7 @@ struct PanelParkedOrderTests {
     #expect(made.selection.chosenID == rows[1].id)
   }
 
-  /// Minimizing moves the row below the separator at once, before any
+  /// Minimizing moves the row below the ordinary rows at once, before any
   /// pass confirms it, into the minimized subgroup under the hidden-app
   /// one, and the choice stays at the place the row left: the next row
   /// in use takes it. It holds the refresh, so it carries a

@@ -50,7 +50,7 @@ struct SettingsValues: Equatable, Sendable {
   /// recent use first.
   var resultOrder: SearchOrdering
   /// The panel text and icon scale step. Absent in the file means
-  /// the standard size the panel always had.
+  /// the standard step, the base, unscaled sizes.
   var textScale: TextScaleLevel
   /// The resolved key bindings. Never partial: absent in the file
   /// means all defaults.
