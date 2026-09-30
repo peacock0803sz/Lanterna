@@ -22,6 +22,8 @@ final class GuideWindows {
   /// so a grant given while the app runs changes nothing until the next
   /// launch, and the guide says exactly that.
   func openGuide(state: PermissionState) {
+    // Close the held window first so reopening leaves exactly one.
+    guideWindow?.close()
     let window = OnboardingWindow(
       missing: MissingPermission.list(for: state),
       opener: SystemSettings.open,
@@ -46,6 +48,8 @@ final class GuideWindows {
   /// Shows this launch so far: the version, the pinned summary, then the
   /// mirrored lines in order. The store keeps growing underneath either way.
   func openVersionLog() {
+    // Close the held window first so reopening leaves exactly one.
+    versionLogWindow?.close()
     let window = VersionLogWindow(
       version: DisplayedVersion(full: AppVersion.full),
       summary: Diagnostics.launchSummary,
@@ -54,6 +58,9 @@ final class GuideWindows {
       },
       appearanceMode: appearanceMode
     )
+    // Like the guide and settings windows: ordering front alone leaves
+    // this behind the frontmost app under the accessory policy.
+    NSApp.activate(ignoringOtherApps: true)
     window.makeKeyAndOrderFront(nil)
     versionLogWindow = window
   }

@@ -101,6 +101,8 @@ final class OnboardingWindow: NSWindow {
       backing: .buffered,
       defer: false
     )
+    // Held strongly by GuideWindows; releasing on close would dangle that reference (#126).
+    isReleasedWhenClosed = false
     title = "Lanterna needs permissions"
     appearance = appearanceMode.nsAppearance
     contentView = NSHostingView(rootView: OnboardingView(missing: missing, opener: opener))

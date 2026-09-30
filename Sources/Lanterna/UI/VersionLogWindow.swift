@@ -50,6 +50,8 @@ final class VersionLogWindow: NSWindow {
       backing: .buffered,
       defer: false
     )
+    // Held strongly by GuideWindows; releasing on close would dangle that reference (#126).
+    isReleasedWhenClosed = false
     title = "Lanterna Version and Logs"
     appearance = appearanceMode.nsAppearance
     contentView = NSHostingView(rootView: VersionLogView(
