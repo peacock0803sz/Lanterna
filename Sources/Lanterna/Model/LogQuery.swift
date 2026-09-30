@@ -291,9 +291,10 @@ enum LightweightFilter {
     )
   }
 
-  private static func timeCondition(bound: String, lower: Bool, source: String) -> FilterCondition? {
+  private static func timeCondition(bound: String, lower: Bool, source: String) -> FilterCondition {
     guard let milliseconds = milliseconds(sinceEpoch: bound) else {
-      return nil
+      let chip = lower ? "After \(bound)?" : "Before \(bound)?"
+      return FilterCondition(fragment: "1 = 0", values: [], chip: chip, source: source)
     }
     let comparison = lower ? ">=" : "<="
     let chip = lower ? "After \(bound)" : "Before \(bound)"
