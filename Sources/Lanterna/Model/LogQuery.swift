@@ -270,7 +270,7 @@ enum LightweightFilter {
     let comparison = lower ? ">=" : "<="
     let chip = lower ? "After \(bound)" : "Before \(bound)"
     return FilterCondition(
-      fragment: "recorded_at_ms \(comparison) ?",
+      fragment: "ts_ms \(comparison) ?",
       values: [.integer(milliseconds)],
       chip: chip,
       source: source
@@ -293,7 +293,7 @@ enum LightweightFilter {
 
   private static func payloadCondition(path: String, op: String, value: String, source: String) -> FilterCondition {
     let dotted = path.replacing("[]", with: "[*]")
-    let reader = "json_extract_string(payload_json, '$.\(dotted)')"
+    let reader = "json_extract_string(payload, '$.\(dotted)')"
     switch op {
     case "=":
       if path.contains("[]") {
@@ -365,7 +365,7 @@ enum DatabaseStatementCheck {
     if scanned.semicolons > 1 || (scanned.semicolons == 1 && !trimmed.hasSuffix(";")) {
       return Verdict(allowed: false, refusal: "Run one statement at a time.", effectiveText: text)
     }
-    if !scanned.words.contains("recorded_at_ms") {
+    if !scanned.words.contains("ts_ms") {
       return Verdict(
         allowed: false,
         refusal: "SQL needs a time bound (after/before on ts_ms).",

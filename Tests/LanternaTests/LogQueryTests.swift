@@ -39,7 +39,7 @@ struct LogQueryTests {
   @Test
   func nestedPathsReadThePayload() {
     let parsed = LightweightFilter.parse("app.bundle=com.example")
-    #expect(parsed.conditions[0].fragment == "json_extract_string(payload_json, '$.app.bundle') = ?")
+    #expect(parsed.conditions[0].fragment == "json_extract_string(payload, '$.app.bundle') = ?")
     #expect(parsed.conditions[0].values == [.text("com.example")])
   }
 
@@ -54,7 +54,7 @@ struct LogQueryTests {
   func timeBoundsBecomeMillsComparisons() {
     let parsed = LightweightFilter.parse("after:2026-01-02")
     #expect(parsed.conditions.count == 1)
-    #expect(parsed.conditions[0].fragment == "recorded_at_ms >= ?")
+    #expect(parsed.conditions[0].fragment == "ts_ms >= ?")
     guard case .integer(let mills) = parsed.conditions[0].values.first else {
       Issue.record("time bound should bind an integer")
       return
@@ -78,7 +78,7 @@ struct LogQueryTests {
   @Test
   func plainReadsPassWithAFilledCap() {
     let verdict = DatabaseStatementCheck.check(
-      "SELECT seq FROM entries WHERE recorded_at_ms >= 0"
+      "SELECT seq FROM entries WHERE ts_ms >= 0"
     )
     #expect(verdict.allowed)
     #expect(verdict.refusal == nil)
@@ -88,7 +88,7 @@ struct LogQueryTests {
   @Test
   func existingCapsStayUntouched() {
     let verdict = DatabaseStatementCheck.check(
-      "SELECT seq FROM entries WHERE recorded_at_ms >= 0 LIMIT 10"
+      "SELECT seq FROM entries WHERE ts_ms >= 0 LIMIT 10"
     )
     #expect(verdict.allowed)
     #expect(verdict.effectiveText.hasSuffix("LIMIT 10"))
@@ -97,9 +97,9 @@ struct LogQueryTests {
   @Test
   func writesAreRefused() {
     for statement in [
-      "DELETE FROM entries WHERE recorded_at_ms >= 0",
+      "DELETE FROM entries WHERE ts_ms >= 0",
       "DROP TABLE entries",
-      "SELECT seq FROM entries WHERE recorded_at_ms >= 0; DELETE FROM entries",
+      "SELECT seq FROM entries WHERE ts_ms >= 0; DELETE FROM entries",
     ] {
       let verdict = DatabaseStatementCheck.check(statement)
       #expect(!verdict.allowed)
@@ -110,7 +110,7 @@ struct LogQueryTests {
   @Test
   func quotedWordsNeverReadAsStatements() {
     let verdict = DatabaseStatementCheck.check(
-      "SELECT seq FROM entries WHERE recorded_at_ms >= 0 AND message = 'delete me'"
+      "SELECT seq FROM entries WHERE ts_ms >= 0 AND message = 'delete me'"
     )
     #expect(verdict.allowed)
   }
