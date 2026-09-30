@@ -2,8 +2,8 @@ import SwiftUI
 
 /// The Appearance tab: which look the windows use.
 ///
-/// One picker for the single appearance value, with a note on what each
-/// choice means. Future panel options (width) join this tab.
+/// One picker for the single appearance value and one slider for the
+/// text scale, each paired with its note on the label side.
 struct SettingsAppearanceView: View {
 
   // MARK: Internal
@@ -11,32 +11,35 @@ struct SettingsAppearanceView: View {
   @Binding var values: SettingsValues
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      VStack(alignment: .leading, spacing: 4) {
-        Picker("Appearance", selection: $values.appearanceMode) {
+    Form {
+      Section("Appearance") {
+        Picker(selection: $values.appearanceMode) {
           Text("System").tag(AppearanceMode.system)
           Text("Light").tag(AppearanceMode.light)
           Text("Dark").tag(AppearanceMode.dark)
+        } label: {
+          SettingsFormLabel(
+            title: "Appearance",
+            caption: "Follow the system look, or stay light or dark."
+          )
         }
-        Text("Follow the system look, or stay light or dark.")
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-      }
-      VStack(alignment: .leading, spacing: 4) {
-        Slider(value: textScaleIndex, in: 0 ... 4, step: 1) {
-          Text("Text Size")
-        } minimumValueLabel: {
-          Text("Small")
-        } maximumValueLabel: {
-          Text("Large")
+        LabeledContent {
+          Slider(value: textScaleIndex, in: 0 ... 4, step: 1) {
+            Text("Text Size")
+          } minimumValueLabel: {
+            Text("Small")
+          } maximumValueLabel: {
+            Text("Large")
+          }
+        } label: {
+          SettingsFormLabel(
+            title: "Text Size",
+            caption: "\(Int((values.textScale.factor * 100).rounded()))% of the standard size."
+          )
         }
-        Text("\(Int((values.textScale.factor * 100).rounded()))% of the standard size.")
-          .font(.footnote)
-          .foregroundStyle(.secondary)
       }
     }
-    .padding(20)
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .formStyle(.grouped)
   }
 
   // MARK: Private
