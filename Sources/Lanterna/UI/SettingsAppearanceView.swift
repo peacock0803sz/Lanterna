@@ -48,6 +48,7 @@ struct SettingsAppearanceView: View {
       }
     }
     .formStyle(.grouped)
+    .settingsBackground()
   }
 
   // MARK: Private

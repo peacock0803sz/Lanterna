@@ -126,5 +126,6 @@ struct SettingsGeneralView: View {
       }
     }
     .formStyle(.grouped)
+    .settingsBackground()
   }
 }

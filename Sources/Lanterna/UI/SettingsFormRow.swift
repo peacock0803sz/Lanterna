@@ -1,5 +1,7 @@
 import SwiftUI
 
+// MARK: - SettingsFormLabel
+
 /// The label side of every settings row.
 ///
 /// Every row, whether toggle, choice, or other control, keeps its heading
@@ -23,4 +25,14 @@ struct SettingsFormLabel: View {
 
   private let title: String
   private let caption: String?
+}
+
+// MARK: - SettingsBackground
+
+/// The mock gray behind grouped settings content.
+extension View {
+  func settingsBackground() -> some View {
+    scrollContentBackground(.hidden)
+      .background(Color(nsColor: .underPageBackgroundColor))
+  }
 }

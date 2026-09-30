@@ -77,6 +77,10 @@ struct SettingsKeyboardView: View {
       .padding(.vertical, 6)
       .background {
         RoundedRectangle(cornerRadius: 8)
+          .fill(Color(nsColor: .controlBackgroundColor))
+      }
+      .overlay {
+        RoundedRectangle(cornerRadius: 8)
           .strokeBorder(.separator)
       }
       .padding(8)
@@ -94,6 +98,7 @@ struct SettingsKeyboardView: View {
           .tag(category)
         }
       }
+      .settingsBackground()
     }
     .frame(width: 170)
   }
@@ -140,6 +145,7 @@ struct SettingsKeyboardView: View {
         }
       }
       .formStyle(.grouped)
+      .settingsBackground()
       HStack {
         Button("Reset all") {
           values.keyBindings = .defaults

@@ -131,6 +131,7 @@ struct SettingsFilterView: View {
       }
     }
     .formStyle(.grouped)
+    .settingsBackground()
   }
 
   // MARK: Private
