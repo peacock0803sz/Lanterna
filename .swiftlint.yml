@@ -2,9 +2,11 @@
 # file Sources/AirbnbSwiftFormatTool/swiftlint.yml.
 # Deviations from upstream:
 # - excluded extended with Sources/CMigemo, Sources/PrivateAPIs (vendored C,
-#   out of scope) and tmp (untracked throwaway spikes)
-# - the previous local trailing_comma rule is dropped (trailing commas are
-#   covered by the SwiftFormat trailingCommas rule instead)
+#   out of scope) and tmp (untracked throwaway spikes).
+# - The previous local trailing_comma rule is dropped. It is not equivalent to
+#   the SwiftFormat trailingCommas rule; trailing-comma enforcement relies on
+#   the SwiftFormat gate, so the SwiftFormat gate and the SwiftLint gate are
+#   expected to run together.
 only_rules:
   - fatal_error_message
   - implicitly_unwrapped_optional
