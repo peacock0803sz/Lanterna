@@ -88,7 +88,12 @@ enum LogPersistence {
   /// The file one launch writes. Rotation inside the launch appends
   /// `-partNNN` siblings beside it.
   static func fileURL(in directory: URL, launchID: String, part: Int = 0) -> URL {
-    let name = part == 0 ? "\(launchID).duckdb" : "\(launchID)-part\(part).duckdb"
+    let name =
+      if part == 0 {
+        "\(launchID).duckdb"
+      } else {
+        "\(launchID)\(String(format: "-part%03d", part)).duckdb"
+      }
     return directory.appendingPathComponent(name)
   }
 
