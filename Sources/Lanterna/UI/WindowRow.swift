@@ -41,7 +41,7 @@ struct WindowRow: View {
       .font(.system(size: scaled(14)))
       .lineLimit(1)
       .truncationMode(.tail)
-      .frame(width: 96, alignment: .trailing)
+      .frame(width: scaled(96), alignment: .trailing)
 
       Image(nsImage: window.icon)
         .resizable()
