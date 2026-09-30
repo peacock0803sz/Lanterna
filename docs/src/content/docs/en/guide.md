@@ -32,6 +32,41 @@ brew install --cask peacock0803sz/lanterna/lanterna
 brew upgrade --cask peacock0803sz/lanterna/lanterna  # upgrade
 ```
 
+### With Nix (flake)
+
+Apple Silicon with macOS 26 or later, and Xcode or the command-line tools to build with the host toolchain.
+
+```bash
+nix run github:peacock0803sz/Lanterna
+```
+
+To pin it in your own flake (as in [peacock0803sz/dotfiles](https://github.com/peacock0803sz/dotfiles)):
+
+```nix
+inputs.lanterna = {
+  url = "github:peacock0803sz/Lanterna";
+  inputs.nixpkgs.follows = "nixpkgs";
+  inputs.flake-parts.follows = "flake-parts";
+};
+```
+
+Then use `inputs.lanterna.packages.${system}.default`, or install it directly:
+
+```bash
+nix profile install github:peacock0803sz/Lanterna
+```
+
+:::note
+Each rebuild re-signs the app ad-hoc, which changes its cdhash and drops granted Accessibility and Input Monitoring permissions. [peacock0803sz/dotfiles](https://github.com/peacock0803sz/dotfiles) avoids this with [nix-mac-app-identity](https://github.com/natsukium/nix-mac-app-identity), installing Lanterna via `targets.darwin.appIdentity.apps` so it is re-signed by bundle identifier:
+
+```nix
+targets.darwin.appIdentity.apps = [
+  inputs.lanterna.packages.${pkgs.stdenv.hostPlatform.system}.default
+];
+```
+
+:::
+
 ## First launch and permissions
 
 On first launch, Lanterna asks for these two permissions. Grant both.
