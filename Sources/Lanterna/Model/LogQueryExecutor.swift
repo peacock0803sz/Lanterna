@@ -51,6 +51,7 @@ final class LogQueryExecutor: Sendable {
     return try fetch(
       sql: "SELECT seq, ts_ms, level, category, message, launch_id, build_version, payload "
         + "FROM entries WHERE \(whereClause) ORDER BY ts_ms, seq LIMIT \(limit)",
+      limit: limit,
       progress: progress
     )
   }
@@ -62,6 +63,7 @@ final class LogQueryExecutor: Sendable {
     try fetch(
       sql: "SELECT seq, ts_ms, level, category, message, launch_id, build_version, payload "
         + "FROM (\(sql)) ORDER BY ts_ms, seq",
+      limit: rowCap(in: sql),
       progress: progress
     )
   }
@@ -121,7 +123,7 @@ final class LogQueryExecutor: Sendable {
 
   private let files: [URL]
 
-  private func fetch(sql: String, progress: (Double) -> Void) throws -> ExecutedLogQuery {
+  private func fetch(sql: String, limit: Int, progress: (Double) -> Void) throws -> ExecutedLogQuery {
     var rows = [DiagnosticRow]()
     var skipped = [SkippedStoreFile]()
     var skippedLines = 0
@@ -142,7 +144,56 @@ final class LogQueryExecutor: Sendable {
       }
       return $0.sequence < $1.sequence
     }
+    if rows.count > limit {
+      rows = Array(rows.prefix(limit))
+    }
     return ExecutedLogQuery(rows: rows, skipped: skipped, skippedLines: skippedLines)
+  }
+
+  private func rowCap(in sql: String, default defaultCap: Int = 5000) -> Int {
+    var words = [String]()
+    var current = ""
+    var quote: Character?
+    func flush() {
+      if !current.isEmpty {
+        words.append(current.lowercased())
+        current = ""
+      }
+    }
+    var index = sql.startIndex
+    while index < sql.endIndex {
+      let character = sql[index]
+      if let open = quote {
+        if character == open {
+          let next = sql.index(after: index)
+          if next < sql.endIndex, sql[next] == open {
+            index = sql.index(after: next)
+            continue
+          }
+          quote = nil
+        }
+      } else if character == "'" || character == "\"" || character == "`" {
+        quote = character
+      } else if character.isLetter || character.isNumber || character == "_" {
+        current.append(character)
+      } else {
+        flush()
+      }
+      index = sql.index(after: index)
+    }
+    flush()
+    var cap = defaultCap
+    var cursor = words.startIndex
+    while cursor < words.endIndex {
+      if words[cursor] == "limit" {
+        let next = words.index(after: cursor)
+        if next < words.endIndex, let value = Int(words[next]) {
+          cap = value
+        }
+      }
+      cursor = words.index(after: cursor)
+    }
+    return cap
   }
 
   private func read(file: URL, sql: String) throws -> (rows: [DiagnosticRow], skippedLines: Int) {
