@@ -152,7 +152,7 @@ struct ExclusionAppResolverTests {
     #expect(partial?.bundleIdentifier == "com.apple.Finder")
   }
 
-  /// Running entries without an app are skipped while searching.
+  /// Running entries missing a name or bundle identifier are skipped while searching.
   @Test
   func runningEntriesWithoutBundleIdentifierAreSkipped() {
     let finder = ResolvedExclusionApp(name: "Finder", bundleIdentifier: "com.apple.Finder")
