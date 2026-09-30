@@ -38,7 +38,7 @@ enum LogPersistence {
     """
     CREATE TABLE IF NOT EXISTS launches(
       launch_id VARCHAR PRIMARY KEY,
-      started_at_ms BIGINT NOT NULL,
+      started_at BIGINT NOT NULL,
       origin VARCHAR NOT NULL,
       build_version VARCHAR NOT NULL
     )
@@ -46,13 +46,13 @@ enum LogPersistence {
     """
     CREATE TABLE IF NOT EXISTS entries(
       seq UBIGINT NOT NULL,
-      recorded_at_ms BIGINT NOT NULL,
+      ts_ms BIGINT NOT NULL,
       level VARCHAR NOT NULL,
       category VARCHAR,
       message VARCHAR NOT NULL,
       launch_id VARCHAR NOT NULL,
       build_version VARCHAR NOT NULL,
-      payload_json VARCHAR
+      payload VARCHAR
     )
     """,
     """
@@ -158,8 +158,8 @@ enum LogPersistence {
         + "\(literal(row.launchID ?? launchID)), \(literal(row.buildVersion ?? buildVersion)), "
         + "\(literal(row.payloadJSON)))"
     }
-    return "INSERT INTO entries(seq, recorded_at_ms, level, category, message, "
-      + "launch_id, build_version, payload_json) VALUES " + values.joined(separator: ", ")
+    return "INSERT INTO entries(seq, ts_ms, level, category, message, "
+      + "launch_id, build_version, payload) VALUES " + values.joined(separator: ", ")
   }
 
   // MARK: Private
@@ -184,7 +184,7 @@ enum LogPersistence {
         throw OpenError.incompatibleShape(found: nil)
       }
       try connection.execute(
-        "INSERT INTO launches(launch_id, started_at_ms, origin, build_version) VALUES ("
+        "INSERT INTO launches(launch_id, started_at, origin, build_version) VALUES ("
           + "\(literal(launchID)), \(startedAtMilliseconds), \(literal(origin.rawValue)), \(literal(buildVersion)))"
       )
       try connection.execute(

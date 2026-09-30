@@ -49,8 +49,8 @@ final class LogQueryExecutor: Sendable {
   ) throws -> ExecutedLogQuery {
     let whereClause = try inline(values, into: predicate)
     return try fetch(
-      sql: "SELECT seq, recorded_at_ms, level, category, message, launch_id, build_version, payload_json "
-        + "FROM entries WHERE \(whereClause) ORDER BY recorded_at_ms, seq LIMIT \(limit)",
+      sql: "SELECT seq, ts_ms, level, category, message, launch_id, build_version, payload "
+        + "FROM entries WHERE \(whereClause) ORDER BY ts_ms, seq LIMIT \(limit)",
       progress: progress
     )
   }
@@ -60,8 +60,8 @@ final class LogQueryExecutor: Sendable {
   /// merged order holds across files.
   func runStatement(_ sql: String, progress: @escaping (Double) -> Void = { _ in }) throws -> ExecutedLogQuery {
     try fetch(
-      sql: "SELECT seq, recorded_at_ms, level, category, message, launch_id, build_version, payload_json "
-        + "FROM (\(sql)) ORDER BY recorded_at_ms, seq",
+      sql: "SELECT seq, ts_ms, level, category, message, launch_id, build_version, payload "
+        + "FROM (\(sql)) ORDER BY ts_ms, seq",
       progress: progress
     )
   }
