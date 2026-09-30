@@ -3,9 +3,10 @@
 # Deviations from upstream (repo uses Swift 6 language mode and SwiftFormat 0.63.0):
 # - --swift-version 6.4 -> 6.0, --language-mode 5 dropped (match the repo toolchain)
 # - --rules preferStructSwiftTestingSuites dropped (unknown to SwiftFormat 0.63.0)
-# - --exclude extended with Sources/CMigemo and Sources/PrivateAPIs (vendored C, out of scope)
+# - --exclude extended with Sources/CMigemo, Sources/PrivateAPIs (vendored C,
+#   out of scope) and tmp (untracked throwaway spikes)
 # Exclude checkout directories for common package managers
---exclude Carthage,Pods,.build,Sources/CMigemo,Sources/PrivateAPIs
+--exclude Carthage,Pods,.build,tmp,Sources/CMigemo,Sources/PrivateAPIs
 
 # options
 --swift-version 6.0

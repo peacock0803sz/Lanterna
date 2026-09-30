@@ -1,7 +1,8 @@
 # Vendored from https://github.com/airbnb/swift (master as of 2026-09-30),
 # file Sources/AirbnbSwiftFormatTool/swiftlint.yml.
 # Deviations from upstream:
-# - excluded extended with Sources/CMigemo and Sources/PrivateAPIs (vendored C, out of scope)
+# - excluded extended with Sources/CMigemo, Sources/PrivateAPIs (vendored C,
+#   out of scope) and tmp (untracked throwaway spikes)
 # - the previous local trailing_comma rule is dropped (trailing commas are
 #   covered by the SwiftFormat trailingCommas rule instead)
 only_rules:
@@ -23,6 +24,7 @@ excluded:
   - .build
   - Sources/CMigemo
   - Sources/PrivateAPIs
+  - tmp
 
 indentation: 2
 
