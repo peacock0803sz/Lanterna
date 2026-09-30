@@ -1,5 +1,7 @@
 import SwiftUI
 
+// MARK: - SettingsAppearanceView
+
 /// The Appearance tab: which look the windows use.
 ///
 /// One picker for the single appearance value and one slider for the
@@ -38,11 +40,40 @@ struct SettingsAppearanceView: View {
           )
         }
       }
+      Section("Preview") {
+        preview
+      }
     }
     .formStyle(.grouped)
   }
 
   // MARK: Private
+
+  /// The sample rows wearing the panel row look, following the chosen scale
+  /// and look, ignoring touches and reading as one preview element.
+  private var preview: some View {
+    let rows = Array(SampleWindows.standard().prefix(4))
+    return RoundedRectangle(cornerRadius: 10)
+      .fill(Color.secondary.opacity(0.12))
+      .overlay {
+        VStack(spacing: 0) {
+          ForEach(Array(rows.enumerated()), id: \.element.id) { index, window in
+            WindowRow(
+              window: window,
+              isSelected: index == 1,
+              query: "",
+              textScale: values.textScale
+            )
+          }
+        }
+        .padding(.vertical, 6)
+        .adaptiveGlass(cornerRadius: 16)
+      }
+      .allowsHitTesting(false)
+      .accessibilityElement(children: .combine)
+      .accessibilityLabel("Preview")
+      .appliedAppearance(values.appearanceMode)
+  }
 
   /// The slider position spelling the step: the slider works in
   /// doubles while the steps count in whole positions.
@@ -53,4 +84,20 @@ struct SettingsAppearanceView: View {
     )
   }
 
+}
+
+// MARK: - AppearancePreviewModifier
+
+/// Follows the chosen look, leaving system choice to the system.
+extension View {
+  @ViewBuilder
+  fileprivate func appliedAppearance(_ mode: AppearanceMode) -> some View {
+    if mode == .light {
+      environment(\.colorScheme, .light)
+    } else if mode == .dark {
+      environment(\.colorScheme, .dark)
+    } else {
+      self
+    }
+  }
 }

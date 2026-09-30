@@ -7,7 +7,8 @@ import AppKit
 /// to truncate, an application that is not installed, and enough rows to exceed
 /// the panel's maximum height.
 ///
-/// Reached only through `--sample-count`; the default path lists live windows.
+/// Reached through `--sample-count` and the appearance preview; the default
+/// path lists live windows.
 @MainActor
 enum SampleWindows {
 
