@@ -5,8 +5,10 @@ import SwiftUI
 /// The Filter tab: which windows reach the switcher list, and how the
 /// query matches and orders them.
 ///
-/// Window types place special windows, search tunes matching and result
-/// order, and excluded windows keep matching windows out altogether.
+/// Window types place special windows. Search tunes matching and result
+/// order, and sets how long a query may be for the window last chosen
+/// with it to come first again. Excluded windows keep matching windows
+/// out altogether.
 struct SettingsFilterView: View {
 
   // MARK: Internal
