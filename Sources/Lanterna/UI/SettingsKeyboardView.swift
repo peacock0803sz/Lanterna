@@ -99,10 +99,10 @@ struct SettingsKeyboardView: View {
           .listRowBackground(Color.clear)
         }
       }
-      .settingsBackground()
+      .settingsSidebarBackground()
     }
     .frame(width: 170)
-    .background(Color(nsColor: .underPageBackgroundColor))
+    .settingsSidebarBackground()
   }
 
   /// The heading above the detail rows.

@@ -35,4 +35,13 @@ extension View {
     scrollContentBackground(.hidden)
       .background(Color(nsColor: .underPageBackgroundColor))
   }
+
+  /// The sidebar gray, a touch darker than the detail, as mocked.
+  func settingsSidebarBackground() -> some View {
+    scrollContentBackground(.hidden)
+      .background {
+        Color(nsColor: .underPageBackgroundColor)
+          .overlay(Color.black.opacity(0.04))
+      }
+  }
 }
