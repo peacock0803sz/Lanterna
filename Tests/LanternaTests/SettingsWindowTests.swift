@@ -1,5 +1,9 @@
+import AppKit
 @testable import Lanterna
+import SwiftUI
 import Testing
+
+// MARK: - SettingsWindowTests
 
 /// What the settings window shows first and writes back.
 ///
@@ -60,4 +64,65 @@ struct SettingsWindowTests {
     let decoded = AppConfiguration.decode(AppConfiguration.encode(config))
     #expect(decoded.successValue?.config == config)
   }
+}
+
+extension SettingsWindowTests {
+
+  // MARK: Internal
+
+  /// The frame keeps toolbar tabs in a fixed order with stable titles.
+  @Test
+  func toolbarTabsFollowFixedOrder() {
+    let controller = tabController()
+    #expect(controller.tabStyle == .toolbar)
+    #expect(controller.tabViewItems.map(\.label) == ["General", "Appearance", "Filter", "Keyboard"])
+  }
+
+  /// Every tab shares one content size, so switching tabs never resizes.
+  @Test
+  func everyTabSharesOneContentSize() {
+    let window = makeWindow()
+    window.layoutIfNeeded()
+    let controller = window.contentViewController as? NSTabViewController
+    let hosts = controller?.tabViewItems.compactMap { $0.viewController as? NSHostingController<AnyView> }
+    #expect(hosts?.count == 4)
+    let sizes = hosts?.map(\.preferredContentSize) ?? []
+    #expect(Set(sizes.map(\.width)).count == 1)
+    #expect(Set(sizes.map(\.height)).count == 1)
+    #expect(sizes.first?.width == SettingsWindow.contentWidth)
+    for host in hosts ?? [] {
+      #expect(host.sizingOptions == [])
+    }
+  }
+
+  /// The title stays put while tabs change underneath.
+  @Test
+  func titleStaysPut() {
+    #expect(makeWindow().title == "Lanterna Settings")
+  }
+
+  /// The content height follows the visible height through one pure function.
+  @Test
+  func contentHeightFollowsVisibleHeight() {
+    #expect(SettingsWindow.contentHeight(visibleHeight: 1000) == 600)
+    #expect(SettingsWindow.contentHeight(visibleHeight: 600) == 520)
+  }
+
+  // MARK: Private
+
+  private func makeWindow() -> SettingsWindow {
+    SettingsWindow(
+      values: SettingsValues.defaults,
+      version: DisplayedVersion(full: "0.0.0"),
+      permissionState: PermissionState(accessibilityGranted: false, inputMonitoringGranted: false),
+      opener: { _ in false },
+      onChange: { _ in }
+    )
+  }
+
+  private func tabController() -> NSTabViewController {
+    let controller = makeWindow().contentViewController as? NSTabViewController
+    return controller!
+  }
+
 }
