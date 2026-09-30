@@ -107,7 +107,7 @@ struct SwitcherView: View {
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
               ForEach(rows) { window in
-                row(window, isParked: true)
+                row(window, isInSubgroup: true)
               }
             }
           }
@@ -215,14 +215,14 @@ struct SwitcherView: View {
     }
   }
 
-  private func row(_ window: WindowItem, isParked: Bool = false) -> some View {
+  private func row(_ window: WindowItem, isInSubgroup: Bool = false) -> some View {
     WindowRow(
       window: window,
       isSelected: window.id == selectedID,
       query: query,
       fuzzy: fuzzyMatchEnabled,
       textScale: textScale,
-      isParked: isParked
+      isInSubgroup: isInSubgroup
     )
     // Vertical insets and separators are removed so the List
     // adds nothing to WindowRow's fixed height; the horizontal

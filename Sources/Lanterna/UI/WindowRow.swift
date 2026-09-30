@@ -17,9 +17,9 @@ struct WindowRow: View {
   var fuzzy = true
   /// The text and icon scale step, handed down from the panel.
   var textScale = TextScaleLevel.standard
-  /// Whether the row sits in a parked subgroup. Parked rows draw dimmed
-  /// unless they are chosen.
-  var isParked = false
+  /// Whether the row sits in a subgroup under a heading, parked or on
+  /// another space alike. Subgroup rows draw dimmed unless they are chosen.
+  var isInSubgroup = false
 
   var body: some View {
     HStack(spacing: 12) {
@@ -62,7 +62,7 @@ struct WindowRow: View {
     // The fixed height is what keeps the panel-height formula exact.
     .frame(height: PanelMetrics.rowHeight(for: textScale))
     .background(selectionHighlight)
-    .opacity(isParked && !isSelected ? 0.55 : 1)
+    .opacity(isInSubgroup && !isSelected ? 0.55 : 1)
   }
 
   // MARK: Private
