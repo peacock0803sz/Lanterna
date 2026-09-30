@@ -33,6 +33,8 @@ final class SettingsWindow: NSWindow {
       backing: .buffered,
       defer: false
     )
+    // Held strongly by the delegate; releasing on close would dangle that reference (#126).
+    isReleasedWhenClosed = false
     title = "Lanterna Settings"
     appearance = appearanceMode.nsAppearance
     contentView = NSHostingView(rootView: SettingsView(
