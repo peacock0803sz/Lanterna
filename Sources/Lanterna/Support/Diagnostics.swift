@@ -88,7 +88,7 @@ final class DiagnosticLogStore: @unchecked Sendable {
   func remember(_ message: String, level: Logger.Level) {
     lock.lock()
     defer { lock.unlock() }
-    mirror(message, level: level, category: nil, payloadJSON: nil)
+    _ = mirror(message, level: level, category: nil, payloadJSON: nil)
   }
 
   func pin(_ summary: String) {
