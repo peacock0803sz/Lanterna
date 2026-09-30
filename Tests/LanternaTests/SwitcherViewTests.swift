@@ -15,11 +15,12 @@ private func tables(in view: NSView) -> [NSTableView] {
 struct SwitcherViewTests {
   /// The rows the list draws are the rows the panel's height counts: one
   /// for each window, and one heading row for each non-empty subgroup.
-  /// Said of the count alone: measuring row rects off a window that was
+  /// Said of the count alone: an absolute row rect off a window that was
   /// never shown reads OS-version layout output, which is not the same on
-  /// every macOS. Heights hold by construction instead — every row carries
-  /// an explicit frame of one row's height — and `PanelMetricsTests` holds
-  /// the counting.
+  /// every macOS. Heights hold because every row carries a frame of one
+  /// row's height and no vertical row inset on top of it; the heading test
+  /// below checks that relative to a window row, and `PanelMetricsTests`
+  /// holds the counting.
   @Test(arguments: [0, 1, 3])
   func theListDrawsTheRowsTheHeightCounts(parkedCount: Int) {
     let sample = SampleWindows.make(count: 3)
