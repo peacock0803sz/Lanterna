@@ -115,16 +115,14 @@ struct WindowRow: View {
     isSelected ? selected : normal
   }
 
-  /// The text with every match of the query in red. The chosen row stays
-  /// in its chosen style: red on the fill is unreadable, and the choice
-  /// is already said by the fill.
+  /// The text with every match of the query in bold, wearing the row style
+  /// throughout, chosen or otherwise.
   private func highlighted(
     _ text: String,
     normal: AnyShapeStyle,
     selected: AnyShapeStyle
   ) -> Text {
-    let plain = Text(text).foregroundStyle(rowStyle(normal: normal, selected: selected))
-    guard !isSelected else { return plain }
+    let base = rowStyle(normal: normal, selected: selected)
     let ranges: [Range<String.Index>]
     if RomajiMatcher.engine.isOpen {
       ranges = WindowFilter.matchedRanges(query: query, in: text, engine: RomajiMatcher.engine)
@@ -134,16 +132,16 @@ struct WindowRow: View {
     } else {
       ranges = WindowFilter.matchedRanges(query: query, in: text)
     }
-    guard !ranges.isEmpty else { return plain }
+    guard !ranges.isEmpty else { return Text(text).foregroundStyle(base) }
     var out = Text("")
     var cursor = text.startIndex
     for range in ranges {
-      let before = Text(String(text[cursor ..< range.lowerBound])).foregroundStyle(normal)
-      let hit = Text(String(text[range])).foregroundColor(.red)
+      let before = Text(String(text[cursor ..< range.lowerBound])).foregroundStyle(base)
+      let hit = Text(String(text[range])).bold().foregroundStyle(base)
       out = Text("\(out)\(before)\(hit)")
       cursor = range.upperBound
     }
-    let tail = Text(String(text[cursor...])).foregroundStyle(normal)
+    let tail = Text(String(text[cursor...])).foregroundStyle(base)
     return Text("\(out)\(tail)")
   }
 
