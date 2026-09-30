@@ -93,8 +93,9 @@ struct ResolvedKey: Equatable, Hashable, Sendable {
   }
 
   /// How lines and controls name it: modifiers first, then the key.
-  /// ANSI letters, digits, and symbols spell by their US positions,
-  /// with keyCode-numbered fallback for truly unspellable positions.
+  /// Main-block ANSI keys take the US-layout keycap at that position,
+  /// whatever the active layout types there; any key not named here
+  /// falls back to `key N`.
   var displayName: String {
     var parts = [String]()
     if modifiers.contains(.shift) {
@@ -143,7 +144,8 @@ struct ResolvedKey: Equatable, Hashable, Sendable {
 
   // MARK: Private
 
-  /// The US position name for an ANSI key code, if it spells one.
+  /// The US-layout keycap for a main-block (non-keypad) ANSI key code,
+  /// or nil for any other key.
   /// Cases follow Events.h numeric order.
   private static func ansiName(for keyCode: Int) -> String? {
     switch keyCode {
