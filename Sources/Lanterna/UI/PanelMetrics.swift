@@ -12,8 +12,8 @@ enum PanelMetrics {
   static let noticeHeight: CGFloat = 22
 
   /// Extra height for the filter chrome while filtering is on, whether the query
-  /// reads anything or not. An estimate, for the reason above: the screenshot
-  /// check holds it.
+  /// reads anything or not. An estimate, because SwiftUI lays the query row
+  /// out: the screenshot check holds it.
   static func filterChromeHeight(query _: String, filterActive: Bool) -> CGFloat {
     guard filterActive else { return 0 }
     return 43
@@ -75,7 +75,8 @@ enum PanelMetrics {
   }
 
   /// Extra height for the failure note at one step, scaled the way
-  /// the note text scales. An estimate, for the reason above.
+  /// the note text scales. An estimate, for the reason the unscaled
+  /// filter chrome's is.
   static func noticeHeight(for scale: TextScaleLevel) -> CGFloat {
     (noticeHeight * scale.factor).rounded()
   }

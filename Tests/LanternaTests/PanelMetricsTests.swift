@@ -18,7 +18,8 @@ struct PanelMetricsTests {
     }
   }
 
-  /// Parked rows draw with one heading row for each non-empty subgroup.
+  /// A parked row under ordinary rows adds its heading and nothing more:
+  /// no extra row stands between the ordinary rows and the subgroup.
   @Test @MainActor
   func aHeadingCountsAsARowWhenAnyRowIsParked() {
     let windows = SampleWindows.make(count: 3)

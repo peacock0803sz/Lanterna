@@ -31,8 +31,8 @@ enum TextScaleLevel: Int, CaseIterable, Equatable, Sendable {
 
   // MARK: Internal
 
-  /// The multiplier each step stands for. Standard means the sizes
-  /// the panel always had; nothing else moves when it is chosen.
+  /// The multiplier each step stands for. Standard means the base,
+  /// unscaled sizes; nothing else moves when it is chosen.
   var factor: Double {
     switch self {
     case .small: 0.85
@@ -56,7 +56,7 @@ enum TextScaleLevel: Int, CaseIterable, Equatable, Sendable {
 
 extension TextScaleLevel {
   /// The step one run uses: a spelled step wins, anything missing
-  /// means the standard size the panel always had.
+  /// means the standard step, the base, unscaled sizes.
   static func effective(from config: ValidConfiguration) -> TextScaleLevel {
     config.textScale.flatMap(TextScaleLevel.init(factor:)) ?? .standard
   }

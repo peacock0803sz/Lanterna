@@ -18,6 +18,11 @@ struct SwitcherView: View {
   /// nothing could move the choice. Two derivations of one thing are two
   /// things that can disagree, and a keyboard that moves the selection is
   /// exactly what makes them.
+  ///
+  /// Every call site passes the choice explicitly: an omitted choice
+  /// would quietly draw no row as chosen, which is exactly what the one
+  /// place swapping a new list in must never do. `nil` is only for when
+  /// nothing is chosen.
   var selectedID: WindowItem.Identifier?
 
   /// Which appearance this list belongs to, counted up by the panel.
@@ -30,11 +35,6 @@ struct SwitcherView: View {
   /// that moves every time does the saying instead.
   var appearanceToken: Int
 
-  /// Every call site passes the choice explicitly: an omitted choice
-  /// would quietly draw no row as chosen, which is exactly what the one
-  /// place swapping a new list in must never do. `nil` is only for when
-  /// nothing is chosen.
-  ///
   /// The query narrowing the list, drawn in the query row while filtering
   /// is on. Empty shows its guidance wording instead of drawing nothing.
   var query: String
@@ -63,7 +63,8 @@ struct SwitcherView: View {
   var body: some View {
     // The query row stacks over the list while filtering is on, so the first
     // rows keep their order while the panel grows down from its top edge.
-    // The row shows the query beside its match count, whatever the query reads.
+    // The row shows the query, or guidance wording while it is empty, beside
+    // the number of window rows the list draws.
     VStack(spacing: 0) {
       if filterActive {
         HStack {
@@ -151,8 +152,7 @@ struct SwitcherView: View {
     }
     // The glass covers the whole stack, not the list alone: the query row
     // above it would otherwise float over the desktop with no background
-    // to read against. An inactive panel stacks nothing, so it draws
-    // exactly as it did before.
+    // to read against.
     .padding(.vertical, PanelMetrics.verticalPadding)
     .adaptiveGlass(cornerRadius: 16)
   }

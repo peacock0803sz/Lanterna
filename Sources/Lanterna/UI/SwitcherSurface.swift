@@ -58,8 +58,8 @@ protocol SwitcherSurface {
   /// Takes the failure note down, if one is up.
   func clearNotice()
 
-  /// Swaps the rows on screen for a narrowed set, redrawing the query and
-  /// the header beside them, and changes nothing about the panel's place —
+  /// Swaps the rows on screen for a narrowed set, redrawing the query row
+  /// above them, and changes nothing about the panel's place —
   /// not its position, and writing no line. Only the height follows the
   /// content, with the top edge staying where it was.
   func updateList(
