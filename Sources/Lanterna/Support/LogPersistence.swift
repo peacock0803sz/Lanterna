@@ -9,6 +9,9 @@ import Foundation
 /// writing to each other's store. Rotation splits inside a launch
 /// add numbered siblings next to the launch file.
 enum LogPersistence {
+
+  // MARK: Internal
+
   /// Which copy of the app owns a store: the installed build or a
   /// development build. The log window and the cleanup only ever
   /// touch their own origin.
@@ -101,26 +104,32 @@ enum LogPersistence {
     startedAtMilliseconds: Int64
   ) throws -> Database {
     let database = try Database(store: .file(at: url))
-    let connection = try database.connect()
-    for statement in schemaStatements {
-      try connection.execute(statement)
-    }
-    let stamped = try connection.query(
-      "SELECT value FROM meta WHERE key = 'format_version' AND value = '\(formatVersion)'"
+    try prepare(
+      database: database,
+      launchID: launchID,
+      origin: origin,
+      buildVersion: buildVersion,
+      startedAtMilliseconds: startedAtMilliseconds
     )
-    if stamped.rowCount == 0 {
-      let metaRows = try connection.query("SELECT key FROM meta")
-      if metaRows.rowCount > 0 {
-        throw OpenError.incompatibleShape(found: nil)
-      }
-      try connection.execute(
-        "INSERT INTO launches(launch_id, started_at_ms, origin, build_version) VALUES ("
-          + "\(literal(launchID)), \(startedAtMilliseconds), \(literal(origin.rawValue)), \(literal(buildVersion)))"
-      )
-      try connection.execute(
-        "INSERT INTO meta(key, value) VALUES ('format_version', '\(formatVersion)')"
-      )
-    }
+    return database
+  }
+
+  /// Opens a store that vanishes with the process. Same tables,
+  /// same launch row, no file.
+  static func openEphemeral(
+    launchID: String,
+    origin: Origin,
+    buildVersion: String,
+    startedAtMilliseconds: Int64
+  ) throws -> Database {
+    let database = try Database(store: .inMemory)
+    try prepare(
+      database: database,
+      launchID: launchID,
+      origin: origin,
+      buildVersion: buildVersion,
+      startedAtMilliseconds: startedAtMilliseconds
+    )
     return database
   }
 
@@ -152,6 +161,38 @@ enum LogPersistence {
     return "INSERT INTO entries(seq, recorded_at_ms, level, category, message, "
       + "launch_id, build_version, payload_json) VALUES " + values.joined(separator: ", ")
   }
+
+  // MARK: Private
+
+  private static func prepare(
+    database: Database,
+    launchID: String,
+    origin: Origin,
+    buildVersion: String,
+    startedAtMilliseconds: Int64
+  ) throws {
+    let connection = try database.connect()
+    for statement in schemaStatements {
+      try connection.execute(statement)
+    }
+    let stamped = try connection.query(
+      "SELECT value FROM meta WHERE key = 'format_version' AND value = '\(formatVersion)'"
+    )
+    if stamped.rowCount == 0 {
+      let metaRows = try connection.query("SELECT key FROM meta")
+      if metaRows.rowCount > 0 {
+        throw OpenError.incompatibleShape(found: nil)
+      }
+      try connection.execute(
+        "INSERT INTO launches(launch_id, started_at_ms, origin, build_version) VALUES ("
+          + "\(literal(launchID)), \(startedAtMilliseconds), \(literal(origin.rawValue)), \(literal(buildVersion)))"
+      )
+      try connection.execute(
+        "INSERT INTO meta(key, value) VALUES ('format_version', '\(formatVersion)')"
+      )
+    }
+  }
+
 }
 
 // MARK: - LogRotation
@@ -195,7 +236,7 @@ final class LogLaunchStore: @unchecked Sendable {
     buildVersion: String,
     startedAtMilliseconds: Int64,
     rotation: LogRotation,
-    clock: @escaping () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) }
+    clock: @escaping () -> Int64 = { Int64(Foundation.Date().timeIntervalSince1970 * 1000) }
   ) {
     self.directory = directory
     self.launchID = launchID
