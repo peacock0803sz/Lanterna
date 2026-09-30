@@ -35,13 +35,12 @@ struct SwitcherView: View {
   /// place swapping a new list in must never do. `nil` is only for when
   /// nothing is chosen.
   ///
-  /// The query narrowing the list, drawn large over it. Empty draws
-  /// nothing: an appearance that never narrows looks exactly as it did
-  /// before any of this existed.
+  /// The query narrowing the list, drawn in the query row while filtering
+  /// is on. Empty shows its guidance wording instead of drawing nothing.
   var query: String
 
-  /// Whether the filter chrome (the query when it reads anything, and the
-  /// header) belongs on screen. Off draws neither, whatever the query is.
+  /// Whether the query row belongs on screen. Off draws no chrome,
+  /// whatever the query reads.
   var filterActive: Bool
 
   /// A small failure note, drawn under the list. Nil draws nothing and
@@ -62,30 +61,34 @@ struct SwitcherView: View {
   var textScale = TextScaleLevel.standard
 
   var body: some View {
-    // The query and the header stack over the list, so the first rows
-    // keep their order while the panel grows down from its top edge.
-    // Empty draws nothing at all, and a panel without the filter draws
-    // no chrome either, so either looks exactly as it did before any of
-    // this existed.
+    // The query row stacks over the list while filtering is on, so the first
+    // rows keep their order while the panel grows down from its top edge.
+    // The row shows the query beside its match count, whatever the query reads.
     VStack(spacing: 0) {
-      if filterActive, !query.isEmpty {
-        Text(query)
-          .font(.system(size: scaled(17), weight: .semibold))
-          .foregroundStyle(.primary)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(.horizontal, 12)
-          .padding(.top, 8)
-          .padding(.bottom, 4)
-      }
       if filterActive {
-        Text("All Results")
-          .font(.system(size: scaled(11)))
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, alignment: .center)
-          .padding(.top, 4)
+        HStack {
+          Image(systemName: "magnifyingglass")
+            .font(.system(size: scaled(18)))
+            .foregroundStyle(.secondary)
+          if query.isEmpty {
+            Text("Type to filter")
+              .font(.system(size: scaled(20)))
+              .foregroundStyle(.tertiary)
+          } else {
+            Text(query)
+              .font(.system(size: scaled(20)))
+              .foregroundStyle(.primary)
+          }
+          Spacer(minLength: 0)
+          Text(countWording)
+            .font(.system(size: scaled(12)))
+            .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 10)
         Divider()
           .padding(.horizontal, 12)
-          .padding(.vertical, 4)
       }
       ScrollViewReader { proxy in
         List {
@@ -93,26 +96,18 @@ struct SwitcherView: View {
             row(window)
           }
           if !subgroupRows.isEmpty {
-            if !ordinaryRows.isEmpty {
-              Divider()
-                // A row like the others, on every OS: without an
-                // explicit height the list's default decides, and
-                // that default is not the same on every macOS.
-                .frame(height: PanelMetrics.rowHeight(for: textScale))
-                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-            }
             ForEach(subgroupRows, id: \.0) { subgroup, rows in
-              Text(heading(for: subgroup))
-                .font(.system(size: scaled(11)))
-                .foregroundStyle(.secondary)
+              Text(heading(for: subgroup).uppercased())
+                .font(.system(size: scaled(11), weight: .semibold))
+                .tracking(0.3)
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: PanelMetrics.rowHeight(for: textScale))
                 .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
               ForEach(rows) { window in
-                row(window)
+                row(window, isParked: true)
               }
             }
           }
@@ -154,15 +149,25 @@ struct SwitcherView: View {
           .padding(.top, 4)
       }
     }
-    // The glass covers the whole stack, not the list alone: the query
-    // and the header above it would otherwise float over the desktop
-    // with no background to read against. An inactive panel stacks
-    // nothing, so it draws exactly as it did before.
+    // The glass covers the whole stack, not the list alone: the query row
+    // above it would otherwise float over the desktop with no background
+    // to read against. An inactive panel stacks nothing, so it draws
+    // exactly as it did before.
     .padding(.vertical, PanelMetrics.verticalPadding)
-    .adaptiveGlass()
+    .adaptiveGlass(cornerRadius: 16)
   }
 
   // MARK: Private
+
+  /// How many drawn rows the query row counts: ordinary rows beside parked ones.
+  private var drawnCount: Int {
+    ordinaryRows.count + subgroupRows.reduce(0) { $0 + $1.1.count }
+  }
+
+  /// The query row count wording, singular for one row and plural otherwise.
+  private var countWording: String {
+    drawnCount == 1 ? "1 window" : "\(drawnCount) windows"
+  }
 
   /// The ordinary rows, drawing first and in the order they arrived.
   private var ordinaryRows: [WindowItem] {
@@ -210,18 +215,19 @@ struct SwitcherView: View {
     }
   }
 
-  private func row(_ window: WindowItem) -> some View {
+  private func row(_ window: WindowItem, isParked: Bool = false) -> some View {
     WindowRow(
       window: window,
       isSelected: window.id == selectedID,
       query: query,
       fuzzy: fuzzyMatchEnabled,
-      textScale: textScale
+      textScale: textScale,
+      isParked: isParked
     )
     // Vertical insets and separators are removed so the List
     // adds nothing to WindowRow's fixed height; the horizontal
     // insets stay.
-    .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
+    .listRowInsets(EdgeInsets(top: 0, leading: 6, bottom: 0, trailing: 6))
     .listRowSeparator(.hidden)
     .listRowBackground(Color.clear)
     .id(window.id)
