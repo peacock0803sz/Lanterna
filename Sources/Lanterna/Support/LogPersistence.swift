@@ -1,6 +1,8 @@
 import DuckDB
 import Foundation
 
+// MARK: - LogPersistence
+
 /// Where spilled diagnostic lines live and under which shape.
 ///
 /// One file per launch keeps concurrently running copies from ever
@@ -150,4 +152,108 @@ enum LogPersistence {
     return "INSERT INTO entries(seq, recorded_at_ms, level, category, message, "
       + "launch_id, build_version, payload_json) VALUES " + values.joined(separator: ", ")
   }
+}
+
+// MARK: - LogRotation
+
+/// How often a launch starts a sibling file inside its run.
+/// The launch boundary always starts a new file regardless.
+enum LogRotation: Equatable, Sendable {
+  case hourly
+  case daily
+  case weekly
+
+  /// Which period one instant falls in. Two instants sharing a
+  /// bucket share a file.
+  func bucket(milliseconds: Int64) -> Int64 {
+    milliseconds / periodMilliseconds
+  }
+
+  private var periodMilliseconds: Int64 {
+    switch self {
+    case .hourly: 3_600_000
+    case .daily: 86_400_000
+    case .weekly: 604_800_000
+    }
+  }
+}
+
+// MARK: - LogLaunchStore
+
+/// Holds the writable store for one launch. Opens lazily on the
+/// first spill and starts a numbered sibling whenever the clock
+/// crosses into a new rotation period.
+// swiftlint:disable:next no_unchecked_sendable - Every mutable state below is guarded by the lock; the database itself is Sendable
+final class LogLaunchStore: @unchecked Sendable {
+
+  // MARK: Lifecycle
+
+  init(
+    directory: URL,
+    launchID: String,
+    origin: LogPersistence.Origin,
+    buildVersion: String,
+    startedAtMilliseconds: Int64,
+    rotation: LogRotation,
+    clock: @escaping () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) }
+  ) {
+    self.directory = directory
+    self.launchID = launchID
+    self.origin = origin
+    self.buildVersion = buildVersion
+    self.startedAtMilliseconds = startedAtMilliseconds
+    self.rotation = rotation
+    self.clock = clock
+  }
+
+  // MARK: Internal
+
+  /// The store to write through, opening it on first use. Reads
+  /// never touch this path, so opening stays a spill-side cost.
+  func database() throws -> Database {
+    lock.lock()
+    defer { lock.unlock() }
+    let bucket = rotation.bucket(milliseconds: clock())
+    if cached == nil {
+      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+      currentBucket = bucket
+    } else if bucket != currentBucket {
+      currentBucket = bucket
+      currentPart += 1
+      cached = nil
+    }
+    if cached == nil {
+      let url = LogPersistence.fileURL(in: directory, launchID: launchID, part: currentPart)
+      cached = try LogPersistence.openStore(
+        at: url,
+        launchID: launchID,
+        origin: origin,
+        buildVersion: buildVersion,
+        startedAtMilliseconds: startedAtMilliseconds
+      )
+    }
+    return cached!
+  }
+
+  /// Releases the open store. The next write opens a fresh one.
+  func close() {
+    lock.lock()
+    defer { lock.unlock() }
+    cached = nil
+  }
+
+  // MARK: Private
+
+  private let lock = NSLock()
+  private let directory: URL
+  private let launchID: String
+  private let origin: LogPersistence.Origin
+  private let buildVersion: String
+  private let startedAtMilliseconds: Int64
+  private let rotation: LogRotation
+  private let clock: () -> Int64
+  private var cached: Database?
+  private var currentBucket: Int64 = 0
+  private var currentPart = 0
+
 }
