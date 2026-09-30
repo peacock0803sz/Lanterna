@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// The Keyboard tab: every action's keys, editable by pressing them.
+/// The Keyboard tab: categories and search on the left, rows on the right.
 ///
 /// Rows read from the shared values and write back through them, like
 /// every other tab. An invalid press never reaches the values: the row
@@ -14,50 +14,22 @@ struct SettingsKeyboardView: View {
   @Binding var values: SettingsValues
 
   var body: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 8) {
-        ForEach(Self.rows, id: \.0) { action, name in
-          row(for: action, named: name)
-        }
-        HStack {
-          Button("Reset all") {
-            values.keyBindings = .defaults
-            stopCapture()
-            notice = nil
-          }
-          if let notice {
-            Text(notice)
-              .font(.footnote)
-              .foregroundStyle(.secondary)
-          }
-        }
-        Text("Press a key to assign it. Assignments are physical keys, independent of input source.")
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-      }
-      .padding(.vertical, 4)
+    HStack(spacing: 0) {
+      sidebar
+      detail
     }
     .onDisappear(perform: stopCapture)
+    .onChange(of: searchText) { _, _ in stopCapture() }
+    .onChange(of: selectedCategory) { _, _ in stopCapture() }
   }
 
   // MARK: Private
 
-  /// The rows in the file's action order, with the names users read.
-  private static let rows: [(KeyBindingAction, String)] = [
-    (.show, "Show"),
-    (.showReverse, "Show in reverse"),
-    (.showFilter, "Show for filtering"),
-    (.next, "Next"),
-    (.previous, "Previous"),
-    (.commit, "Commit"),
-    (.cancel, "Cancel"),
-    (.deleteBackward, "Delete backward"),
-    (.clearQuery, "Clear query"),
-    (.closeWindow, "Close window"),
-    (.quitApplication, "Quit application"),
-    (.hideApplication, "Hide application"),
-    (.minimizeWindow, "Minimize window"),
-  ]
+  /// The category the sidebar shows as chosen outside a search.
+  @State private var selectedCategory = KeyBindingCategory.switcher
+
+  /// The sidebar search wording, empty outside a search.
+  @State private var searchText = ""
 
   /// The row waiting for a press, and which slot a press replaces.
   /// A `nil` slot appends instead.
@@ -65,48 +37,136 @@ struct SettingsKeyboardView: View {
   @State private var monitor: Any?
   @State private var notice: String?
 
-  /// One action's row: its keys as chips, each removable and
-  /// replaceable, with room to add one more.
-  private func row(for action: KeyBindingAction, named name: String) -> some View {
-    VStack(alignment: .leading, spacing: 4) {
-      Text(name)
-      HStack(spacing: 6) {
-        ForEach(values.keyBindings[action], id: \.self) { key in
-          Button(key.displayName) {
-            startCapture(action, slot: values.keyBindings[action].firstIndex(of: key))
+  /// The found rows for the search wording, or nil outside a search.
+  private var found: [(category: KeyBindingCategory, actions: [KeyBindingAction])]? {
+    KeyBindingCategory.matches(searchText)
+  }
+
+  /// The sidebar selection, hidden while searching.
+  private var sidebarSelection: Binding<KeyBindingCategory?> {
+    Binding(
+      get: { found == nil ? selectedCategory : nil },
+      set: {
+        guard let next = $0 else { return }
+        if found != nil {
+          searchText = ""
+        }
+        selectedCategory = next
+      }
+    )
+  }
+
+  /// The categories and their search field.
+  private var sidebar: some View {
+    VStack(spacing: 0) {
+      HStack {
+        TextField("Search shortcuts", text: $searchText, prompt: Text("Search shortcuts"))
+        if !searchText.isEmpty {
+          Button {
+            searchText = ""
+          } label: {
+            Image(systemName: "xmark.circle.fill")
           }
-          .help("Press a replacement key")
-          .contextMenu {
-            Button("Remove") {
-              if let slot = values.keyBindings[action].firstIndex(of: key) {
-                removeKey(action: action, at: slot)
+          .buttonStyle(.plain)
+        }
+      }
+      .padding(8)
+      List(selection: sidebarSelection) {
+        ForEach(KeyBindingCategory.allCases, id: \.self) { category in
+          HStack {
+            Image(systemName: category.iconName)
+            Text(category.title)
+            Spacer()
+            Text("\(category.actions.count)")
+              .foregroundStyle(.secondary)
+          }
+          .tag(category)
+        }
+      }
+    }
+    .frame(width: 170)
+  }
+
+  /// The heading above the detail rows.
+  private var detailTitle: String {
+    guard let found else { return selectedCategory.title }
+    let count = found.reduce(0) { $0 + $1.actions.count }
+    if count == 0 {
+      return "0 results for “\(searchText)”."
+    } else if count == 1 {
+      return "1 result for “\(searchText)”."
+    } else {
+      return "\(count) results for “\(searchText)”."
+    }
+  }
+
+  /// The detail rows with their heading and footer.
+  private var detail: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      Text(detailTitle)
+        .font(.headline)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
+      Form {
+        if let found {
+          if found.isEmpty {
+            Text("No shortcuts match “\(searchText)”.")
+          } else {
+            ForEach(found, id: \.category) { entry in
+              Section(entry.category.title) {
+                ForEach(entry.actions, id: \.self) { action in
+                  row(for: action)
+                }
               }
             }
           }
-        }
-        Button("Add") {
-          startCapture(action, slot: nil)
-        }
-        .help("Press an additional key")
-        Button("Reset") {
-          values.keyBindings.keys[action] = KeyBindingTable.defaults[action]
-          stopCapture()
-          notice = nil
-        }
-        .help("Restore the default keys")
-        if capturing?.action == action {
-          Button("Cancel") {
-            stopCapture()
-            notice = nil
+        } else {
+          Section {
+            ForEach(selectedCategory.actions, id: \.self) { action in
+              row(for: action)
+            }
           }
         }
+        Section {
+          HStack {
+            Button("Reset all") {
+              values.keyBindings = .defaults
+              stopCapture()
+              notice = nil
+            }
+            if let notice {
+              Text(notice)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+          }
+          Text("Press a key to assign it. Assignments are physical keys, independent of input source.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
       }
-      if capturing?.action == action {
-        Text("Press a key…")
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-      }
+      .formStyle(.grouped)
     }
+  }
+
+  /// One action's row, wired to the capture below.
+  private func row(for action: KeyBindingAction) -> some View {
+    SettingsKeyboardRow(
+      action: action,
+      values: $values,
+      isCapturing: capturing?.action == action,
+      onCapture: { startCapture(action, slot: $0) },
+      onRemove: { removeKey(action: action, at: $0) },
+      onReset: {
+        values.keyBindings.keys[action] = KeyBindingTable.defaults[action]
+        stopCapture()
+        notice = nil
+      },
+      onCancel: {
+        stopCapture()
+        notice = nil
+      }
+    )
   }
 
   /// Removes one key. Removing the last key restores the row's defaults
@@ -119,7 +179,7 @@ struct SettingsKeyboardView: View {
     keys.remove(at: index)
     if keys.isEmpty {
       keys = KeyBindingTable.defaults[action]
-      notice = "Removing the last key restored \(displayName(for: action)) defaults."
+      notice = "Removing the last key restored \(KeyBindingCategory.displayName(for: action)) defaults."
     } else {
       notice = nil
     }
@@ -159,7 +219,7 @@ struct SettingsKeyboardView: View {
   ) {
     let narrowed = modifiers.intersection([.shift, .control, .option, .command])
     let key = ResolvedKey(keyCode: keyCode, modifiers: narrowed)
-    let row = displayName(for: action)
+    let row = KeyBindingCategory.displayName(for: action)
     switch KeyBindingTable.refusal(assigning: key, to: action, in: values.keyBindings) {
     case .none:
       break
@@ -175,7 +235,7 @@ struct SettingsKeyboardView: View {
       return
 
     case .heldBy(let holders):
-      let names = holders.lazy.map { displayName(for: $0) }.joined(separator: ", ")
+      let names = holders.lazy.map { KeyBindingCategory.displayName(for: $0) }.joined(separator: ", ")
       notice = "\(key.displayName) is already used by \(names); not added to \(row)."
       stopCapture()
       return
@@ -189,11 +249,6 @@ struct SettingsKeyboardView: View {
     values.keyBindings.keys[action] = keys
     stopCapture()
     notice = nil
-  }
-
-  /// The row name for an action, for the notices naming the edited row.
-  private func displayName(for action: KeyBindingAction) -> String {
-    Self.rows.first { $0.0 == action }?.1 ?? action.rawValue
   }
 
 }
