@@ -3,8 +3,6 @@ import Testing
 
 struct KeyBindingCategoryTests {
 
-  // MARK: Internal
-
   @Test
   func everyActionBelongsToExactlyOneCategory() {
     let grouped = KeyBindingCategory.allCases.flatMap(\.actions)
@@ -83,18 +81,16 @@ struct KeyBindingCategoryTests {
 
   @Test
   func broadQueryKeepsCategoryAndRowOrder() {
-    let found = KeyBindingCategory.matches("e") ?? []
-    #expect(found.map(\.category) == found.map(\.category).sorted(by: { order(of: $0) < order(of: $1) }))
-    for entry in found {
-      #expect(entry.actions == entry.category.actions.filter { entry.actions.contains($0) })
-    }
-    #expect(found.flatMap(\.actions).count > 1)
+    let found = KeyBindingCategory.matches("ca") ?? []
+    #expect(found.map(\.category) == [.navigation, .windowActions])
+    #expect(found.map(\.actions) == [[.cancel], [.quitApplication, .hideApplication]])
   }
 
-  // MARK: Private
-
-  private func order(of category: KeyBindingCategory) -> Int {
-    KeyBindingCategory.allCases.firstIndex(of: category) ?? 0
+  @Test
+  func paddedQueryIsTrimmed() {
+    let found = KeyBindingCategory.matches(" sh ")
+    #expect(found?.map(\.category) == [.switcher])
+    #expect(found?.first?.actions == [.show, .showReverse, .showFilter])
   }
 
 }
