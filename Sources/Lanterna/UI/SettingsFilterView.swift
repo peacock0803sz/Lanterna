@@ -188,14 +188,16 @@ private struct ExclusionRow: View {
         .controlSize(.small)
     }
     .task(id: entry.app) {
-      // Resolve only when this row's wording changes, not on every parent pass.
+      // Runs when the row appears and when its app wording changes, not on
+      // every parent pass.
       resolution = ExclusionAppResolver.resolve(app: entry.app).map(Resolution.found) ?? .none
     }
   }
 
   // MARK: Private
 
-  /// The looked-up app, cached until this row's app wording changes.
+  /// The looked-up app, kept until the row appears again or its app
+  /// wording changes.
   @State private var resolution = Resolution.pending
 
 }
@@ -219,7 +221,9 @@ extension ExclusionRow {
       }
     }
 
-    /// The note under the app field; blank until the first lookup lands.
+    /// The note under the app field, blank until the first lookup lands.
+    /// The blank line keeps its height, so the row does not grow when the
+    /// note arrives.
     var note: String {
       switch self {
       case .pending: " "
