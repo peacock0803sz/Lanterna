@@ -34,7 +34,7 @@ struct SettingsKeyboardView: View {
   /// The row waiting for a press, and which slot a press replaces.
   /// A `nil` slot appends instead.
   @State private var capturing: (action: KeyBindingAction, slot: Int?)?
-  @State private var monitor: Any?
+  @State private var capture = KeyCaptureMonitor()
   @State private var notice: String?
 
   /// Search focus ends capture so typing reaches search.
@@ -220,24 +220,21 @@ struct SettingsKeyboardView: View {
     values.keyBindings.keys[action] = keys
   }
 
-  /// Arms the capture: the next key down goes to this row.
+  /// Arms the capture: the next key down in this window goes to this row.
+  /// The row is clicked to arm, so the key window is this one.
   private func startCapture(_ action: KeyBindingAction, slot: Int?) {
     stopCapture()
     capturing = (action, slot)
     notice = nil
-    monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+    capture.arm(in: NSApp.keyWindow) { event in
       assign(action: action, slot: slot, keyCode: event.keyCode, modifiers: event.modifierFlags)
-      return nil
     }
   }
 
   /// Takes the capture down. A press that arrived stays assigned;
   /// only the waiting ends here.
   private func stopCapture() {
-    if let monitor {
-      NSEvent.removeMonitor(monitor)
-    }
-    monitor = nil
+    capture.disarm()
     capturing = nil
   }
 
