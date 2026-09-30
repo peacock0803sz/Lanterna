@@ -165,10 +165,18 @@ enum LightweightFilter {
       return exactCondition(column: "message", value: rawValue, chip: "Message is \(rawValue)", source: token)
     case ("message", "!="):
       return excludedCondition(column: "message", value: rawValue, chip: "Message is not \(rawValue)", source: token)
-    case ("launch", _):
-      return exactCondition(column: "launch_id", value: rawValue, chip: "Launch: \(rawValue)", source: token)
-    case ("version", _):
-      return exactCondition(column: "build_version", value: rawValue, chip: "Version: \(rawValue)", source: token)
+    case ("launch", ":"):
+      return containsCondition(column: "launch_id", value: rawValue, chip: "Launch: \(rawValue)", source: token)
+    case ("launch", "="):
+      return exactCondition(column: "launch_id", value: rawValue, chip: "Launch is \(rawValue)", source: token)
+    case ("launch", "!="):
+      return excludedCondition(column: "launch_id", value: rawValue, chip: "Launch is not \(rawValue)", source: token)
+    case ("version", ":"):
+      return containsCondition(column: "build_version", value: rawValue, chip: "Version: \(rawValue)", source: token)
+    case ("version", "="):
+      return exactCondition(column: "build_version", value: rawValue, chip: "Version is \(rawValue)", source: token)
+    case ("version", "!="):
+      return excludedCondition(column: "build_version", value: rawValue, chip: "Version is not \(rawValue)", source: token)
     case ("after", ":"):
       return timeCondition(bound: rawValue, lower: true, source: token)
     case ("before", ":"):
