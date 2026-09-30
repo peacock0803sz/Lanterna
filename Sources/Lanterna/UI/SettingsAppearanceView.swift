@@ -54,26 +54,26 @@ struct SettingsAppearanceView: View {
   /// and look, ignoring touches and reading as one preview element.
   private var preview: some View {
     let rows = Array(SampleWindows.standard().prefix(4))
-    return RoundedRectangle(cornerRadius: 10)
-      .fill(Color.secondary.opacity(0.12))
-      .overlay {
-        VStack(spacing: 0) {
-          ForEach(Array(rows.enumerated()), id: \.element.id) { index, window in
-            WindowRow(
-              window: window,
-              isSelected: index == 1,
-              query: "",
-              textScale: values.textScale
-            )
-          }
-        }
-        .padding(.vertical, 6)
-        .adaptiveGlass(cornerRadius: 16)
+    return VStack(spacing: 0) {
+      ForEach(Array(rows.enumerated()), id: \.element.id) { index, window in
+        WindowRow(
+          window: window,
+          isSelected: index == 1,
+          query: "",
+          textScale: values.textScale
+        )
       }
-      .allowsHitTesting(false)
-      .accessibilityElement(children: .combine)
-      .accessibilityLabel("Preview")
-      .appliedAppearance(values.appearanceMode)
+    }
+    .padding(.vertical, 6)
+    .adaptiveGlass(cornerRadius: 16)
+    .background {
+      RoundedRectangle(cornerRadius: 10)
+        .fill(Color.secondary.opacity(0.12))
+    }
+    .allowsHitTesting(false)
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel("Preview")
+    .appliedAppearance(values.appearanceMode)
   }
 
   /// The slider position spelling the step: the slider works in
