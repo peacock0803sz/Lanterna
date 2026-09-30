@@ -7,8 +7,10 @@ private typealias Failure = SystemSwitcherShortcuts.Failure
 /// Kept at file scope rather than inside the suite, so it does not count
 /// against the suite's body.
 private func failure(_ combination: HotkeyCombination, _ status: CGError = .failure) -> Failure {
-    Failure(combination: combination, status: status)
+  Failure(combination: combination, status: status)
 }
+
+// MARK: - SystemSwitcherShortcutsTests
 
 /// The window-server calls cannot be exercised here — a real
 /// `CGSSetSymbolicHotKeyEnabled` would change the developer's own machine — so
@@ -18,44 +20,48 @@ private func failure(_ combination: HotkeyCombination, _ status: CGError = .fail
 /// has nothing but the line. So the lines are pinned word by word.
 @MainActor
 struct SystemSwitcherShortcutsTests {
-    /// The empty list is the ordinary case, and a line saying so every time
-    /// would bury the ones that matter.
-    @Test func neitherVerbWritesALineWhenNothingRefused() {
-        #expect(SystemSwitcherShortcuts.summaryLine(disabling: []) == nil)
-        #expect(SystemSwitcherShortcuts.summaryLine(restoring: []) == nil)
-    }
+  /// The empty list is the ordinary case, and a line saying so every time
+  /// would bury the ones that matter.
+  @Test
+  func neitherVerbWritesALineWhenNothingRefused() {
+    #expect(SystemSwitcherShortcuts.summaryLine(disabling: []) == nil)
+    #expect(SystemSwitcherShortcuts.summaryLine(restoring: []) == nil)
+  }
 
-    /// The number is the window server's own, printed back verbatim: nothing
-    /// here knows what it means, and a reader chasing it needs the digits
-    /// rather than a paraphrase.
-    @Test func oneRefusalNamesTheCombinationAndItsError() {
-        #expect(
-            SystemSwitcherShortcuts.summaryLine(disabling: [failure(.forward)])
-                == "could not disable the system's Cmd+Tab (error 1000)"
-        )
-    }
+  /// The number is the window server's own, printed back verbatim: nothing
+  /// here knows what it means, and a reader chasing it needs the digits
+  /// rather than a paraphrase.
+  @Test
+  func oneRefusalNamesTheCombinationAndItsError() {
+    #expect(
+      SystemSwitcherShortcuts.summaryLine(disabling: [failure(.forward)])
+        == "could not disable the system's Cmd+Tab (error 1000)"
+    )
+  }
 
-    /// Taking a shortcut and giving it back fail for different reasons and
-    /// matter differently, so the line has to say which one happened.
-    @Test func theVerbSaysWhichDirectionFailed() {
-        let failures = [failure(.reverse)]
-        #expect(
-            SystemSwitcherShortcuts.summaryLine(disabling: failures)
-                == "could not disable the system's Shift+Cmd+Tab (error 1000)"
-        )
-        #expect(
-            SystemSwitcherShortcuts.summaryLine(restoring: failures)
-                == "could not restore the system's Shift+Cmd+Tab (error 1000)"
-        )
-    }
+  /// Taking a shortcut and giving it back fail for different reasons and
+  /// matter differently, so the line has to say which one happened.
+  @Test
+  func theVerbSaysWhichDirectionFailed() {
+    let failures = [failure(.reverse)]
+    #expect(
+      SystemSwitcherShortcuts.summaryLine(disabling: failures)
+        == "could not disable the system's Shift+Cmd+Tab (error 1000)"
+    )
+    #expect(
+      SystemSwitcherShortcuts.summaryLine(restoring: failures)
+        == "could not restore the system's Shift+Cmd+Tab (error 1000)"
+    )
+  }
 
-    @Test func bothRefusalsAreJoinedInTheOrderTheyCame() {
-        #expect(
-            SystemSwitcherShortcuts.summaryLine(
-                restoring: [failure(.forward), failure(.reverse, .illegalArgument)]
-            )
-                == "could not restore the system's Cmd+Tab (error 1000), "
-                + "Shift+Cmd+Tab (error 1001)"
-        )
-    }
+  @Test
+  func bothRefusalsAreJoinedInTheOrderTheyCame() {
+    #expect(
+      SystemSwitcherShortcuts.summaryLine(
+        restoring: [failure(.forward), failure(.reverse, .illegalArgument)]
+      )
+        == "could not restore the system's Cmd+Tab (error 1000), "
+        + "Shift+Cmd+Tab (error 1001)"
+    )
+  }
 }

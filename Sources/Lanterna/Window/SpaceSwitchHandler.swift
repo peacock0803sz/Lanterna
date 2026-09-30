@@ -3,6 +3,8 @@ import CoreGraphics
 import Darwin
 import Logging
 
+// MARK: - SpaceSwitchHandler
+
 /// Refreshes the held list and the most-recently-used order when the active
 /// Space changes.
 ///
@@ -26,103 +28,115 @@ import Logging
 /// does not return until the list is fresh (unless the loop was stopped).
 @MainActor
 struct SpaceSwitchHandler {
-    private let store: WindowListStore
-    private let tracker: MRUTracker
-    private let ownProcessIdentifier: pid_t
-    private let frontmostProcessIdentifier: @MainActor () -> pid_t?
-    private let reading: any FocusedWindowReading
-    private let writeLine: @MainActor (Logger.Level, String) -> Void
 
-    init(
-        store: WindowListStore,
-        tracker: MRUTracker,
-        ownProcessIdentifier: pid_t,
-        frontmostProcessIdentifier: @escaping @MainActor () -> pid_t?,
-        reading: any FocusedWindowReading,
-        writeLine: @escaping @MainActor (Logger.Level, String) -> Void
-    ) {
-        self.store = store
-        self.tracker = tracker
-        self.ownProcessIdentifier = ownProcessIdentifier
-        self.frontmostProcessIdentifier = frontmostProcessIdentifier
-        self.reading = reading
-        self.writeLine = writeLine
-    }
+  // MARK: Lifecycle
 
-    /// Handles one Space change: records the frontmost window at once, then
-    /// asks for a fresh pass, then corrects to the settled window when the
-    /// re-read after the pass disagrees. The pass still runs when there is
-    /// nothing to record, because the list itself is stale from the switch
-    /// either way. Recording before the wait (rather than after it) is what
-    /// reaches a press that lands mid-pass; verifying after it is what keeps
-    /// an unsettled read from standing as the newest record.
-    func handle() async {
-        writeLine(.info, "space changed; refreshing window list")
-        let optimistic = recordFrontmost()
-        await store.refreshEventually()
-        correctIfSettled(from: optimistic)
-    }
+  init(
+    store: WindowListStore,
+    tracker: MRUTracker,
+    ownProcessIdentifier: pid_t,
+    frontmostProcessIdentifier: @escaping @MainActor () -> pid_t?,
+    reading: any FocusedWindowReading,
+    writeLine: @escaping @MainActor (Logger.Level, String) -> Void
+  ) {
+    self.store = store
+    self.tracker = tracker
+    self.ownProcessIdentifier = ownProcessIdentifier
+    self.frontmostProcessIdentifier = frontmostProcessIdentifier
+    self.reading = reading
+    self.writeLine = writeLine
+  }
 
-    /// Reads the frontmost window and records it the way an activation
-    /// would, returning what was recorded so the correction below can tell
-    /// a settled switch from one that was still moving.
-    private func recordFrontmost() -> (owner: pid_t, windowID: CGWindowID)? {
-        guard let frontmost = frontmostProcessIdentifier() else {
-            writeLine(.info, "space changed; no frontmost application to record")
-            return nil
-        }
-        guard frontmost != ownProcessIdentifier else {
-            writeLine(.info, "space changed; frontmost is this process")
-            return nil
-        }
-        guard let windowID = reading.focusedWindowID(of: frontmost) else {
-            writeLine(.warning, "space changed; frontmost window could not be read")
-            return nil
-        }
-        // Through the one outside entry, with the read identity riding a
-        // fixed reading: the echo guard still applies, and no second
-        // accessibility read can answer differently in between.
-        recordExternalActivation(
-            of: frontmost,
-            excluding: ownProcessIdentifier,
-            reading: FixedWindowReading(windowID: windowID),
-            into: tracker
-        )
-        return (frontmost, windowID)
-    }
+  // MARK: Internal
 
-    /// Re-reads the frontmost window once the list is fresh and corrects the
-    /// optimistic record when the switch has settled elsewhere. An identity
-    /// the fresh enumeration never saw is left out rather than recorded; a
-    /// re-read matching the optimistic one records nothing further, so a
-    /// genuine activation that landed mid-pass keeps its place.
-    private func correctIfSettled(from optimistic: (owner: pid_t, windowID: CGWindowID)?) {
-        guard let frontmost = frontmostProcessIdentifier(), frontmost != ownProcessIdentifier,
-              let windowID = reading.focusedWindowID(of: frontmost),
-              optimistic.map({ $0.owner != frontmost || $0.windowID != windowID }) ?? true,
-              store.snapshot?.items.contains(where: {
-                  $0.id.windowID == windowID && $0.ownerProcessIdentifier == frontmost
-              }) == true
-        else {
-            return
-        }
-        writeLine(.info, "space changed; settled on a different frontmost window")
-        recordExternalActivation(
-            of: frontmost,
-            excluding: ownProcessIdentifier,
-            reading: FixedWindowReading(windowID: windowID),
-            into: tracker
-        )
+  /// Handles one Space change: records the frontmost window at once, then
+  /// asks for a fresh pass, then corrects to the settled window when the
+  /// re-read after the pass disagrees. The pass still runs when there is
+  /// nothing to record, because the list itself is stale from the switch
+  /// either way. Recording before the wait (rather than after it) is what
+  /// reaches a press that lands mid-pass; verifying after it is what keeps
+  /// an unsettled read from standing as the newest record.
+  func handle() async {
+    writeLine(.info, "space changed; refreshing window list")
+    let optimistic = recordFrontmost()
+    await store.refreshEventually()
+    correctIfSettled(from: optimistic)
+  }
+
+  // MARK: Private
+
+  private let store: WindowListStore
+  private let tracker: MRUTracker
+  private let ownProcessIdentifier: pid_t
+  private let frontmostProcessIdentifier: @MainActor () -> pid_t?
+  private let reading: any FocusedWindowReading
+  private let writeLine: @MainActor (Logger.Level, String) -> Void
+
+  /// Reads the frontmost window and records it the way an activation
+  /// would, returning what was recorded so the correction below can tell
+  /// a settled switch from one that was still moving.
+  private func recordFrontmost() -> (owner: pid_t, windowID: CGWindowID)? {
+    guard let frontmost = frontmostProcessIdentifier() else {
+      writeLine(.info, "space changed; no frontmost application to record")
+      return nil
     }
+    guard frontmost != ownProcessIdentifier else {
+      writeLine(.info, "space changed; frontmost is this process")
+      return nil
+    }
+    guard let windowID = reading.focusedWindowID(of: frontmost) else {
+      writeLine(.warning, "space changed; frontmost window could not be read")
+      return nil
+    }
+    // Through the one outside entry, with the read identity riding a
+    // fixed reading: the echo guard still applies, and no second
+    // accessibility read can answer differently in between.
+    recordExternalActivation(
+      of: frontmost,
+      excluding: ownProcessIdentifier,
+      reading: FixedWindowReading(windowID: windowID),
+      into: tracker
+    )
+    return (frontmost, windowID)
+  }
+
+  /// Re-reads the frontmost window once the list is fresh and corrects the
+  /// optimistic record when the switch has settled elsewhere. An identity
+  /// the fresh enumeration never saw is left out rather than recorded; a
+  /// re-read matching the optimistic one records nothing further, so a
+  /// genuine activation that landed mid-pass keeps its place.
+  private func correctIfSettled(from optimistic: (owner: pid_t, windowID: CGWindowID)?) {
+    guard
+      let frontmost = frontmostProcessIdentifier(), frontmost != ownProcessIdentifier,
+      let windowID = reading.focusedWindowID(of: frontmost),
+      optimistic.map({ $0.owner != frontmost || $0.windowID != windowID }) ?? true,
+      store.snapshot?.items.contains(where: {
+        $0.id.windowID == windowID && $0.ownerProcessIdentifier == frontmost
+      }) == true
+    else {
+      return
+    }
+    writeLine(.info, "space changed; settled on a different frontmost window")
+    recordExternalActivation(
+      of: frontmost,
+      excluding: ownProcessIdentifier,
+      reading: FixedWindowReading(windowID: windowID),
+      into: tracker
+    )
+  }
+
 }
+
+// MARK: - FixedWindowReading
 
 /// Answers one window identity for any process, carrying an identity that
 /// was already read and verified elsewhere through the recording entry.
 private struct FixedWindowReading: FocusedWindowReading {
-    let windowID: CGWindowID?
-    func focusedWindowID(of _: pid_t) -> CGWindowID? {
-        windowID
-    }
+  let windowID: CGWindowID?
+
+  func focusedWindowID(of _: pid_t) -> CGWindowID? {
+    windowID
+  }
 }
 
 /// Watches the active Space through SpaceSwitchHandler. Nothing removes
@@ -131,22 +145,22 @@ private struct FixedWindowReading: FocusedWindowReading {
 /// list) never change, so no observer is registered for them.
 @MainActor
 func startObservingSpaceChanges(store: WindowListStore, tracker: MRUTracker) {
-    guard store.isLive else { return }
-    let handler = SpaceSwitchHandler(
-        store: store,
-        tracker: tracker,
-        ownProcessIdentifier: getpid(),
-        frontmostProcessIdentifier: { NSWorkspace.shared.frontmostApplication?.processIdentifier },
-        reading: AXFocusedWindowReader(),
-        writeLine: { level, message in Diagnostics.writeLine(message, level: level) }
-    )
-    _ = NSWorkspace.shared.notificationCenter.addObserver(
-        forName: NSWorkspace.activeSpaceDidChangeNotification,
-        object: nil,
-        queue: .main
-    ) { _ in
-        Task { @MainActor in
-            await handler.handle()
-        }
+  guard store.isLive else { return }
+  let handler = SpaceSwitchHandler(
+    store: store,
+    tracker: tracker,
+    ownProcessIdentifier: getpid(),
+    frontmostProcessIdentifier: { NSWorkspace.shared.frontmostApplication?.processIdentifier },
+    reading: AXFocusedWindowReader(),
+    writeLine: { level, message in Diagnostics.writeLine(message, level: level) }
+  )
+  _ = NSWorkspace.shared.notificationCenter.addObserver(
+    forName: NSWorkspace.activeSpaceDidChangeNotification,
+    object: nil,
+    queue: .main
+  ) { _ in
+    Task { @MainActor in
+      await handler.handle()
     }
+  }
 }

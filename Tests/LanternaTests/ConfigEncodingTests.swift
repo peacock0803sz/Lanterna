@@ -9,40 +9,44 @@ import Testing
 /// whatever is written must read as the same settings, in the canonical
 /// sorted-key shape, with absent keys left out.
 struct ConfigEncodingTests {
-    @Test func minimalConfigMatchesScaffold() {
-        let config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
-        #expect(AppConfiguration.encode(config) == Data(AppConfiguration.scaffoldJSON.utf8))
-    }
+  @Test
+  func minimalConfigMatchesScaffold() {
+    let config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(AppConfiguration.encode(config) == Data(AppConfiguration.scaffoldJSON.utf8))
+  }
 
-    @Test func sortedKeys() throws {
-        var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
-        config.appearanceMode = .dark
-        let text = try #require(
-            String(bytes: AppConfiguration.encode(config), encoding: .utf8)
-        )
-        #expect(text == "{\n  \"appearanceMode\": \"dark\",\n  \"version\": 1\n}\n")
-    }
+  @Test
+  func sortedKeys() throws {
+    var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    config.appearanceMode = .dark
+    let text = try #require(
+      String(bytes: AppConfiguration.encode(config), encoding: .utf8)
+    )
+    #expect(text == "{\n  \"appearanceMode\": \"dark\",\n  \"version\": 1\n}\n")
+  }
 
-    @Test func roundTripsEveryKey() {
-        var config = ValidConfiguration(version: 1, sampleCount: 3, stopMonitorEverySeconds: 7)
-        config.otherSpaceMode = .hide
-        config.hiddenAppMode = .show
-        config.minimizedMode = .hide
-        config.fullscreenMode = .separateAtBottom
-        config.appearanceMode = .light
-        config.romajiScope = .kanaOnly
-        config.logLevel = .debug
-        let decoded = AppConfiguration.decode(AppConfiguration.encode(config))
-        #expect(decoded.successValue?.config == config)
-    }
+  @Test
+  func roundTripsEveryKey() {
+    var config = ValidConfiguration(version: 1, sampleCount: 3, stopMonitorEverySeconds: 7)
+    config.otherSpaceMode = .hide
+    config.hiddenAppMode = .show
+    config.minimizedMode = .hide
+    config.fullscreenMode = .separateAtBottom
+    config.appearanceMode = .light
+    config.romajiScope = .kanaOnly
+    config.logLevel = .debug
+    let decoded = AppConfiguration.decode(AppConfiguration.encode(config))
+    #expect(decoded.successValue?.config == config)
+  }
 
-    @Test func omitsAbsentKeys() throws {
-        let config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
-        let text = try #require(
-            String(bytes: AppConfiguration.encode(config), encoding: .utf8)
-        )
-        #expect(!text.contains("sampleCount"))
-        #expect(!text.contains("appearanceMode"))
-        #expect(!text.contains("logLevel"))
-    }
+  @Test
+  func omitsAbsentKeys() throws {
+    let config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    let text = try #require(
+      String(bytes: AppConfiguration.encode(config), encoding: .utf8)
+    )
+    #expect(!text.contains("sampleCount"))
+    #expect(!text.contains("appearanceMode"))
+    #expect(!text.contains("logLevel"))
+  }
 }

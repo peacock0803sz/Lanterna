@@ -8,74 +8,86 @@ import Testing
 /// in the matching suite's compile cases; what lives here is only whether
 /// the file as a whole stands or falls.
 struct ExclusionConfigTests {
-    private func decode(_ text: String) -> Result<DecodedConfiguration, ConfigDecodeError> {
-        AppConfiguration.decode(Data(text.utf8))
-    }
 
-    @Test func exclusionsAreAbsentByDefault() throws {
-        let decoded = try #require(decode("{\"version\": 1}").successValue)
-        #expect(decoded.config.exclusions == nil)
-    }
+  // MARK: Internal
 
-    @Test func exclusionsDecodeWhenPresent() throws {
-        let decoded = try #require(decode("""
-        {"version": 1, "exclusions": [
-          {"app": "com.1password.1password", "titlePattern": "^Mini$"},
-          {"app": "Installer", "titlePattern": "progress"}
-        ]}
-        """).successValue)
-        #expect(decoded.config.exclusions == [
-            ExclusionEntry(app: "com.1password.1password", titlePattern: "^Mini$"),
-            ExclusionEntry(app: "Installer", titlePattern: "progress"),
-        ])
-    }
+  @Test
+  func exclusionsAreAbsentByDefault() throws {
+    let decoded = try #require(decode("{\"version\": 1}").successValue)
+    #expect(decoded.config.exclusions == nil)
+  }
 
-    @Test func nonArrayExclusionsInvalidateTheWholeFile() {
-        let cases: [(String, ConfigDecodeError)] = [
-            ("{\"version\": 1, \"exclusions\": \"abc\"}", .invalidValue(key: "exclusions")),
-            ("{\"version\": 1, \"exclusions\": {}}", .invalidValue(key: "exclusions")),
-            ("{\"version\": 1, \"exclusions\": true}", .invalidValue(key: "exclusions")),
-        ]
-        for (text, expected) in cases {
-            #expect(decode(text).failureValue == expected, "for \(text)")
-        }
-    }
+  @Test
+  func exclusionsDecodeWhenPresent() throws {
+    let decoded = try #require(decode("""
+      {"version": 1, "exclusions": [
+        {"app": "com.1password.1password", "titlePattern": "^Mini$"},
+        {"app": "Installer", "titlePattern": "progress"}
+      ]}
+      """).successValue)
+    #expect(decoded.config.exclusions == [
+      ExclusionEntry(app: "com.1password.1password", titlePattern: "^Mini$"),
+      ExclusionEntry(app: "Installer", titlePattern: "progress"),
+    ])
+  }
 
-    @Test func misshapenElementsAreSkipped() throws {
-        let decoded = try #require(decode("""
-        {"version": 1, "exclusions": [
-          {"app": "good", "titlePattern": "ok"},
-          {"app": "x"},
-          {"titlePattern": "x"},
-          {"app": 1, "titlePattern": "x"},
-          {"app": "x", "titlePattern": 1},
-          {"app": "a", "titlePattern": "b", "extra": 1},
-          "abc",
-          1
-        ]}
-        """).successValue)
-        #expect(decoded.config.exclusions == [ExclusionEntry(app: "good", titlePattern: "ok")])
+  @Test
+  func nonArrayExclusionsInvalidateTheWholeFile() {
+    let cases: [(String, ConfigDecodeError)] = [
+      ("{\"version\": 1, \"exclusions\": \"abc\"}", .invalidValue(key: "exclusions")),
+      ("{\"version\": 1, \"exclusions\": {}}", .invalidValue(key: "exclusions")),
+      ("{\"version\": 1, \"exclusions\": true}", .invalidValue(key: "exclusions")),
+    ]
+    for (text, expected) in cases {
+      #expect(decode(text).failureValue == expected, "for \(text)")
     }
+  }
 
-    @Test func invalidEntriesAreSkippedOneByOne() {
-        let entries = [
-            ExclusionEntry(app: "", titlePattern: "x"),
-            ExclusionEntry(app: "x", titlePattern: ""),
-            ExclusionEntry(app: "([", titlePattern: "x"),
-            ExclusionEntry(app: "com.example.aid", titlePattern: "Mini"),
-        ]
-        let compiled = WindowExclusion.compile(entries)
-        #expect(compiled.invalid == 3)
-        #expect(compiled.rules.count == 1)
-        #expect(compiled.rules[0].app == "com.example.aid")
-    }
+  @Test
+  func misshapenElementsAreSkipped() throws {
+    let decoded = try #require(decode("""
+      {"version": 1, "exclusions": [
+        {"app": "good", "titlePattern": "ok"},
+        {"app": "x"},
+        {"titlePattern": "x"},
+        {"app": 1, "titlePattern": "x"},
+        {"app": "x", "titlePattern": 1},
+        {"app": "a", "titlePattern": "b", "extra": 1},
+        "abc",
+        1
+      ]}
+      """).successValue)
+    #expect(decoded.config.exclusions == [ExclusionEntry(app: "good", titlePattern: "ok")])
+  }
 
-    @Test func exclusionsRoundTripThroughEncoding() throws {
-        let decoded = try #require(decode("""
-        {"version": 1, "exclusions": [{"app": "a.*", "titlePattern": "^b$"}]}
-        """).successValue)
-        let encoded = AppConfiguration.encode(decoded.config)
-        let roundTripped = try #require(AppConfiguration.decode(encoded).successValue)
-        #expect(roundTripped.config.exclusions == decoded.config.exclusions)
-    }
+  @Test
+  func invalidEntriesAreSkippedOneByOne() {
+    let entries = [
+      ExclusionEntry(app: "", titlePattern: "x"),
+      ExclusionEntry(app: "x", titlePattern: ""),
+      ExclusionEntry(app: "([", titlePattern: "x"),
+      ExclusionEntry(app: "com.example.aid", titlePattern: "Mini"),
+    ]
+    let compiled = WindowExclusion.compile(entries)
+    #expect(compiled.invalid == 3)
+    #expect(compiled.rules.count == 1)
+    #expect(compiled.rules[0].app == "com.example.aid")
+  }
+
+  @Test
+  func exclusionsRoundTripThroughEncoding() throws {
+    let decoded = try #require(decode("""
+      {"version": 1, "exclusions": [{"app": "a.*", "titlePattern": "^b$"}]}
+      """).successValue)
+    let encoded = AppConfiguration.encode(decoded.config)
+    let roundTripped = try #require(AppConfiguration.decode(encoded).successValue)
+    #expect(roundTripped.config.exclusions == decoded.config.exclusions)
+  }
+
+  // MARK: Private
+
+  private func decode(_ text: String) -> Result<DecodedConfiguration, ConfigDecodeError> {
+    AppConfiguration.decode(Data(text.utf8))
+  }
+
 }

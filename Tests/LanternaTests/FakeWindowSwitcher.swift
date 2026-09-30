@@ -10,13 +10,14 @@ import Foundation
 /// Confined to the main actor by its callers: the arrays are unguarded, the
 /// way `FakeApplication`'s records are, because switching stays synchronous
 /// and nothing here is touched off the thread that took the row.
+// swiftlint:disable:next no_unchecked_sendable - test-only; synchronous use confined to the taking thread
 final class FakeWindowSwitcher: WindowSwitching, @unchecked Sendable {
-    private(set) var targets: [ActivationTarget] = []
-    /// Answers in order; an empty script means every take succeeded.
-    var outcomes: [ActivationOutcome] = []
+  private(set) var targets = [ActivationTarget]()
+  /// Answers in order; an empty script means every take succeeded.
+  var outcomes = [ActivationOutcome]()
 
-    func switchTo(_ target: ActivationTarget) -> ActivationOutcome {
-        targets.append(target)
-        return outcomes.isEmpty ? .switched : outcomes.removeFirst()
-    }
+  func switchTo(_ target: ActivationTarget) -> ActivationOutcome {
+    targets.append(target)
+    return outcomes.isEmpty ? .switched : outcomes.removeFirst()
+  }
 }

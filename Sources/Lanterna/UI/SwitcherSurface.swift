@@ -1,3 +1,5 @@
+// MARK: - SwitcherSurface
+
 /// The panel as the code deciding when to show it sees it: something that can
 /// be put up with a list, taken down, and asked whether it is up.
 ///
@@ -13,61 +15,63 @@
 /// a file that was already close to the length the linter allows.
 @MainActor
 protocol SwitcherSurface {
-    var isPresented: Bool { get }
+  var isPresented: Bool { get }
 
-    /// Whether key presses are reaching the panel at this instant.
-    var isTakingKeys: Bool { get }
+  /// Whether key presses are reaching the panel at this instant.
+  var isTakingKeys: Bool { get }
 
-    /// Puts the panel up showing this list, with this row drawn as chosen,
-    /// on an empty query, with the filter chrome on exactly when the
-    /// appearance opened filtering.
-    ///
-    /// **Takes no keys.** That is `takeKeys()`, and the separation is the
-    /// most load-bearing thing in this protocol. The tests of the real panel
-    /// put one on screen twice; were key status taken here, every run of the
-    /// suite would pull the developer's typing into a panel nothing had shown
-    /// them. Putting it behind an entry those tests do not call makes the
-    /// guarantee structural. An argument saying whether to take keys would
-    /// not: it would only turn "do not call the other method" into "do not
-    /// pass true", which is the same thing to remember in a place where
-    /// forgetting is quieter.
-    func present(windows: [WindowItem], selecting: WindowItem.Identifier?, filterActive: Bool)
+  /// Puts the panel up showing this list, with this row drawn as chosen,
+  /// on an empty query, with the filter chrome on exactly when the
+  /// appearance opened filtering.
+  ///
+  /// **Takes no keys.** That is `takeKeys()`, and the separation is the
+  /// most load-bearing thing in this protocol. The tests of the real panel
+  /// put one on screen twice; were key status taken here, every run of the
+  /// suite would pull the developer's typing into a panel nothing had shown
+  /// them. Putting it behind an entry those tests do not call makes the
+  /// guarantee structural. An argument saying whether to take keys would
+  /// not: it would only turn "do not call the other method" into "do not
+  /// pass true", which is the same thing to remember in a place where
+  /// forgetting is quieter.
+  func present(windows: [WindowItem], selecting: WindowItem.Identifier?, filterActive: Bool)
 
-    /// Asks for key presses, and answers whether they will arrive.
-    ///
-    /// The answer is the only notice a refusal gives, so it is not one a
-    /// caller may drop by accident: a window that cannot become key says
-    /// nothing, raises nothing, and goes on looking exactly like one that
-    /// did. No `@discardableResult`, for that reason — a caller meaning to
-    /// throw it away spells that out with `_ =` and says why, the way the
-    /// deliberate discards in `AppDelegate` do.
-    func takeKeys() -> Bool
+  /// Asks for key presses, and answers whether they will arrive.
+  ///
+  /// The answer is the only notice a refusal gives, so it is not one a
+  /// caller may drop by accident: a window that cannot become key says
+  /// nothing, raises nothing, and goes on looking exactly like one that
+  /// did. No `@discardableResult`, for that reason — a caller meaning to
+  /// throw it away spells that out with `_ =` and says why, the way the
+  /// deliberate discards in `AppDelegate` do.
+  func takeKeys() -> Bool
 
-    /// Redraws with a different row chosen, changing nothing else about the
-    /// panel — not its size, not its position, and writing no line.
-    func showSelection(_ id: WindowItem.Identifier?)
+  /// Redraws with a different row chosen, changing nothing else about the
+  /// panel — not its size, not its position, and writing no line.
+  func showSelection(_ id: WindowItem.Identifier?)
 
-    /// Shows a small failure note under the list, growing the panel by the
-    /// note's height with the top edge kept; `clearNotice` gives that height
-    /// back. The note says the operation could not be done; the why belongs
-    /// on the diagnostics line.
-    func showNotice(_ text: String)
+  /// Shows a small failure note under the list, growing the panel by the
+  /// note's height with the top edge kept; `clearNotice` gives that height
+  /// back. The note says the operation could not be done; the why belongs
+  /// on the diagnostics line.
+  func showNotice(_ text: String)
 
-    /// Takes the failure note down, if one is up.
-    func clearNotice()
+  /// Takes the failure note down, if one is up.
+  func clearNotice()
 
-    /// Swaps the rows on screen for a narrowed set, redrawing the query and
-    /// the header beside them, and changes nothing about the panel's place —
-    /// not its position, and writing no line. Only the height follows the
-    /// content, with the top edge staying where it was.
-    func updateList(
-        windows: [WindowItem],
-        selecting: WindowItem.Identifier?,
-        query: String,
-        filterActive: Bool
-    )
+  /// Swaps the rows on screen for a narrowed set, redrawing the query and
+  /// the header beside them, and changes nothing about the panel's place —
+  /// not its position, and writing no line. Only the height follows the
+  /// content, with the top edge staying where it was.
+  func updateList(
+    windows: [WindowItem],
+    selecting: WindowItem.Identifier?,
+    query: String,
+    filterActive: Bool
+  )
 
-    func dismiss()
+  func dismiss()
 }
 
-extension SwitcherPanel: SwitcherSurface {}
+// MARK: - SwitcherPanel + SwitcherSurface
+
+extension SwitcherPanel: SwitcherSurface { }
