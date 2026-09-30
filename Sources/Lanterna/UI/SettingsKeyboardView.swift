@@ -37,6 +37,9 @@ struct SettingsKeyboardView: View {
   @State private var monitor: Any?
   @State private var notice: String?
 
+  /// Search focus ends capture so typing reaches search.
+  @FocusState private var searchFocused: Bool
+
   /// The found rows for the search wording, or nil outside a search.
   private var found: [(category: KeyBindingCategory, actions: [KeyBindingAction])]? {
     KeyBindingCategory.matches(searchText)
@@ -64,6 +67,12 @@ struct SettingsKeyboardView: View {
           .foregroundStyle(.secondary)
         TextField("Search shortcuts", text: $searchText)
           .textFieldStyle(.plain)
+          .focused($searchFocused)
+          .onChange(of: searchFocused) { _, focused in
+            if focused {
+              stopCapture()
+            }
+          }
         if !searchText.isEmpty {
           Button {
             searchText = ""
