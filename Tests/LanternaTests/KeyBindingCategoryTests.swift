@@ -87,6 +87,13 @@ struct KeyBindingCategoryTests {
   }
 
   @Test
+  func queryRowsAreSearched() {
+    let found = KeyBindingCategory.matches("cl") ?? []
+    #expect(found.map(\.category) == [.query, .windowActions])
+    #expect(found.map(\.actions) == [[.clearQuery], [.closeWindow]])
+  }
+
+  @Test
   func paddedQueryIsTrimmed() {
     let found = KeyBindingCategory.matches(" sh ")
     #expect(found?.map(\.category) == [.switcher])
