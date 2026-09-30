@@ -103,8 +103,15 @@ struct SwitcherView: View {
                 .tracking(0.3)
                 .foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: PanelMetrics.rowHeight(for: textScale))
-                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                .frame(height: PanelMetrics.headingRowHeight(for: textScale))
+                .listRowInsets(
+                  EdgeInsets(
+                    top: PanelMetrics.headingVerticalInset,
+                    leading: 12,
+                    bottom: PanelMetrics.headingVerticalInset,
+                    trailing: 12
+                  )
+                )
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
               ForEach(rows) { window in
