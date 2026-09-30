@@ -52,6 +52,8 @@ struct SettingsGeneralView: View {
           Button("Open version history") {
             _ = opener(UpdateCheck.releasesPageURL)
           }
+          .buttonStyle(.bordered)
+          .controlSize(.small)
         }
       }
       Section("Startup") {
@@ -93,6 +95,8 @@ struct SettingsGeneralView: View {
           }
           Button("Check now", action: onCheckNow)
             .disabled(!values.updateCheckEnabled || isChecking)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
       }
       Section("Permissions") {
@@ -102,6 +106,7 @@ struct SettingsGeneralView: View {
               .foregroundStyle(.secondary)
             Spacer()
             Image(systemName: "checkmark.circle.fill")
+              .foregroundStyle(.green)
           }
         } else {
           Text("Grant the missing permissions, then restart Lanterna.")
@@ -113,6 +118,8 @@ struct SettingsGeneralView: View {
               Button("Open Settings") {
                 _ = opener(permission.settingsURL)
               }
+              .buttonStyle(.bordered)
+              .controlSize(.small)
             }
           }
         }

@@ -115,6 +115,8 @@ struct SettingsFilterView: View {
         Button("Add excluded window") {
           values.exclusions.append(ExclusionEntry(app: "", titlePattern: ""))
         }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
       } header: {
         Text("Excluded windows")
       } footer: {
@@ -175,6 +177,8 @@ private struct ExclusionRow: View {
         TextField("Title pattern", text: $entry.titlePattern)
       }
       Button("Remove", action: onRemove)
+        .buttonStyle(.bordered)
+        .controlSize(.small)
     }
   }
 }
