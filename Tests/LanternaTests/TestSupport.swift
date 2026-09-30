@@ -369,6 +369,10 @@ struct MonitorFixture {
   final class Counter {
     private(set) var count = 0
 
+    var isEmpty: Bool {
+      count == 0
+    }
+
     func increment() {
       count += 1
     }
