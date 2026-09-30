@@ -95,10 +95,21 @@ extension SettingsWindowTests {
     }
   }
 
-  /// The title stays put while tabs change underneath.
+  /// The title stays put when another tab is chosen, even one whose
+  /// content carries a title of its own: the tab controller never takes
+  /// up the chosen child's title.
   @Test
-  func titleStaysPut() {
-    #expect(makeWindow().title == "Lanterna Settings")
+  func titleStaysPut() throws {
+    let window = makeWindow()
+    let controller = try #require(window.contentViewController as? NSTabViewController)
+    for item in controller.tabViewItems {
+      item.viewController?.title = item.label
+    }
+    for index in controller.tabViewItems.indices.reversed() {
+      controller.selectedTabViewItemIndex = index
+      #expect(controller.title == nil)
+      #expect(window.title == "Lanterna Settings")
+    }
   }
 
   /// The content height follows the visible height through one pure function.
