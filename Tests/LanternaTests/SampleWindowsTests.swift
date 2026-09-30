@@ -2,9 +2,9 @@
 import Testing
 
 /// The fixture stands in for the live list when `--sample-count` asks for
-/// it and in the appearance preview, and it is what CI and the layout tests can render without accessibility
-/// permission, so its variety is what makes the layout reviewable. These checks
-/// pin that variety down.
+/// it and in the appearance preview, and it is what CI and the layout tests
+/// can render without accessibility permission, so its variety is what makes
+/// the layout reviewable. These checks pin that variety down.
 @MainActor
 struct SampleWindowsTests {
 
