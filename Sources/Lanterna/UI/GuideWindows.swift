@@ -58,6 +58,9 @@ final class GuideWindows {
       },
       appearanceMode: appearanceMode
     )
+    // Like the guide and settings windows: ordering front alone leaves
+    // this behind the frontmost app under the accessory policy.
+    NSApp.activate(ignoringOtherApps: true)
     window.makeKeyAndOrderFront(nil)
     versionLogWindow = window
   }
