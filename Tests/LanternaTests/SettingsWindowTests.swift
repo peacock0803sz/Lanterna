@@ -112,6 +112,17 @@ extension SettingsWindowTests {
     }
   }
 
+  /// A change to the window's shared model reaches the caller's handler once.
+  @Test
+  func modelChangeReachesCallerOnce() {
+    var reports = [SettingsValues]()
+    let window = makeWindow(onChange: { reports.append($0) })
+    var changed = SettingsValues.defaults
+    changed.appearanceMode = .dark
+    window.settingsModel.values = changed
+    #expect(reports == [changed])
+  }
+
   /// The content height follows the visible height through one pure function.
   @Test
   func contentHeightFollowsVisibleHeight() {
@@ -121,13 +132,13 @@ extension SettingsWindowTests {
 
   // MARK: Private
 
-  private func makeWindow() -> SettingsWindow {
+  private func makeWindow(onChange: @escaping (SettingsValues) -> Void = { _ in }) -> SettingsWindow {
     SettingsWindow(
       values: SettingsValues.defaults,
       version: DisplayedVersion(full: "0.0.0"),
       permissionState: PermissionState(accessibilityGranted: false, inputMonitoringGranted: false),
       opener: { _ in false },
-      onChange: { _ in }
+      onChange: onChange
     )
   }
 
