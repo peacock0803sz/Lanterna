@@ -10,7 +10,7 @@ let package = Package(
     dependencies: [
         // Diagnostics levels and backends. Pinned below in
         // Package.resolved; Renovate keeps the pin current.
-        .package(url: "https://github.com/apple/swift-log", from: "1.9.0"),
+        .package(url: "https://github.com/apple/swift-log", from: "1.15.1"),
     ],
     targets: [
         // Declarations of the private system functions the app calls; the
