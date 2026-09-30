@@ -128,4 +128,26 @@ enum LogPersistence {
   static func literal(_ value: String) -> String {
     "'" + value.replacing("\0", with: "").replacing("'", with: "''") + "'"
   }
+
+  /// Renders one optional value: quoted text or NULL.
+  static func literal(_ value: String?) -> String {
+    guard let value else {
+      return "NULL"
+    }
+    return literal(value)
+  }
+
+  /// Builds one multi-row INSERT for a flushed batch. Rows missing
+  /// their launch or build fall back to the running values, so
+  /// every stored line answers where and when it came from.
+  static func insertStatement(rows: [DiagnosticRow], launchID: String, buildVersion: String) -> String {
+    let values = rows.map { row in
+      "(\(row.sequence), \(row.recordedAtMilliseconds), \(literal(row.level)), "
+        + "\(literal(row.category)), \(literal(row.message)), "
+        + "\(literal(row.launchID ?? launchID)), \(literal(row.buildVersion ?? buildVersion)), "
+        + "\(literal(row.payloadJSON)))"
+    }
+    return "INSERT INTO entries(seq, recorded_at_ms, level, category, message, "
+      + "launch_id, build_version, payload_json) VALUES " + values.joined(separator: ", ")
+  }
 }
