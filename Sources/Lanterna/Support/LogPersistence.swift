@@ -157,6 +157,9 @@ enum LogPersistence {
   /// their launch or build fall back to the running values, so
   /// every stored line answers where and when it came from.
   static func insertStatement(rows: [DiagnosticRow], launchID: String, buildVersion: String) -> String {
+    guard !rows.isEmpty else {
+      return "SELECT 1 WHERE 1 = 0"
+    }
     let values = rows.map { row in
       "(\(row.sequence), \(row.recordedAtMilliseconds), \(literal(row.level)), "
         + "\(literal(row.category)), \(literal(row.message)), "
