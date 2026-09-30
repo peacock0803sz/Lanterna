@@ -45,7 +45,8 @@ struct SettingsKeyboardView: View {
     KeyBindingCategory.matches(searchText)
   }
 
-  /// The sidebar selection, hidden while searching.
+  /// The sidebar selection, hidden while searching. Choosing a category
+  /// ends the search.
   private var sidebarSelection: Binding<KeyBindingCategory?> {
     Binding(
       get: { found == nil ? selectedCategory : nil },
