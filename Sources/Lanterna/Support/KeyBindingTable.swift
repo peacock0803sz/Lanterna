@@ -94,7 +94,7 @@ struct ResolvedKey: Equatable, Hashable, Sendable {
 
   /// How lines and controls name it: modifiers first, then the key.
   /// ANSI letters, digits, and symbols spell by their US positions,
-  /// with numbers as the fallback for truly unspellable positions.
+  /// with keyCode-numbered fallback for truly unspellable positions.
   var displayName: String {
     var parts = [String]()
     if modifiers.contains(.shift) {
