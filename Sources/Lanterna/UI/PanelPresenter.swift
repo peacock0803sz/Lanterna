@@ -213,41 +213,7 @@ final class PanelPresenter {
     // nothing.
     let startedAt = now()
     if surface.isPresented {
-      // Two questions, and the four states they make between them. Is
-      // a monitor running, and was this appearance given a watch.
-      //
-      // Both yes, and the press moves the selection: letting go of
-      // Command is what will close the panel, so this keystroke is
-      // free to mean something else.
-      //
-      // Any other pair, and the press is what closes the panel,
-      // because nothing else will. No monitor ever started, and there
-      // is no release being listened for at all. A monitor that was
-      // stopped when the panel went up left this appearance without a
-      // watch, and one that has come back since takes its idea of the
-      // modifiers from the keyboard as it finds it — a Command let go
-      // meanwhile leaves it no release to report. A monitor that has
-      // stopped since the panel went up leaves a watch still looking
-      // with nothing left to report to it.
-      //
-      // So the split is neither question on its own. The middle two
-      // states differ from the first in one of them each, and both are
-      // read again on every press because either can have changed
-      // since the last.
-      let pressMovesTheSelection = closesOnCommandRelease() && commandWatch.isLooking
-      guard pressMovesTheSelection || combination == .filter else {
-        wayOut.takeDown(because: combination.name)
-        return
-      }
-      switch combination {
-      case .forward:
-        selection.moveToNext()
-      case .reverse:
-        selection.moveToPrevious()
-      case .filter:
-        keyCommands.activateFiltering()
-        commandWatch.stop()
-      }
+      handlePressWhilePresented(combination)
       return
     }
     // The press comes in through Carbon and the release through the tap,
@@ -339,6 +305,46 @@ final class PanelPresenter {
   /// How long the watch waits between looks (`UnreportedReleaseWatch`'s
   /// number, injected so a test need not wait a real one out).
   private let commandWatchInterval: Duration
+
+  /// A press arriving while the panel is already up. Either it moves the
+  /// selection or it closes the panel, decided by two questions and the
+  /// four states they make between them. Is a monitor running, and was
+  /// this appearance given a watch.
+  ///
+  /// Both yes, and the press moves the selection: letting go of
+  /// Command is what will close the panel, so this keystroke is
+  /// free to mean something else.
+  ///
+  /// Any other pair, and the press is what closes the panel,
+  /// because nothing else will. No monitor ever started, and there
+  /// is no release being listened for at all. A monitor that was
+  /// stopped when the panel went up left this appearance without a
+  /// watch, and one that has come back since takes its idea of the
+  /// modifiers from the keyboard as it finds it — a Command let go
+  /// meanwhile leaves it no release to report. A monitor that has
+  /// stopped since the panel went up leaves a watch still looking
+  /// with nothing left to report to it.
+  ///
+  /// So the split is neither question on its own. The middle two
+  /// states differ from the first in one of them each, and both are
+  /// read again on every press because either can have changed
+  /// since the last.
+  private func handlePressWhilePresented(_ combination: HotkeyCombination) {
+    let pressMovesTheSelection = closesOnCommandRelease() && commandWatch.isLooking
+    guard pressMovesTheSelection || combination == .filter else {
+      wayOut.takeDown(because: combination.name)
+      return
+    }
+    switch combination {
+    case .forward:
+      selection.moveToNext()
+    case .reverse:
+      selection.moveToPrevious()
+    case .filter:
+      keyCommands.activateFiltering()
+      commandWatch.stop()
+    }
+  }
 
   /// Hands the search settings to the live key commands.
   private func pushSearchSettings() {
