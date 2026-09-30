@@ -78,4 +78,30 @@ struct SwitcherViewTests {
         .selectedID == nil
     )
   }
+
+  /// The query row names how many window rows the list draws, singular
+  /// for one and plural otherwise, zero included.
+  @Test
+  func theCountWordingFollowsTheRowCount() {
+    let windows = SampleWindows.make(count: 2)
+    #expect(SwitcherView.countWording(ordinary: [], subgroups: []) == "0 windows")
+    #expect(SwitcherView.countWording(ordinary: [windows[0]], subgroups: []) == "1 window")
+    #expect(SwitcherView.countWording(ordinary: windows, subgroups: []) == "2 windows")
+  }
+
+  /// Subgrouped rows count like ordinary ones, and the headings over them
+  /// do not count at all.
+  @Test
+  func theCountTakesSubgroupRowsAndNoHeadings() {
+    let windows = SampleWindows.make(count: 3)
+    let split = DisplayModes.sections(
+      of: [windows[0], windows[1].settingMinimized(true), windows[2].settingHidden(true)],
+      modes: .defaults,
+      query: ""
+    )
+    #expect(split.subgroups.count == 2)
+    #expect(SwitcherView.countWording(ordinary: split.ordinary, subgroups: split.subgroups) == "3 windows")
+    let lone = DisplayModes.sections(of: [windows[0].settingHidden(true)], modes: .defaults, query: "")
+    #expect(SwitcherView.countWording(ordinary: lone.ordinary, subgroups: lone.subgroups) == "1 window")
+  }
 }

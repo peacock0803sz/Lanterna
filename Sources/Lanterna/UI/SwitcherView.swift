@@ -157,16 +157,23 @@ struct SwitcherView: View {
     .adaptiveGlass(cornerRadius: 16)
   }
 
-  // MARK: Private
-
-  /// How many drawn rows the query row counts: ordinary rows beside parked ones.
-  private var drawnCount: Int {
-    ordinaryRows.count + subgroupRows.reduce(0) { $0 + $1.1.count }
+  /// The query row count wording for one split of the list. It counts the
+  /// window rows the list draws, ordinary and subgrouped alike, and not the
+  /// heading rows, unlike `PanelMetrics.drawnRowCount`. Singular for one
+  /// row and plural otherwise.
+  static func countWording(
+    ordinary: [WindowItem],
+    subgroups: [(DisplaySubgroup, [WindowItem])]
+  ) -> String {
+    let count = ordinary.count + subgroups.reduce(0) { $0 + $1.1.count }
+    return count == 1 ? "1 window" : "\(count) windows"
   }
 
-  /// The query row count wording, singular for one row and plural otherwise.
+  // MARK: Private
+
+  /// The query row count wording for the rows on screen.
   private var countWording: String {
-    drawnCount == 1 ? "1 window" : "\(drawnCount) windows"
+    Self.countWording(ordinary: ordinaryRows, subgroups: subgroupRows)
   }
 
   /// The ordinary rows, drawing first and in the order they arrived.
