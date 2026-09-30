@@ -4,7 +4,7 @@ import SwiftUI
 
 /// What the General tab shows about the last manual check.
 ///
-/// Owned by the settings window; the settings view only observes it.
+/// Owned by the settings window; the General tab root only observes it.
 /// The text starts unset and is replaced on every check, never carried
 /// across launches.
 @MainActor
@@ -15,11 +15,12 @@ final class UpdateCheckDisplay: ObservableObject {
 
 // MARK: - SettingsGeneralView
 
-/// The General tab: launch behavior, update checks, version, and permission state.
+/// The General tab in a grouped form.
 ///
-/// The permission part stays display-only, like the guide it replaces:
-/// the state is the launch-time snapshot, and a grant given mid-run
-/// waits for the next launch.
+/// About sits at the top without a header, followed by startup,
+/// update, and permission sections. Permission rows show the state
+/// captured at launch; a grant given while running appears after the
+/// next launch.
 struct SettingsGeneralView: View {
   @Binding var values: SettingsValues
 
@@ -31,80 +32,100 @@ struct SettingsGeneralView: View {
   var onCheckNow: () -> Void = { }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack(spacing: 10) {
-        if let icon = NSApp.applicationIconImage {
-          Image(nsImage: icon)
-            .resizable()
-            .frame(width: 40, height: 40)
+    Form {
+      Section {
+        HStack(spacing: 10) {
+          if let icon = NSApp.applicationIconImage {
+            Image(nsImage: icon)
+              .resizable()
+              .frame(width: 40, height: 40)
+          }
+          VStack(alignment: .leading) {
+            Text("Lanterna")
+              .font(.headline)
+            Text(version.full)
+              .font(.footnote)
+              .foregroundStyle(.secondary)
+              .textSelection(.enabled)
+          }
+          Spacer()
+          Button("Open version history") {
+            _ = opener(UpdateCheck.releasesPageURL)
+          }
+          .buttonStyle(.bordered)
+          .controlSize(.small)
         }
-        Text("Lanterna \(version.full)")
-          .font(.headline)
-          .textSelection(.enabled)
       }
-      Divider()
-      VStack(alignment: .leading, spacing: 4) {
-        Toggle("Launch at login", isOn: $values.launchAtLogin)
-        Text("Start Lanterna automatically when you log in.")
-          .font(.footnote)
-          .foregroundStyle(.secondary)
+      Section("Startup") {
+        Toggle(isOn: $values.launchAtLogin) {
+          SettingsFormLabel(
+            title: "Launch at login",
+            caption: "Start Lanterna automatically when you log in."
+          )
+        }
       }
-      Divider()
-      VStack(alignment: .leading, spacing: 4) {
-        Text("Updates")
-          .font(.headline)
-        Toggle("Check for updates", isOn: $values.updateCheckEnabled)
-          .disabled(isChecking)
-        Text("Ask whether a newer release is published.")
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-        Picker("Channel", selection: $values.updateChannel) {
-          Text("Stable").tag(UpdateChannel.stable)
-          Text("Beta").tag(UpdateChannel.beta)
+      Section("Updates") {
+        Toggle(isOn: $values.updateCheckEnabled) {
+          SettingsFormLabel(
+            title: "Check for updates",
+            caption: "Ask whether a newer release is published."
+          )
         }
         .disabled(isChecking)
-        Text("Stable covers full releases only. Beta also covers prereleases.")
-          .font(.footnote)
-          .foregroundStyle(.secondary)
+        Picker(selection: $values.updateChannel) {
+          Text("Stable").tag(UpdateChannel.stable)
+          Text("Beta").tag(UpdateChannel.beta)
+        } label: {
+          SettingsFormLabel(
+            title: "Channel",
+            caption: "Stable covers full releases only. Beta also covers prereleases."
+          )
+        }
+        .pickerStyle(.menu)
+        .disabled(isChecking)
         HStack(spacing: 8) {
-          Button("Check now", action: onCheckNow)
-            .disabled(!values.updateCheckEnabled || isChecking)
+          Text(checkResultText ?? "Not checked yet.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .textSelection(.enabled)
+          Spacer()
           if isChecking {
             ProgressView()
               .controlSize(.small)
           }
-        }
-        Text(checkResultText ?? "Not checked yet.")
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-          .textSelection(.enabled)
-        Button("Open version history") {
-          _ = opener(UpdateCheck.releasesPageURL)
+          Button("Check now", action: onCheckNow)
+            .disabled(!values.updateCheckEnabled || isChecking)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
       }
-      Divider()
-      Text("Permissions")
-        .font(.headline)
-      if missing.isEmpty {
-        Text("Lanterna has the permissions it needs.")
-          .font(.body)
-          .foregroundStyle(.secondary)
-      } else {
-        Text("Grant the missing permissions, then restart Lanterna.")
-          .font(.body)
-          .foregroundStyle(.secondary)
-        ForEach(missing) { permission in
+      Section("Permissions") {
+        if missing.isEmpty {
           HStack {
-            Text(permission.name)
+            Text("Lanterna has the permissions it needs.")
+              .foregroundStyle(.secondary)
             Spacer()
-            Button("Open Settings") {
-              _ = opener(permission.settingsURL)
+            Image(systemName: "checkmark.circle.fill")
+              .foregroundStyle(.green)
+          }
+        } else {
+          Text("Grant the missing permissions, then restart Lanterna.")
+            .foregroundStyle(.secondary)
+          ForEach(missing) { permission in
+            HStack {
+              Text(permission.name)
+              Spacer()
+              Button("Open Settings") {
+                _ = opener(permission.settingsURL)
+              }
+              .buttonStyle(.bordered)
+              .controlSize(.small)
             }
           }
         }
       }
     }
-    .padding(20)
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .formStyle(.grouped)
+    .settingsBackground()
   }
 }

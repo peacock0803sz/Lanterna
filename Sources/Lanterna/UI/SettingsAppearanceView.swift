@@ -1,9 +1,12 @@
 import SwiftUI
 
-/// The Appearance tab: which look the windows use.
+// MARK: - SettingsAppearanceView
+
+/// The Appearance tab: which look the windows use, and how large the
+/// switcher text is.
 ///
-/// One picker for the single appearance value, with a note on what each
-/// choice means. Future panel options (width) join this tab.
+/// The look and the text size are chosen above, and a preview below
+/// shows sample switcher rows with both applied.
 struct SettingsAppearanceView: View {
 
   // MARK: Internal
@@ -11,35 +14,71 @@ struct SettingsAppearanceView: View {
   @Binding var values: SettingsValues
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      VStack(alignment: .leading, spacing: 4) {
-        Picker("Appearance", selection: $values.appearanceMode) {
+    Form {
+      Section("Appearance") {
+        Picker(selection: $values.appearanceMode) {
           Text("System").tag(AppearanceMode.system)
           Text("Light").tag(AppearanceMode.light)
           Text("Dark").tag(AppearanceMode.dark)
+        } label: {
+          SettingsFormLabel(
+            title: "Appearance",
+            caption: "Follow the system look, or stay light or dark."
+          )
         }
-        Text("Follow the system look, or stay light or dark.")
-          .font(.footnote)
-          .foregroundStyle(.secondary)
+        .pickerStyle(.menu)
+        LabeledContent {
+          Slider(value: textScaleIndex, in: 0 ... 4, step: 1) {
+            Text("Text Size")
+          } minimumValueLabel: {
+            Text("Small")
+          } maximumValueLabel: {
+            Text("Large")
+          }
+          .labelsHidden()
+          .tint(.accentColor)
+        } label: {
+          SettingsFormLabel(
+            title: "Text Size",
+            caption: "\(Int((values.textScale.factor * 100).rounded()))% of the standard size."
+          )
+        }
       }
-      VStack(alignment: .leading, spacing: 4) {
-        Slider(value: textScaleIndex, in: 0 ... 4, step: 1) {
-          Text("Text Size")
-        } minimumValueLabel: {
-          Text("Small")
-        } maximumValueLabel: {
-          Text("Large")
-        }
-        Text("\(Int((values.textScale.factor * 100).rounded()))% of the standard size.")
-          .font(.footnote)
-          .foregroundStyle(.secondary)
+      Section("Preview") {
+        preview
       }
     }
-    .padding(20)
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .formStyle(.grouped)
+    .settingsBackground()
   }
 
   // MARK: Private
+
+  /// The sample rows wearing the panel row look, following the chosen scale
+  /// and look, ignoring clicks and reading as one preview element.
+  private var preview: some View {
+    let rows = Array(SampleWindows.standard().prefix(4))
+    return VStack(spacing: 0) {
+      ForEach(Array(rows.enumerated()), id: \.element.id) { index, window in
+        WindowRow(
+          window: window,
+          isSelected: index == 1,
+          query: "",
+          textScale: values.textScale
+        )
+      }
+    }
+    .padding(.vertical, 6)
+    .adaptiveGlass(cornerRadius: 16)
+    .background {
+      RoundedRectangle(cornerRadius: 16)
+        .fill(Color.secondary.opacity(0.12))
+    }
+    .allowsHitTesting(false)
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel("Preview")
+    .appliedAppearance(values.appearanceMode)
+  }
 
   /// The slider position spelling the step: the slider works in
   /// doubles while the steps count in whole positions.
@@ -50,4 +89,20 @@ struct SettingsAppearanceView: View {
     )
   }
 
+}
+
+// MARK: - View + appliedAppearance
+
+/// Follows the chosen look, leaving system choice to the system.
+extension View {
+  @ViewBuilder
+  fileprivate func appliedAppearance(_ mode: AppearanceMode) -> some View {
+    if mode == .light {
+      environment(\.colorScheme, .light)
+    } else if mode == .dark {
+      environment(\.colorScheme, .dark)
+    } else {
+      self
+    }
+  }
 }
