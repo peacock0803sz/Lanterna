@@ -25,6 +25,7 @@ struct SettingsFilterView: View {
             caption: "Windows living on another Space: mix them in, keep them out, or park them below."
           )
         }
+        .pickerStyle(.menu)
         Picker(selection: $values.displayModes.hiddenApp) {
           Text("Show").tag(DisplayMode.show)
           Text("Hide").tag(DisplayMode.hide)
@@ -35,6 +36,7 @@ struct SettingsFilterView: View {
             caption: "Windows of hidden applications: mix them in, keep them out, or park them below."
           )
         }
+        .pickerStyle(.menu)
         Picker(selection: $values.displayModes.minimized) {
           Text("Show").tag(DisplayMode.show)
           Text("Hide").tag(DisplayMode.hide)
@@ -45,6 +47,7 @@ struct SettingsFilterView: View {
             caption: "Windows folded into the Dock: mix them in, keep them out, or park them below."
           )
         }
+        .pickerStyle(.menu)
         Picker(selection: $values.displayModes.fullscreen) {
           Text("Show").tag(DisplayMode.show)
           Text("Hide").tag(DisplayMode.hide)
@@ -55,6 +58,7 @@ struct SettingsFilterView: View {
             caption: "Windows filling their own Space: mix them in, keep them out, or park them below."
           )
         }
+        .pickerStyle(.menu)
       }
       Section("Search") {
         Picker(selection: $values.romajiScope) {
@@ -66,6 +70,7 @@ struct SettingsFilterView: View {
             caption: "Match kana readings only, or kanji readings too."
           )
         }
+        .pickerStyle(.menu)
         LabeledContent {
           HStack {
             Text(capText)
@@ -97,6 +102,7 @@ struct SettingsFilterView: View {
             caption: "Show recent windows first, or best matches first."
           )
         }
+        .pickerStyle(.menu)
       }
       Section {
         ForEach($values.exclusions) { $entry in

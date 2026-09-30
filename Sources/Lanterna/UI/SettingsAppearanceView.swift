@@ -25,6 +25,7 @@ struct SettingsAppearanceView: View {
             caption: "Follow the system look, or stay light or dark."
           )
         }
+        .pickerStyle(.menu)
         LabeledContent {
           Slider(value: textScaleIndex, in: 0 ... 4, step: 1) {
             Text("Text Size")

@@ -79,6 +79,7 @@ struct SettingsGeneralView: View {
             caption: "Stable covers full releases only. Beta also covers prereleases."
           )
         }
+        .pickerStyle(.menu)
         .disabled(isChecking)
         HStack(spacing: 8) {
           Text(checkResultText ?? "Not checked yet.")
@@ -100,7 +101,7 @@ struct SettingsGeneralView: View {
             Text("Lanterna has the permissions it needs.")
               .foregroundStyle(.secondary)
             Spacer()
-            Image(systemName: "checkmark")
+            Image(systemName: "checkmark.circle.fill")
           }
         } else {
           Text("Grant the missing permissions, then restart Lanterna.")
