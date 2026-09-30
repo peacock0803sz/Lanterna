@@ -239,7 +239,8 @@ enum LightweightFilter {
   }
 
   private static func levelCondition(op: String, word: String, source: String) -> FilterCondition {
-    guard let rank = levelOrder.firstIndex(of: word) else {
+    let canonical = word == "warn" ? "warning" : word
+    guard let rank = levelOrder.firstIndex(of: canonical) else {
       return FilterCondition(fragment: "1 = 0", values: [], chip: "Level: \(word)?", source: source)
     }
     let picked: [String] =
@@ -248,7 +249,7 @@ enum LightweightFilter {
       case ">": rank + 1 < levelOrder.count ? Array(levelOrder[(rank + 1)...]) : []
       case "<=": Array(levelOrder[...rank])
       case "<": rank > 0 ? Array(levelOrder[..<rank]) : []
-      default: [word]
+      default: [canonical]
       }
     if picked.isEmpty {
       return FilterCondition(fragment: "1 = 0", values: [], chip: "Level: none", source: source)
