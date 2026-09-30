@@ -72,8 +72,8 @@ extension SettingsWindowTests {
 
   /// The frame keeps toolbar tabs in a fixed order with stable titles.
   @Test
-  func toolbarTabsFollowFixedOrder() {
-    let controller = tabController()
+  func toolbarTabsFollowFixedOrder() throws {
+    let controller = try tabController()
     #expect(controller.tabStyle == .toolbar)
     #expect(controller.tabViewItems.map(\.label) == ["General", "Appearance", "Filter", "Keyboard"])
   }
@@ -142,9 +142,8 @@ extension SettingsWindowTests {
     )
   }
 
-  private func tabController() -> NSTabViewController {
-    let controller = makeWindow().contentViewController as? NSTabViewController
-    return controller!
+  private func tabController() throws -> NSTabViewController {
+    try #require(makeWindow().contentViewController as? NSTabViewController)
   }
 
 }
