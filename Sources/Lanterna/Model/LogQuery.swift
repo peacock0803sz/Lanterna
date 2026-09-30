@@ -161,6 +161,10 @@ enum LightweightFilter {
       return excludedCondition(column: "category", value: rawValue, chip: "Category is not \(rawValue)", source: token)
     case ("message", ":"):
       return messageContains(rawValue, source: token)
+    case ("message", "="):
+      return exactCondition(column: "message", value: rawValue, chip: "Message is \(rawValue)", source: token)
+    case ("message", "!="):
+      return excludedCondition(column: "message", value: rawValue, chip: "Message is not \(rawValue)", source: token)
     case ("launch", _):
       return exactCondition(column: "launch_id", value: rawValue, chip: "Launch: \(rawValue)", source: token)
     case ("version", _):
