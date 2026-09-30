@@ -2,10 +2,10 @@ import SwiftUI
 
 // MARK: - SettingsFormLabel
 
-/// The label side of every settings row.
+/// The label side of a settings control row.
 ///
-/// Every row, whether toggle, choice, or other control, keeps its heading
-/// and its note here, so headings read alike across tabs.
+/// A heading with an optional note under it, so toggles, pickers, and
+/// other labeled controls read alike across tabs.
 struct SettingsFormLabel: View {
   init(title: String, caption: String? = nil) {
     self.title = title
@@ -29,14 +29,14 @@ struct SettingsFormLabel: View {
 
 // MARK: - SettingsBackground
 
-/// The mock gray behind grouped settings content.
 extension View {
+  /// The gray behind grouped settings content.
   func settingsBackground() -> some View {
     scrollContentBackground(.hidden)
       .background(Color(nsColor: .underPageBackgroundColor))
   }
 
-  /// The sidebar gray, a touch darker than the detail, as mocked.
+  /// The sidebar gray, a touch darker than the detail.
   func settingsSidebarBackground() -> some View {
     scrollContentBackground(.hidden)
       .background {
