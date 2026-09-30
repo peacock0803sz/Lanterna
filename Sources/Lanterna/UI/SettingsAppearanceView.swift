@@ -70,7 +70,7 @@ struct SettingsAppearanceView: View {
     .padding(.vertical, 6)
     .adaptiveGlass(cornerRadius: 16)
     .background {
-      RoundedRectangle(cornerRadius: 10)
+      RoundedRectangle(cornerRadius: 16)
         .fill(Color.secondary.opacity(0.12))
     }
     .allowsHitTesting(false)
