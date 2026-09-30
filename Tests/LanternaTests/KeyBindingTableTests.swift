@@ -32,6 +32,13 @@ struct KeyBindingTableTests {
     #expect(KeyBindingTable.defaults[.showReverse].first?.displayName == "Shift+Cmd+Tab")
     #expect(KeyBindingTable.defaults[.commit].first?.displayName == "Return")
     #expect(KeyBindingTable.defaults[.cancel].first?.displayName == "Esc")
+    #expect(KeyBindingTable.defaults[.closeWindow].first?.displayName == "Cmd+W")
+    #expect(KeyBindingTable.defaults[.quitApplication].first?.displayName == "Cmd+Q")
+    #expect(KeyBindingTable.defaults[.hideApplication].first?.displayName == "Cmd+H")
+    #expect(KeyBindingTable.defaults[.minimizeWindow].first?.displayName == "Cmd+M")
+    #expect(ResolvedKey(keyCode: UInt16(kVK_ANSI_A), modifiers: []).displayName == "A")
+    #expect(ResolvedKey(keyCode: UInt16(kVK_ANSI_1), modifiers: []).displayName == "1")
+    #expect(ResolvedKey(keyCode: UInt16(kVK_ANSI_Minus), modifiers: []).displayName == "-")
     #expect(ResolvedKey(keyCode: 96, modifiers: []).displayName == "key 96")
   }
 
