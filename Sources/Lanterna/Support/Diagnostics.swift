@@ -220,7 +220,7 @@ enum Diagnostics {
     let origin = LogPersistence.currentOrigin()
     let startedAt = Int64(Foundation.Date().timeIntervalSince1970 * 1000)
     do {
-      let database: Database
+      let spill: ([DiagnosticRow]) throws -> Void
       if persist {
         let directory = LogPersistence.directory(applicationSupport: applicationSupport, origin: origin)
         let launch = LogLaunchStore(
@@ -232,22 +232,29 @@ enum Diagnostics {
           rotation: rotation
         )
         launchStore = launch
-        database = try launch.database()
+        spill = { rows in
+          let database = try launch.database()
+          let connection = try database.connect()
+          try connection.execute(
+            LogPersistence.insertStatement(rows: rows, launchID: launchID, buildVersion: buildVersion)
+          )
+        }
       } else {
-        database = try LogPersistence.openEphemeral(
+        let database = try LogPersistence.openEphemeral(
           launchID: launchID,
           origin: origin,
           buildVersion: buildVersion,
           startedAtMilliseconds: startedAt
         )
-      }
-      let writer = LogSpillWriter(
-        spill: { rows in
+        spill = { rows in
           let connection = try database.connect()
           try connection.execute(
             LogPersistence.insertStatement(rows: rows, launchID: launchID, buildVersion: buildVersion)
           )
-        },
+        }
+      }
+      let writer = LogSpillWriter(
+        spill: spill,
         onFailure: { Diagnostics.mirrorSpillFailure($0) }
       )
       spillWriter = writer
