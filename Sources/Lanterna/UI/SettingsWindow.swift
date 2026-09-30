@@ -121,7 +121,7 @@ final class SettingsWindow: NSWindow {
   // MARK: Internal
 
   /// The fixed content width shared by every tab.
-  static let contentWidth: CGFloat = 560
+  static let contentWidth: CGFloat = 640
 
   /// The tallest content the window ever shows.
   static let maximumContentHeight: CGFloat = 600
