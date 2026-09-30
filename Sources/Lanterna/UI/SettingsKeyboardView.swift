@@ -59,8 +59,11 @@ struct SettingsKeyboardView: View {
   /// The categories and their search field.
   private var sidebar: some View {
     VStack(spacing: 0) {
-      HStack {
-        TextField("Search shortcuts", text: $searchText, prompt: Text("Search shortcuts"))
+      HStack(spacing: 6) {
+        Image(systemName: "magnifyingglass")
+          .foregroundStyle(.secondary)
+        TextField("Search shortcuts", text: $searchText)
+          .textFieldStyle(.plain)
         if !searchText.isEmpty {
           Button {
             searchText = ""
@@ -70,12 +73,20 @@ struct SettingsKeyboardView: View {
           .buttonStyle(.plain)
         }
       }
+      .padding(.horizontal, 8)
+      .padding(.vertical, 6)
+      .background {
+        RoundedRectangle(cornerRadius: 8)
+          .strokeBorder(.separator)
+      }
       .padding(8)
       List(selection: sidebarSelection) {
         ForEach(KeyBindingCategory.allCases, id: \.self) { category in
           HStack {
             Image(systemName: category.iconName)
             Text(category.title)
+              .lineLimit(1)
+              .minimumScaleFactor(0.85)
             Spacer()
             Text("\(category.actions.count)")
               .foregroundStyle(.secondary)
@@ -127,25 +138,29 @@ struct SettingsKeyboardView: View {
             }
           }
         }
-        Section {
-          HStack {
-            Button("Reset all") {
-              values.keyBindings = .defaults
-              stopCapture()
-              notice = nil
-            }
-            if let notice {
-              Text(notice)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            }
-          }
-          Text("Press a key to assign it. Assignments are physical keys, independent of input source.")
+      }
+      .formStyle(.grouped)
+      HStack {
+        Button("Reset all") {
+          values.keyBindings = .defaults
+          stopCapture()
+          notice = nil
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        if let notice {
+          Text(notice)
             .font(.footnote)
             .foregroundStyle(.secondary)
         }
       }
-      .formStyle(.grouped)
+      .padding(.horizontal, 20)
+      .padding(.vertical, 8)
+      Text("Press a key to assign it. Assignments are physical keys, independent of input source.")
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
     }
   }
 
