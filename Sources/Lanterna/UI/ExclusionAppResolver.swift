@@ -13,8 +13,11 @@ struct ResolvedExclusionApp: Equatable, Sendable {
 
 /// How an exclusion row finds the app it names, for display only.
 ///
-/// Installed lookup wins, otherwise the running list is searched by
-/// pattern, otherwise there is no match. Never used for judging.
+/// The text is first looked up as the bundle identifier of an installed
+/// app. Failing that, it is read as a regular expression and matched
+/// against the names of running apps, and the first running app that
+/// matches wins. Display only: whether a window is excluded is decided
+/// by `WindowExclusion`, not here.
 @MainActor
 enum ExclusionAppResolver {
 
