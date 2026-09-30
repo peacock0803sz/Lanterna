@@ -34,6 +34,8 @@ struct SettingsAppearanceView: View {
           } maximumValueLabel: {
             Text("Large")
           }
+          .labelsHidden()
+          .tint(.accentColor)
         } label: {
           SettingsFormLabel(
             title: "Text Size",
