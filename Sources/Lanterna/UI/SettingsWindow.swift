@@ -134,7 +134,8 @@ final class SettingsWindow: NSWindow {
   /// Held here so reopening the window starts unconfirmed again.
   private(set) var checkDisplay = UpdateCheckDisplay()
 
-  /// The content height for one visible height.
+  /// The content height for a screen's visible height: the maximum, or
+  /// less when the visible height minus the chrome is shorter.
   static func contentHeight(visibleHeight: CGFloat) -> CGFloat {
     min(maximumContentHeight, visibleHeight - chromeHeight)
   }
