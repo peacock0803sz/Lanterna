@@ -402,7 +402,8 @@ enum DatabaseStatementCheck {
       )
     }
     if hasRowCap(words: scanned.words) {
-      return Verdict(allowed: true, refusal: nil, effectiveText: trimmed)
+      let base = trimmed.hasSuffix(";") ? String(trimmed.dropLast()) : trimmed
+      return Verdict(allowed: true, refusal: nil, effectiveText: base)
     }
     let base = trimmed.hasSuffix(";") ? String(trimmed.dropLast()) : trimmed
     return Verdict(allowed: true, refusal: nil, effectiveText: base + " LIMIT \(rowLimit)")
