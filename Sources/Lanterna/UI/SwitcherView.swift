@@ -169,7 +169,7 @@ struct SwitcherView: View {
     sections.ordinary
   }
 
-  /// The non-empty subgroups below the separator, in drawing order.
+  /// The non-empty subgroups below the ordinary rows, in drawing order.
   private var subgroupRows: [(DisplaySubgroup, [WindowItem])] {
     sections.subgroups
   }

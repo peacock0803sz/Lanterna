@@ -50,7 +50,7 @@ enum TextScaleLevel: Int, CaseIterable, Equatable, Sendable {
 
   /// The panel width this step draws, in whole points.
   var scaledWidth: Double {
-    (680 * factor).rounded()
+    (Double(PanelMetrics.width) * factor).rounded()
   }
 }
 
