@@ -96,11 +96,13 @@ struct SettingsKeyboardView: View {
               .foregroundStyle(.secondary)
           }
           .tag(category)
+          .listRowBackground(Color.clear)
         }
       }
       .settingsBackground()
     }
     .frame(width: 170)
+    .background(Color(nsColor: .underPageBackgroundColor))
   }
 
   /// The heading above the detail rows.
@@ -168,6 +170,7 @@ struct SettingsKeyboardView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 8)
     }
+    .background(Color(nsColor: .underPageBackgroundColor))
   }
 
   /// One action's row, wired to the capture below.
