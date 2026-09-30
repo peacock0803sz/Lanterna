@@ -278,7 +278,13 @@ final class LogQueryExecutor: Sendable {
         records.append(fields)
         fields = []
       } else if character == "\r" {
-        break
+        endField()
+        records.append(fields)
+        fields = []
+        let next = text.index(after: index)
+        if next < text.endIndex, text[next] == "\n" {
+          index = next
+        }
       } else {
         current.append(character)
       }
