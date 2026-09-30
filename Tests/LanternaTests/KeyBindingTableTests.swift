@@ -39,7 +39,7 @@ struct KeyBindingTableTests {
     #expect(ResolvedKey(keyCode: UInt16(kVK_ANSI_A), modifiers: []).displayName == "A")
     #expect(ResolvedKey(keyCode: UInt16(kVK_ANSI_1), modifiers: []).displayName == "1")
     #expect(ResolvedKey(keyCode: UInt16(kVK_ANSI_Minus), modifiers: []).displayName == "-")
-    #expect(ResolvedKey(keyCode: 96, modifiers: []).displayName == "key 96")
+    #expect(ResolvedKey(keyCode: UInt16(kVK_F5), modifiers: []).displayName == "key 96")
   }
 
   @Test
