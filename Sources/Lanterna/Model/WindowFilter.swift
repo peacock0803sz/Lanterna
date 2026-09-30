@@ -147,9 +147,18 @@ enum WindowFilter {
   /// down: a confirmed string and a directly typed one arrive as the same
   /// characters. One ASCII character joins only when alphanumeric; anything
   /// longer, or holding non-ASCII, is taken verbatim as a confirmed string.
+  /// A single private-use scalar types nothing: that is how the function
+  /// keys arrive, arrows included, and letting one through would both block
+  /// its bare binding and narrow the list on it.
   static func allowedText(_ text: String) -> String? {
     guard !text.isEmpty else { return nil }
-    guard text.count == 1, let scalar = text.unicodeScalars.first, scalar.isASCII else {
+    guard text.count == 1, let scalar = text.unicodeScalars.first else {
+      return text
+    }
+    if isPrivateUse(scalar.value) {
+      return nil
+    }
+    guard scalar.isASCII else {
       return text
     }
     return isASCIILetterOrDigit(scalar.value) ? text : nil
@@ -186,6 +195,18 @@ enum WindowFilter {
     case 0x30 ... 0x39,
          0x41 ... 0x5A,
          0x61 ... 0x7A:
+      true
+    default:
+      false
+    }
+  }
+
+  /// Private-use scalars, where AppKit puts the function keys.
+  private static func isPrivateUse(_ value: UInt32) -> Bool {
+    switch value {
+    case 0xE000 ... 0xF8FF,
+         0xF0000 ... 0xFFFFD,
+         0x100000 ... 0x10FFFD:
       true
     default:
       false

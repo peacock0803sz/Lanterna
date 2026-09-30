@@ -78,8 +78,8 @@ fi
 cat > "$target" <<EOF
 /// Stamped by scripts/generate-version.sh at build time. Do not edit.
 enum StampedVersion {
-    /// The raw \`git describe\` string of the checkout this binary came from.
-    static let describe = "$describe"
+  /// The raw \`git describe\` string of the checkout this binary came from.
+  static let describe = "$describe"
 }
 EOF
 refresh_index

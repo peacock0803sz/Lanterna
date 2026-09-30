@@ -41,6 +41,23 @@ struct PanelKeyInputTableTests {
     )
   }
 
+  @Test(arguments: [NSEvent.ModifierFlags(), .command])
+  func arrowsMoveWithRealFunctionKeyCharacters(modifiers: NSEvent.ModifierFlags) {
+    let table = KeyBindingTable.defaults
+    #expect(
+      PanelKeyInput.action(
+        for: tablePress(kVK_DownArrow, modifiers, characters: "\u{F701}"),
+        table: table
+      ) == .selectNext
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: tablePress(kVK_UpArrow, modifiers, characters: "\u{F700}"),
+        table: table
+      ) == .selectPrevious
+    )
+  }
+
   @Test
   func defaultsTableAbsorbsTab() {
     #expect(PanelKeyInput.action(for: tablePress(kVK_Tab), table: .defaults) == .absorb)
