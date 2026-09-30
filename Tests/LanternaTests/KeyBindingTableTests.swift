@@ -13,6 +13,57 @@ private func key(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = []) -> Res
   ResolvedKey(keyCode: UInt16(keyCode), modifiers: modifiers)
 }
 
+/// Main-block ANSI key codes paired with the US keycaps they display as.
+private let ansiLabels: [(Int, String)] = [
+  (kVK_ANSI_A, "A"),
+  (kVK_ANSI_B, "B"),
+  (kVK_ANSI_C, "C"),
+  (kVK_ANSI_D, "D"),
+  (kVK_ANSI_E, "E"),
+  (kVK_ANSI_F, "F"),
+  (kVK_ANSI_G, "G"),
+  (kVK_ANSI_H, "H"),
+  (kVK_ANSI_I, "I"),
+  (kVK_ANSI_J, "J"),
+  (kVK_ANSI_K, "K"),
+  (kVK_ANSI_L, "L"),
+  (kVK_ANSI_M, "M"),
+  (kVK_ANSI_N, "N"),
+  (kVK_ANSI_O, "O"),
+  (kVK_ANSI_P, "P"),
+  (kVK_ANSI_Q, "Q"),
+  (kVK_ANSI_R, "R"),
+  (kVK_ANSI_S, "S"),
+  (kVK_ANSI_T, "T"),
+  (kVK_ANSI_U, "U"),
+  (kVK_ANSI_V, "V"),
+  (kVK_ANSI_W, "W"),
+  (kVK_ANSI_X, "X"),
+  (kVK_ANSI_Y, "Y"),
+  (kVK_ANSI_Z, "Z"),
+  (kVK_ANSI_0, "0"),
+  (kVK_ANSI_1, "1"),
+  (kVK_ANSI_2, "2"),
+  (kVK_ANSI_3, "3"),
+  (kVK_ANSI_4, "4"),
+  (kVK_ANSI_5, "5"),
+  (kVK_ANSI_6, "6"),
+  (kVK_ANSI_7, "7"),
+  (kVK_ANSI_8, "8"),
+  (kVK_ANSI_9, "9"),
+  (kVK_ANSI_Equal, "="),
+  (kVK_ANSI_Minus, "-"),
+  (kVK_ANSI_RightBracket, "]"),
+  (kVK_ANSI_LeftBracket, "["),
+  (kVK_ANSI_Quote, "'"),
+  (kVK_ANSI_Semicolon, ";"),
+  (kVK_ANSI_Backslash, "\\"),
+  (kVK_ANSI_Comma, ","),
+  (kVK_ANSI_Slash, "/"),
+  (kVK_ANSI_Period, "."),
+  (kVK_ANSI_Grave, "`"),
+]
+
 // MARK: - KeyBindingTableTests
 
 struct KeyBindingTableTests {
@@ -32,7 +83,17 @@ struct KeyBindingTableTests {
     #expect(KeyBindingTable.defaults[.showReverse].first?.displayName == "Shift+Cmd+Tab")
     #expect(KeyBindingTable.defaults[.commit].first?.displayName == "Return")
     #expect(KeyBindingTable.defaults[.cancel].first?.displayName == "Esc")
-    #expect(ResolvedKey(keyCode: 96, modifiers: []).displayName == "key 96")
+    #expect(KeyBindingTable.defaults[.closeWindow].first?.displayName == "Cmd+W")
+    #expect(KeyBindingTable.defaults[.quitApplication].first?.displayName == "Cmd+Q")
+    #expect(KeyBindingTable.defaults[.hideApplication].first?.displayName == "Cmd+H")
+    #expect(KeyBindingTable.defaults[.minimizeWindow].first?.displayName == "Cmd+M")
+    #expect(ResolvedKey(keyCode: UInt16(kVK_F5), modifiers: []).displayName == "key 96")
+    #expect(ResolvedKey(keyCode: UInt16(kVK_ANSI_Keypad1), modifiers: []).displayName == "key 83")
+  }
+
+  @Test(arguments: ansiLabels)
+  func mainBlockANSIKeysSpellUSKeycaps(code: Int, label: String) {
+    #expect(ResolvedKey(keyCode: UInt16(code), modifiers: []).displayName == label)
   }
 
   @Test
