@@ -9,6 +9,8 @@ on:
       - "Package.resolved"
       - "flake.nix"
       - "flake.lock"
+      - ".swiftformat"
+      - ".swiftlint.yml"
       - ".github/workflows/check-swift.yml"
   pull_request:
     paths:
@@ -18,6 +20,8 @@ on:
       - "Package.resolved"
       - "flake.nix"
       - "flake.lock"
+      - ".swiftformat"
+      - ".swiftlint.yml"
       - ".github/workflows/check-swift.yml"
 
 concurrency:
@@ -29,6 +33,29 @@ defaults:
     shell: bash
 
 jobs:
+  # Style gate: the vendored airbnb-based configs must report zero violations.
+  # Additive only; the build and packaging jobs below are unchanged.
+  swift-lint:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
+      - name: Check formatting
+        run: nix develop --command swiftformat --lint Sources/Lanterna Tests/
+      - name: Lint
+        run: |
+          # SwiftLint needs SourceKit from Xcode, not the Nix Apple SDK.
+          # xcode-select points at Xcode on the hosted runner.
+          DEVELOPER_DIR=$(/usr/bin/xcode-select -p)
+          export DEVELOPER_DIR
+          DYLD_FRAMEWORK_PATH="$DEVELOPER_DIR/usr/lib"
+          export DYLD_FRAMEWORK_PATH
+          nix develop --command swiftlint --strict
+
   swift-build:
     strategy:
       fail-fast: false
