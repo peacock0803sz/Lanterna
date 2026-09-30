@@ -113,6 +113,12 @@ final class LogQueryExecutor: Sendable {
 
   // MARK: Private
 
+  private struct MissingStoreFile: Error, CustomStringConvertible {
+    var description: String {
+      "file does not exist"
+    }
+  }
+
   private let files: [URL]
 
   private func fetch(sql: String, progress: (Double) -> Void) throws -> ExecutedLogQuery {
@@ -140,6 +146,9 @@ final class LogQueryExecutor: Sendable {
   }
 
   private func read(file: URL, sql: String) throws -> (rows: [DiagnosticRow], skippedLines: Int) {
+    guard FileManager.default.fileExists(atPath: file.path) else {
+      throw MissingStoreFile()
+    }
     let database = try Database(store: .file(at: file))
     let connection = try database.connect()
     let stamped = try connection.query(
