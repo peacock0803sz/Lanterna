@@ -183,7 +183,7 @@ importers:
         specifier: ^0.9.10
         version: 0.9.10(@emnapi/runtime@1.11.3)(prettier-plugin-astro@1.1.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(prettier@3.9.9))(prettier@3.9.9)(typescript@5.9.3)
       '@types/node':
-        specifier: ^24.13.6
+        specifier: ^24.19.0
         version: 24.19.0
       prettier:
         specifier: ^3.9.9
