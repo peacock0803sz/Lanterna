@@ -18,7 +18,7 @@ enum DiagnosticLog {
 /// A class of its own rather than static state, so a test can hold one and
 /// fill past the cap without a long-lived process or racing other suites.
 /// Locked because lines are written from more than one execution context.
-// swiftlint:disable:next no_unchecked_sendable - every mutable state below is guarded by lock
+// swiftlint:disable:next no_unchecked_sendable - Every mutable state below is guarded by the lock
 final class DiagnosticLogStore: @unchecked Sendable {
 
   // MARK: Internal
@@ -107,7 +107,7 @@ enum Diagnostics {
   /// which `main` calls ahead of the first line on the launch path,
   /// before any concurrency starts, so no line goes out unwired and no
   /// lock guards what a single thread sets up.
-  // swiftlint:disable:next implicitly_unwrapped_optional - set once by bootstrap before concurrency starts; never nil afterwards
+  // swiftlint:disable:next implicitly_unwrapped_optional - Set once by bootstrap before concurrency starts; never nil afterwards
   private(set) nonisolated(unsafe) static var logger: Logger!
 
   /// The level in force for this process. Read once per launch from the
@@ -176,7 +176,7 @@ enum Diagnostics {
 /// logger rather than here. A future backend (a file, the system log)
 /// arrives as another handler beside this one. Locked around the only
 /// mutable state, so sharing it across execution contexts stays sound.
-// swiftlint:disable:next no_unchecked_sendable - every mutable state below is guarded by lock
+// swiftlint:disable:next no_unchecked_sendable - Every mutable state below is guarded by the lock
 final class DiagnosticLogHandler: LogHandler, @unchecked Sendable {
 
   // MARK: Lifecycle
