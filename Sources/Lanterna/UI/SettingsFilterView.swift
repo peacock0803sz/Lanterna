@@ -157,13 +157,9 @@ private struct ExclusionRow: View {
 
   // MARK: Lifecycle
 
-  @MainActor
   init(entry: Binding<ExclusionEntry>, onRemove: @escaping () -> Void) {
     _entry = entry
     self.onRemove = onRemove
-    // Seed cache from starting wording so first paint needs no extra pass.
-    _resolved = State(initialValue: ExclusionAppResolver.resolve(app: entry.wrappedValue.app))
-    _resolvedInput = State(initialValue: entry.wrappedValue.app)
   }
 
   // MARK: Internal
@@ -174,37 +170,59 @@ private struct ExclusionRow: View {
 
   var body: some View {
     HStack(alignment: .top) {
-      Image(nsImage: AppIconResolver.icon(forBundleIdentifier: resolved?.bundleIdentifier))
+      Image(nsImage: AppIconResolver.icon(forBundleIdentifier: resolution.app?.bundleIdentifier))
         .resizable()
         .frame(width: 22, height: 22)
       VStack(alignment: .leading) {
         TextField("App", text: $entry.app)
-        if let resolved {
-          Text("\(resolved.name) · \(resolved.bundleIdentifier)")
-            .font(.system(size: 11))
-            .foregroundStyle(.secondary)
-        } else {
-          Text("No matching app found")
-            .font(.system(size: 11))
-            .foregroundStyle(.secondary)
-        }
+        Text(resolution.note)
+          .font(.system(size: 11))
+          .foregroundStyle(.secondary)
         TextField("Title pattern", text: $entry.titlePattern)
       }
       Button("Remove", action: onRemove)
         .buttonStyle(.bordered)
         .controlSize(.small)
     }
-    .onChange(of: entry.app) { _, newValue in
-      // Refresh cache only when this row wording alters, leaving other rows alone.
-      guard newValue != resolvedInput else { return }
-      resolvedInput = newValue
-      resolved = ExclusionAppResolver.resolve(app: newValue)
+    .task(id: entry.app) {
+      // Resolve only when this row's wording changes, not on every parent pass.
+      resolution = ExclusionAppResolver.resolve(app: entry.app).map(Resolution.found) ?? .none
     }
   }
 
   // MARK: Private
 
-  @State private var resolved: ResolvedExclusionApp?
-  @State private var resolvedInput: String
+  /// The looked-up app, cached until this row's app wording changes.
+  @State private var resolution = Resolution.pending
 
+}
+
+// MARK: ExclusionRow.Resolution
+
+extension ExclusionRow {
+  /// Whether the row's app has been looked up yet, and what came back.
+  fileprivate enum Resolution {
+    case pending
+    case none
+    case found(ResolvedExclusionApp)
+
+    // MARK: Internal
+
+    var app: ResolvedExclusionApp? {
+      if case .found(let app) = self {
+        app
+      } else {
+        nil
+      }
+    }
+
+    /// The note under the app field; blank until the first lookup lands.
+    var note: String {
+      switch self {
+      case .pending: " "
+      case .none: "No matching app found"
+      case .found(let app): "\(app.name) · \(app.bundleIdentifier)"
+      }
+    }
+  }
 }
