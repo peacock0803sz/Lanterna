@@ -2,10 +2,11 @@ import SwiftUI
 
 // MARK: - SettingsFilterView
 
-/// The Filter tab: which windows reach the switcher list.
+/// The Filter tab: which windows reach the switcher list, and how the
+/// query matches and orders them.
 ///
-/// One picker per special window kind, each with a note on what the
-/// choices do. Later filtering options join this tab.
+/// Window types place special windows, search tunes matching and result
+/// order, and excluded windows keep matching windows out altogether.
 struct SettingsFilterView: View {
 
   // MARK: Internal
