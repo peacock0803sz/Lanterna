@@ -4,8 +4,8 @@ import SwiftUI
 
 /// The Appearance tab: which look the windows use.
 ///
-/// One picker for the single appearance value and one slider for the
-/// text scale, each paired with its note on the label side.
+/// The look and the text size are chosen above, and a preview below
+/// shows sample switcher rows with both applied.
 struct SettingsAppearanceView: View {
 
   // MARK: Internal
@@ -54,7 +54,7 @@ struct SettingsAppearanceView: View {
   // MARK: Private
 
   /// The sample rows wearing the panel row look, following the chosen scale
-  /// and look, ignoring touches and reading as one preview element.
+  /// and look, ignoring clicks and reading as one preview element.
   private var preview: some View {
     let rows = Array(SampleWindows.standard().prefix(4))
     return VStack(spacing: 0) {
@@ -90,7 +90,7 @@ struct SettingsAppearanceView: View {
 
 }
 
-// MARK: - AppearancePreviewModifier
+// MARK: - View + appliedAppearance
 
 /// Follows the chosen look, leaving system choice to the system.
 extension View {
