@@ -144,6 +144,7 @@ struct ResolvedKey: Equatable, Hashable, Sendable {
   // MARK: Private
 
   /// The US position name for an ANSI key code, if it spells one.
+  /// Cases follow Events.h numeric order.
   private static func ansiName(for keyCode: Int) -> String? {
     switch keyCode {
     case kVK_ANSI_A:
