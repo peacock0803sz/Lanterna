@@ -5,8 +5,10 @@ import Testing
 
 /// A press as the keyboard would make it, with nothing held and no repeat.
 private func aPress(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = []) -> PanelKeystroke {
-    PanelKeystroke(keyCode: UInt16(keyCode), modifiers: modifiers, isARepeat: false)
+  PanelKeystroke(keyCode: UInt16(keyCode), modifiers: modifiers, isARepeat: false)
 }
+
+// MARK: - MonitorSpy
 
 /// Stands in for AppKit's two monitor calls, so what the real channel does with
 /// them can be watched without a keyboard and without a window server.
@@ -19,215 +21,239 @@ private func aPress(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = []) -> 
 /// claim, so order is what is kept.
 @MainActor
 private final class MonitorSpy {
-    enum Call: Equatable {
-        case install
-        case remove
-    }
 
-    private(set) var calls: [Call] = []
+  // MARK: Internal
 
-    /// Whether an install hands a token back. False is AppKit declining, which
-    /// it is documented to do and which there is no way to provoke from the
-    /// real call — and it is the one case the answer from `start` exists for.
-    var installSucceeds = true
+  enum Call: Equatable {
+    case install
+    case remove
+  }
 
-    /// A channel wired to this spy and to nothing else.
-    func makeChannel() -> LocalKeyEventChannel {
-        LocalKeyEventChannel(
-            installMonitor: { [self] _, _ in
-                calls.append(.install)
-                return installSucceeds ? Token() : nil
-            },
-            removeMonitor: { [self] _ in calls.append(.remove) }
-        )
-    }
+  private(set) var calls = [Call]()
 
-    /// What AppKit would hand back: something opaque whose only use is being
-    /// handed in again. A class, so that two installs produce two of them, as
-    /// two real monitors would.
-    private final class Token {}
+  /// Whether an install hands a token back. False is AppKit declining, which
+  /// it is documented to do and which there is no way to provoke from the
+  /// real call — and it is the one case the answer from `start` exists for.
+  var installSucceeds = true
+
+  /// A channel wired to this spy and to nothing else.
+  func makeChannel() -> LocalKeyEventChannel {
+    LocalKeyEventChannel(
+      installMonitor: { [self] _, _ in
+        calls.append(.install)
+        return installSucceeds ? Token() : nil
+      },
+      removeMonitor: { [self] _ in calls.append(.remove) }
+    )
+  }
+
+  // MARK: Private
+
+  /// What AppKit would hand back: something opaque whose only use is being
+  /// handed in again. A class, so that two installs produce two of them, as
+  /// two real monitors would.
+  private final class Token { }
+
 }
 
 /// A handler that swallows everything, for the cases that are about the
 /// monitor rather than about what a press means.
 @MainActor
 private func swallowing(_: PanelKeystroke) -> PanelKeyDisposition {
-    .absorbed
+  .absorbed
 }
+
+// MARK: - PanelKeyChannelTests
 
 /// The keyboard reaching the presenter, driven from the end a real monitor
 /// would deliver from.
 @MainActor
 struct PanelKeyChannelTests {
-    /// Wires a channel to a presenter the way the launch does, and hands back
-    /// both ends.
-    private func wired(_ fixture: Fixture) -> FakeKeyChannel {
-        let channel = FakeKeyChannel()
-        // Thrown away on purpose: this stand-in always installs, and the cases
-        // below are about what arrives afterwards rather than about whether
-        // anything was installed. The two that are about that ask the real
-        // channel, which is the only one that can answer no.
-        _ = channel.start(handler: fixture.presenter.handleKeyStroke)
-        return channel
+
+  // MARK: Internal
+
+  /// The monitor runs for the whole of the process's life, so it sees every
+  /// press the user makes, most of them while no panel is anywhere. Those
+  /// have to carry on to whatever they were for.
+  @Test
+  func aPressWithNoPanelUpCarriesOn() {
+    let fixture = Fixture()
+    let channel = wired(fixture)
+
+    #expect(channel.send(aPress(kVK_ANSI_A)) == .passedThrough)
+    #expect(channel.send(aPress(kVK_Return)) == .passedThrough)
+    #expect(fixture.log.lines.isEmpty)
+    #expect(fixture.surface.isPresented == false)
+  }
+
+  /// A panel that is up holds the whole keyboard, including the keys it has
+  /// no use for. Handing one of those back would send it down the responder
+  /// chain, where a press nothing handles rings the system alert; a
+  /// character key handed back would type into whatever is in front of the
+  /// panel.
+  @Test
+  func everyKeyIsSwallowedWhileThePanelIsUp() {
+    let fixture = Fixture()
+    let channel = wired(fixture)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+    #expect(channel.send(aPress(kVK_ANSI_A)) == .absorbed)
+    #expect(channel.send(aPress(kVK_ANSI_Q, .command)) == .absorbed)
+    #expect(channel.send(aPress(kVK_F1)) == .absorbed)
+  }
+
+  /// Swallowing is not acting. A key with no meaning here must leave the
+  /// panel exactly as it found it, and say nothing into the log: the lines
+  /// are counted, and one per keystroke would drown the ones that matter.
+  @Test
+  func aSwallowedKeyDoesNothingElse() {
+    let fixture = Fixture()
+    let channel = wired(fixture)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    let linesAfterThePanelWentUp = fixture.log.lines
+
+    for _ in 0 ..< 20 {
+      channel.send(aPress(kVK_ANSI_A))
     }
 
-    /// The monitor runs for the whole of the process's life, so it sees every
-    /// press the user makes, most of them while no panel is anywhere. Those
-    /// have to carry on to whatever they were for.
-    @Test func aPressWithNoPanelUpCarriesOn() {
-        let fixture = Fixture()
-        let channel = wired(fixture)
+    #expect(fixture.surface.isPresented)
+    #expect(fixture.surface.dismissCount == 0)
+    #expect(fixture.surface.presentedLists.count == 1)
+    #expect(fixture.log.lines == linesAfterThePanelWentUp)
+  }
 
-        #expect(channel.send(aPress(kVK_ANSI_A)) == .passedThrough)
-        #expect(channel.send(aPress(kVK_Return)) == .passedThrough)
-        #expect(fixture.log.lines.isEmpty)
-        #expect(fixture.surface.isPresented == false)
-    }
+  /// The keyboard goes back to whatever the user was working in once the
+  /// panel has gone. Only a press on the far side of a dismissal says so:
+  /// every case above stands in one state and stays there, so a presenter
+  /// that latched — swallowing everything from the first appearance onward
+  /// rather than asking each time whether a panel is up — would satisfy all
+  /// of them, while on a real machine one Cmd+Tab would be the last
+  /// keystroke any application ever received.
+  ///
+  /// The panel is taken down by a second press, which is what closes it on
+  /// a run with no modifier monitor; the default fixture is such a run.
+  @Test
+  func aPressAfterThePanelHasGoneReachesTheApplicationAgain() {
+    let fixture = Fixture()
+    let channel = wired(fixture)
 
-    /// A panel that is up holds the whole keyboard, including the keys it has
-    /// no use for. Handing one of those back would send it down the responder
-    /// chain, where a press nothing handles rings the system alert; a
-    /// character key handed back would type into whatever is in front of the
-    /// panel.
-    @Test func everyKeyIsSwallowedWhileThePanelIsUp() {
-        let fixture = Fixture()
-        let channel = wired(fixture)
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    #expect(channel.send(aPress(kVK_ANSI_A)) == .absorbed)
 
-        #expect(channel.send(aPress(kVK_ANSI_A)) == .absorbed)
-        #expect(channel.send(aPress(kVK_ANSI_Q, .command)) == .absorbed)
-        #expect(channel.send(aPress(kVK_F1)) == .absorbed)
-    }
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    #expect(fixture.surface.isPresented == false)
 
-    /// Swallowing is not acting. A key with no meaning here must leave the
-    /// panel exactly as it found it, and say nothing into the log: the lines
-    /// are counted, and one per keystroke would drown the ones that matter.
-    @Test func aSwallowedKeyDoesNothingElse() {
-        let fixture = Fixture()
-        let channel = wired(fixture)
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        let linesAfterThePanelWentUp = fixture.log.lines
+    #expect(channel.send(aPress(kVK_ANSI_A)) == .passedThrough)
+  }
 
-        for _ in 0 ..< 20 {
-            channel.send(aPress(kVK_ANSI_A))
-        }
+  /// A monitor that has been taken off delivers nothing at all, which is a
+  /// different thing from delivering a press and swallowing it.
+  @Test
+  func aStoppedChannelDeliversNothing() {
+    let fixture = Fixture()
+    let channel = wired(fixture)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
 
-        #expect(fixture.surface.isPresented)
-        #expect(fixture.surface.dismissCount == 0)
-        #expect(fixture.surface.presentedLists.count == 1)
-        #expect(fixture.log.lines == linesAfterThePanelWentUp)
-    }
+    channel.stop()
 
-    /// The keyboard goes back to whatever the user was working in once the
-    /// panel has gone. Only a press on the far side of a dismissal says so:
-    /// every case above stands in one state and stays there, so a presenter
-    /// that latched — swallowing everything from the first appearance onward
-    /// rather than asking each time whether a panel is up — would satisfy all
-    /// of them, while on a real machine one Cmd+Tab would be the last
-    /// keystroke any application ever received.
-    ///
-    /// The panel is taken down by a second press, which is what closes it on
-    /// a run with no modifier monitor; the default fixture is such a run.
-    @Test func aPressAfterThePanelHasGoneReachesTheApplicationAgain() {
-        let fixture = Fixture()
-        let channel = wired(fixture)
+    #expect(channel.isDelivering == false)
+    #expect(channel.send(aPress(kVK_ANSI_A)) == nil)
+  }
 
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        #expect(channel.send(aPress(kVK_ANSI_A)) == .absorbed)
+  /// The answer means presses will arrive, so a monitor AppKit handed over
+  /// has to produce a yes.
+  @Test
+  func aMonitorThatWentUpAnswersYes() {
+    let spy = MonitorSpy()
+    let channel = spy.makeChannel()
 
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        #expect(fixture.surface.isPresented == false)
+    #expect(channel.start(handler: swallowing))
+    #expect(spy.calls == [.install])
+  }
 
-        #expect(channel.send(aPress(kVK_ANSI_A)) == .passedThrough)
-    }
+  /// AppKit is documented to hand nothing back, and this answer is the only
+  /// notice of it anywhere in the process. Everything downstream carries on
+  /// as though the keyboard were being read: the panel appears, the
+  /// presenter holds an opinion about every key, and the keys themselves go
+  /// to whatever is in front of the panel.
+  @Test
+  func aMonitorAppKitRefusedAnswersNo() {
+    let spy = MonitorSpy()
+    spy.installSucceeds = false
+    let channel = spy.makeChannel()
 
-    /// A monitor that has been taken off delivers nothing at all, which is a
-    /// different thing from delivering a press and swallowing it.
-    @Test func aStoppedChannelDeliversNothing() {
-        let fixture = Fixture()
-        let channel = wired(fixture)
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    #expect(channel.start(handler: swallowing) == false)
+    #expect(spy.calls == [.install])
+  }
 
-        channel.stop()
+  /// The second start takes the first monitor off before it installs
+  /// anything, and the order is the claim rather than the counts: two
+  /// monitors over one keyboard would put the same press to the presenter
+  /// twice and act on both answers, and a removal that arrived after the
+  /// second install would leave exactly one monitor while removing the one
+  /// that was meant to stay.
+  @Test
+  func startingTwiceTakesTheFirstMonitorOffFirst() {
+    let spy = MonitorSpy()
+    let channel = spy.makeChannel()
 
-        #expect(channel.isDelivering == false)
-        #expect(channel.send(aPress(kVK_ANSI_A)) == nil)
-    }
+    _ = channel.start(handler: swallowing)
+    _ = channel.start(handler: swallowing)
 
-    /// The answer means presses will arrive, so a monitor AppKit handed over
-    /// has to produce a yes.
-    @Test func aMonitorThatWentUpAnswersYes() {
-        let spy = MonitorSpy()
-        let channel = spy.makeChannel()
+    #expect(spy.calls == [.install, .remove, .install])
+  }
 
-        #expect(channel.start(handler: swallowing))
-        #expect(spy.calls == [.install])
-    }
+  /// Stopping takes the monitor off once, and stopping again asks for
+  /// nothing. The token has already gone back to AppKit by then, and handing
+  /// it the same one twice is asking it to take off a monitor it no longer
+  /// knows anything about.
+  @Test
+  func stoppingTwiceAsksForOneRemoval() {
+    let spy = MonitorSpy()
+    let channel = spy.makeChannel()
+    _ = channel.start(handler: swallowing)
 
-    /// AppKit is documented to hand nothing back, and this answer is the only
-    /// notice of it anywhere in the process. Everything downstream carries on
-    /// as though the keyboard were being read: the panel appears, the
-    /// presenter holds an opinion about every key, and the keys themselves go
-    /// to whatever is in front of the panel.
-    @Test func aMonitorAppKitRefusedAnswersNo() {
-        let spy = MonitorSpy()
-        spy.installSucceeds = false
-        let channel = spy.makeChannel()
+    channel.stop()
+    channel.stop()
 
-        #expect(channel.start(handler: swallowing) == false)
-        #expect(spy.calls == [.install])
-    }
+    #expect(spy.calls == [.install, .remove])
+  }
 
-    /// The second start takes the first monitor off before it installs
-    /// anything, and the order is the claim rather than the counts: two
-    /// monitors over one keyboard would put the same press to the presenter
-    /// twice and act on both answers, and a removal that arrived after the
-    /// second install would leave exactly one monitor while removing the one
-    /// that was meant to stay.
-    @Test func startingTwiceTakesTheFirstMonitorOffFirst() {
-        let spy = MonitorSpy()
-        let channel = spy.makeChannel()
+  /// The stand-in replaces the way the real channel does, taking whatever
+  /// was listening off before it installs anything. A double looser than the
+  /// thing it stands in for is a double that lets a test pass where the real
+  /// one would fail, which is the whole of what a double is for.
+  ///
+  /// `isDelivering` afterwards is what pins the order down. A stand-in that
+  /// stopped after installing would leave these same two counts and nothing
+  /// listening at all.
+  @Test
+  func theStandInAlsoReplacesByRemovingFirst() {
+    let fixture = Fixture()
+    let channel = FakeKeyChannel()
 
-        _ = channel.start(handler: swallowing)
-        _ = channel.start(handler: swallowing)
+    _ = channel.start(handler: fixture.presenter.handleKeyStroke)
+    _ = channel.start(handler: fixture.presenter.handleKeyStroke)
 
-        #expect(spy.calls == [.install, .remove, .install])
-    }
+    #expect(channel.startCount == 2)
+    #expect(channel.stopCount == 2)
+    #expect(channel.isDelivering)
+  }
 
-    /// Stopping takes the monitor off once, and stopping again asks for
-    /// nothing. The token has already gone back to AppKit by then, and handing
-    /// it the same one twice is asking it to take off a monitor it no longer
-    /// knows anything about.
-    @Test func stoppingTwiceAsksForOneRemoval() {
-        let spy = MonitorSpy()
-        let channel = spy.makeChannel()
-        _ = channel.start(handler: swallowing)
+  // MARK: Private
 
-        channel.stop()
-        channel.stop()
+  /// Wires a channel to a presenter the way the launch does, and hands back
+  /// both ends.
+  private func wired(_ fixture: Fixture) -> FakeKeyChannel {
+    let channel = FakeKeyChannel()
+    // Thrown away on purpose: this stand-in always installs, and the cases
+    // below are about what arrives afterwards rather than about whether
+    // anything was installed. The two that are about that ask the real
+    // channel, which is the only one that can answer no.
+    _ = channel.start(handler: fixture.presenter.handleKeyStroke)
+    return channel
+  }
 
-        #expect(spy.calls == [.install, .remove])
-    }
-
-    /// The stand-in replaces the way the real channel does, taking whatever
-    /// was listening off before it installs anything. A double looser than the
-    /// thing it stands in for is a double that lets a test pass where the real
-    /// one would fail, which is the whole of what a double is for.
-    ///
-    /// `isDelivering` afterwards is what pins the order down. A stand-in that
-    /// stopped after installing would leave these same two counts and nothing
-    /// listening at all.
-    @Test func theStandInAlsoReplacesByRemovingFirst() {
-        let fixture = Fixture()
-        let channel = FakeKeyChannel()
-
-        _ = channel.start(handler: fixture.presenter.handleKeyStroke)
-        _ = channel.start(handler: fixture.presenter.handleKeyStroke)
-
-        #expect(channel.startCount == 2)
-        #expect(channel.stopCount == 2)
-        #expect(channel.isDelivering)
-    }
 }
 
 /// The two new rows of the meaning table, driven from the end a real monitor
@@ -236,78 +262,84 @@ struct PanelKeyChannelTests {
 ///
 /// A press as the channel makes it, carrying the produced string.
 private func aTypedPress(
-    _ keyCode: Int,
-    _ modifiers: NSEvent.ModifierFlags = [],
-    characters: String,
-    repeating: Bool = false
+  _ keyCode: Int,
+  _ modifiers: NSEvent.ModifierFlags = [],
+  characters: String,
+  repeating: Bool = false
 ) -> PanelKeystroke {
-    PanelKeystroke(
-        keyCode: UInt16(keyCode),
-        modifiers: modifiers,
-        isARepeat: repeating,
-        characters: characters
-    )
+  PanelKeystroke(
+    keyCode: UInt16(keyCode),
+    modifiers: modifiers,
+    isARepeat: repeating,
+    characters: characters
+  )
 }
+
+// MARK: - FilterKeyMeaningTests
 
 @MainActor
 struct FilterKeyMeaningTests {
-    /// A letter narrows the list, whether or not Command is still down.
-    @Test(arguments: [NSEvent.ModifierFlags(), .command])
-    func lettersBecomeFilterTextWhateverIsHeldWithThem(modifiers: NSEvent.ModifierFlags) {
-        #expect(
-            PanelKeyInput.action(for: aTypedPress(kVK_ANSI_A, modifiers, characters: "a"))
-                == .filterText("a")
-        )
-    }
+  /// A letter narrows the list, whether or not Command is still down.
+  @Test(arguments: [NSEvent.ModifierFlags(), .command])
+  func lettersBecomeFilterTextWhateverIsHeldWithThem(modifiers: NSEvent.ModifierFlags) {
+    #expect(
+      PanelKeyInput.action(for: aTypedPress(kVK_ANSI_A, modifiers, characters: "a"))
+        == .filterText("a")
+    )
+  }
 
-    /// A directly typed symbol is not a query; it is swallowed like before.
-    @Test func symbolsAreAbsorbedRatherThanFiltering() {
-        #expect(
-            PanelKeyInput.action(for: aTypedPress(kVK_ANSI_Minus, characters: "-"))
-                == .absorb
-        )
-    }
+  /// A directly typed symbol is not a query; it is swallowed like before.
+  @Test
+  func symbolsAreAbsorbedRatherThanFiltering() {
+    #expect(
+      PanelKeyInput.action(for: aTypedPress(kVK_ANSI_Minus, characters: "-"))
+        == .absorb
+    )
+  }
 
-    /// A confirmed string is taken verbatim, modifiers aside.
-    @Test func confirmedStringsAreTakenVerbatim() {
-        #expect(
-            PanelKeyInput.action(for: aTypedPress(kVK_ANSI_A, .command, characters: "あ"))
-                == .filterText("あ")
-        )
-    }
+  /// A confirmed string is taken verbatim, modifiers aside.
+  @Test
+  func confirmedStringsAreTakenVerbatim() {
+    #expect(
+      PanelKeyInput.action(for: aTypedPress(kVK_ANSI_A, .command, characters: "あ"))
+        == .filterText("あ")
+    )
+  }
 
-    /// Backspace edits the query, whether or not Command is still down.
-    @Test(arguments: [NSEvent.ModifierFlags(), .command])
-    func backspaceEditsTheQueryWhateverIsHeldWithIt(modifiers: NSEvent.ModifierFlags) {
-        #expect(
-            PanelKeyInput.action(for: aTypedPress(kVK_Delete, modifiers, characters: ""))
-                == .filterBackspace
-        )
-    }
+  /// Backspace edits the query, whether or not Command is still down.
+  @Test(arguments: [NSEvent.ModifierFlags(), .command])
+  func backspaceEditsTheQueryWhateverIsHeldWithIt(modifiers: NSEvent.ModifierFlags) {
+    #expect(
+      PanelKeyInput.action(for: aTypedPress(kVK_Delete, modifiers, characters: ""))
+        == .filterBackspace
+    )
+  }
 
-    /// Holding a letter or Backspace down repeats the narrowing, as holding
-    /// an arrow repeats the moving. Committing or cancelling twice stays
-    /// unasked for.
-    @Test func holdingALetterOrBackspaceRepeatsTheFiltering() {
-        #expect(
-            PanelKeyInput.action(for: aTypedPress(kVK_ANSI_A, characters: "a", repeating: true))
-                == .filterText("a")
-        )
-        #expect(
-            PanelKeyInput.action(for: aTypedPress(kVK_Delete, characters: "", repeating: true))
-                == .filterBackspace
-        )
-        #expect(
-            PanelKeyInput.action(for: aTypedPress(kVK_Escape, characters: "", repeating: true))
-                == .absorb
-        )
-    }
+  /// Holding a letter or Backspace down repeats the narrowing, as holding
+  /// an arrow repeats the moving. Committing or cancelling twice stays
+  /// unasked for.
+  @Test
+  func holdingALetterOrBackspaceRepeatsTheFiltering() {
+    #expect(
+      PanelKeyInput.action(for: aTypedPress(kVK_ANSI_A, characters: "a", repeating: true))
+        == .filterText("a")
+    )
+    #expect(
+      PanelKeyInput.action(for: aTypedPress(kVK_Delete, characters: "", repeating: true))
+        == .filterBackspace
+    )
+    #expect(
+      PanelKeyInput.action(for: aTypedPress(kVK_Escape, characters: "", repeating: true))
+        == .absorb
+    )
+  }
 
-    /// The reserved combination still wins over the character it would type.
-    @Test func commandPeriodStillCancels() {
-        #expect(
-            PanelKeyInput.action(for: aTypedPress(kVK_ANSI_Period, .command, characters: "."))
-                == .cancel(.commandPeriod)
-        )
-    }
+  /// The reserved combination still wins over the character it would type.
+  @Test
+  func commandPeriodStillCancels() {
+    #expect(
+      PanelKeyInput.action(for: aTypedPress(kVK_ANSI_Period, .command, characters: "."))
+        == .cancel(.commandPeriod)
+    )
+  }
 }

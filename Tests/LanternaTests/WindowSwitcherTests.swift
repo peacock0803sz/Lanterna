@@ -3,6 +3,8 @@ import Foundation
 @testable import Lanterna
 import Testing
 
+// MARK: - WindowSwitcherTests
+
 /// What the seam sends, and what it does with each answer.
 ///
 /// Which error an application returns is the whole behaviour under test, and
@@ -14,298 +16,328 @@ import Testing
 /// synchronously on one thread, with a clock the answers advance.
 @MainActor
 struct WindowSwitcherTests {
-    private func target(windowID: CGWindowID = 101) -> ActivationTarget {
-        ActivationTarget(
-            id: WindowItem.Identifier(windowID: windowID),
-            ownerProcessIdentifier: 4242,
-            appName: "TextEdit",
-            displayTitle: "Untitled"
-        )
-    }
 
-    /// A resolved element is the one acted upon, and the owning pid is the
-    /// one asked about. Anything else would take a row nobody chose.
-    @Test func resolvingHandsTheResolvedElementToTheOperations() {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        let outcome = peer.switcher().switchTo(target())
+  // MARK: Internal
 
-        #expect(outcome == .switched)
-        #expect(peer.createPIDs == [4242])
-        #expect(peer.operated == [peer.identity(of: 1), peer.identity(of: 1)])
-    }
+  /// A resolved element is the one acted upon, and the owning pid is the
+  /// one asked about. Anything else would take a row nobody chose.
+  @Test
+  func resolvingHandsTheResolvedElementToTheOperations() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    let outcome = peer.switcher().switchTo(target())
 
-    /// A missing row ends the take before anything is touched.
-    @Test func anUnknownIDFailsWithoutTouchingAnything() {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        let outcome = peer.switcher().switchTo(target(windowID: 999))
+    #expect(outcome == .switched)
+    #expect(peer.createPIDs == [4242])
+    #expect(peer.operated == [peer.identity(of: 1), peer.identity(of: 1)])
+  }
 
-        #expect(outcome == .failed(.windowGone))
-        #expect(peer.operationNames.isEmpty)
-    }
+  /// A missing row ends the take before anything is touched.
+  @Test
+  func anUnknownIDFailsWithoutTouchingAnything() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    let outcome = peer.switcher().switchTo(target(windowID: 999))
 
-    /// A slow refusal to answer is a wait.
-    @Test func aSlowWindowsReadBecomesTimedOut() {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        peer.windowsError = .cannotComplete
-        peer.listCost = .milliseconds(600)
-        let outcome = peer.switcher().switchTo(target())
+    #expect(outcome == .failed(.windowGone))
+    #expect(peer.operationNames.isEmpty)
+  }
 
-        #expect(outcome == .failed(.timedOut))
-        #expect(peer.operationNames.isEmpty)
-    }
+  /// A slow refusal to answer is a wait.
+  @Test
+  func aSlowWindowsReadBecomesTimedOut() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    peer.windowsError = .cannotComplete
+    peer.listCost = .milliseconds(600)
+    let outcome = peer.switcher().switchTo(target())
 
-    /// A fast refusal is about the application, not the wait.
-    @Test func aFastWindowsReadBecomesApplicationGone() {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        peer.windowsError = .cannotComplete
-        let outcome = peer.switcher().switchTo(target())
+    #expect(outcome == .failed(.timedOut))
+    #expect(peer.operationNames.isEmpty)
+  }
 
-        #expect(outcome == .failed(.applicationGone))
-        #expect(peer.operationNames.isEmpty)
-    }
+  /// A fast refusal is about the application, not the wait.
+  @Test
+  func aFastWindowsReadBecomesApplicationGone() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    peer.windowsError = .cannotComplete
+    let outcome = peer.switcher().switchTo(target())
 
-    /// Which error ends a resolve, spelled out.
-    @Test(arguments: [
-        (AXError.apiDisabled, ActivationFailure.other(reason: "permission missing")),
-        (.invalidUIElement, .applicationGone),
-        (.failure, .other(reason: "error \(AXError.failure.rawValue)")),
-    ])
-    func aWindowsReadErrorMapsToItsOutcome(error: AXError, failure: ActivationFailure) {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        peer.windowsError = error
-        let outcome = peer.switcher().switchTo(target())
+    #expect(outcome == .failed(.applicationGone))
+    #expect(peer.operationNames.isEmpty)
+  }
 
-        #expect(outcome == .failed(failure))
-        #expect(peer.operationNames.isEmpty)
-    }
+  /// Which error ends a resolve, spelled out.
+  @Test(arguments: [
+    (AXError.apiDisabled, ActivationFailure.other(reason: "permission missing")),
+    (.invalidUIElement, .applicationGone),
+    (.failure, .other(reason: "error \(AXError.failure.rawValue)")),
+  ])
+  func aWindowsReadErrorMapsToItsOutcome(error: AXError, failure: ActivationFailure) {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    peer.windowsError = error
+    let outcome = peer.switcher().switchTo(target())
 
-    /// No application, no take; a refusal names itself.
-    @Test func aMissingApplicationIsGoneAndARefusalSaysSo() {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        peer.activateAnswer = .missing
-        #expect(peer.switcher().switchTo(target()) == .failed(.applicationGone))
-        #expect(peer.operationNames == ["activate"])
+    #expect(outcome == .failed(failure))
+    #expect(peer.operationNames.isEmpty)
+  }
 
-        peer.activateAnswer = .refused
-        #expect(peer.switcher().switchTo(target()) == .failed(.other(reason: "activation refused")))
-        #expect(peer.operationNames == ["activate", "activate"])
-    }
+  /// No application, no take; a refusal names itself.
+  @Test
+  func aMissingApplicationIsGoneAndARefusalSaysSo() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    peer.activateAnswer = .missing
+    #expect(peer.switcher().switchTo(target()) == .failed(.applicationGone))
+    #expect(peer.operationNames == ["activate"])
 
-    /// A timeout that cannot even be set is about the application.
-    @Test func anUnsettableTimeoutIsApplicationGone() {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        peer.timeoutResult = .cannotComplete
-        let outcome = peer.switcher().switchTo(target())
+    peer.activateAnswer = .refused
+    #expect(peer.switcher().switchTo(target()) == .failed(.other(reason: "activation refused")))
+    #expect(peer.operationNames == ["activate", "activate"])
+  }
 
-        #expect(outcome == .failed(.applicationGone))
-        #expect(peer.operationNames.isEmpty)
-    }
+  /// A timeout that cannot even be set is about the application.
+  @Test
+  func anUnsettableTimeoutIsApplicationGone() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    peer.timeoutResult = .cannotComplete
+    let outcome = peer.switcher().switchTo(target())
 
-    /// Element-level answers sort the same way application-level ones do: a
-    /// slow silence is a wait, a fast one the application going away.
-    @Test(arguments: [
-        (Duration.zero, ActivationFailure.applicationGone),
-        (.milliseconds(600), .timedOut),
-    ])
-    func anElementIDSilenceSortsByItsWait(cost: Duration, failure: ActivationFailure) {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        peer.idAnswers = [0: (.success, 100), 1: (.cannotComplete, 0)]
-        peer.idCost = cost
-        let outcome = peer.switcher().switchTo(target())
+    #expect(outcome == .failed(.applicationGone))
+    #expect(peer.operationNames.isEmpty)
+  }
 
-        #expect(outcome == .failed(failure))
-        #expect(peer.operationNames.isEmpty)
-    }
+  /// Element-level answers sort the same way application-level ones do: a
+  /// slow silence is a wait, a fast one the application going away.
+  @Test(arguments: [
+    (Duration.zero, ActivationFailure.applicationGone),
+    (.milliseconds(600), .timedOut),
+  ])
+  func anElementIDSilenceSortsByItsWait(cost: Duration, failure: ActivationFailure) {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    peer.idAnswers = [0: (.success, 100), 1: (.cannotComplete, 0)]
+    peer.idCost = cost
+    let outcome = peer.switcher().switchTo(target())
 
-    /// An earlier wait must not condemn a later refusal. The ceiling judges
-    /// one message, not the running total.
-    @Test func anAccumulatedWaitDoesNotCondemnAFastRefusal() {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        peer.listCost = .milliseconds(600)
-        peer.idAnswers = [0: (.success, 100), 1: (.cannotComplete, 0)]
-        let outcome = peer.switcher().switchTo(target())
+    #expect(outcome == .failed(failure))
+    #expect(peer.operationNames.isEmpty)
+  }
 
-        #expect(outcome == .failed(.applicationGone))
-        #expect(peer.operationNames.isEmpty)
-    }
+  /// An earlier wait must not condemn a later refusal. The ceiling judges
+  /// one message, not the running total.
+  @Test
+  func anAccumulatedWaitDoesNotCondemnAFastRefusal() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    peer.listCost = .milliseconds(600)
+    peer.idAnswers = [0: (.success, 100), 1: (.cannotComplete, 0)]
+    let outcome = peer.switcher().switchTo(target())
 
-    /// Every element is given its own timeout before its first message: the
-    /// setting rides with the element it protects.
-    @Test func everyElementIsGivenItsOwnTimeout() {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        _ = peer.switcher().switchTo(target())
+    #expect(outcome == .failed(.applicationGone))
+    #expect(peer.operationNames.isEmpty)
+  }
 
-        #expect(peer.prepared == [peer.appIdentity(), peer.identity(of: 0), peer.identity(of: 1)])
-    }
+  /// Every element is given its own timeout before its first message: the
+  /// setting rides with the element it protects.
+  @Test
+  func everyElementIsGivenItsOwnTimeout() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    _ = peer.switcher().switchTo(target())
 
-    /// An element that cannot take a timeout is skipped like anything else
-    /// unreadable. A target never matched is windowGone, while the other
-    /// window still takes.
-    @Test func anUnpreparableElementIsSkipped() {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        peer.prepareErrors = [1: .failure]
-        #expect(peer.switcher().switchTo(target()) == .failed(.windowGone))
+    #expect(peer.prepared == [peer.appIdentity(), peer.identity(of: 0), peer.identity(of: 1)])
+  }
 
-        peer.prepareErrors = [0: .failure]
-        #expect(peer.switcher().switchTo(target()) == .switched)
-    }
+  /// An element that cannot take a timeout is skipped like anything else
+  /// unreadable. A target never matched is windowGone, while the other
+  /// window still takes.
+  @Test
+  func anUnpreparableElementIsSkipped() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    peer.prepareErrors = [1: .failure]
+    #expect(peer.switcher().switchTo(target()) == .failed(.windowGone))
 
-    /// A list that is not a list names itself, in the reader's words.
-    @Test func aMalformedListNamesItself() {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        peer.malformedList = true
-        let outcome = peer.switcher().switchTo(target())
+    peer.prepareErrors = [0: .failure]
+    #expect(peer.switcher().switchTo(target()) == .switched)
+  }
 
-        #expect(outcome == .failed(.other(reason: "malformed answer")))
-        #expect(peer.operationNames.isEmpty)
-    }
+  /// A list that is not a list names itself, in the reader's words.
+  @Test
+  func aMalformedListNamesItself() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    peer.malformedList = true
+    let outcome = peer.switcher().switchTo(target())
 
-    /// No open windows reads as an empty list: the row is gone, not
-    /// erroneous. Closing an application's last window between showing and
-    /// taking is the ordinary way to arrive here.
-    @Test func anEmptyWindowListIsWindowGone() {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        peer.windowsError = .noValue
-        let outcome = peer.switcher().switchTo(target())
+    #expect(outcome == .failed(.other(reason: "malformed answer")))
+    #expect(peer.operationNames.isEmpty)
+  }
 
-        #expect(outcome == .failed(.windowGone))
-        #expect(peer.operationNames.isEmpty)
-    }
+  /// No open windows reads as an empty list: the row is gone, not
+  /// erroneous. Closing an application's last window between showing and
+  /// taking is the ordinary way to arrive here.
+  @Test
+  func anEmptyWindowListIsWindowGone() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    peer.windowsError = .noValue
+    let outcome = peer.switcher().switchTo(target())
 
-    /// A write that never comes back is a wait; any other write error names
-    /// itself. Either way the take ends there: later operations are not
-    /// called on a window the take has already failed.
-    @Test(arguments: [
-        (Duration.zero, ActivationFailure.other(reason: "error \(AXError.cannotComplete.rawValue)")),
-        (.milliseconds(600), .timedOut),
-    ])
-    func aWriteErrorEndsTheTakeWithItsOutcome(cost: Duration, failure: ActivationFailure) {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        peer.writeError = .cannotComplete
-        peer.writeCost = cost
-        let outcome = peer.switcher().switchTo(target())
+    #expect(outcome == .failed(.windowGone))
+    #expect(peer.operationNames.isEmpty)
+  }
 
-        #expect(outcome == .failed(failure))
-        #expect(peer.operationNames == ["activate", "unminimize"])
-    }
+  /// A write that never comes back is a wait; any other write error names
+  /// itself. Either way the take ends there: later operations are not
+  /// called on a window the take has already failed.
+  @Test(arguments: [
+    (Duration.zero, ActivationFailure.other(reason: "error \(AXError.cannotComplete.rawValue)")),
+    (.milliseconds(600), .timedOut),
+  ])
+  func aWriteErrorEndsTheTakeWithItsOutcome(cost: Duration, failure: ActivationFailure) {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    peer.writeError = .cannotComplete
+    peer.writeCost = cost
+    let outcome = peer.switcher().switchTo(target())
 
-    /// A refused raise names its code and calls nothing after itself,
-    /// because nothing comes after it.
-    @Test func aRefusedRaiseNamesItsCode() {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        peer.raiseError = .failure
-        let outcome = peer.switcher().switchTo(target())
+    #expect(outcome == .failed(failure))
+    #expect(peer.operationNames == ["activate", "unminimize"])
+  }
 
-        #expect(outcome == .failed(.other(reason: "error \(AXError.failure.rawValue)")))
-        #expect(peer.operationNames == ["activate", "unminimize", "raise"])
-    }
+  /// A refused raise names its code and calls nothing after itself,
+  /// because nothing comes after it.
+  @Test
+  func aRefusedRaiseNamesItsCode() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    peer.raiseError = .failure
+    let outcome = peer.switcher().switchTo(target())
 
-    /// The full order, pinned: activate, then unminimize, then raise. The
-    /// order is the design's answer to a hidden and minimized window, so a
-    /// rewrite putting it back the other way round must turn red here.
-    /// Unminimizing is written without asking first, so the order holds
-    /// whether or not the window was minimized.
-    @Test func theOperationsRunActivateUnminimizeRaise() {
-        let peer = ScriptedAccessibility(windowCount: 2)
-        let outcome = peer.switcher().switchTo(target())
+    #expect(outcome == .failed(.other(reason: "error \(AXError.failure.rawValue)")))
+    #expect(peer.operationNames == ["activate", "unminimize", "raise"])
+  }
 
-        #expect(outcome == .switched)
-        #expect(peer.operationNames == ["activate", "unminimize", "raise"])
-    }
+  /// The full order, pinned: activate, then unminimize, then raise. The
+  /// order is the design's answer to a hidden and minimized window, so a
+  /// rewrite putting it back the other way round must turn red here.
+  /// Unminimizing is written without asking first, so the order holds
+  /// whether or not the window was minimized.
+  @Test
+  func theOperationsRunActivateUnminimizeRaise() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    let outcome = peer.switcher().switchTo(target())
+
+    #expect(outcome == .switched)
+    #expect(peer.operationNames == ["activate", "unminimize", "raise"])
+  }
+
+  // MARK: Private
+
+  private func target(windowID: CGWindowID = 101) -> ActivationTarget {
+    ActivationTarget(
+      id: WindowItem.Identifier(windowID: windowID),
+      ownerProcessIdentifier: 4242,
+      appName: "TextEdit",
+      displayTitle: "Untitled"
+    )
+  }
+
 }
+
+// MARK: - ScriptedAccessibility
 
 /// Scripted answers for the live switcher, recording every call.
 ///
 /// Distinct elements, so a closure can tell which window it was asked about.
 /// Creating one sends nothing and needs no permission.
+// swiftlint:disable:next no_unchecked_sendable - test-only; synchronous scripted answers, never shared
 private final class ScriptedAccessibility: @unchecked Sendable {
-    let application = AXUIElementCreateApplication(9000)
-    let windows: [AXUIElement]
 
-    private(set) var createPIDs: [pid_t] = []
-    /// Every element given a messaging timeout, in order: the application
-    /// first, then each window as it is met.
-    private(set) var prepared: [ObjectIdentifier] = []
-    /// Every activating, unminimizing and raising call, in order, by name.
-    private(set) var operationNames: [String] = []
-    /// The elements those calls acted upon, in the same order.
-    private(set) var operated: [ObjectIdentifier] = []
+  // MARK: Lifecycle
 
-    var windowsError: AXError = .success
-    /// Answers a list that is not a list.
-    var malformedList = false
-    /// Answers `nil` to fall through to a successful fetch of `100 + index`.
-    var idAnswers: [Int: (AXError, CGWindowID)] = [:]
-    var timeoutResult: AXError = .success
-    /// Answers `nil` to fall through to `.success`, keyed by window index.
-    var prepareErrors: [Int: AXError] = [:]
-    var activateAnswer: LiveWindowSwitcher.ApplicationActivation = .activated
-    var writeError: AXError = .success
-    /// Answers `nil` to fall through to `writeError`.
-    var raiseError: AXError?
-    /// Time each read costs, so a timeout can be spent without waiting.
-    var listCost: Duration = .zero
-    var idCost: Duration = .zero
-    var writeCost: Duration = .zero
+  init(windowCount: Int) {
+    windows = (0 ..< windowCount).map { AXUIElementCreateApplication(pid_t(9101 + $0)) }
+  }
 
-    private var clock = ContinuousClock.now
+  // MARK: Internal
 
-    init(windowCount: Int) {
-        windows = (0 ..< windowCount).map { AXUIElementCreateApplication(pid_t(9101 + $0)) }
-    }
+  let application = AXUIElementCreateApplication(9000)
+  let windows: [AXUIElement]
 
-    func identity(of index: Int) -> ObjectIdentifier {
-        ObjectIdentifier(windows[index])
-    }
+  private(set) var createPIDs = [pid_t]()
+  /// Every element given a messaging timeout, in order: the application
+  /// first, then each window as it is met.
+  private(set) var prepared = [ObjectIdentifier]()
+  /// Every activating, unminimizing and raising call, in order, by name.
+  private(set) var operationNames = [String]()
+  /// The elements those calls acted upon, in the same order.
+  private(set) var operated = [ObjectIdentifier]()
 
-    func appIdentity() -> ObjectIdentifier {
-        ObjectIdentifier(application)
-    }
+  var windowsError = AXError.success
+  /// Answers a list that is not a list.
+  var malformedList = false
+  /// Answers `nil` to fall through to a successful fetch of `100 + index`.
+  var idAnswers = [Int: (AXError, CGWindowID)]()
+  var timeoutResult = AXError.success
+  /// Answers `nil` to fall through to `.success`, keyed by window index.
+  var prepareErrors = [Int: AXError]()
+  var activateAnswer = LiveWindowSwitcher.ApplicationActivation.activated
+  var writeError = AXError.success
+  /// Answers `nil` to fall through to `writeError`.
+  var raiseError: AXError?
+  /// Time each read costs, so a timeout can be spent without waiting.
+  var listCost = Duration.zero
+  var idCost = Duration.zero
+  var writeCost = Duration.zero
 
-    func switcher() -> LiveWindowSwitcher {
-        LiveWindowSwitcher(
-            createApplication: { [self] pid in
-                createPIDs.append(pid)
-                return application
-            },
-            setMessagingTimeout: { [self] element, _ in
-                prepared.append(ObjectIdentifier(element))
-                if element === application {
-                    return timeoutResult
-                }
-                guard let index = windows.firstIndex(where: { $0 === element }) else {
-                    return .success
-                }
-                return prepareErrors[index] ?? .success
-            },
-            copyWindows: { [self] _ in
-                clock = clock.advanced(by: listCost)
-                return malformedList ? (windowsError, nil) : (windowsError, windows)
-            },
-            copyWindowID: { [self] element in
-                guard let index = windows.firstIndex(where: { $0 === element }) else {
-                    return (.illegalArgument, 0)
-                }
-                clock = clock.advanced(by: idCost)
-                return idAnswers[index] ?? (.success, CGWindowID(100 + index))
-            },
-            activateApplication: { [self] _ in
-                operationNames.append("activate")
-                return activateAnswer
-            },
-            setMinimized: { [self] element, _ in
-                operationNames.append("unminimize")
-                operated.append(ObjectIdentifier(element))
-                clock = clock.advanced(by: writeCost)
-                return writeError
-            },
-            raiseWindow: { [self] element in
-                operationNames.append("raise")
-                operated.append(ObjectIdentifier(element))
-                clock = clock.advanced(by: writeCost)
-                return raiseError ?? writeError
-            },
-            now: { [self] in clock }
-        )
-    }
+  func identity(of index: Int) -> ObjectIdentifier {
+    ObjectIdentifier(windows[index])
+  }
+
+  func appIdentity() -> ObjectIdentifier {
+    ObjectIdentifier(application)
+  }
+
+  func switcher() -> LiveWindowSwitcher {
+    LiveWindowSwitcher(
+      createApplication: { [self] pid in
+        createPIDs.append(pid)
+        return application
+      },
+      setMessagingTimeout: { [self] element, _ in
+        prepared.append(ObjectIdentifier(element))
+        if element === application {
+          return timeoutResult
+        }
+        guard let index = windows.firstIndex(where: { $0 === element }) else {
+          return .success
+        }
+        return prepareErrors[index] ?? .success
+      },
+      copyWindows: { [self] _ in
+        clock = clock.advanced(by: listCost)
+        return malformedList ? (windowsError, nil) : (windowsError, windows)
+      },
+      copyWindowID: { [self] element in
+        guard let index = windows.firstIndex(where: { $0 === element }) else {
+          return (.illegalArgument, 0)
+        }
+        clock = clock.advanced(by: idCost)
+        return idAnswers[index] ?? (.success, CGWindowID(100 + index))
+      },
+      activateApplication: { [self] _ in
+        operationNames.append("activate")
+        return activateAnswer
+      },
+      setMinimized: { [self] element, _ in
+        operationNames.append("unminimize")
+        operated.append(ObjectIdentifier(element))
+        clock = clock.advanced(by: writeCost)
+        return writeError
+      },
+      raiseWindow: { [self] element in
+        operationNames.append("raise")
+        operated.append(ObjectIdentifier(element))
+        clock = clock.advanced(by: writeCost)
+        return raiseError ?? writeError
+      },
+      now: { [self] in clock }
+    )
+  }
+
+  // MARK: Private
+
+  private var clock = ContinuousClock.now
+
 }

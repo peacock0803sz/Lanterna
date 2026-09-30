@@ -9,54 +9,67 @@ import Testing
 /// the keeper (`PanelFilter`); what is settled here is the table itself:
 /// recording, lookup, overwriting, the length cap, and the key folding.
 struct ShortcutMemoryTests {
-    private func id(_ windowID: UInt32) -> WindowItem.Identifier {
-        WindowItem.Identifier(windowID: CGWindowID(windowID))
-    }
 
-    @Test func recordsAndLooksUpOneQuery() {
-        var memory = ShortcutMemory(maxLength: 5)
-        #expect(memory.lookup(query: "m") == nil)
-        memory.record(query: "m", id: id(7))
-        #expect(memory.lookup(query: "m") == id(7))
-    }
+  // MARK: Internal
 
-    @Test func newerCommitWins() {
-        var memory = ShortcutMemory(maxLength: 5)
-        memory.record(query: "m", id: id(7))
-        memory.record(query: "m", id: id(9))
-        #expect(memory.lookup(query: "m") == id(9))
-    }
+  @Test
+  func recordsAndLooksUpOneQuery() {
+    var memory = ShortcutMemory(maxLength: 5)
+    #expect(memory.lookup(query: "m") == nil)
+    memory.record(query: "m", id: id(7))
+    #expect(memory.lookup(query: "m") == id(7))
+  }
 
-    @Test func keysIgnoreCase() {
-        var memory = ShortcutMemory(maxLength: 5)
-        memory.record(query: "M", id: id(7))
-        #expect(memory.lookup(query: "m") == id(7))
-        #expect(memory.lookup(query: "M") == id(7))
-    }
+  @Test
+  func newerCommitWins() {
+    var memory = ShortcutMemory(maxLength: 5)
+    memory.record(query: "m", id: id(7))
+    memory.record(query: "m", id: id(9))
+    #expect(memory.lookup(query: "m") == id(9))
+  }
 
-    @Test func queriesDoNotLeakAcrossKeys() {
-        var memory = ShortcutMemory(maxLength: 5)
-        memory.record(query: "m", id: id(7))
-        #expect(memory.lookup(query: "ma") == nil)
-    }
+  @Test
+  func keysIgnoreCase() {
+    var memory = ShortcutMemory(maxLength: 5)
+    memory.record(query: "M", id: id(7))
+    #expect(memory.lookup(query: "m") == id(7))
+    #expect(memory.lookup(query: "M") == id(7))
+  }
 
-    @Test func emptyQueryIsNeverRecorded() {
-        var memory = ShortcutMemory(maxLength: 5)
-        memory.record(query: "", id: id(7))
-        #expect(memory.lookup(query: "") == nil)
-    }
+  @Test
+  func queriesDoNotLeakAcrossKeys() {
+    var memory = ShortcutMemory(maxLength: 5)
+    memory.record(query: "m", id: id(7))
+    #expect(memory.lookup(query: "ma") == nil)
+  }
 
-    @Test func overlongQueriesAreOutOfScope() {
-        var memory = ShortcutMemory(maxLength: 1)
-        memory.record(query: "mail", id: id(7))
-        #expect(memory.lookup(query: "mail") == nil)
-        memory.record(query: "m", id: id(7))
-        #expect(memory.lookup(query: "m") == id(7))
-    }
+  @Test
+  func emptyQueryIsNeverRecorded() {
+    var memory = ShortcutMemory(maxLength: 5)
+    memory.record(query: "", id: id(7))
+    #expect(memory.lookup(query: "") == nil)
+  }
 
-    @Test func zeroCapBehavesAsEmpty() {
-        var memory = ShortcutMemory(maxLength: 0)
-        memory.record(query: "m", id: id(7))
-        #expect(memory.lookup(query: "m") == nil)
-    }
+  @Test
+  func overlongQueriesAreOutOfScope() {
+    var memory = ShortcutMemory(maxLength: 1)
+    memory.record(query: "mail", id: id(7))
+    #expect(memory.lookup(query: "mail") == nil)
+    memory.record(query: "m", id: id(7))
+    #expect(memory.lookup(query: "m") == id(7))
+  }
+
+  @Test
+  func zeroCapBehavesAsEmpty() {
+    var memory = ShortcutMemory(maxLength: 0)
+    memory.record(query: "m", id: id(7))
+    #expect(memory.lookup(query: "m") == nil)
+  }
+
+  // MARK: Private
+
+  private func id(_ windowID: UInt32) -> WindowItem.Identifier {
+    WindowItem.Identifier(windowID: CGWindowID(windowID))
+  }
+
 }

@@ -7,21 +7,31 @@ import Logging
 let ownProcess: pid_t = 1234
 let otherProcess: pid_t = 5678
 
+// MARK: - SteppingClock
+
 /// Reads a fixed amount later each time it is asked, so the figure in the
 /// measurement line is decided by the test and not by how busy the machine is.
 @MainActor
 final class SteppingClock {
-    private let step: Duration
-    private var current = ContinuousClock.now
 
-    init(step: Duration) {
-        self.step = step
-    }
+  // MARK: Lifecycle
 
-    func read() -> ContinuousClock.Instant {
-        defer { current = current.advanced(by: step) }
-        return current
-    }
+  init(step: Duration) {
+    self.step = step
+  }
+
+  // MARK: Internal
+
+  func read() -> ContinuousClock.Instant {
+    defer { current = current.advanced(by: step) }
+    return current
+  }
+
+  // MARK: Private
+
+  private let step: Duration
+  private var current = ContinuousClock.now
+
 }
 
 /// Lets the hand-offs between tasks on the main actor run out.
@@ -31,10 +41,12 @@ final class SteppingClock {
 /// turn before the presenter has either shown the panel or decided not to,
 /// and this is how many turns that takes with room to spare.
 func settle() async {
-    for _ in 0 ..< 10 {
-        await Task.yield()
-    }
+  for _ in 0 ..< 10 {
+    await Task.yield()
+  }
 }
+
+// MARK: - MonitorLiveness
 
 /// Whether a monitor is running, as the presenter asks it.
 ///
@@ -44,12 +56,20 @@ func settle() async {
 /// panel is up.
 @MainActor
 final class MonitorLiveness {
-    var isRunning: Bool
 
-    init(isRunning: Bool) {
-        self.isRunning = isRunning
-    }
+  // MARK: Lifecycle
+
+  init(isRunning: Bool) {
+    self.isRunning = isRunning
+  }
+
+  // MARK: Internal
+
+  var isRunning: Bool
+
 }
+
+// MARK: - CommandHold
 
 /// Whether Command is down, as the presenter asks it.
 ///
@@ -64,30 +84,41 @@ final class MonitorLiveness {
 /// on the thing that was meant to occur.
 @MainActor
 final class CommandHold {
-    var isHeld: Bool
-    private(set) var askCount = 0
-    private var reached: CheckedContinuation<Void, Never>?
-    private var awaitedCount = 0
 
-    init(isHeld: Bool) {
-        self.isHeld = isHeld
-    }
+  // MARK: Lifecycle
 
-    func read() -> Bool {
-        askCount += 1
-        if askCount >= awaitedCount {
-            reached?.resume()
-            reached = nil
-        }
-        return isHeld
-    }
+  init(isHeld: Bool) {
+    self.isHeld = isHeld
+  }
 
-    func waitUntilAsked(times: Int) async {
-        guard askCount < times else { return }
-        awaitedCount = times
-        await withCheckedContinuation { reached = $0 }
+  // MARK: Internal
+
+  var isHeld: Bool
+  private(set) var askCount = 0
+
+  func read() -> Bool {
+    askCount += 1
+    if askCount >= awaitedCount {
+      reached?.resume()
+      reached = nil
     }
+    return isHeld
+  }
+
+  func waitUntilAsked(times: Int) async {
+    guard askCount < times else { return }
+    awaitedCount = times
+    await withCheckedContinuation { reached = $0 }
+  }
+
+  // MARK: Private
+
+  private var reached: CheckedContinuation<Void, Never>?
+  private var awaitedCount = 0
+
 }
+
+// MARK: - Fixture
 
 /// A presenter and the fakes behind it, so a test can drive the one and then
 /// read the others.
@@ -98,115 +129,125 @@ final class CommandHold {
 /// apart, and a change to `SwitcherSurface` would then be made in one of them.
 @MainActor
 struct Fixture {
-    let surface: FakeSurface
-    let log: DiagnosticsLog
-    let windows: [WindowItem]
-    let presenter: PanelPresenter
-    /// The very clock the presenter reads, so a test can charge one operation
-    /// a tick and then ask whether the figure counted it.
-    let clock: SteppingClock
-    /// The very box the presenter asks, so a test can switch the monitor off
-    /// between one press and the next.
-    let monitorLiveness: MonitorLiveness
-    /// The very box the presenter asks, so a test can let Command go before
-    /// the press that was made with it arrives.
-    let commandHold: CommandHold
-    /// What commits take. Silent unless a test scripts it, so the suites
-    /// written before anything was taken keep reading the same lines.
-    let switcher: FakeWindowSwitcher
 
-    /// A store that already holds a list, which is every press but the first
-    /// one after launch.
-    init(
-        entryCount: Int = 12,
-        step: Duration = .microseconds(4800),
-        closesOnCommandRelease: Bool = false,
-        commandIsHeld: Bool = true,
-        commandWatchInterval: Duration = .milliseconds(1),
-        keyStatusWatchInterval: Duration = .milliseconds(1),
-        switcher: FakeWindowSwitcher = FakeWindowSwitcher()
-    ) {
-        let windows = SampleWindows.make(count: entryCount)
-        self.init(
-            store: WindowListStore(fixed: windows),
-            windows: windows,
-            step: step,
-            closesOnCommandRelease: closesOnCommandRelease,
-            commandIsHeld: commandIsHeld,
-            commandWatchInterval: commandWatchInterval,
-            keyStatusWatchInterval: keyStatusWatchInterval,
-            switcher: switcher
-        )
-    }
+  // MARK: Lifecycle
 
-    init(
-        store: WindowListStore,
-        windows: [WindowItem] = [],
-        step: Duration = .microseconds(4800),
-        closesOnCommandRelease: Bool = false,
-        commandIsHeld: Bool = true,
-        commandWatchInterval: Duration = .milliseconds(1),
-        keyStatusWatchInterval: Duration = .milliseconds(1),
-        switcher: FakeWindowSwitcher = FakeWindowSwitcher()
-    ) {
-        let surface = FakeSurface()
-        let log = DiagnosticsLog()
-        let clock = SteppingClock(step: step)
-        let monitorLiveness = MonitorLiveness(isRunning: closesOnCommandRelease)
-        // Held by default, because that is what a press made with the key
-        // down means, and every test written before the presenter could ask
-        // was written for that press.
-        let commandHold = CommandHold(isHeld: commandIsHeld)
-        presenter = PanelPresenter(
-            surface: surface,
-            store: store,
-            ownProcessIdentifier: ownProcess,
-            now: clock.read,
-            writeLine: log.write,
-            closesOnCommandRelease: { [monitorLiveness] in monitorLiveness.isRunning },
-            commandIsHeld: { [commandHold] in commandHold.read() },
-            // A real fiftieth of a second per look would be paid over again by
-            // every test that waits for one. The store's loop tests shorten
-            // their interval for the same reason.
-            commandWatchInterval: commandWatchInterval,
-            // Half a second per look would put every loss past any test's
-            // patience. Shortened for the same reason as the watch above.
-            keyStatusWatchInterval: keyStatusWatchInterval,
-            switcher: switcher
-        )
-        self.surface = surface
-        self.log = log
-        self.windows = windows
-        self.clock = clock
-        self.monitorLiveness = monitorLiveness
-        self.commandHold = commandHold
-        self.switcher = switcher
-    }
+  /// A store that already holds a list, which is every press but the first
+  /// one after launch.
+  init(
+    entryCount: Int = 12,
+    step: Duration = .microseconds(4800),
+    closesOnCommandRelease: Bool = false,
+    commandIsHeld: Bool = true,
+    commandWatchInterval: Duration = .milliseconds(1),
+    keyStatusWatchInterval: Duration = .milliseconds(1),
+    switcher: FakeWindowSwitcher = FakeWindowSwitcher()
+  ) {
+    let windows = SampleWindows.make(count: entryCount)
+    self.init(
+      store: WindowListStore(fixed: windows),
+      windows: windows,
+      step: step,
+      closesOnCommandRelease: closesOnCommandRelease,
+      commandIsHeld: commandIsHeld,
+      commandWatchInterval: commandWatchInterval,
+      keyStatusWatchInterval: keyStatusWatchInterval,
+      switcher: switcher
+    )
+  }
+
+  init(
+    store: WindowListStore,
+    windows: [WindowItem] = [],
+    step: Duration = .microseconds(4800),
+    closesOnCommandRelease: Bool = false,
+    commandIsHeld: Bool = true,
+    commandWatchInterval: Duration = .milliseconds(1),
+    keyStatusWatchInterval: Duration = .milliseconds(1),
+    switcher: FakeWindowSwitcher = FakeWindowSwitcher()
+  ) {
+    let surface = FakeSurface()
+    let log = DiagnosticsLog()
+    let clock = SteppingClock(step: step)
+    let monitorLiveness = MonitorLiveness(isRunning: closesOnCommandRelease)
+    // Held by default, because that is what a press made with the key
+    // down means, and every test written before the presenter could ask
+    // was written for that press.
+    let commandHold = CommandHold(isHeld: commandIsHeld)
+    presenter = PanelPresenter(
+      surface: surface,
+      store: store,
+      ownProcessIdentifier: ownProcess,
+      now: clock.read,
+      writeLine: log.write,
+      closesOnCommandRelease: { [monitorLiveness] in monitorLiveness.isRunning },
+      commandIsHeld: { [commandHold] in commandHold.read() },
+      // A real fiftieth of a second per look would be paid over again by
+      // every test that waits for one. The store's loop tests shorten
+      // their interval for the same reason.
+      commandWatchInterval: commandWatchInterval,
+      // Half a second per look would put every loss past any test's
+      // patience. Shortened for the same reason as the watch above.
+      keyStatusWatchInterval: keyStatusWatchInterval,
+      switcher: switcher
+    )
+    self.surface = surface
+    self.log = log
+    self.windows = windows
+    self.clock = clock
+    self.monitorLiveness = monitorLiveness
+    self.commandHold = commandHold
+    self.switcher = switcher
+  }
+
+  // MARK: Internal
+
+  let surface: FakeSurface
+  let log: DiagnosticsLog
+  let windows: [WindowItem]
+  let presenter: PanelPresenter
+  /// The very clock the presenter reads, so a test can charge one operation
+  /// a tick and then ask whether the figure counted it.
+  let clock: SteppingClock
+  /// The very box the presenter asks, so a test can switch the monitor off
+  /// between one press and the next.
+  let monitorLiveness: MonitorLiveness
+  /// The very box the presenter asks, so a test can let Command go before
+  /// the press that was made with it arrives.
+  let commandHold: CommandHold
+  /// What commits take. Silent unless a test scripts it, so the suites
+  /// written before anything was taken keep reading the same lines.
+  let switcher: FakeWindowSwitcher
+
 }
+
+// MARK: - DiagnosticsLog
 
 /// Keeps the lines written to it, so a test can read them back — including
 /// reading that there were none. Records the level beside each line, so a
 /// test can say which lines a threshold would have let through.
 @MainActor
 final class DiagnosticsLog {
-    private(set) var entries: [(level: Logger.Level, line: String)] = []
+  private(set) var entries = [(level: Logger.Level, line: String)]()
 
-    /// The lines alone, oldest first. Keeps the wording assertions reading
-    /// as they always did while the conversion moves file by file.
-    var lines: [String] {
-        entries.map(\.line)
-    }
+  /// The lines alone, oldest first. Keeps the wording assertions reading
+  /// as they always did while the conversion moves file by file.
+  var lines: [String] {
+    entries.map(\.line)
+  }
 
-    func write(_ level: Logger.Level, _ line: String) {
-        entries.append((level: level, line: line))
-    }
+  func write(_ level: Logger.Level, _ line: String) {
+    entries.append((level: level, line: line))
+  }
 
-    /// The compatibility road for callers not yet carrying a level.
-    /// Removed once every injection carries one.
-    func write(_ line: String) {
-        entries.append((level: .warning, line: line))
-    }
+  /// The compatibility road for callers not yet carrying a level.
+  /// Removed once every injection carries one.
+  func write(_ line: String) {
+    entries.append((level: .warning, line: line))
+  }
 }
+
+// MARK: - HeldGather
 
 /// A gather the test holds open, so a caller can be made to arrive while a
 /// pass is genuinely in flight rather than whenever two tasks happen to
@@ -219,50 +260,61 @@ final class DiagnosticsLog {
 /// One double, because it is one situation looked at from two sides.
 @MainActor
 final class HeldGather {
-    private(set) var callCount = 0
-    private let answer: WindowListSnapshot
-    private var called: CheckedContinuation<Void, Never>?
-    private var release: CheckedContinuation<Void, Never>?
 
-    init(answer: WindowListSnapshot) {
-        self.answer = answer
-    }
+  // MARK: Lifecycle
 
-    /// Most callers care only how many rows came back, so this fills the rest
-    /// in. The gathering duration is the one the rest of the suite uses;
-    /// nothing asserts on it from here, and one figure throughout reads better
-    /// than two that differ for no reason.
-    convenience init(entryCount: Int) {
-        self.init(
-            answer: WindowListSnapshot(
-                items: SampleWindows.make(count: entryCount),
-                applicationCount: entryCount,
-                gatheringDuration: .milliseconds(12),
-                skipped: [],
-                droppedWithoutID: 0,
-                gatheredAt: .now
-            )
-        )
-    }
+  init(answer: WindowListSnapshot) {
+    self.answer = answer
+  }
 
-    func gather() async -> WindowListSnapshot {
-        callCount += 1
-        called?.resume()
-        called = nil
-        await withCheckedContinuation { release = $0 }
-        return answer
-    }
+  /// Most callers care only how many rows came back, so this fills the rest
+  /// in. The gathering duration is the one the rest of the suite uses;
+  /// nothing asserts on it from here, and one figure throughout reads better
+  /// than two that differ for no reason.
+  convenience init(entryCount: Int) {
+    self.init(
+      answer: WindowListSnapshot(
+        items: SampleWindows.make(count: entryCount),
+        applicationCount: entryCount,
+        gatheringDuration: .milliseconds(12),
+        skipped: [],
+        droppedWithoutID: 0,
+        gatheredAt: .now
+      )
+    )
+  }
 
-    func waitUntilCalled() async {
-        guard callCount == 0 else { return }
-        await withCheckedContinuation { called = $0 }
-    }
+  // MARK: Internal
 
-    func finish() {
-        release?.resume()
-        release = nil
-    }
+  private(set) var callCount = 0
+
+  func gather() async -> WindowListSnapshot {
+    callCount += 1
+    called?.resume()
+    called = nil
+    await withCheckedContinuation { release = $0 }
+    return answer
+  }
+
+  func waitUntilCalled() async {
+    guard callCount == 0 else { return }
+    await withCheckedContinuation { called = $0 }
+  }
+
+  func finish() {
+    release?.resume()
+    release = nil
+  }
+
+  // MARK: Private
+
+  private let answer: WindowListSnapshot
+  private var called: CheckedContinuation<Void, Never>?
+  private var release: CheckedContinuation<Void, Never>?
+
 }
+
+// MARK: - MonitorFixture
 
 /// A monitor and the fake tap behind it, so a test can drive the one and read
 /// the other.
@@ -272,53 +324,60 @@ final class HeldGather {
 /// module would read as the same thing.
 @MainActor
 struct MonitorFixture {
-    let tap: FakeEventTap
-    let log: DiagnosticsLog
-    let monitor: ModifierKeyMonitor
-    /// How many times the monitor passed a release on to its owner.
-    let releases: Counter
 
-    @MainActor
-    final class Counter {
-        private(set) var count = 0
-        func increment() {
-            count += 1
-        }
-    }
+  // MARK: Lifecycle
 
-    /// The default interval is long enough that no loop started here ever
-    /// comes round during a test: every case that wants a check drives it by
-    /// hand. The cases about the loop itself shorten it and wait out a turn or
-    /// several, which is the only way to tell a timer that exists from one
-    /// that does not — four of them in `ModifierKeyMonitorRecoveryTests`, plus
-    /// the yardstick loop that file's `waitOutATurn()` starts to measure a
-    /// turn against.
-    init(
-        startSucceeds: Bool = true,
-        hasPermission: Bool = true,
-        healthCheckInterval: Duration = .seconds(60),
-        step: Duration = .microseconds(4800)
-    ) {
-        let tap = FakeEventTap()
-        tap.startSucceeds = startSucceeds
-        tap.hasPermission = hasPermission
-        let log = DiagnosticsLog()
-        let releases = Counter()
-        // Built here and not kept. What a monitor test wants of the clock is
-        // that it tick by a known amount, which `step` settles at the call —
-        // unlike the presenter's fixture, nothing here reads the clock back,
-        // and a property nobody asks anything of is one more thing to keep
-        // true.
-        let clock = SteppingClock(step: step)
-        monitor = ModifierKeyMonitor(
-            tap: tap,
-            healthCheckInterval: healthCheckInterval,
-            onCommandRelease: { releases.increment() },
-            now: clock.read,
-            writeLine: log.write
-        )
-        self.tap = tap
-        self.log = log
-        self.releases = releases
+  /// The default interval is long enough that no loop started here ever
+  /// comes round during a test: every case that wants a check drives it by
+  /// hand. The cases about the loop itself shorten it and wait out a turn or
+  /// several, which is the only way to tell a timer that exists from one
+  /// that does not — four of them in `ModifierKeyMonitorRecoveryTests`, plus
+  /// the yardstick loop that file's `waitOutATurn()` starts to measure a
+  /// turn against.
+  init(
+    startSucceeds: Bool = true,
+    hasPermission: Bool = true,
+    healthCheckInterval: Duration = .seconds(60),
+    step: Duration = .microseconds(4800)
+  ) {
+    let tap = FakeEventTap()
+    tap.startSucceeds = startSucceeds
+    tap.hasPermission = hasPermission
+    let log = DiagnosticsLog()
+    let releases = Counter()
+    // Built here and not kept. What a monitor test wants of the clock is
+    // that it tick by a known amount, which `step` settles at the call —
+    // unlike the presenter's fixture, nothing here reads the clock back,
+    // and a property nobody asks anything of is one more thing to keep
+    // true.
+    let clock = SteppingClock(step: step)
+    monitor = ModifierKeyMonitor(
+      tap: tap,
+      healthCheckInterval: healthCheckInterval,
+      onCommandRelease: { releases.increment() },
+      now: clock.read,
+      writeLine: log.write
+    )
+    self.tap = tap
+    self.log = log
+    self.releases = releases
+  }
+
+  // MARK: Internal
+
+  @MainActor
+  final class Counter {
+    private(set) var count = 0
+
+    func increment() {
+      count += 1
     }
+  }
+
+  let tap: FakeEventTap
+  let log: DiagnosticsLog
+  let monitor: ModifierKeyMonitor
+  /// How many times the monitor passed a release on to its owner.
+  let releases: Counter
+
 }

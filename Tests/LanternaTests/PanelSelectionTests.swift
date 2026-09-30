@@ -5,8 +5,10 @@ import Testing
 
 /// Spelled as a press is made: a key, and whatever was held with it.
 private func press(_ keyCode: Int) -> PanelKeystroke {
-    PanelKeystroke(keyCode: UInt16(keyCode), modifiers: .command, isARepeat: false)
+  PanelKeystroke(keyCode: UInt16(keyCode), modifiers: .command, isARepeat: false)
 }
+
+// MARK: - PanelSelectionTests
 
 /// The choice moving, seen from outside the presenter.
 ///
@@ -23,215 +25,233 @@ private func press(_ keyCode: Int) -> PanelKeystroke {
 /// of it writes a line.
 @MainActor
 struct PanelSelectionTests {
-    /// A presenter wired the way a run with a working monitor wires it, which
-    /// is the only wiring in which a further press moves the choice.
-    private func runningWithAMonitor(entryCount: Int = 12) -> Fixture {
-        Fixture(entryCount: entryCount, closesOnCommandRelease: true)
+
+  // MARK: Internal
+
+  /// The panel opens on the second row: the first is the window already in
+  /// front, and taking it without moving would go nowhere the user is not
+  /// already. A panel that opened on the first row would spend every plain
+  /// press showing the user where they are.
+  @Test
+  func aPanelOpensOnItsSecondRow() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    #expect(fixture.surface.presentedSelections == [fixture.windows[1].id])
+    #expect(fixture.surface.shownSelections.isEmpty)
+  }
+
+  /// One press, one row. The count matters as much as the destination: a
+  /// path that moved twice for one press would land on the right row for
+  /// N = 1 and be wrong from there on, and one that moved not at all would
+  /// pass every case where the answer happens to be the first row.
+  /// The arrow is swallowed as well as acted on. A panel that is up holds
+  /// the whole keyboard, and an arrow handed back would travel the
+  /// responder chain of the panel it just moved — moving the choice here
+  /// and then being handled again there, or ringing the system alert at the
+  /// end of it. The keys with no meaning are asserted on elsewhere; these
+  /// are the ones this feature is about, and they answer the same way.
+  @Test(arguments: [1, 2, 5, 9])
+  func eachPressMovesTheChoiceExactlyOneRow(presses: Int) {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    for _ in 0 ..< presses {
+      #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .absorbed)
     }
+    #expect(fixture.surface.shownSelections.last == fixture.windows[presses + 1].id)
+    #expect(fixture.surface.shownSelections.count == presses)
+  }
 
-    /// The panel opens on the second row: the first is the window already in
-    /// front, and taking it without moving would go nowhere the user is not
-    /// already. A panel that opened on the first row would spend every plain
-    /// press showing the user where they are.
-    @Test func aPanelOpensOnItsSecondRow() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        #expect(fixture.surface.presentedSelections == [fixture.windows[1].id])
-        #expect(fixture.surface.shownSelections.isEmpty)
+  /// The panel is redrawn and not put up again. Going through the entry
+  /// that takes a list would resize the window and recentre it on every
+  /// keystroke, and the only record of which entry was used is which of
+  /// these two grew.
+  @Test
+  func movingTheChoiceRedrawsRatherThanShowingThePanelAgain() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    for _ in 0 ..< 4 {
+      _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
     }
+    #expect(fixture.surface.presentedLists.count == 1)
+    #expect(fixture.surface.shownSelections.count == 4)
+  }
 
-    /// One press, one row. The count matters as much as the destination: a
-    /// path that moved twice for one press would land on the right row for
-    /// N = 1 and be wrong from there on, and one that moved not at all would
-    /// pass every case where the answer happens to be the first row.
-    /// The arrow is swallowed as well as acted on. A panel that is up holds
-    /// the whole keyboard, and an arrow handed back would travel the
-    /// responder chain of the panel it just moved — moving the choice here
-    /// and then being handled again there, or ringing the system alert at the
-    /// end of it. The keys with no meaning are asserted on elsewhere; these
-    /// are the ones this feature is about, and they answer the same way.
-    @Test(arguments: [1, 2, 5, 9])
-    func eachPressMovesTheChoiceExactlyOneRow(presses: Int) {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        for _ in 0 ..< presses {
-            #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .absorbed)
-        }
-        #expect(fixture.surface.shownSelections.last == fixture.windows[presses + 1].id)
-        #expect(fixture.surface.shownSelections.count == presses)
+  /// The up arrow is not a second implementation of the down arrow, and a
+  /// presenter that wired both to the same step would pass every case above.
+  /// The up arrow steps back from the second row onto the first, and a
+  /// second step wraps onto the last row. The wrap still belongs here:
+  /// the cursor's own suite settles the arithmetic, and this settles that
+  /// the presses arrive.
+  @Test
+  func theUpArrowFromTheSecondRowGoesBackToTheFirst() {
+    let fixture = runningWithAMonitor(entryCount: 5)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    #expect(fixture.presenter.handleKeyStroke(press(kVK_UpArrow)) == .absorbed)
+    #expect(fixture.surface.shownSelections.last == fixture.windows[0].id)
+    #expect(fixture.presenter.handleKeyStroke(press(kVK_UpArrow)) == .absorbed)
+    #expect(fixture.surface.shownSelections.last == fixture.windows[4].id)
+  }
+
+  /// Moving the choice is the one thing done many times in a single
+  /// appearance. A line for each would bury the lines saying what became of
+  /// the panel, and would break the reading that counts appearances and
+  /// disappearances off this log.
+  @Test
+  func movingTheChoiceWritesNothingAtAll() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    let afterTheAppearance = fixture.log.lines
+    for _ in 0 ..< 20 {
+      _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
     }
+    #expect(fixture.log.lines == afterTheAppearance)
+  }
 
-    /// The panel is redrawn and not put up again. Going through the entry
-    /// that takes a list would resize the window and recentre it on every
-    /// keystroke, and the only record of which entry was used is which of
-    /// these two grew.
-    @Test func movingTheChoiceRedrawsRatherThanShowingThePanelAgain() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        for _ in 0 ..< 4 {
-            _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
-        }
-        #expect(fixture.surface.presentedLists.count == 1)
-        #expect(fixture.surface.shownSelections.count == 4)
-    }
+  /// The commit has to name where the choice ended up, not where it began.
+  /// The panel drew one row and the line named another for as long as the
+  /// two were worked out separately, and nothing could catch it while the
+  /// choice could not move.
+  @Test
+  func aCommitNamesTheRowTheChoiceWasMovedTo() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
+    _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
+    fixture.presenter.handleCommandRelease()
 
-    /// The up arrow is not a second implementation of the down arrow, and a
-    /// presenter that wired both to the same step would pass every case above.
-    /// The up arrow steps back from the second row onto the first, and a
-    /// second step wraps onto the last row. The wrap still belongs here:
-    /// the cursor's own suite settles the arithmetic, and this settles that
-    /// the presses arrive.
-    @Test func theUpArrowFromTheSecondRowGoesBackToTheFirst() {
-        let fixture = runningWithAMonitor(entryCount: 5)
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        #expect(fixture.presenter.handleKeyStroke(press(kVK_UpArrow)) == .absorbed)
-        #expect(fixture.surface.shownSelections.last == fixture.windows[0].id)
-        #expect(fixture.presenter.handleKeyStroke(press(kVK_UpArrow)) == .absorbed)
-        #expect(fixture.surface.shownSelections.last == fixture.windows[4].id)
-    }
+    let fourth = fixture.windows[3]
+    #expect(fixture.surface.shownSelections.last == fourth.id)
+    #expect(
+      fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
+        == "committed \(fourth.appName) — \(fourth.displayTitle) "
+        + "(window \(fourth.id.windowID)) 4.8 ms after Command was released"
+    )
+  }
 
-    /// Moving the choice is the one thing done many times in a single
-    /// appearance. A line for each would bury the lines saying what became of
-    /// the panel, and would break the reading that counts appearances and
-    /// disappearances off this log.
-    @Test func movingTheChoiceWritesNothingAtAll() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        let afterTheAppearance = fixture.log.lines
-        for _ in 0 ..< 20 {
-            _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
-        }
-        #expect(fixture.log.lines == afterTheAppearance)
-    }
+  /// Eighteen entries is where the sample list comes round on itself: the
+  /// last row repeats the first row's application and title, and the two
+  /// are told apart by nothing but their identity. A choice kept by name
+  /// would commit the wrong one of them and read correctly in the log.
+  @Test
+  func twoRowsReadingAlikeAreStillCommittedApart() {
+    let fixture = runningWithAMonitor(entryCount: 18)
+    let first = fixture.windows[0]
+    let last = fixture.windows[17]
+    #expect(first.appName == last.appName)
+    #expect(first.displayTitle == last.displayTitle)
+    #expect(first.id != last.id)
 
-    /// The commit has to name where the choice ended up, not where it began.
-    /// The panel drew one row and the line named another for as long as the
-    /// two were worked out separately, and nothing could catch it while the
-    /// choice could not move.
-    @Test func aCommitNamesTheRowTheChoiceWasMovedTo() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
-        _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
-        fixture.presenter.handleCommandRelease()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = fixture.presenter.handleKeyStroke(press(kVK_UpArrow))
+    _ = fixture.presenter.handleKeyStroke(press(kVK_UpArrow))
+    fixture.presenter.handleCommandRelease()
 
-        let fourth = fixture.windows[3]
-        #expect(fixture.surface.shownSelections.last == fourth.id)
-        #expect(
-            fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
-                == "committed \(fourth.appName) — \(fourth.displayTitle) "
-                + "(window \(fourth.id.windowID)) 4.8 ms after Command was released"
-        )
-    }
+    #expect(fixture.log.lines.last?.contains("(window \(last.id.windowID))") == true)
+    #expect(fixture.log.lines.last?.contains("(window \(first.id.windowID))") == false)
+  }
 
-    /// Eighteen entries is where the sample list comes round on itself: the
-    /// last row repeats the first row's application and title, and the two
-    /// are told apart by nothing but their identity. A choice kept by name
-    /// would commit the wrong one of them and read correctly in the log.
-    @Test func twoRowsReadingAlikeAreStillCommittedApart() {
-        let fixture = runningWithAMonitor(entryCount: 18)
-        let first = fixture.windows[0]
-        let last = fixture.windows[17]
-        #expect(first.appName == last.appName)
-        #expect(first.displayTitle == last.displayTitle)
-        #expect(first.id != last.id)
+  /// A key given no meaning is swallowed and moves nothing. `PanelKeyInput`
+  /// says of itself that "a key that means nothing does nothing" has to be
+  /// shown rather than assumed; its own suite shows the mapping, and this
+  /// shows the half the mapping cannot reach — that the presenter, holding
+  /// the only cursor there is, leaves it alone.
+  @Test
+  func aKeyWithNoMeaningIsSwallowedAndMovesNothing() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    let afterTheAppearance = fixture.log.lines
 
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = fixture.presenter.handleKeyStroke(press(kVK_UpArrow))
-        _ = fixture.presenter.handleKeyStroke(press(kVK_UpArrow))
-        fixture.presenter.handleCommandRelease()
+    #expect(fixture.presenter.handleKeyStroke(press(kVK_ANSI_A)) == .absorbed)
 
-        #expect(fixture.log.lines.last?.contains("(window \(last.id.windowID))") == true)
-        #expect(fixture.log.lines.last?.contains("(window \(first.id.windowID))") == false)
-    }
+    #expect(fixture.surface.shownSelections.isEmpty)
+    #expect(fixture.surface.isPresented)
+    #expect(fixture.log.lines == afterTheAppearance)
+  }
 
-    /// A key given no meaning is swallowed and moves nothing. `PanelKeyInput`
-    /// says of itself that "a key that means nothing does nothing" has to be
-    /// shown rather than assumed; its own suite shows the mapping, and this
-    /// shows the half the mapping cannot reach — that the presenter, holding
-    /// the only cursor there is, leaves it alone.
-    @Test func aKeyWithNoMeaningIsSwallowedAndMovesNothing() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        let afterTheAppearance = fixture.log.lines
+  /// Tab is the one key two routes could both claim. It is registered with
+  /// the system, so a press arrives as a hotkey and moves the choice one
+  /// row; were it also acted on here, the one press would move two. The
+  /// mapping refuses it unconditionally, and this is that refusal seen
+  /// where it would do the damage — with a cursor in place to be moved.
+  @Test
+  func tabReachingTheKeyChannelMovesNothingBecauseTheHotkeyRouteOwnsIt() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
 
-        #expect(fixture.presenter.handleKeyStroke(press(kVK_ANSI_A)) == .absorbed)
+    #expect(fixture.presenter.handleKeyStroke(press(kVK_Tab)) == .absorbed)
 
-        #expect(fixture.surface.shownSelections.isEmpty)
-        #expect(fixture.surface.isPresented)
-        #expect(fixture.log.lines == afterTheAppearance)
-    }
+    #expect(fixture.surface.shownSelections.isEmpty)
+    #expect(fixture.surface.isPresented)
+  }
 
-    /// Tab is the one key two routes could both claim. It is registered with
-    /// the system, so a press arrives as a hotkey and moves the choice one
-    /// row; were it also acted on here, the one press would move two. The
-    /// mapping refuses it unconditionally, and this is that refusal seen
-    /// where it would do the damage — with a cursor in place to be moved.
-    @Test func tabReachingTheKeyChannelMovesNothingBecauseTheHotkeyRouteOwnsIt() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+  /// With no panel up the press belongs to whatever is in front, and this
+  /// is the only place that is decided. A presenter that swallowed it would
+  /// take the keyboard away from the frontmost application for the whole
+  /// run, and nothing on screen would say why.
+  @Test
+  func aPressArrivingWithNoPanelUpIsHandedBackUntouched() {
+    let fixture = runningWithAMonitor()
 
-        #expect(fixture.presenter.handleKeyStroke(press(kVK_Tab)) == .absorbed)
+    #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .passedThrough)
 
-        #expect(fixture.surface.shownSelections.isEmpty)
-        #expect(fixture.surface.isPresented)
-    }
+    #expect(fixture.surface.shownSelections.isEmpty)
+    #expect(fixture.log.lines.isEmpty)
+  }
 
-    /// With no panel up the press belongs to whatever is in front, and this
-    /// is the only place that is decided. A presenter that swallowed it would
-    /// take the keyboard away from the frontmost application for the whole
-    /// run, and nothing on screen would say why.
-    @Test func aPressArrivingWithNoPanelUpIsHandedBackUntouched() {
-        let fixture = runningWithAMonitor()
+  /// The arrows move the choice on a run with no monitor too, and that is
+  /// not the same claim as the cases above.
+  ///
+  /// Every other keystroke in these suites is injected into a presenter
+  /// wired as a run with a working monitor. The requirement is that the
+  /// arrows move in all four states, and the run without the input
+  /// monitoring permission is the one where they are the only thing that
+  /// does — Tab arrives through the route that closes the panel there, and
+  /// Command has already been let go by the time a key is pressed.
+  ///
+  /// It holds today because nothing in the keystroke path asks about the
+  /// monitor at all, which is a property no case asserted until this one.
+  @Test
+  func theArrowsMoveOnARunWithNoMonitor() {
+    let fixture = Fixture()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
 
-        #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .passedThrough)
+    #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .absorbed)
 
-        #expect(fixture.surface.shownSelections.isEmpty)
-        #expect(fixture.log.lines.isEmpty)
-    }
+    #expect(fixture.surface.shownSelections.last == fixture.windows[2].id)
+    #expect(fixture.surface.presentedLists.count == 1)
+    #expect(fixture.surface.isPresented)
+  }
 
-    /// The arrows move the choice on a run with no monitor too, and that is
-    /// not the same claim as the cases above.
-    ///
-    /// Every other keystroke in these suites is injected into a presenter
-    /// wired as a run with a working monitor. The requirement is that the
-    /// arrows move in all four states, and the run without the input
-    /// monitoring permission is the one where they are the only thing that
-    /// does — Tab arrives through the route that closes the panel there, and
-    /// Command has already been let go by the time a key is pressed.
-    ///
-    /// It holds today because nothing in the keystroke path asks about the
-    /// monitor at all, which is a property no case asserted until this one.
-    @Test func theArrowsMoveOnARunWithNoMonitor() {
-        let fixture = Fixture()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+  /// A list with nothing to choose from and a list with nothing to choose
+  /// between are the two shapes where the arithmetic has no move to make.
+  /// The cursor's own suite says it leaves the choice alone; what it cannot
+  /// say is that the press got that far. A presenter that fell over on an
+  /// absent choice, or quietly stopped telling the panel, would look the
+  /// same from there.
+  @Test(arguments: [0, 1])
+  func aListWithNoMoveToMakeStillTakesThePresses(entryCount: Int) {
+    let fixture = runningWithAMonitor(entryCount: entryCount)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
+    _ = fixture.presenter.handleKeyStroke(press(kVK_UpArrow))
 
-        #expect(fixture.presenter.handleKeyStroke(press(kVK_DownArrow)) == .absorbed)
+    let opened = fixture.windows.first?.id
+    #expect(fixture.surface.shownSelections == [opened, opened])
+    #expect(fixture.surface.presentedLists.count == 1)
+    #expect(fixture.surface.isPresented)
+  }
 
-        #expect(fixture.surface.shownSelections.last == fixture.windows[2].id)
-        #expect(fixture.surface.presentedLists.count == 1)
-        #expect(fixture.surface.isPresented)
-    }
+  // MARK: Private
 
-    /// A list with nothing to choose from and a list with nothing to choose
-    /// between are the two shapes where the arithmetic has no move to make.
-    /// The cursor's own suite says it leaves the choice alone; what it cannot
-    /// say is that the press got that far. A presenter that fell over on an
-    /// absent choice, or quietly stopped telling the panel, would look the
-    /// same from there.
-    @Test(arguments: [0, 1])
-    func aListWithNoMoveToMakeStillTakesThePresses(entryCount: Int) {
-        let fixture = runningWithAMonitor(entryCount: entryCount)
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
-        _ = fixture.presenter.handleKeyStroke(press(kVK_UpArrow))
+  /// A presenter wired the way a run with a working monitor wires it, which
+  /// is the only wiring in which a further press moves the choice.
+  private func runningWithAMonitor(entryCount: Int = 12) -> Fixture {
+    Fixture(entryCount: entryCount, closesOnCommandRelease: true)
+  }
 
-        let opened = fixture.windows.first?.id
-        #expect(fixture.surface.shownSelections == [opened, opened])
-        #expect(fixture.surface.presentedLists.count == 1)
-        #expect(fixture.surface.isPresented)
-    }
 }
+
+// MARK: - RepeatedPressStateTests
 
 /// What a further press of the hotkey does to a panel that is already up.
 ///
@@ -243,116 +263,126 @@ struct PanelSelectionTests {
 /// had forgotten how to close.
 @MainActor
 struct RepeatedPressStateTests {
-    /// A monitor running and a watch started with the panel: the only state
-    /// in which letting go of Command will close the panel, and so the only
-    /// one in which the press is free to mean something else.
-    @Test func aWatchedPanelTakesAFurtherPressAsAMove() {
-        let fixture = Fixture(closesOnCommandRelease: true)
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+  /// A monitor running and a watch started with the panel: the only state
+  /// in which letting go of Command will close the panel, and so the only
+  /// one in which the press is free to mean something else.
+  @Test
+  func aWatchedPanelTakesAFurtherPressAsAMove() {
+    let fixture = Fixture(closesOnCommandRelease: true)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
 
-        #expect(fixture.surface.isPresented)
-        #expect(fixture.surface.dismissCount == 0)
-        #expect(fixture.surface.shownSelections == [fixture.windows[2].id])
-    }
+    #expect(fixture.surface.isPresented)
+    #expect(fixture.surface.dismissCount == 0)
+    #expect(fixture.surface.shownSelections == [fixture.windows[2].id])
+  }
 
-    /// The reversed combination walks the other way, which is the whole of
-    /// what having two registered combinations buys while Command is held.
-    @Test func theReversedCombinationWalksBackwards() {
-        let fixture = Fixture(entryCount: 5, closesOnCommandRelease: true)
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        fixture.presenter.handleHotkey(.reverse, deliveryDelay: nil)
+  /// The reversed combination walks the other way, which is the whole of
+  /// what having two registered combinations buys while Command is held.
+  @Test
+  func theReversedCombinationWalksBackwards() {
+    let fixture = Fixture(entryCount: 5, closesOnCommandRelease: true)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleHotkey(.reverse, deliveryDelay: nil)
 
-        #expect(fixture.surface.shownSelections == [fixture.windows[0].id])
-    }
+    #expect(fixture.surface.shownSelections == [fixture.windows[0].id])
+  }
 
-    /// No monitor ever started, so no release is being listened for and the
-    /// press is the panel's only way out.
-    @Test func aPanelShownWithNoMonitorIsClosedByAFurtherPress() {
-        let fixture = Fixture()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+  /// No monitor ever started, so no release is being listened for and the
+  /// press is the panel's only way out.
+  @Test
+  func aPanelShownWithNoMonitorIsClosedByAFurtherPress() {
+    let fixture = Fixture()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
 
-        #expect(!fixture.surface.isPresented)
-        #expect(fixture.surface.shownSelections.isEmpty)
-        #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
-    }
+    #expect(!fixture.surface.isPresented)
+    #expect(fixture.surface.shownSelections.isEmpty)
+    #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
+  }
 
-    /// The same state reached the long way round, over an appearance that did
-    /// have a watch.
-    ///
-    /// This is the one case that holds the watch being stopped when the panel
-    /// goes. Whether a watch is looking is what tells this state from the one
-    /// where the press moves the choice, and the looking is only ever turned
-    /// off where the panel comes off the screen — the loop itself just
-    /// returns, leaving what it was told to do behind it. Every other case
-    /// here begins with no monitor, so nothing was ever started and there is
-    /// nothing a missing stop could leave behind.
-    @Test func aWatchFromAnEarlierAppearanceDoesNotCountForThisOne() {
-        let fixture = Fixture(closesOnCommandRelease: true)
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        fixture.presenter.handleCommandRelease()
+  /// The same state reached the long way round, over an appearance that did
+  /// have a watch.
+  ///
+  /// This is the one case that holds the watch being stopped when the panel
+  /// goes. Whether a watch is looking is what tells this state from the one
+  /// where the press moves the choice, and the looking is only ever turned
+  /// off where the panel comes off the screen — the loop itself just
+  /// returns, leaving what it was told to do behind it. Every other case
+  /// here begins with no monitor, so nothing was ever started and there is
+  /// nothing a missing stop could leave behind.
+  @Test
+  func aWatchFromAnEarlierAppearanceDoesNotCountForThisOne() {
+    let fixture = Fixture(closesOnCommandRelease: true)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleCommandRelease()
 
-        fixture.monitorLiveness.isRunning = false
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        fixture.monitorLiveness.isRunning = true
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.monitorLiveness.isRunning = false
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.monitorLiveness.isRunning = true
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
 
-        #expect(!fixture.surface.isPresented)
-        #expect(fixture.surface.shownSelections.isEmpty)
-        #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
-    }
+    #expect(!fixture.surface.isPresented)
+    #expect(fixture.surface.shownSelections.isEmpty)
+    #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
+  }
 
-    /// The monitor was down when the panel went up, so this appearance was
-    /// given no watch, and it has come back since. A monitor that comes back
-    /// takes its idea of the modifiers from the keyboard as it finds it, so a
-    /// Command let go meanwhile leaves it no release to report — the press
-    /// still has to close the panel, and reading only "is a monitor running"
-    /// would have it move the choice instead.
-    @Test func aMonitorThatCameBackAfterwardsDoesNotMakeThePressAMove() {
-        let fixture = Fixture()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        fixture.monitorLiveness.isRunning = true
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+  /// The monitor was down when the panel went up, so this appearance was
+  /// given no watch, and it has come back since. A monitor that comes back
+  /// takes its idea of the modifiers from the keyboard as it finds it, so a
+  /// Command let go meanwhile leaves it no release to report — the press
+  /// still has to close the panel, and reading only "is a monitor running"
+  /// would have it move the choice instead.
+  @Test
+  func aMonitorThatCameBackAfterwardsDoesNotMakeThePressAMove() {
+    let fixture = Fixture()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.monitorLiveness.isRunning = true
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
 
-        #expect(!fixture.surface.isPresented)
-        #expect(fixture.surface.shownSelections.isEmpty)
-        #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
-    }
+    #expect(!fixture.surface.isPresented)
+    #expect(fixture.surface.shownSelections.isEmpty)
+    #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
+  }
 
-    /// The other way round: the watch is looking, and the monitor that was
-    /// going to report the release has stopped. Reading only "is there a
-    /// watch" would have this press move the choice and leave a panel with
-    /// nothing left to close it.
-    @Test func aMonitorThatStoppedAfterwardsLeavesTheClosingWithThePress() {
-        let fixture = Fixture(closesOnCommandRelease: true)
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        fixture.monitorLiveness.isRunning = false
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+  /// The other way round: the watch is looking, and the monitor that was
+  /// going to report the release has stopped. Reading only "is there a
+  /// watch" would have this press move the choice and leave a panel with
+  /// nothing left to close it.
+  @Test
+  func aMonitorThatStoppedAfterwardsLeavesTheClosingWithThePress() {
+    let fixture = Fixture(closesOnCommandRelease: true)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.monitorLiveness.isRunning = false
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
 
-        #expect(!fixture.surface.isPresented)
-        #expect(fixture.surface.shownSelections.isEmpty)
-        #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
-    }
+    #expect(!fixture.surface.isPresented)
+    #expect(fixture.surface.shownSelections.isEmpty)
+    #expect(fixture.log.lines.last == "panel hidden (Cmd+Tab)")
+  }
 }
+
+// MARK: - ShownListFreezeTests
 
 /// An appearance keeps the list it was given, even when a use is recorded
 /// while it is up. The record reaches the next appearance and no sooner:
 /// rows must not move under the choice being moved.
 @MainActor
 struct ShownListFreezeTests {
-    @Test func recordWhileShownAppliesToTheNextAppearance() {
-        let fixture = Fixture(entryCount: 4)
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        let firstShown = fixture.surface.presentedLists.first
-        let newcomer = fixture.windows[3]
-        fixture.presenter.tracker.record(
-            newcomer.id, ownerProcessIdentifier: newcomer.ownerProcessIdentifier,
-            origin: .external
-        )
-        #expect(fixture.surface.presentedLists.first?.map(\.id) == firstShown?.map(\.id))
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        #expect(fixture.surface.presentedLists.last?.first?.id == newcomer.id)
-    }
+  @Test
+  func recordWhileShownAppliesToTheNextAppearance() {
+    let fixture = Fixture(entryCount: 4)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    let firstShown = fixture.surface.presentedLists.first
+    let newcomer = fixture.windows[3]
+    fixture.presenter.tracker.record(
+      newcomer.id,
+      ownerProcessIdentifier: newcomer.ownerProcessIdentifier,
+      origin: .external
+    )
+    #expect(fixture.surface.presentedLists.first?.map(\.id) == firstShown?.map(\.id))
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    #expect(fixture.surface.presentedLists.last?.first?.id == newcomer.id)
+  }
 }

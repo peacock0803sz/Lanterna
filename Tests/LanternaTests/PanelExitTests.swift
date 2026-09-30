@@ -10,8 +10,10 @@ import Testing
 /// combination. The cases that care spell their keystroke out rather than
 /// coming through here.
 private func press(_ keyCode: Int) -> PanelKeystroke {
-    PanelKeystroke(keyCode: UInt16(keyCode), modifiers: .command, isARepeat: false)
+  PanelKeystroke(keyCode: UInt16(keyCode), modifiers: .command, isARepeat: false)
 }
+
+// MARK: - PanelExitTests
 
 /// Leaving the panel without taking anything.
 ///
@@ -26,367 +28,390 @@ private func press(_ keyCode: Int) -> PanelKeystroke {
 /// cancellation must not produce stay absent.
 @MainActor
 struct PanelExitTests {
-    private func runningWithAMonitor(entryCount: Int = 12) -> Fixture {
-        Fixture(entryCount: entryCount, closesOnCommandRelease: true)
+
+  // MARK: Internal
+
+  /// The whole of the story: the panel goes, one line says it was
+  /// cancelled, and nothing says anything was taken.
+  ///
+  /// Worded as the line is. "Called off" is taken in this project — it is
+  /// what a press given up on before its panel arrived says, and what an
+  /// appearance abandoned for another application coming forward says — and
+  /// a case further down exists to hold both of those absent from a
+  /// cancellation.
+  @Test
+  func cancellingClosesThePanelAndCommitsNothing() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+    #expect(fixture.presenter.handleKeyStroke(press(kVK_ANSI_Period)) == .absorbed)
+
+    #expect(!fixture.surface.isPresented)
+    #expect(fixture.surface.dismissCount == 1)
+    #expect(fixture.log.lines.count(where: { $0.hasPrefix("cancelled ") }) == 1)
+    #expect(!fixture.log.lines.contains(where: { $0.hasPrefix("committed ") }))
+  }
+
+  /// Escape does the same thing and says so differently. The two are worded
+  /// apart because which key arrived is the evidence for reading key codes
+  /// rather than characters, and the system takes Cmd+Escape for itself on a
+  /// stock machine — so a log that flattened them could not show which of
+  /// the two a given run had available.
+  @Test
+  func escapeCancelsTheSameWayAndSaysWhichKeyDidIt() {
+    let byPeriod = runningWithAMonitor()
+    byPeriod.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = byPeriod.presenter.handleKeyStroke(press(kVK_ANSI_Period))
+
+    let byEscape = runningWithAMonitor()
+    byEscape.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = byEscape.presenter.handleKeyStroke(press(kVK_Escape))
+
+    #expect(!byEscape.surface.isPresented)
+    #expect(byPeriod.log.lines.last == "cancelled 4.8 ms after Cmd+Period")
+    #expect(byEscape.log.lines.last == "cancelled 4.8 ms after Escape")
+  }
+
+  /// A bare full stop is somebody typing, and typing must not close the
+  /// panel. Every other key this feature reads ignores its modifiers on
+  /// purpose, so this is the one row where they matter — and the one that
+  /// would be silently lost if the mapping were ever simplified.
+  @Test
+  func aFullStopWithoutCommandIsSwallowedRatherThanTakenAsACancellation() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    let afterTheAppearance = fixture.log.lines
+
+    let bareFullStop = PanelKeystroke(
+      keyCode: UInt16(kVK_ANSI_Period),
+      modifiers: [],
+      isARepeat: false
+    )
+    #expect(fixture.presenter.handleKeyStroke(bareFullStop) == .absorbed)
+
+    #expect(fixture.surface.isPresented)
+    #expect(fixture.log.lines == afterTheAppearance)
+  }
+
+  /// Cancelling an empty panel is cancelling. There is no row to decline
+  /// either way, so a line that distinguished the two would be reporting a
+  /// difference the user never made — unlike a commit, where an empty list
+  /// is the reason nothing was taken and the line says so.
+  @Test
+  func anEmptyListCancelsWithTheSameLineAFullOneDoes() {
+    let empty = runningWithAMonitor(entryCount: 0)
+    empty.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = empty.presenter.handleKeyStroke(press(kVK_ANSI_Period))
+
+    let full = runningWithAMonitor()
+    full.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = full.presenter.handleKeyStroke(press(kVK_ANSI_Period))
+
+    // Anchored on something positive before the two are compared.
+    // Equality on its own is satisfied by a pair of runs in which nothing
+    // was cancelled at all — including two that never put a panel up and
+    // ended on the same refusal, which is a single edit away.
+    #expect(empty.log.lines.last?.hasPrefix("cancelled ") == true)
+    #expect(empty.surface.dismissCount == 1)
+    #expect(!empty.surface.isPresented)
+    #expect(empty.log.lines.last == full.log.lines.last)
+  }
+
+  /// The figure has to cover the call that takes the panel off the screen,
+  /// which is where the time goes on a real machine and what the hundred
+  /// milliseconds are budgeted for.
+  ///
+  /// Nothing else in this file can tell the difference. Every reading of
+  /// this clock costs one tick, so a figure taken after the dismissal and
+  /// one taken before it both come out at a single tick. Charging the
+  /// dismissal a tick of its own is what splits them: two ticks if the call
+  /// is inside the span, one if it is not. The commit path is held to the
+  /// same property the same way.
+  @Test
+  func theCancelFigureCoversTheCallThatHidesThePanel() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.surface.onDismiss = { [clock = fixture.clock] in
+      _ = clock.read()
     }
 
-    /// The whole of the story: the panel goes, one line says it was
-    /// cancelled, and nothing says anything was taken.
-    ///
-    /// Worded as the line is. "Called off" is taken in this project — it is
-    /// what a press given up on before its panel arrived says, and what an
-    /// appearance abandoned for another application coming forward says — and
-    /// a case further down exists to hold both of those absent from a
-    /// cancellation.
-    @Test func cancellingClosesThePanelAndCommitsNothing() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = fixture.presenter.handleKeyStroke(press(kVK_ANSI_Period))
 
-        #expect(fixture.presenter.handleKeyStroke(press(kVK_ANSI_Period)) == .absorbed)
+    #expect(fixture.log.lines.last == "cancelled 9.6 ms after Cmd+Period")
+  }
 
-        #expect(!fixture.surface.isPresented)
-        #expect(fixture.surface.dismissCount == 1)
-        #expect(fixture.log.lines.filter { $0.hasPrefix("cancelled ") }.count == 1)
-        #expect(fixture.log.lines.filter { $0.hasPrefix("committed ") }.isEmpty)
+  /// The Escape that reaches a panel on a stock machine is the bare one:
+  /// the system takes Cmd+Escape for itself. Every key this feature reads
+  /// but the full stop ignores its modifiers for this kind of reason — the
+  /// same finger movement has to work whether or not Command is still down,
+  /// and on the run where the monitor never started it is not.
+  @Test
+  func aBareEscapeCancelsTheWayOneHeldWithCommandDoes() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+    let bareEscape = PanelKeystroke(
+      keyCode: UInt16(kVK_Escape),
+      modifiers: [],
+      isARepeat: false
+    )
+    #expect(fixture.presenter.handleKeyStroke(bareEscape) == .absorbed)
+
+    #expect(!fixture.surface.isPresented)
+    #expect(fixture.log.lines.last == "cancelled 4.8 ms after Escape")
+  }
+
+  /// Cancelling works on a run with no monitor, where the bare Escape is
+  /// the only shape the key can arrive in.
+  ///
+  /// Every other keystroke in this suite goes into a presenter wired as a
+  /// run with a working monitor. On the run without the input monitoring
+  /// permission, Command has already been let go by the time a key is
+  /// pressed — so the keys arrive bare, and this is the run where a panel
+  /// that will not close is a panel left on screen indefinitely.
+  @Test
+  func aBareEscapeCancelsOnARunWithNoMonitorToo() {
+    let fixture = Fixture()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+    let bareEscape = PanelKeystroke(
+      keyCode: UInt16(kVK_Escape),
+      modifiers: [],
+      isARepeat: false
+    )
+    #expect(fixture.presenter.handleKeyStroke(bareEscape) == .absorbed)
+
+    #expect(!fixture.surface.isPresented)
+    #expect(fixture.log.lines.last == "cancelled 4.8 ms after Escape")
+  }
+
+  /// The gesture ends with Command coming up, and by then the panel is
+  /// already gone. That release must write nothing: the user declined this
+  /// appearance, and a line arriving afterwards would record a commit they
+  /// spent a keystroke refusing.
+  @Test
+  func theReleaseThatFollowsACancellationWritesNothing() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = fixture.presenter.handleKeyStroke(press(kVK_ANSI_Period))
+    let afterTheCancellation = fixture.log.lines
+
+    fixture.presenter.handleCommandRelease()
+
+    #expect(fixture.log.lines == afterTheCancellation)
+    #expect(fixture.surface.dismissCount == 1)
+  }
+
+  /// One disappearance, one line. The tidying-up wording must not also turn
+  /// up: counting both would find two events where the user saw one, and
+  /// the count of panels that closed is taken by matching these lines.
+  @Test
+  func aCancellationIsTheOnlyLineThePanelGoingAwayProduces() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    let afterTheAppearance = fixture.log.lines.count
+
+    _ = fixture.presenter.handleKeyStroke(press(kVK_ANSI_Period))
+
+    #expect(fixture.log.lines.count == afterTheAppearance + 1)
+    #expect(!fixture.log.lines.contains(where: { $0.hasPrefix("panel hidden (") }))
+    #expect(!fixture.log.lines.contains(where: { $0.hasPrefix("closed the panel") }))
+  }
+
+  /// Counting commits and counting cancellations must never pick up each
+  /// other's lines. Taken from the log rather than from the wording, so that
+  /// this holds for the lines the app actually writes and not only for the
+  /// ones a wording test builds by hand.
+  @Test
+  func aCancelledLineIsNoPrefixOfACommittedOneNorTheOtherWayAbout() {
+    let cancelled = runningWithAMonitor()
+    cancelled.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = cancelled.presenter.handleKeyStroke(press(kVK_ANSI_Period))
+
+    let committed = runningWithAMonitor()
+    committed.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    committed.presenter.handleCommandRelease()
+
+    // Empty stands in for a line that never arrived, and fails every
+    // assertion below rather than passing one of them by accident: the
+    // empty string is a prefix of everything, including itself.
+    let cancelledLine = cancelled.log.lines.last ?? ""
+    let committedLine = committed.log.lines.first(where: { $0.hasPrefix("committed ") }) ?? ""
+
+    #expect(cancelledLine.hasPrefix("cancelled "))
+    #expect(committedLine.hasPrefix("committed "))
+    #expect(!cancelledLine.hasPrefix(committedLine))
+    #expect(!committedLine.hasPrefix(cancelledLine))
+  }
+
+  /// Return takes the highlighted row, not the first one. The choice is
+  /// moved once before committing, so a line naming the first row would
+  /// show the cursor and the log disagreeing about which row was taken.
+  @Test
+  func returnCommitsTheRowTheChoiceWasMovedTo() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
+
+    #expect(fixture.presenter.handleKeyStroke(press(kVK_Return)) == .absorbed)
+
+    #expect(!fixture.surface.isPresented)
+    #expect(fixture.surface.dismissCount == 1)
+    let third = fixture.windows[2]
+    #expect(
+      fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
+        == "committed \(third.appName) — \(third.displayTitle) "
+        + "(window \(third.id.windowID)) 4.8 ms after Return"
+    )
+    #expect(!fixture.log.lines.contains(where: { $0.hasPrefix("cancelled ") }))
+  }
+
+  /// The keypad's Enter does the same thing and says so differently. The
+  /// two are worded apart because which physical key arrived is the
+  /// evidence for reading key codes rather than characters: a log that
+  /// flattened them could not show which of the two a given run had.
+  @Test
+  func keypadEnterCommitsTheSameWayAndSaysWhichKeyDidIt() {
+    let byReturn = runningWithAMonitor()
+    byReturn.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = byReturn.presenter.handleKeyStroke(press(kVK_Return))
+
+    let byKeypad = runningWithAMonitor()
+    byKeypad.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = byKeypad.presenter.handleKeyStroke(press(kVK_ANSI_KeypadEnter))
+
+    #expect(!byKeypad.surface.isPresented)
+    #expect(byKeypad.surface.dismissCount == 1)
+    #expect(byReturn.log.lines.count(where: { $0.hasPrefix("committed ") }) == 1)
+    #expect(byKeypad.log.lines.count(where: { $0.hasPrefix("committed ") }) == 1)
+    #expect(byReturn.log.lines.last != byKeypad.log.lines.last)
+    #expect(byReturn.log.lines.last?.hasSuffix("after Return") == true)
+    #expect(byKeypad.log.lines.last?.hasSuffix("after keypad Enter") == true)
+  }
+
+  /// The gesture ends with Command coming up, and by then the panel is
+  /// already gone. That release must write nothing: the row was already
+  /// taken by the key, and a line arriving afterwards would count one
+  /// appearance as two commits.
+  @Test
+  func theReleaseThatFollowsAKeyCommitWritesNothing() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = fixture.presenter.handleKeyStroke(press(kVK_Return))
+    let afterTheCommit = fixture.log.lines
+
+    fixture.presenter.handleCommandRelease()
+
+    #expect(fixture.log.lines == afterTheCommit)
+    #expect(fixture.surface.dismissCount == 1)
+  }
+
+  /// An empty panel commits nothing, and says so with the commit wording
+  /// rather than the called-off one. The two have different causes — a
+  /// list gathered and holding nothing, against no list yet — and a line
+  /// that confused them would read as a press given up on before its
+  /// panel arrived. Both keys that commit spell the empty case out, so a
+  /// run that only ever had the keypad's Enter keeps its evidence of which
+  /// key arrived.
+  @Test
+  func anEmptyListCommitsNothingAndSaysSoApartFromACalledOffPress() {
+    let byReturn = runningWithAMonitor(entryCount: 0)
+    byReturn.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = byReturn.presenter.handleKeyStroke(press(kVK_Return))
+
+    let byKeypad = runningWithAMonitor(entryCount: 0)
+    byKeypad.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = byKeypad.presenter.handleKeyStroke(press(kVK_ANSI_KeypadEnter))
+
+    #expect(
+      byReturn.log.lines.last
+        == "committed nothing 4.8 ms after Return (the list was empty)"
+    )
+    #expect(
+      byKeypad.log.lines.last
+        == "committed nothing 4.8 ms after keypad Enter (the list was empty)"
+    )
+    for lines in [byReturn.log.lines, byKeypad.log.lines] {
+      #expect(lines.last?.hasPrefix("committed ") == true)
+      #expect(lines.last?.hasPrefix("press called off") == false)
+    }
+  }
+
+  /// Holding Return down must not take the row twice. The mapping already
+  /// turns a repeat into nothing, and this holds that nothing reaching the
+  /// panel: the panel stays up, and no line is written.
+  @Test
+  func aRepeatedCommitKeyIsSwallowedRatherThanCommittedTwice() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    let afterTheAppearance = fixture.log.lines
+
+    let repeatedReturn = PanelKeystroke(
+      keyCode: UInt16(kVK_Return),
+      modifiers: .command,
+      isARepeat: true
+    )
+    #expect(fixture.presenter.handleKeyStroke(repeatedReturn) == .absorbed)
+
+    #expect(fixture.surface.isPresented)
+    #expect(fixture.log.lines == afterTheAppearance)
+  }
+
+  /// One appearance, one commit — even against a panel that will not come
+  /// down when asked. Asking whether the panel is up cannot tell that the
+  /// commit was already spent, so the second commit is turned away by the
+  /// appearance's own flag rather than by the screen: the line count and
+  /// the dismissal count both stay where the first commit left them.
+  ///
+  /// Without the flag this passes the screen's guard both times and
+  /// writes two lines, which is exactly the "used to hold by accident"
+  /// state the flag was put in to replace.
+  @Test
+  func aSecondCommitAgainstAPanelThatWillNotComeDownWritesNothing() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.surface.onDismiss = { [surface = fixture.surface] in
+      surface.isPresented = true
     }
 
-    /// Escape does the same thing and says so differently. The two are worded
-    /// apart because which key arrived is the evidence for reading key codes
-    /// rather than characters, and the system takes Cmd+Escape for itself on a
-    /// stock machine — so a log that flattened them could not show which of
-    /// the two a given run had available.
-    @Test func escapeCancelsTheSameWayAndSaysWhichKeyDidIt() {
-        let byPeriod = runningWithAMonitor()
-        byPeriod.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = byPeriod.presenter.handleKeyStroke(press(kVK_ANSI_Period))
+    _ = fixture.presenter.handleKeyStroke(press(kVK_Return))
+    let afterTheFirstCommit = fixture.log.lines
+    _ = fixture.presenter.handleKeyStroke(press(kVK_Return))
 
-        let byEscape = runningWithAMonitor()
-        byEscape.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = byEscape.presenter.handleKeyStroke(press(kVK_Escape))
+    #expect(fixture.log.lines == afterTheFirstCommit)
+    #expect(fixture.log.lines.count(where: { $0.hasPrefix("committed ") }) == 1)
+    #expect(fixture.surface.dismissCount == 1)
+  }
 
-        #expect(!byEscape.surface.isPresented)
-        #expect(byPeriod.log.lines.last == "cancelled 4.8 ms after Cmd+Period")
-        #expect(byEscape.log.lines.last == "cancelled 4.8 ms after Escape")
-    }
+  /// A declined appearance leaves the next one able to start over. The
+  /// whole path is walked — open, move off the first row, decline, open
+  /// again — because each step has somewhere it could leave the next one
+  /// stuck, and only walking it end to end puts them in that order.
+  ///
+  /// This does not hold the giving up of the choice. Every appearance
+  /// rebuilds the cursor from the list it is handed before the panel is
+  /// told anything, so a second one opens on its own second row whether or
+  /// not the first gave its choice up. Another case reads the choice
+  /// directly after the panel goes, beside the list the way out gives up
+  /// with it.
+  @Test
+  func thePanelAfterACancellationOpensOnItsOwnSecondRowAgain() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
+    _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
+    _ = fixture.presenter.handleKeyStroke(press(kVK_ANSI_Period))
 
-    /// A bare full stop is somebody typing, and typing must not close the
-    /// panel. Every other key this feature reads ignores its modifiers on
-    /// purpose, so this is the one row where they matter — and the one that
-    /// would be silently lost if the mapping were ever simplified.
-    @Test func aFullStopWithoutCommandIsSwallowedRatherThanTakenAsACancellation() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        let afterTheAppearance = fixture.log.lines
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
 
-        let bareFullStop = PanelKeystroke(
-            keyCode: UInt16(kVK_ANSI_Period),
-            modifiers: [],
-            isARepeat: false
-        )
-        #expect(fixture.presenter.handleKeyStroke(bareFullStop) == .absorbed)
+    #expect(fixture.surface.presentedSelections.count == 2)
+    #expect(fixture.surface.presentedSelections.last == fixture.windows[1].id)
+  }
 
-        #expect(fixture.surface.isPresented)
-        #expect(fixture.log.lines == afterTheAppearance)
-    }
+  // MARK: Private
 
-    /// Cancelling an empty panel is cancelling. There is no row to decline
-    /// either way, so a line that distinguished the two would be reporting a
-    /// difference the user never made — unlike a commit, where an empty list
-    /// is the reason nothing was taken and the line says so.
-    @Test func anEmptyListCancelsWithTheSameLineAFullOneDoes() {
-        let empty = runningWithAMonitor(entryCount: 0)
-        empty.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = empty.presenter.handleKeyStroke(press(kVK_ANSI_Period))
+  private func runningWithAMonitor(entryCount: Int = 12) -> Fixture {
+    Fixture(entryCount: entryCount, closesOnCommandRelease: true)
+  }
 
-        let full = runningWithAMonitor()
-        full.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = full.presenter.handleKeyStroke(press(kVK_ANSI_Period))
-
-        // Anchored on something positive before the two are compared.
-        // Equality on its own is satisfied by a pair of runs in which nothing
-        // was cancelled at all — including two that never put a panel up and
-        // ended on the same refusal, which is a single edit away.
-        #expect(empty.log.lines.last?.hasPrefix("cancelled ") == true)
-        #expect(empty.surface.dismissCount == 1)
-        #expect(!empty.surface.isPresented)
-        #expect(empty.log.lines.last == full.log.lines.last)
-    }
-
-    /// The figure has to cover the call that takes the panel off the screen,
-    /// which is where the time goes on a real machine and what the hundred
-    /// milliseconds are budgeted for.
-    ///
-    /// Nothing else in this file can tell the difference. Every reading of
-    /// this clock costs one tick, so a figure taken after the dismissal and
-    /// one taken before it both come out at a single tick. Charging the
-    /// dismissal a tick of its own is what splits them: two ticks if the call
-    /// is inside the span, one if it is not. The commit path is held to the
-    /// same property the same way.
-    @Test func theCancelFigureCoversTheCallThatHidesThePanel() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        fixture.surface.onDismiss = { [clock = fixture.clock] in
-            _ = clock.read()
-        }
-
-        _ = fixture.presenter.handleKeyStroke(press(kVK_ANSI_Period))
-
-        #expect(fixture.log.lines.last == "cancelled 9.6 ms after Cmd+Period")
-    }
-
-    /// The Escape that reaches a panel on a stock machine is the bare one:
-    /// the system takes Cmd+Escape for itself. Every key this feature reads
-    /// but the full stop ignores its modifiers for this kind of reason — the
-    /// same finger movement has to work whether or not Command is still down,
-    /// and on the run where the monitor never started it is not.
-    @Test func aBareEscapeCancelsTheWayOneHeldWithCommandDoes() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-
-        let bareEscape = PanelKeystroke(
-            keyCode: UInt16(kVK_Escape),
-            modifiers: [],
-            isARepeat: false
-        )
-        #expect(fixture.presenter.handleKeyStroke(bareEscape) == .absorbed)
-
-        #expect(!fixture.surface.isPresented)
-        #expect(fixture.log.lines.last == "cancelled 4.8 ms after Escape")
-    }
-
-    /// Cancelling works on a run with no monitor, where the bare Escape is
-    /// the only shape the key can arrive in.
-    ///
-    /// Every other keystroke in this suite goes into a presenter wired as a
-    /// run with a working monitor. On the run without the input monitoring
-    /// permission, Command has already been let go by the time a key is
-    /// pressed — so the keys arrive bare, and this is the run where a panel
-    /// that will not close is a panel left on screen indefinitely.
-    @Test func aBareEscapeCancelsOnARunWithNoMonitorToo() {
-        let fixture = Fixture()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-
-        let bareEscape = PanelKeystroke(
-            keyCode: UInt16(kVK_Escape),
-            modifiers: [],
-            isARepeat: false
-        )
-        #expect(fixture.presenter.handleKeyStroke(bareEscape) == .absorbed)
-
-        #expect(!fixture.surface.isPresented)
-        #expect(fixture.log.lines.last == "cancelled 4.8 ms after Escape")
-    }
-
-    /// The gesture ends with Command coming up, and by then the panel is
-    /// already gone. That release must write nothing: the user declined this
-    /// appearance, and a line arriving afterwards would record a commit they
-    /// spent a keystroke refusing.
-    @Test func theReleaseThatFollowsACancellationWritesNothing() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = fixture.presenter.handleKeyStroke(press(kVK_ANSI_Period))
-        let afterTheCancellation = fixture.log.lines
-
-        fixture.presenter.handleCommandRelease()
-
-        #expect(fixture.log.lines == afterTheCancellation)
-        #expect(fixture.surface.dismissCount == 1)
-    }
-
-    /// One disappearance, one line. The tidying-up wording must not also turn
-    /// up: counting both would find two events where the user saw one, and
-    /// the count of panels that closed is taken by matching these lines.
-    @Test func aCancellationIsTheOnlyLineThePanelGoingAwayProduces() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        let afterTheAppearance = fixture.log.lines.count
-
-        _ = fixture.presenter.handleKeyStroke(press(kVK_ANSI_Period))
-
-        #expect(fixture.log.lines.count == afterTheAppearance + 1)
-        #expect(fixture.log.lines.filter { $0.hasPrefix("panel hidden (") }.isEmpty)
-        #expect(fixture.log.lines.filter { $0.hasPrefix("closed the panel") }.isEmpty)
-    }
-
-    /// Counting commits and counting cancellations must never pick up each
-    /// other's lines. Taken from the log rather than from the wording, so that
-    /// this holds for the lines the app actually writes and not only for the
-    /// ones a wording test builds by hand.
-    @Test func aCancelledLineIsNoPrefixOfACommittedOneNorTheOtherWayAbout() {
-        let cancelled = runningWithAMonitor()
-        cancelled.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = cancelled.presenter.handleKeyStroke(press(kVK_ANSI_Period))
-
-        let committed = runningWithAMonitor()
-        committed.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        committed.presenter.handleCommandRelease()
-
-        // Empty stands in for a line that never arrived, and fails every
-        // assertion below rather than passing one of them by accident: the
-        // empty string is a prefix of everything, including itself.
-        let cancelledLine = cancelled.log.lines.last ?? ""
-        let committedLine = committed.log.lines.first(where: { $0.hasPrefix("committed ") }) ?? ""
-
-        #expect(cancelledLine.hasPrefix("cancelled "))
-        #expect(committedLine.hasPrefix("committed "))
-        #expect(!cancelledLine.hasPrefix(committedLine))
-        #expect(!committedLine.hasPrefix(cancelledLine))
-    }
-
-    /// Return takes the highlighted row, not the first one. The choice is
-    /// moved once before committing, so a line naming the first row would
-    /// show the cursor and the log disagreeing about which row was taken.
-    @Test func returnCommitsTheRowTheChoiceWasMovedTo() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
-
-        #expect(fixture.presenter.handleKeyStroke(press(kVK_Return)) == .absorbed)
-
-        #expect(!fixture.surface.isPresented)
-        #expect(fixture.surface.dismissCount == 1)
-        let third = fixture.windows[2]
-        #expect(
-            fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
-                == "committed \(third.appName) — \(third.displayTitle) "
-                + "(window \(third.id.windowID)) 4.8 ms after Return"
-        )
-        #expect(fixture.log.lines.filter { $0.hasPrefix("cancelled ") }.isEmpty)
-    }
-
-    /// The keypad's Enter does the same thing and says so differently. The
-    /// two are worded apart because which physical key arrived is the
-    /// evidence for reading key codes rather than characters: a log that
-    /// flattened them could not show which of the two a given run had.
-    @Test func keypadEnterCommitsTheSameWayAndSaysWhichKeyDidIt() {
-        let byReturn = runningWithAMonitor()
-        byReturn.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = byReturn.presenter.handleKeyStroke(press(kVK_Return))
-
-        let byKeypad = runningWithAMonitor()
-        byKeypad.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = byKeypad.presenter.handleKeyStroke(press(kVK_ANSI_KeypadEnter))
-
-        #expect(!byKeypad.surface.isPresented)
-        #expect(byKeypad.surface.dismissCount == 1)
-        #expect(byReturn.log.lines.filter { $0.hasPrefix("committed ") }.count == 1)
-        #expect(byKeypad.log.lines.filter { $0.hasPrefix("committed ") }.count == 1)
-        #expect(byReturn.log.lines.last != byKeypad.log.lines.last)
-        #expect(byReturn.log.lines.last?.hasSuffix("after Return") == true)
-        #expect(byKeypad.log.lines.last?.hasSuffix("after keypad Enter") == true)
-    }
-
-    /// The gesture ends with Command coming up, and by then the panel is
-    /// already gone. That release must write nothing: the row was already
-    /// taken by the key, and a line arriving afterwards would count one
-    /// appearance as two commits.
-    @Test func theReleaseThatFollowsAKeyCommitWritesNothing() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = fixture.presenter.handleKeyStroke(press(kVK_Return))
-        let afterTheCommit = fixture.log.lines
-
-        fixture.presenter.handleCommandRelease()
-
-        #expect(fixture.log.lines == afterTheCommit)
-        #expect(fixture.surface.dismissCount == 1)
-    }
-
-    /// An empty panel commits nothing, and says so with the commit wording
-    /// rather than the called-off one. The two have different causes — a
-    /// list gathered and holding nothing, against no list yet — and a line
-    /// that confused them would read as a press given up on before its
-    /// panel arrived. Both keys that commit spell the empty case out, so a
-    /// run that only ever had the keypad's Enter keeps its evidence of which
-    /// key arrived.
-    @Test func anEmptyListCommitsNothingAndSaysSoApartFromACalledOffPress() {
-        let byReturn = runningWithAMonitor(entryCount: 0)
-        byReturn.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = byReturn.presenter.handleKeyStroke(press(kVK_Return))
-
-        let byKeypad = runningWithAMonitor(entryCount: 0)
-        byKeypad.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = byKeypad.presenter.handleKeyStroke(press(kVK_ANSI_KeypadEnter))
-
-        #expect(
-            byReturn.log.lines.last
-                == "committed nothing 4.8 ms after Return (the list was empty)"
-        )
-        #expect(
-            byKeypad.log.lines.last
-                == "committed nothing 4.8 ms after keypad Enter (the list was empty)"
-        )
-        for lines in [byReturn.log.lines, byKeypad.log.lines] {
-            #expect(lines.last?.hasPrefix("committed ") == true)
-            #expect(lines.last?.hasPrefix("press called off") == false)
-        }
-    }
-
-    /// Holding Return down must not take the row twice. The mapping already
-    /// turns a repeat into nothing, and this holds that nothing reaching the
-    /// panel: the panel stays up, and no line is written.
-    @Test func aRepeatedCommitKeyIsSwallowedRatherThanCommittedTwice() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        let afterTheAppearance = fixture.log.lines
-
-        let repeatedReturn = PanelKeystroke(
-            keyCode: UInt16(kVK_Return),
-            modifiers: .command,
-            isARepeat: true
-        )
-        #expect(fixture.presenter.handleKeyStroke(repeatedReturn) == .absorbed)
-
-        #expect(fixture.surface.isPresented)
-        #expect(fixture.log.lines == afterTheAppearance)
-    }
-
-    /// One appearance, one commit — even against a panel that will not come
-    /// down when asked. Asking whether the panel is up cannot tell that the
-    /// commit was already spent, so the second commit is turned away by the
-    /// appearance's own flag rather than by the screen: the line count and
-    /// the dismissal count both stay where the first commit left them.
-    ///
-    /// Without the flag this passes the screen's guard both times and
-    /// writes two lines, which is exactly the "used to hold by accident"
-    /// state the flag was put in to replace.
-    @Test func aSecondCommitAgainstAPanelThatWillNotComeDownWritesNothing() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        fixture.surface.onDismiss = { [surface = fixture.surface] in
-            surface.isPresented = true
-        }
-
-        _ = fixture.presenter.handleKeyStroke(press(kVK_Return))
-        let afterTheFirstCommit = fixture.log.lines
-        _ = fixture.presenter.handleKeyStroke(press(kVK_Return))
-
-        #expect(fixture.log.lines == afterTheFirstCommit)
-        #expect(fixture.log.lines.filter { $0.hasPrefix("committed ") }.count == 1)
-        #expect(fixture.surface.dismissCount == 1)
-    }
-
-    /// A declined appearance leaves the next one able to start over. The
-    /// whole path is walked — open, move off the first row, decline, open
-    /// again — because each step has somewhere it could leave the next one
-    /// stuck, and only walking it end to end puts them in that order.
-    ///
-    /// This does not hold the giving up of the choice. Every appearance
-    /// rebuilds the cursor from the list it is handed before the panel is
-    /// told anything, so a second one opens on its own second row whether or
-    /// not the first gave its choice up. Another case reads the choice
-    /// directly after the panel goes, beside the list the way out gives up
-    /// with it.
-    @Test func thePanelAfterACancellationOpensOnItsOwnSecondRowAgain() {
-        let fixture = runningWithAMonitor()
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-        _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
-        _ = fixture.presenter.handleKeyStroke(press(kVK_DownArrow))
-        _ = fixture.presenter.handleKeyStroke(press(kVK_ANSI_Period))
-
-        fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
-
-        #expect(fixture.surface.presentedSelections.count == 2)
-        #expect(fixture.surface.presentedSelections.last == fixture.windows[1].id)
-    }
 }
