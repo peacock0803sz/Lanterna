@@ -330,3 +330,157 @@ enum LightweightFilter {
   }
 
 }
+
+// MARK: - DatabaseStatementCheck
+
+/// Decides whether a database-mode statement may run. Only reads
+/// pass: writes are refused outright, statements without a time
+/// bound are refused, and a missing row cap is filled in.
+enum DatabaseStatementCheck {
+
+  // MARK: Internal
+
+  /// The outcome: run the effective text, or show the refusal.
+  struct Verdict: Equatable, Sendable {
+    var allowed: Bool
+    var refusal: String?
+    var effectiveText: String
+  }
+
+  /// Checks one statement, filling in the default row cap.
+  static func check(_ text: String, rowLimit: Int = 5000) -> Verdict {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else {
+      return Verdict(allowed: false, refusal: "Enter a statement to run.", effectiveText: text)
+    }
+    let head = strippedLeadingComments(trimmed).lowercased()
+    guard head.hasPrefix("select") || head.hasPrefix("with") else {
+      return Verdict(allowed: false, refusal: "SQL mode is read-only.", effectiveText: text)
+    }
+    let scanned = scan(trimmed)
+    if scanned.hasForbiddenWord {
+      return Verdict(allowed: false, refusal: "SQL mode is read-only.", effectiveText: text)
+    }
+    if scanned.semicolons > 1 || (scanned.semicolons == 1 && !trimmed.hasSuffix(";")) {
+      return Verdict(allowed: false, refusal: "Run one statement at a time.", effectiveText: text)
+    }
+    if !scanned.words.contains("recorded_at_ms") {
+      return Verdict(
+        allowed: false,
+        refusal: "SQL needs a time bound (after/before on ts_ms).",
+        effectiveText: text
+      )
+    }
+    if hasRowCap(words: scanned.words) {
+      return Verdict(allowed: true, refusal: nil, effectiveText: trimmed)
+    }
+    let base = trimmed.hasSuffix(";") ? String(trimmed.dropLast()) : trimmed
+    return Verdict(allowed: true, refusal: nil, effectiveText: base + " LIMIT \(rowLimit)")
+  }
+
+  // MARK: Private
+
+  private struct Scan {
+    var words: [String]
+    var hasForbiddenWord: Bool
+    var semicolons: Int
+  }
+
+  private static let forbidden: Set = [
+    "insert",
+    "update",
+    "delete",
+    "drop",
+    "alter",
+    "create",
+    "attach",
+    "detach",
+    "copy",
+    "install",
+    "load",
+    "pragma",
+    "vacuum",
+    "checkpoint",
+    "call",
+    "transaction",
+    "begin",
+    "commit",
+    "rollback",
+    "execute",
+  ]
+
+  /// Collects bare words outside string literals, so a quoted
+  /// word like 'delete me' never reads as a statement.
+  private static func scan(_ text: String) -> Scan {
+    var words = [String]()
+    var forbidden = false
+    var semicolons = 0
+    var current = ""
+    var quote: Character?
+    var index = text.startIndex
+    func flush() {
+      if !current.isEmpty {
+        let word = current.lowercased()
+        words.append(word)
+        if forbiddenWordsContain(word) {
+          forbidden = true
+        }
+        current = ""
+      }
+    }
+    while index < text.endIndex {
+      let character = text[index]
+      if let open = quote {
+        if character == open {
+          let next = text.index(after: index)
+          if next < text.endIndex, text[next] == open {
+            index = text.index(after: next)
+            continue
+          }
+          quote = nil
+        }
+      } else if character == "'" || character == "\"" || character == "`" {
+        quote = character
+      } else if character == ";" {
+        flush()
+        semicolons += 1
+      } else if character.isLetter || character.isNumber || character == "_" {
+        current.append(character)
+      } else {
+        flush()
+      }
+      index = text.index(after: index)
+    }
+    flush()
+    return Scan(words: words, hasForbiddenWord: forbidden, semicolons: semicolons)
+  }
+
+  private static func forbiddenWordsContain(_ word: String) -> Bool {
+    forbidden.contains(word)
+  }
+
+  private static func hasRowCap(words: [String]) -> Bool {
+    zip(words, words.dropFirst()).contains { $0 == "limit" && Int($1) != nil }
+  }
+
+  private static func strippedLeadingComments(_ text: String) -> String {
+    var rest = text[...]
+    while true {
+      rest = rest.drop(while: { $0.isWhitespace })
+      if rest.hasPrefix("--") {
+        rest = rest.drop(while: { $0 != "\n" })
+        continue
+      }
+      if rest.hasPrefix("/*") {
+        if let end = rest.range(of: "*/") {
+          rest = rest[end.upperBound...]
+          continue
+        }
+        return ""
+      }
+      break
+    }
+    return String(rest)
+  }
+
+}
