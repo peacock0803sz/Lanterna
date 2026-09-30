@@ -78,13 +78,13 @@ struct ExclusionAppResolverTests {
     #expect(reversed?.bundleIdentifier == "com.apple.Safari")
   }
 
-  /// Empty text never resolves, even with candidates around.
+  /// Empty text never resolves, even when installed lookup would answer it.
   @Test
   func emptyAppReturnsNil() {
     let finder = ResolvedExclusionApp(name: "Finder", bundleIdentifier: "com.apple.Finder")
     let resolved = ExclusionAppResolver.resolve(
       app: "",
-      installed: makeInstalled(entries: [finder]),
+      installed: { _ in finder },
       running: makeRunning(entries: [finder])
     )
     #expect(resolved?.bundleIdentifier == nil)
