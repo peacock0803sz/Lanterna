@@ -2,7 +2,8 @@ import SwiftUI
 
 // MARK: - SettingsAppearanceView
 
-/// The Appearance tab: which look the windows use.
+/// The Appearance tab: which look the windows use, and how large the
+/// switcher text is.
 ///
 /// The look and the text size are chosen above, and a preview below
 /// shows sample switcher rows with both applied.
