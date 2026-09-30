@@ -57,6 +57,23 @@ struct KeyCaptureMonitorTests {
     #expect(taken.isEmpty)
   }
 
+  /// Closing some other window leaves the capture armed.
+  @Test
+  func closingOtherWindowKeepsCapture() throws {
+    let window = makeWindow()
+    defer { window.close() }
+    let other = makeWindow()
+    let capture = KeyCaptureMonitor()
+    var taken = [UInt16]()
+    capture.arm(in: window) { taken.append($0.keyCode) }
+    other.close()
+    #expect(capture.isArmed)
+    let press = try keyDown(in: window)
+    #expect(capture.handle(press) == nil)
+    #expect(taken == [press.keyCode])
+    capture.disarm()
+  }
+
   // MARK: Private
 
   private func makeWindow() -> NSWindow {
