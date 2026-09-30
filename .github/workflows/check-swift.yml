@@ -45,12 +45,23 @@ jobs:
           extra_nix_config: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
       - name: Check formatting
-        run: nix develop --command swiftformat --lint Sources/Lanterna Tests/
+        run: nix develop --command swiftformat --lint Sources/Lanterna Tests/ Package.swift
       - name: Lint
         run: |
           # SwiftLint needs SourceKit from Xcode, not the Nix Apple SDK.
-          # xcode-select points at Xcode on the hosted runner.
-          DEVELOPER_DIR=$(/usr/bin/xcode-select -p)
+          if [ -n "${XCODE_DEVELOPER_DIR:-}" ] && [ -d "${XCODE_DEVELOPER_DIR}" ]; then
+            DEVELOPER_DIR="$XCODE_DEVELOPER_DIR"
+          else
+            unset DEVELOPER_DIR
+            if ! DEVELOPER_DIR=$(/usr/bin/xcode-select -p 2>/dev/null); then
+              echo "error: xcode-select failed; Xcode or the Command Line Tools are required." >&2
+              exit 1
+            fi
+          fi
+          if [ -z "${DEVELOPER_DIR:-}" ] || [ ! -d "$DEVELOPER_DIR" ]; then
+            echo "error: DEVELOPER_DIR is empty or missing; Xcode or the Command Line Tools are required." >&2
+            exit 1
+          fi
           export DEVELOPER_DIR
           DYLD_FRAMEWORK_PATH="$DEVELOPER_DIR/usr/lib"
           export DYLD_FRAMEWORK_PATH
