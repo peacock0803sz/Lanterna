@@ -20,7 +20,7 @@ struct LogLevelBadge: View {
   var level: String
 
   var body: some View {
-    Text(level.uppercased())
+    Text(displayName)
       .font(.caption.monospaced())
       .fontWeight(.semibold)
       .padding(.horizontal, 6)
@@ -28,16 +28,33 @@ struct LogLevelBadge: View {
       .background(badgeColor.opacity(0.18))
       .foregroundStyle(badgeColor)
       .clipShape(Capsule())
-      .accessibilityLabel("Level \(level)")
+      .accessibilityLabel("Level \(displayName)")
   }
 
   // MARK: Private
+
+  private var displayName: String {
+    switch level.lowercased() {
+    case "warning",
+         "warn":
+      "WARN"
+    case "error":
+      "ERROR"
+    case "info":
+      "INFO"
+    case "debug":
+      "DEBUG"
+    default:
+      level.uppercased()
+    }
+  }
 
   private var badgeColor: Color {
     switch level.lowercased() {
     case "error":
       .red
-    case "warning":
+    case "warning",
+         "warn":
       .orange
     case "debug":
       .secondary

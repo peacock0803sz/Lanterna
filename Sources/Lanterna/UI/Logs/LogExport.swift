@@ -55,9 +55,25 @@ enum LogExport {
   }()
 
   private static func textLine(for row: DiagnosticRow) -> String {
-    let level = row.level.uppercased()
+    let level = displayLevel(row.level)
     let category = row.category ?? "-"
     return "#\(row.sequence) \(fullTime(milliseconds: row.recordedAtMilliseconds)) \(level) \(category) \(row.message)"
+  }
+
+  private static func displayLevel(_ level: String) -> String {
+    switch level.lowercased() {
+    case "warning",
+         "warn":
+      "WARN"
+    case "error":
+      "ERROR"
+    case "info":
+      "INFO"
+    case "debug":
+      "DEBUG"
+    default:
+      level.uppercased()
+    }
   }
 
   private static func jsonLine(for row: DiagnosticRow) -> String {
