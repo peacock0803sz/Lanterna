@@ -242,6 +242,13 @@ final class LogWindowState {
     return shownRows.compactMap { selection.contains($0.id) ? $0.entry : nil }
   }
 
+  /// The line the detail pane shows: there is one only while exactly one
+  /// line, not a separator, is selected.
+  var detailEntry: Diagnostics.LogEntry? {
+    guard selection.count == 1, let id = selection.first else { return nil }
+    return rows.first { $0.id == id }?.entry
+  }
+
   /// Whether any filter is narrowing the list.
   var isFiltering: Bool {
     !searchText.isEmpty || levelFloor != .debug || category != nil

@@ -16,14 +16,22 @@ struct LogWindowView: View {
         PausedBar(pendingCount: state.pendingCount, resume: state.resume)
         Divider()
       }
-      LogTable(state: state)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .overlay {
-          if !state.canCopyOrExport {
-            LogEmptyState(isFiltering: state.isFiltering)
-              .background(.background)
+      // One split view whether or not the detail shows, so opening and
+      // closing it leaves the table, and where it was scrolled, alone.
+      VSplitView {
+        LogTable(state: state)
+          .frame(maxWidth: .infinity, minHeight: 120, maxHeight: .infinity)
+          .overlay {
+            if !state.canCopyOrExport {
+              LogEmptyState(isFiltering: state.isFiltering)
+                .background(.background)
+            }
           }
+        if let entry = state.detailEntry {
+          LogDetailView(entry: entry, close: { state.selection = [] })
+            .frame(minHeight: 140, idealHeight: 260, maxHeight: .infinity)
         }
+      }
       Divider()
       LogStatusBar(
         totalCount: state.entryCount,

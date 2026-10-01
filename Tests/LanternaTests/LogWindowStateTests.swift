@@ -47,6 +47,20 @@ struct LogWindowStateTests {
   }
 
   @Test
+  func theDetailOpensForExactlyOneSelectedLine() {
+    let entries = LogFixture.entries(count: 3)
+    let state = LogWindowState(readEntries: { entries })
+    state.ingest()
+    #expect(state.detailEntry == nil)
+    state.selection = [state.rows[1].id]
+    #expect(state.detailEntry?.sequence == 2)
+    state.selection = [state.rows[0].id, state.rows[1].id]
+    #expect(state.detailEntry == nil)
+    state.selection = [LogRow(separatorFor: LogFixture.launch).id]
+    #expect(state.detailEntry == nil)
+  }
+
+  @Test
   func theSelectedCountCountsShownLinesOnly() {
     let entries = LogFixture.entries(count: 4)
     let state = LogWindowState(readEntries: { entries })
