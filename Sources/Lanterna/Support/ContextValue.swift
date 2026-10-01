@@ -36,14 +36,30 @@ enum ContextValue: Equatable, Sendable {
     }
   }
 
-  /// A JSON string literal for `text`, escaped by `JSONEncoder` so the
-  /// rules stay those of the standard library rather than a hand-kept list.
+  /// A JSON string literal for `text`.
+  ///
+  /// Escaped by hand rather than through `JSONEncoder`: the saved log
+  /// writes a line under the lock the hotkey paths share, and building an
+  /// encoder per string costs more than the escaping itself. JSON asks for
+  /// the quote, the backslash and the control characters to be escaped,
+  /// and nothing else.
   static func jsonString(_ text: String) -> String {
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = .withoutEscapingSlashes
-    guard let data = try? encoder.encode(text), let literal = String(data: data, encoding: .utf8) else {
-      return "\"\""
+    var literal = "\""
+    literal.reserveCapacity(text.utf8.count + 2)
+    for scalar in text.unicodeScalars {
+      switch scalar {
+      case "\"": literal += "\\\""
+      case "\\": literal += "\\\\"
+      case "\n": literal += "\\n"
+      case "\r": literal += "\\r"
+      case "\t": literal += "\\t"
+      case "\u{08}": literal += "\\b"
+      case "\u{0C}": literal += "\\f"
+      case "\u{00}" ... "\u{1F}": literal += String(format: "\\u%04x", scalar.value)
+      default: literal.unicodeScalars.append(scalar)
+      }
     }
+    literal += "\""
     return literal
   }
 
