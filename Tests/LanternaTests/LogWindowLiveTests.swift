@@ -65,6 +65,12 @@ struct LogWindowLiveTests {
   }
 
   @Test
+  func theLiveLabelSaysHowManyWait() {
+    #expect(LiveIndicator.text(isPaused: false, pendingCount: 4) == "Live")
+    #expect(LiveIndicator.text(isPaused: true, pendingCount: 3) == "Paused · 3 new matching entries waiting")
+  }
+
+  @Test
   func comingOnScreenTakesInWhatArrivedMeanwhile() {
     let feed = LogFeed(LogFixture.entries(count: 3))
     let state = Self.state(over: feed)

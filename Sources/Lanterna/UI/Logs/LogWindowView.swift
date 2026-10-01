@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - LogWindowView
-
 /// The log window's contents: the toolbar, the table and the status bar.
 struct LogWindowView: View {
 
@@ -13,6 +11,10 @@ struct LogWindowView: View {
     VStack(spacing: 0) {
       toolbar
       Divider()
+      if state.isPaused {
+        PausedBar(pendingCount: state.pendingCount, resume: state.resume)
+        Divider()
+      }
       LogTable(state: state)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
       Divider()
@@ -32,14 +34,22 @@ struct LogWindowView: View {
   /// Shares its row with the window's traffic lights, which the window
   /// draws over the leading inset.
   private var toolbar: some View {
-    HStack(alignment: .center, spacing: 12) {
+    HStack(alignment: .center, spacing: 8) {
       VStack(alignment: .leading, spacing: 2) {
         Text("Lanterna Logs")
           .font(.system(size: 13, weight: .bold))
           .accessibilityAddTraits(.isHeader)
-        LiveIndicator()
+        LiveIndicator(isPaused: state.isPaused, pendingCount: state.pendingCount)
       }
       Spacer(minLength: 12)
+      ToolbarIconButton(
+        systemImage: state.isPaused ? "play.fill" : "pause.fill",
+        label: state.isPaused ? "Resume" : "Pause",
+        shortcut: "⌘P",
+        isProminent: state.isPaused,
+        action: state.togglePause
+      )
+      .keyboardShortcut("p", modifiers: .command)
     }
     .padding(.leading, 84)
     .padding(.trailing, 14)
@@ -47,22 +57,4 @@ struct LogWindowView: View {
     .background(.bar)
   }
 
-}
-
-// MARK: - LiveIndicator
-
-/// Whether new lines are being added as they arrive.
-struct LiveIndicator: View {
-  var body: some View {
-    HStack(spacing: 5) {
-      Circle()
-        .fill(Color(nsColor: .systemGreen))
-        .frame(width: 6, height: 6)
-        .accessibilityHidden(true)
-      Text("Live")
-        .font(.system(size: 11))
-        .foregroundStyle(.secondary)
-    }
-    .accessibilityElement(children: .combine)
-  }
 }
