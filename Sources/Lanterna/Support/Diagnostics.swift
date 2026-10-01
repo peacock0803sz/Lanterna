@@ -225,6 +225,7 @@ enum Diagnostics {
   ) {
     activeLaunchID = launchID
     activeBuildVersion = buildVersion
+    spillPersists = persist
     let origin = LogPersistence.currentOrigin()
     let startedAt = Int64(Foundation.Date().timeIntervalSince1970 * 1000)
     do {
@@ -286,7 +287,58 @@ enum Diagnostics {
     }
   }
 
-  /// Writes every line still waiting for the spill store, then
+  /// Follows a settings change for the rest of the run. A new
+  /// rotation applies to later writes without disturbing the open
+  /// store; switching persistence drains the old path and starts the
+  /// new one under the same launch identity.
+  static func updateSpilling(persist: Bool, rotation: LogRotation) {
+    if persist == spillPersists {
+      launchStore?.update(rotation: rotation)
+      return
+    }
+    guard let launchID = activeLaunchID, let buildVersion = activeBuildVersion else { return }
+    guard
+      let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+    else {
+      return
+    }
+    spillWriter?.drain()
+    store.onMirror = nil
+    launchStore?.close()
+    launchStore = nil
+    spillWriter = nil
+    startSpilling(
+      applicationSupport: support,
+      launchID: launchID,
+      buildVersion: buildVersion,
+      rotation: rotation,
+      persist: persist
+    )
+  }
+
+  /// Trims one origin down to the retention window and the disk cap,
+  /// sparing the running launch. Caps read as decimal gigabytes, the
+  /// way the settings display them.
+  static func enforceSpillRetention(retentionDays: Int, diskLimitGB: Int) {
+    guard
+      let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+    else {
+      return
+    }
+    let origin = LogPersistence.currentOrigin()
+    let directory = LogPersistence.directory(applicationSupport: support, origin: origin)
+    let keeping = activeLaunchID.map { Set([$0]) } ?? []
+    let removed = LogPersistence.enforceRetention(
+      in: directory,
+      retentionDays: retentionDays,
+      diskLimitBytes: Int64(diskLimitGB) * 1_000_000_000,
+      keepingLaunchIDs: keeping
+    )
+    if removed > 0 {
+      writeLine("trimmed \(removed) spill files past retention", level: .info)
+    }
+  }
+
   /// closes the store. Called on the way out, since the process may
   /// exit before a scheduled flush runs; a line written afterwards
   /// opens the store again on its own flush.
@@ -327,6 +379,10 @@ enum Diagnostics {
   /// read after that only to drain, look up, and close them.
   private nonisolated(unsafe) static var spillWriter: LogSpillWriter?
   private nonisolated(unsafe) static var launchStore: LogLaunchStore?
+  /// Whether the running spill path persists to disk. Follows the
+  /// settings through `updateSpilling`; read only to tell a rotation
+  /// change apart from a persistence switch.
+  private nonisolated(unsafe) static var spillPersists = true
 
   /// The stored severity words. Logger levels without a word of
   /// their own, trace, notice, and critical, fold into the nearest

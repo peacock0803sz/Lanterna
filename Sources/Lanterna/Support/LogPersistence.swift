@@ -229,6 +229,46 @@ enum LogPersistence {
     }
   }
 
+  /// Removes spill files until the retention window and the disk cap
+  /// both hold. Files older than the window go first; then the oldest
+  /// remaining while usage passes the cap. Launches named in the keep
+  /// set are spared, so the running launch never loses its open file.
+  /// Returns how many files left. Missing directories mean nothing to do.
+  @discardableResult
+  static func enforceRetention(
+    in directory: URL,
+    retentionDays: Int,
+    diskLimitBytes: Int64,
+    now: Foundation.Date = Foundation.Date(),
+    keepingLaunchIDs: Set<String> = []
+  ) -> Int {
+    let files = spillFiles(in: directory)
+    let sheltered = files.filter { keepingLaunchIDs.contains(launchStem(of: $0.lastPathComponent)) }
+    var candidates = files.filter { !keepingLaunchIDs.contains(launchStem(of: $0.lastPathComponent)) }
+    var removed = 0
+    let cutoff = now.addingTimeInterval(TimeInterval(retentionDays * -86400))
+    var survivors = [URL]()
+    for url in candidates {
+      let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+      if (modified ?? .distantPast) < cutoff, removeQuietly(url) {
+        removed += 1
+      } else {
+        survivors.append(url)
+      }
+    }
+    candidates = survivors
+    var total = (sheltered + candidates).reduce(Int64(0)) { $0 + fileSize(of: $1) }
+    for url in candidates {
+      guard total > diskLimitBytes else { break }
+      let size = fileSize(of: url)
+      if removeQuietly(url) {
+        removed += 1
+        total -= size
+      }
+    }
+    return removed
+  }
+
   /// The spill files of one origin, oldest first. Read-only opens
   /// never create the directory, so a missing one means no files.
   static func spillFiles(in directory: URL) -> [URL] {
@@ -246,6 +286,23 @@ enum LogPersistence {
   }
 
   // MARK: Private
+
+  /// Removes one file, reporting whether it is gone. A failure
+  /// leaves the file for the next pass rather than stopping it.
+  private static func removeQuietly(_ url: URL) -> Bool {
+    do {
+      try FileManager.default.removeItem(at: url)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /// How much room one file takes. Unreadable sizes read as nothing,
+  /// so a file that cannot be measured never blocks the cap pass.
+  private static func fileSize(of url: URL) -> Int64 {
+    Int64((try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
+  }
 
   /// The launch one spill file belongs to: the file stem without
   /// the in-launch rotation suffix.
@@ -454,6 +511,14 @@ final class LogLaunchStore: @unchecked Sendable {
     cached = nil
   }
 
+  /// Takes a new rotation for the rest of the run. The next write
+  /// splits under the new period; open files stay where they are.
+  func update(rotation: LogRotation) {
+    lock.lock()
+    defer { lock.unlock() }
+    self.rotation = rotation
+  }
+
   // MARK: Private
 
   private let lock = NSLock()
@@ -462,7 +527,7 @@ final class LogLaunchStore: @unchecked Sendable {
   private let origin: LogPersistence.Origin
   private let buildVersion: String
   private let startedAtMilliseconds: Int64
-  private let rotation: LogRotation
+  private var rotation: LogRotation
   private let clock: () -> Int64
   private var cached: Database?
   private var currentBucket: Int64 = 0

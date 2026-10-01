@@ -218,6 +218,24 @@ extension AppDelegate {
     {
       Diagnostics.writeLine(report.line, level: report.level)
     }
+    // Follows the spill choices for the rest of the run: persistence
+    // and rotation switch the spill path, while a shrunk window or cap
+    // trims the excess right away instead of waiting for the next spill.
+    if
+      values.keepLogsAcrossLaunches != previousValues.keepLogsAcrossLaunches
+      || values.logRotation != previousValues.logRotation
+    {
+      Diagnostics.updateSpilling(persist: values.keepLogsAcrossLaunches, rotation: values.logRotation)
+    }
+    if
+      values.logRetentionDays < previousValues.logRetentionDays
+      || values.logDiskLimitGB < previousValues.logDiskLimitGB
+    {
+      Diagnostics.enforceSpillRetention(
+        retentionDays: values.logRetentionDays,
+        diskLimitGB: values.logDiskLimitGB
+      )
+    }
     return saveSettings(valuesForSave, replacingInvalidFile: replacingInvalidFile)
   }
 

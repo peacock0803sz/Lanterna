@@ -100,11 +100,19 @@ if let report = LaunchAtLogin.sync(desired: launchDesired, service: LaunchAtLogi
 
 // Starts spilling mirrored lines to the per-launch store, ahead of the
 // run loop and off the path with a time budget. The current window
-// keeps reading the mirror, so nothing on screen changes. Detailed
-// retention settings arrive with their own screen; until then the
-// launch persists with daily rotation.
+// keeps reading the mirror, so nothing on screen changes. Persistence
+// and rotation follow the settings; the retention window and the disk
+// cap trim what is already there before the first spill lands.
 if let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
-  Diagnostics.startSpilling(applicationSupport: support)
+  Diagnostics.startSpilling(
+    applicationSupport: support,
+    rotation: initialValues.logRotation,
+    persist: initialValues.keepLogsAcrossLaunches
+  )
+  Diagnostics.enforceSpillRetention(
+    retentionDays: initialValues.logRetentionDays,
+    diskLimitGB: initialValues.logDiskLimitGB
+  )
 }
 
 /// Opens the shared matcher for one run, ahead of the run loop.
