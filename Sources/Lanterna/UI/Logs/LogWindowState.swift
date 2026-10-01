@@ -48,6 +48,11 @@ final class LogWindowState: ObservableObject {
   @Published var databaseError: String?
   @Published var isLoading = false
 
+  /// The time tokens the picker mirrored into the query row. Only
+  /// these stay out of row matching, since the toolbar range already
+  /// applies them as bounds; anything hand-typed still filters.
+  var pickerTimeTokens = Set<String>()
+
   var liveLabel: String {
     if let end = rangeEndMilliseconds, end < nowMilliseconds() {
       return "Not live · range ends \(LogExport.fullTime(milliseconds: end).prefix(19))"
@@ -110,6 +115,13 @@ final class LogWindowState: ObservableObject {
     }
   }
 
+  /// When this launch started, for the Since-this-launch range.
+  /// Absent before the first spill, where the range stays open
+  /// and shows everything kept.
+  var launchStart: Date? {
+    Diagnostics.activeLaunchStartMilliseconds.map { Date(timeIntervalSince1970: Double($0) / 1_000) }
+  }
+
   func refresh() {
     let now = nowMilliseconds()
     let resolved = TimeRangeResolver.resolve(
@@ -154,12 +166,6 @@ final class LogWindowState: ObservableObject {
     refresh()
   }
 
-  func showLatest() {
-    resetTime()
-    isPaused = false
-    pendingCount = 0
-  }
-
   func setSidebarShown(_ shown: Bool) {
     isSidebarShown = shown
     UserDefaults.standard.set(shown, forKey: Self.sidebarKey)
@@ -168,70 +174,6 @@ final class LogWindowState: ObservableObject {
   func setHistogramCollapsed(_ collapsed: Bool) {
     isHistogramCollapsed = collapsed
     UserDefaults.standard.set(collapsed, forKey: Self.histogramKey)
-  }
-
-  func applyTimeSelection(_ selection: TimeRangeSelection) {
-    guard query.mode == .lightweight else {
-      timeSelection = selection
-      refresh()
-      return
-    }
-    timeSelection = selection
-    let resolved = TimeRangeResolver.resolve(selection, launchStart: launchStart)
-    timeLabel = resolved.shortLabel
-    rewriteTimeTokens(with: resolved.queryTokens)
-    refresh()
-  }
-
-  func resetTime() {
-    timeSelection = TimeRangeSelection()
-    pickerTimeTokens = []
-    let resolved = TimeRangeResolver.resolve(timeSelection, launchStart: launchStart)
-    timeLabel = resolved.shortLabel
-    if query.mode == .lightweight {
-      let kept = splitLogQueryTokens(query.lightweightText).filter { entry in
-        guard let key = logQueryKey(of: entry)?.lowercased() else { return true }
-        return key != "after" && key != "before"
-      }
-      query.lightweightText = kept.joined(separator: " ")
-    }
-    refresh()
-  }
-
-  func showInterval(startMilliseconds start: Int64, endMilliseconds end: Int64) {
-    guard query.mode == .lightweight else { return }
-    var selection = TimeRangeSelection()
-    selection.kind = .custom
-    selection.customStart = Date(timeIntervalSince1970: Double(start) / 1_000)
-    selection.customEnd = Date(timeIntervalSince1970: Double(end) / 1_000)
-    applyTimeSelection(selection)
-  }
-
-  func showLaunch(_ launchID: String) {
-    guard query.mode == .lightweight else { return }
-    replaceQueryKeys(["launch"], with: "launch:\(launchID)")
-  }
-
-  func jump(toMilliseconds milliseconds: Int64) {
-    let scope = flatVisibleRows.isEmpty ? allKeptRows : flatVisibleRows
-    guard
-      let near = scope.min(by: {
-        abs($0.recordedAtMilliseconds - milliseconds) < abs($1.recordedAtMilliseconds - milliseconds)
-      })
-    else { return }
-    selection = [near.rowID]
-    jumpTargetID = near.rowID
-  }
-
-  func jump(to date: Date) {
-    jump(toMilliseconds: Int64(date.timeIntervalSince1970 * 1_000))
-  }
-
-  func copyInterval(startMilliseconds start: Int64, endMilliseconds end: Int64) {
-    let rows = flatVisibleRows.filter { row in
-      row.recordedAtMilliseconds >= start && row.recordedAtMilliseconds < end
-    }
-    copy(string: LogExport.textLines(rows: rows))
   }
 
   func targetRows() -> [DiagnosticRow] {
@@ -256,6 +198,13 @@ final class LogWindowState: ObservableObject {
     guard panel.runModal() == .OK, let url = panel.url else { return }
     let body = LogExport.fileContents(rows: flatVisibleRows)
     try? body.write(to: url, atomically: true, encoding: .utf8)
+  }
+
+  func copy(string: String) {
+    guard !string.isEmpty else { return }
+    let board = NSPasteboard.general
+    board.clearContents()
+    board.setString(string, forType: .string)
   }
 
   // MARK: Private
@@ -292,10 +241,6 @@ final class LogWindowState: ObservableObject {
   private var cachedCountKey: String?
   private var cachedStoreCount: Int?
   private var lastCountFinishedAt: Date?
-  /// The time tokens the picker mirrored into the query row. Only
-  /// these stay out of row matching, since the toolbar range already
-  /// applies them as bounds; anything hand-typed still filters.
-  private var pickerTimeTokens = Set<String>()
 
   private var effectiveLevelName: String {
     guard let logger = Diagnostics.logger else { return "Warning" }
@@ -308,13 +253,6 @@ final class LogWindowState: ObservableObject {
     case .error: "Error"
     case .critical: "Critical"
     }
-  }
-
-  /// When this launch started, for the Since-this-launch range.
-  /// Absent before the first spill, where the range stays open
-  /// and shows everything kept.
-  private var launchStart: Date? {
-    Diagnostics.activeLaunchStartMilliseconds.map { Date(timeIntervalSince1970: Double($0) / 1_000) }
   }
 
   /// Lists the spill directory and reads the stores. Runs off the
@@ -580,15 +518,6 @@ final class LogWindowState: ObservableObject {
     return matched.count + max(0, storeTotal - windowMatches)
   }
 
-  private func rewriteTimeTokens(with tokens: [String]) {
-    let kept = splitLogQueryTokens(query.lightweightText).filter { entry in
-      guard let key = logQueryKey(of: entry)?.lowercased() else { return true }
-      return key != "after" && key != "before"
-    }
-    pickerTimeTokens = Set(tokens)
-    query.lightweightText = (kept + tokens).joined(separator: " ")
-  }
-
   private func nowMilliseconds() -> Int64 {
     Int64(Date().timeIntervalSince1970 * 1000)
   }
@@ -777,13 +706,6 @@ final class LogWindowState: ObservableObject {
     case .error,
          .critical: "error"
     }
-  }
-
-  private func copy(string: String) {
-    guard !string.isEmpty else { return }
-    let board = NSPasteboard.general
-    board.clearContents()
-    board.setString(string, forType: .string)
   }
 
 }
