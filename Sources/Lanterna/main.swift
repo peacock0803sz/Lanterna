@@ -98,15 +98,6 @@ if let report = LaunchAtLogin.sync(desired: launchDesired, service: LaunchAtLogi
   Diagnostics.writeLine(report.line, level: report.level)
 }
 
-// Starts spilling mirrored lines to the per-launch store, ahead of the
-// run loop and off the path with a time budget. The current window
-// keeps reading the mirror, so nothing on screen changes. Detailed
-// retention settings arrive with their own screen; until then the
-// launch persists with daily rotation.
-if let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
-  Diagnostics.startSpilling(applicationSupport: support)
-}
-
 /// Opens the shared matcher for one run, ahead of the run loop.
 ///
 /// The scope comes from the same config the options do; the dictionary
