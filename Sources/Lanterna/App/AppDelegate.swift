@@ -99,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       logState: LogWindowState(savedLogs: savedLogs.map { SavedLogSource.live(store: $0.store) })
     )
     self.guideWindows = guideWindows
+    guideWindows.logState.setSavingEnabled(currentValues.saveLogsToDisk)
     if OnboardingNeed.isNeeded(state: permissionState, sampleCount: options.sampleCount) {
       guideWindows.openGuide(state: permissionState)
     }

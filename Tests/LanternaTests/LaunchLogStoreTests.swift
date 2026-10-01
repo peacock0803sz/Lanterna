@@ -122,7 +122,7 @@ struct LaunchLogStoreTests {
   func theUsageSaysHowMuchHowManyAndSinceWhen() throws {
     let folder = try TemporaryFolder()
     let store = LaunchLogStore(directory: folder.url, timeZone: Self.tokyo)
-    #expect(store.usage().summary(timeZone: Self.tokyo) == "No saved logs yet.")
+    #expect(store.usage().summary(timeZone: Self.tokyo) == "No saved logs yet")
     for index in 0 ..< 2 {
       _ = try store.create(for: Self.launch(index), version: "v0")
     }

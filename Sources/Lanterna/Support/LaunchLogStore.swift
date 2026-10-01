@@ -58,7 +58,7 @@ struct SavedLogsUsage: Equatable, Sendable {
 
   /// `4.1 MB across 6 launches · oldest Sep 28`, or that there are none.
   func summary(timeZone: TimeZone = .current) -> String {
-    guard launchCount > 0 else { return "No saved logs yet." }
+    guard launchCount > 0 else { return "No saved logs yet" }
     let size = String(format: "%.1f MB", Double(byteCount) / 1_048_576)
     let launches = launchCount == 1 ? "1 launch" : "\(launchCount) launches"
     guard let oldest else { return "\(size) across \(launches)" }

@@ -101,7 +101,7 @@ struct SettingsGeneralView: View {
         }
       }
       if let diagnostics {
-        SettingsDiagnosticsSection(display: diagnostics)
+        SettingsDiagnosticsSection(values: $values, display: diagnostics)
       }
       Section("Permissions") {
         if missing.isEmpty {

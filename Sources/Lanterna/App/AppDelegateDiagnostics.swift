@@ -14,7 +14,22 @@ extension AppDelegate {
       deleteSavedLogs()
       display?.savedSummary = savedLogs?.store.usage().summary()
     }
+    display.applySaving = { [weak self, weak display] saving, deleting in
+      guard let self else { return }
+      applySavingLogs(saving, deleting: deleting)
+      display?.savedSummary = savedLogs?.store.usage().summary()
+    }
     return display
+  }
+
+  /// Switches saving on or off for the rest of the run, and keeps the log
+  /// window's choice of launches in step with it.
+  func applySavingLogs(_ saving: Bool, deleting: Bool) {
+    savedLogs?.setSaving(saving, deletingSaved: deleting)
+    guideWindows?.logState.setSavingEnabled(saving)
+    if deleting {
+      guideWindows?.logState.invalidateSavedLaunches()
+    }
   }
 
   /// Deletes the launches saved before this one, then has the log window
