@@ -39,11 +39,22 @@ struct QueryBarView: View {
     .padding(.vertical, 10)
     .accessibilityElement(children: .contain)
     .accessibilityLabel("Query bar")
+    .background(focusShortcut)
   }
 
   // MARK: Private
 
   @State private var showingGuide = false
+
+  private var focusShortcut: some View {
+    Button("Focus query") {
+      queryFocused.wrappedValue = true
+    }
+    .keyboardShortcut("f", modifiers: .command)
+    .hidden()
+    .accessibilityLabel("Focus query")
+    .accessibilityHint("Moves keyboard focus to the filter field")
+  }
 
   private var searchField: some View {
     HStack(spacing: 6) {

@@ -672,6 +672,7 @@ struct LogWindowView: View {
     .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
       state.refresh()
     }
+    .background(closeDetailShortcut)
     .alert("Switch query mode?", isPresented: $showSwitchConfirm, presenting: pendingMode) { mode in
       Button("Switch", role: .destructive) {
         state.query.mode = mode
@@ -870,6 +871,16 @@ struct LogWindowView: View {
     .accessibilityLabel(
       state.totalCount == 0 ? "No log entries yet" : "No entries match the current filters"
     )
+  }
+
+  private var closeDetailShortcut: some View {
+    Button("Close detail") {
+      state.selection.removeAll()
+    }
+    .keyboardShortcut(.cancelAction)
+    .hidden()
+    .accessibilityLabel("Close detail")
+    .accessibilityHint("Clears the row selection and closes the detail")
   }
 
   private func requestModeSwitch(_ next: LogQuery.Mode) {

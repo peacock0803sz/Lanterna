@@ -131,6 +131,7 @@ struct HistogramView: View {
       onOpenJumpDialog()
     }
     .keyboardShortcut("j", modifiers: .command)
+    .disabled(isCollapsed)
     .hidden()
     .accessibilityLabel("Jump to Time")
     .accessibilityHint("Opens a calendar and time fields to jump to an entry")
