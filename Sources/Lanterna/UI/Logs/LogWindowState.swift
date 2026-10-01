@@ -63,6 +63,36 @@ enum LaunchScope: String, CaseIterable, Sendable {
   }
 }
 
+// MARK: - LevelFloor
+
+/// The lightest level the log window shows; every heavier one shows too.
+enum LevelFloor: String, CaseIterable, Sendable {
+  case debug
+  case info
+  case warning
+  case error
+
+  // MARK: Internal
+
+  var level: Logger.Level {
+    switch self {
+    case .debug: .debug
+    case .info: .info
+    case .warning: .warning
+    case .error: .error
+    }
+  }
+
+  var title: String {
+    switch self {
+    case .debug: "Debug and above"
+    case .info: "Info and above"
+    case .warning: "Warnings & Errors"
+    case .error: "Errors only"
+    }
+  }
+}
+
 // MARK: - LogWindowState
 
 /// What the log window shows and how it is filtered.
@@ -153,6 +183,34 @@ final class LogWindowState {
   @ObservationIgnored var olderTask: Task<Void, Never>?
   @ObservationIgnored var fillTask: Task<Void, Never>?
 
+  /// Text a line's message has to hold, in any case. Empty lets every
+  /// line through.
+  var searchText = "" {
+    didSet {
+      if searchText != oldValue {
+        recomputeShownRows()
+      }
+    }
+  }
+
+  /// The lightest level shown.
+  var levelFloor = LevelFloor.debug {
+    didSet {
+      if levelFloor != oldValue {
+        recomputeShownRows()
+      }
+    }
+  }
+
+  /// The one category shown, or nil for all of them.
+  var category: LogCategory? {
+    didSet {
+      if category != oldValue {
+        recomputeShownRows()
+      }
+    }
+  }
+
   /// This launch, or every saved one.
   var scope = LaunchScope.thisLaunch {
     didSet {
@@ -186,12 +244,20 @@ final class LogWindowState {
 
   /// Whether any filter is narrowing the list.
   var isFiltering: Bool {
-    false
+    !searchText.isEmpty || levelFloor != .debug || category != nil
   }
 
-  /// Whether the filters let `row` through.
-  func matches(_: LogRow) -> Bool {
-    true
+  /// Whether the filters let `row` through: its level reaches the floor,
+  /// its category is the one picked (or any), and its message holds the
+  /// search text in any case. Separators always stay, so a launch's lines
+  /// still read under their heading.
+  func matches(_ row: LogRow) -> Bool {
+    guard let entry = row.entry else { return true }
+    guard entry.level >= levelFloor.level else { return false }
+    if let category, entry.category != category {
+      return false
+    }
+    return searchText.isEmpty || entry.message.range(of: searchText, options: .caseInsensitive) != nil
   }
 
 }
