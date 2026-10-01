@@ -22,13 +22,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     configFileURL: URL?,
     lanternaDirectory: URL?,
     tableDirectory: URL?,
-    initialValues: SettingsValues
+    initialValues: SettingsValues,
+    savedLogs: SavedLogs? = nil
   ) {
     self.options = options
     self.configFileURL = configFileURL
     self.lanternaDirectory = lanternaDirectory
     self.tableDirectory = tableDirectory
     currentValues = initialValues
+    self.savedLogs = savedLogs
     super.init()
   }
 
@@ -67,6 +69,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   /// What the matcher reads beside the config file, if it resolved.
   let lanternaDirectory: URL?
   let tableDirectory: URL?
+  /// This run's saved launches, if their folder resolved at launch.
+  let savedLogs: SavedLogs?
   /// The values this run uses, kept current as the settings change.
   var currentValues: SettingsValues
   /// The permission answers for this launch, shown in the settings.

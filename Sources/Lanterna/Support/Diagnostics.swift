@@ -73,6 +73,11 @@ enum Diagnostics {
     store.summary
   }
 
+  /// The file this launch is saving to, or nil while it saves nothing.
+  static var savingTo: URL? {
+    store.savingTo
+  }
+
   /// The mirrored lines numbered after `sequence`, oldest first.
   static func entries(after sequence: UInt64) -> [LogEntry] {
     store.entries(after: sequence)
@@ -96,6 +101,22 @@ enum Diagnostics {
       metadata[DiagnosticLogHandler.contextKey] = .stringConvertible(ContextBox(values: line.context))
     }
     logger.log(level: line.level, "\(line.message)", metadata: metadata, file: line.file, line: line.line)
+  }
+
+  /// Starts saving this launch's lines through `writer`, the ones written
+  /// so far first.
+  static func attachSavedLog(_ writer: LaunchLogWriter) {
+    store.attach(writer)
+  }
+
+  /// Stops saving this launch's lines and closes the file.
+  static func detachSavedLog() {
+    store.detach()
+  }
+
+  /// Settles that this launch saves nothing for now.
+  static func declineSaving() {
+    store.declineSaving()
   }
 
   /// Pins the launch summary. Called once per launch; later calls replace it.

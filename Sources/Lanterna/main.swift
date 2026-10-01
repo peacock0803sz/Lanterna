@@ -123,6 +123,12 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
   ))
 }
 
+/// Starts this launch's saved log once the settings are read and before the
+/// panel can run, so making the file and trimming old ones stay off the paths
+/// with a time budget. The lines written so far reach the file first.
+let savedLogs = SavedLogs.live()
+savedLogs?.start()
+
 // Brings the login item in line with the saved setting, ahead of the run
 // loop and off the path with a time budget. A change or a failure leaves
 // one diagnostics line; quiet runs stay silent. Never stops the launch.
@@ -165,7 +171,8 @@ let delegate = AppDelegate(
   configFileURL: configFileURL,
   lanternaDirectory: lanternaDirectory,
   tableDirectory: tableDirectory,
-  initialValues: initialValues
+  initialValues: initialValues,
+  savedLogs: savedLogs
 )
 application.delegate = delegate
 application.run()
