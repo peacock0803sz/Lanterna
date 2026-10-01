@@ -55,6 +55,7 @@ final class SettingsWindow: NSWindow {
     appearanceMode: AppearanceMode = .system,
     onCheckNow: @escaping () -> Void = { },
     diagnostics: DiagnosticsDisplay = DiagnosticsDisplay(),
+    launchSummary: String? = nil,
     onChange: @escaping (SettingsValues) -> Void
   ) {
     let model = SettingsModel(values: values, onChange: onChange)
@@ -82,6 +83,7 @@ final class SettingsWindow: NSWindow {
       model: model,
       checkDisplay: display,
       version: version,
+      launchSummary: launchSummary,
       missing: missing,
       opener: opener,
       onCheckNow: onCheckNow,
@@ -156,6 +158,7 @@ struct GeneralTabRoot: View {
   @ObservedObject var checkDisplay: UpdateCheckDisplay
 
   let version: DisplayedVersion
+  let launchSummary: String?
   let missing: [MissingPermission]
   let opener: SettingsOpener
   let onCheckNow: () -> Void
@@ -165,6 +168,7 @@ struct GeneralTabRoot: View {
     SettingsGeneralView(
       values: $model.values,
       version: version,
+      launchSummary: launchSummary,
       missing: missing,
       opener: opener,
       checkResultText: checkDisplay.resultText,
