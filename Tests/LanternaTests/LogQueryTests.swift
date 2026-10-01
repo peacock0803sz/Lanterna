@@ -77,22 +77,22 @@ struct LogQueryTests {
   }
 
   @Test
-  func plainReadsPassWithAFilledCap() {
+  func plainReadsPassAsWritten() {
     let verdict = DatabaseStatementCheck.check(
       "SELECT seq FROM entries WHERE ts_ms >= 0"
     )
     #expect(verdict.allowed)
     #expect(verdict.refusal == nil)
-    #expect(verdict.effectiveText.hasSuffix("LIMIT 5000"))
+    #expect(verdict.effectiveText == "SELECT seq FROM entries WHERE ts_ms >= 0")
   }
 
   @Test
   func existingCapsStayUntouched() {
     let verdict = DatabaseStatementCheck.check(
-      "SELECT seq FROM entries WHERE ts_ms >= 0 LIMIT 10"
+      "SELECT seq FROM entries WHERE ts_ms >= 0 LIMIT 10;"
     )
     #expect(verdict.allowed)
-    #expect(verdict.effectiveText.hasSuffix("LIMIT 10"))
+    #expect(verdict.effectiveText == "SELECT seq FROM entries WHERE ts_ms >= 0 LIMIT 10")
   }
 
   @Test

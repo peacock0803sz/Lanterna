@@ -79,13 +79,19 @@ final class LogQueryExecutor: Sendable {
 
   /// Runs a checked database statement. The statement must yield
   /// the entry columns under their stored names, since the wrapper
-  /// picks them by name; the wrapper keeps the merged order across
-  /// files, and the newest rows up to the statement's own cap.
-  func runStatement(_ sql: String, progress: @escaping (Double) -> Void = { _ in }) throws -> ExecutedLogQuery {
-    try fetch(
+  /// picks them by name. The wrapper keeps the merged order across
+  /// files and the newest rows up to the statement's own `LIMIT`,
+  /// or up to `defaultCap` when it has none.
+  func runStatement(
+    _ sql: String,
+    defaultCap: Int = 5000,
+    progress: @escaping (Double) -> Void = { _ in }
+  ) throws -> ExecutedLogQuery {
+    let cap = rowCap(in: sql, default: defaultCap)
+    return try fetch(
       sql: "SELECT seq, ts_ms, level, category, message, launch_id, build_version, payload "
-        + "FROM (\n\(sql)\n) ORDER BY ts_ms DESC, seq DESC",
-      limit: rowCap(in: sql),
+        + "FROM (\n\(sql)\n) ORDER BY ts_ms DESC, seq DESC LIMIT \(cap)",
+      limit: cap,
       progress: progress
     )
   }

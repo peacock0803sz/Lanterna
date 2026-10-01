@@ -76,6 +76,29 @@ struct LogQueryExecutorTests {
   }
 
   @Test
+  func statementsWithoutTheirOwnCapKeepTheNewest() throws {
+    let store = try LogStoreFixture()
+    defer { store.remove() }
+    try store.insert((1...7).map { row(sequence: UInt64($0), at: Int64($0) * 1000) })
+    let executor = LogQueryExecutor(files: [store.url])
+    let verdict = DatabaseStatementCheck.check("SELECT * FROM entries WHERE ts_ms >= 0")
+    #expect(try executor.runStatement(verdict.effectiveText, defaultCap: 3).rows.map(\.sequence) == [5, 6, 7])
+  }
+
+  @Test
+  func ownCapsEndingInALineCommentStillRun() throws {
+    let store = try LogStoreFixture()
+    defer { store.remove() }
+    try store.insert((1...7).map { row(sequence: UInt64($0), at: Int64($0) * 1000) })
+    let verdict = DatabaseStatementCheck.check(
+      "SELECT * FROM entries WHERE ts_ms >= 0 ORDER BY ts_ms DESC LIMIT 2 -- newest pair"
+    )
+    #expect(verdict.allowed)
+    let result = try LogQueryExecutor(files: [store.url]).runStatement(verdict.effectiveText)
+    #expect(result.rows.map(\.sequence) == [6, 7])
+  }
+
+  @Test
   func refusedStatementsFailTheRunInsteadOfSkippingEveryFile() throws {
     let first = try LogStoreFixture()
     defer { first.remove() }

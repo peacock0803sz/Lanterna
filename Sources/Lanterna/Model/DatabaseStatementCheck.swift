@@ -3,10 +3,10 @@ import Foundation
 // MARK: - DatabaseStatementCheck
 
 /// Decides whether a database-mode statement may run. Only reads
-/// pass: writes are refused outright, statements that never
-/// mention `ts_ms` are refused, and a missing row cap is filled in.
-/// Mentioning the column is all it asks; the statement itself
-/// decides whether that bounds anything.
+/// pass: writes are refused outright, and statements that never
+/// mention `ts_ms` are refused. Mentioning the column is all it
+/// asks; the statement itself decides whether that bounds anything.
+/// The row cap is the executor's, applied around the statement.
 enum DatabaseStatementCheck {
 
   // MARK: Internal
@@ -18,8 +18,8 @@ enum DatabaseStatementCheck {
     var effectiveText: String
   }
 
-  /// Checks one statement, filling in the default row cap.
-  static func check(_ text: String, rowLimit: Int = 5000) -> Verdict {
+  /// Checks one statement, dropping a trailing semicolon.
+  static func check(_ text: String) -> Verdict {
     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else {
       return Verdict(allowed: false, refusal: "Enter a statement to run.", effectiveText: text)
@@ -51,11 +51,7 @@ enum DatabaseStatementCheck {
       )
     }
     let base = trailingSemicolon ? String(characters[..<(scanned.codeEnd - 1)]) : trimmed
-    if hasRowCap(words: scanned.words) {
-      return Verdict(allowed: true, refusal: nil, effectiveText: base)
-    }
-    // On its own line, so a trailing line comment cannot swallow it.
-    return Verdict(allowed: true, refusal: nil, effectiveText: base + "\nLIMIT \(rowLimit)")
+    return Verdict(allowed: true, refusal: nil, effectiveText: base)
   }
 
   /// The bare words of a statement, lowercased, leaving out string
@@ -265,10 +261,6 @@ enum DatabaseStatementCheck {
       index += 1
     }
     return nil
-  }
-
-  private static func hasRowCap(words: [String]) -> Bool {
-    zip(words, words.dropFirst()).contains { $0 == "limit" && Int($1) != nil }
   }
 
 }
