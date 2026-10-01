@@ -24,7 +24,9 @@ extension Logger.Level {
 /// A line's level as a coloured token, readable in both appearances.
 ///
 /// The text takes a darker shade in the light appearance and the system
-/// colour in the dark one, so the word keeps its contrast on the tint.
+/// colour in the dark one, so the word keeps its contrast on the tint. On
+/// a selected row, whose background is the accent colour, it turns white
+/// on a light wash instead, as the row's other text does.
 struct LogLevelBadge: View {
 
   // MARK: Internal
@@ -34,15 +36,24 @@ struct LogLevelBadge: View {
   var body: some View {
     Text(level.shortName)
       .font(.system(size: 10, weight: .bold, design: .monospaced))
-      .foregroundStyle(tint)
+      .foregroundStyle(isOnSelection ? Color.white : tint)
       .padding(.horizontal, 6)
       .padding(.vertical, 1)
-      .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+      .background(
+        isOnSelection ? Color.white.opacity(0.25) : tint.opacity(0.12),
+        in: RoundedRectangle(cornerRadius: 4)
+      )
       .fixedSize()
       .accessibilityLabel("Level \(level.shortName)")
   }
 
   // MARK: Private
+
+  @Environment(\.backgroundProminence) private var backgroundProminence
+
+  private var isOnSelection: Bool {
+    backgroundProminence == .increased
+  }
 
   private var tint: Color {
     switch level {
