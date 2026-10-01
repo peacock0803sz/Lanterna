@@ -144,6 +144,29 @@ struct LogQueryExecutorTests {
   }
 
   @Test
+  func countCoversEveryMatchWithoutARowCap() throws {
+    let store = try LogStoreFixture()
+    defer { store.remove() }
+    try store.insert((1...7).map { row(sequence: UInt64($0), at: Int64($0) * 1000) })
+    let executor = LogQueryExecutor(files: [store.url], liveStore: { _ in nil })
+    #expect(try executor.count(predicate: "1 = 1", values: []) == 7)
+    #expect(try executor.count(predicate: "ts_ms >= ?", values: [.integer(5000)]) == 3)
+  }
+
+  @Test
+  func countSkipsUnreadableFilesButRefusesBadPredicates() throws {
+    let store = try LogStoreFixture()
+    defer { store.remove() }
+    try store.insert([row(sequence: 1, at: 1000)])
+    let missing = store.base.appendingPathComponent("missing.duckdb")
+    let executor = LogQueryExecutor(files: [missing, store.url], liveStore: { _ in nil })
+    #expect(try executor.count(predicate: "1 = 1", values: []) == 1)
+    #expect(throws: LogQueryExecutor.StatementError.self) {
+      try executor.count(predicate: "no_such_column = 1", values: [])
+    }
+  }
+
+  @Test
   func refusedStatementsFailTheRunInsteadOfSkippingEveryFile() throws {
     let first = try LogStoreFixture()
     defer { first.remove() }

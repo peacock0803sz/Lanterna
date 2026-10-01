@@ -97,6 +97,29 @@ final class LogQueryExecutor: Sendable {
     )
   }
 
+  /// Counts the rows matching a lightweight predicate across every
+  /// file, without any row cap. The display fetch keeps only the
+  /// newest window, so the status total reads this count instead
+  /// and long runs never silently lose their true total. Unreadable
+  /// files stay out of the count; only a statement the database
+  /// refuses fails the whole run.
+  func count(predicate: String, values: [SQLLiteral]) throws -> Int {
+    let whereClause = try inline(values, into: predicate)
+    var total = 0
+    for file in files {
+      try Task.checkCancellation()
+      do {
+        total += try countFile(file: file, whereClause: whereClause)
+      } catch let error as StatementError {
+        throw error
+      } catch {
+        // Unreadable files stay out of the total; the capped fetch
+        // beside this count reports them with its rows.
+      }
+    }
+    return total
+  }
+
   /// Fills `?` markers with quoted values. The count must match;
   /// a mismatch means the translator and the predicate drifted.
   func inline(_ values: [SQLLiteral], into predicate: String) throws -> String {
@@ -209,46 +232,72 @@ final class LogQueryExecutor: Sendable {
   /// other file opens in read-only mode. The export runs as a single
   /// prepared statement, which the database refuses to split.
   private func read(file: URL, sql: String) throws -> (rows: [DiagnosticRow], skippedLines: Int) {
-    let connection: Connection
+    try withReadConnection(file: file) { connection in
+      let stamped = try connection.query(
+        "SELECT value FROM meta WHERE key = 'format_version' AND value = '\(LogPersistence.formatVersion)'"
+      )
+      guard stamped.rowCount > 0 else {
+        throw LogPersistence.OpenError.incompatibleShape(found: nil)
+      }
+      let out = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathExtension("csv")
+      defer { try? FileManager.default.removeItem(at: out) }
+      let export: PreparedStatement
+      do {
+        export = try PreparedStatement(
+          connection: connection,
+          query: "COPY (\n\(sql)\n) TO \(LogPersistence.literal(out.path)) (HEADER false)"
+        )
+      } catch {
+        throw StatementError(underlying: error)
+      }
+      _ = try export.execute()
+      let text = try String(contentsOf: out, encoding: .utf8)
+      return parseCSV(text)
+    }
+  }
+
+  /// Counts the matching rows of one file. Shares the read-only
+  /// discipline above, so the live file is never opened twice.
+  private func countFile(file: URL, whereClause: String) throws -> Int {
+    try withReadConnection(file: file) { connection in
+      let stamped = try connection.query(
+        "SELECT value FROM meta WHERE key = 'format_version' AND value = '\(LogPersistence.formatVersion)'"
+      )
+      guard stamped.rowCount > 0 else {
+        throw LogPersistence.OpenError.incompatibleShape(found: nil)
+      }
+      let answer: ResultSet
+      do {
+        answer = try connection.query("SELECT count(*)::VARCHAR AS total FROM entries WHERE \(whereClause)")
+      } catch {
+        throw StatementError(underlying: error)
+      }
+      return Int(answer[0].cast(to: String.self)[0] ?? "") ?? 0
+    }
+  }
+
+  /// Opens one file for reading without ever writing to it. A file
+  /// this process already holds open for writing is read through
+  /// that same store inside a read-only transaction, since a second
+  /// instance on the file would share the process's lock and drop
+  /// it on close; any other file opens in read-only mode.
+  private func withReadConnection<T>(file: URL, work: (Connection) throws -> T) throws -> T {
     let live = liveStore(file)
     if let live {
-      connection = try live.connect()
+      let connection = try live.connect()
       try connection.execute("BEGIN TRANSACTION READ ONLY")
-    } else {
-      guard FileManager.default.fileExists(atPath: file.path) else {
-        throw MissingStoreFile()
-      }
-      let configuration = Database.Configuration()
-      try configuration.setValue("READ_ONLY", forKey: "access_mode")
-      connection = try Database(store: .file(at: file), configuration: configuration).connect()
+      defer { try? connection.execute("ROLLBACK") }
+      return try work(connection)
     }
-    defer {
-      if live != nil {
-        try? connection.execute("ROLLBACK")
-      }
+    guard FileManager.default.fileExists(atPath: file.path) else {
+      throw MissingStoreFile()
     }
-    let stamped = try connection.query(
-      "SELECT value FROM meta WHERE key = 'format_version' AND value = '\(LogPersistence.formatVersion)'"
-    )
-    guard stamped.rowCount > 0 else {
-      throw LogPersistence.OpenError.incompatibleShape(found: nil)
-    }
-    let out = FileManager.default.temporaryDirectory
-      .appendingPathComponent(UUID().uuidString)
-      .appendingPathExtension("csv")
-    defer { try? FileManager.default.removeItem(at: out) }
-    let export: PreparedStatement
-    do {
-      export = try PreparedStatement(
-        connection: connection,
-        query: "COPY (\n\(sql)\n) TO \(LogPersistence.literal(out.path)) (HEADER false)"
-      )
-    } catch {
-      throw StatementError(underlying: error)
-    }
-    _ = try export.execute()
-    let text = try String(contentsOf: out, encoding: .utf8)
-    return parseCSV(text)
+    let configuration = Database.Configuration()
+    try configuration.setValue("READ_ONLY", forKey: "access_mode")
+    let database = try Database(store: .file(at: file), configuration: configuration)
+    return try work(database.connect())
   }
 
   private func parseCSV(_ text: String) -> (rows: [DiagnosticRow], skippedLines: Int) {

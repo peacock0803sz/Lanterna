@@ -129,12 +129,15 @@ final class LogWindowState: ObservableObject {
       return
     }
     databaseError = nil
+    takeFinishedCount()
     ensureSpillLoad(key: Self.lightweightSpillKey, statement: nil)
+    ensureCountLoad(start: start, end: end)
     updateLightweightDisplay(now: now, start: start, end: end)
   }
 
   func togglePause() {
     lastSpillFinishedAt = nil
+    lastCountFinishedAt = nil
     if isPaused {
       isPaused = false
       refresh()
@@ -341,6 +344,13 @@ final class LogWindowState: ObservableObject {
   private var cachedFailureText: String?
   private var lastSpillFinishedAt: Date?
   private let spillMailbox = SpillMailbox()
+  private var countTask: Task<Void, Never>?
+  private var countInFlight = false
+  private var countGeneration = 0
+  private var activeCountKey = ""
+  private var cachedCountKey: String?
+  private var cachedStoreCount: Int?
+  private var lastCountFinishedAt: Date?
   /// The time tokens the picker mirrored into the query row. Only
   /// these stay out of row matching, since the toolbar range already
   /// applies them as bounds; anything hand-typed still filters.
@@ -511,10 +521,122 @@ final class LogWindowState: ObservableObject {
     }
     pendingCount = 0
     afterRangeCount = afterRange.count
-    totalCount = afterClear.count
+    totalCount = fullMatchCount(matched: matched, start: start, end: end, text: text)
     visibleCount = matched.count
     sections = group(rows: matched)
     launchCount = sections.count
+  }
+
+  /// The count key for the lightweight row: the row text plus the
+  /// clear marker. The query changes the count; the sliding time
+  /// bounds refresh it on the reload interval instead.
+  private func countSpillKey() -> String {
+    let marker = VersionLogWindow.clearMarkerMilliseconds.map(String.init) ?? "open"
+    return "count:" + marker + ":" + query.lightweightText
+  }
+
+  /// Starts a count-only query when the key changed or the cached
+  /// count went stale. Cheap beside the row fetch, so typing
+  /// restarts it freely while the display filters cached rows.
+  private func ensureCountLoad(start: Int64?, end: Int64?) {
+    let key = countSpillKey()
+    if key != activeCountKey {
+      startCountLoad(key: key, start: start, end: end)
+      return
+    }
+    guard !countInFlight, !isPaused else { return }
+    if
+      let finishedAt = lastCountFinishedAt,
+      Date().timeIntervalSince(finishedAt) < Self.spillReloadInterval
+    {
+      return
+    }
+    startCountLoad(key: key, start: start, end: end)
+  }
+
+  /// Counts every store match off the main thread, without any row
+  /// cap. The predicate mirrors the display filters: the row text
+  /// without the picker-mirrored tokens, plus the toolbar bounds
+  /// and the clear marker the display applies around them.
+  private func startCountLoad(key: String, start: Int64?, end: Int64?) {
+    countTask?.cancel()
+    countGeneration += 1
+    let generation = countGeneration
+    activeCountKey = key
+    if cachedCountKey != key {
+      cachedStoreCount = nil
+    }
+    countInFlight = true
+    let counted = splitLogQueryTokens(query.lightweightText).filter { !pickerTimeTokens.contains($0) }
+      .joined(separator: " ")
+    let parsed = LightweightFilter.parse(counted)
+    var fragments = [parsed.predicate]
+    var values = parsed.values
+    if let start {
+      fragments.append("ts_ms >= ?")
+      values.append(.integer(start))
+    }
+    if let end {
+      fragments.append("ts_ms <= ?")
+      values.append(.integer(end))
+    }
+    if let marker = VersionLogWindow.clearMarkerMilliseconds {
+      fragments.append("ts_ms > ?")
+      values.append(.integer(marker))
+    }
+    let predicate = fragments.joined(separator: " AND ")
+    countTask = Task.detached(priority: .utility) { [mailbox = self.spillMailbox, predicate, values, generation, key] in
+      let total: Int?
+      do {
+        let files = Self.spillStoreFiles()
+        let executor = LogQueryExecutor(files: files, liveStore: Diagnostics.liveSpillStore(at:))
+        total = try executor.count(predicate: predicate, values: values)
+      } catch {
+        total = nil
+      }
+      guard !Task.isCancelled else { return }
+      mailbox.storeCount(total, generation: generation, key: key)
+    }
+  }
+
+  /// Takes a finished count from the mailbox. A newer key means
+  /// the row moved on while the count ran, so the stale total
+  /// never reaches the status row.
+  private func takeFinishedCount() {
+    guard let total = spillMailbox.takeCount(generation: countGeneration, key: activeCountKey) else {
+      return
+    }
+    countInFlight = false
+    lastCountFinishedAt = Date()
+    cachedCountKey = activeCountKey
+    cachedStoreCount = total
+  }
+
+  /// The full match count for the status total: the shown matches
+  /// plus the store matches outside the capped window, from the
+  /// count-only query. Falls back to the kept rows while the count
+  /// is still loading, so the total never blinks empty.
+  private func fullMatchCount(matched: [DiagnosticRow], start: Int64?, end: Int64?, text: String) -> Int {
+    guard let storeTotal = cachedStoreCount, cachedCountKey == activeCountKey else {
+      return allKeptRows.count
+    }
+    let marker = VersionLogWindow.clearMarkerMilliseconds
+    let windowMatches = cachedSpilledRows.count(where: { row in
+      if let marker, row.recordedAtMilliseconds <= marker {
+        return false
+      }
+      if let start, row.recordedAtMilliseconds < start {
+        return false
+      }
+      if let end, row.recordedAtMilliseconds > end {
+        return false
+      }
+      if text.isEmpty {
+        return true
+      }
+      return matchesQuery(row, text: text, excluding: pickerTimeTokens)
+    })
+    return matched.count + max(0, storeTotal - windowMatches)
   }
 
   private func rewriteTimeTokens(with tokens: [String]) {
@@ -632,6 +754,9 @@ final class LogWindowState: ObservableObject {
   /// owns its time bounds, so the toolbar range stays out; only the
   /// clear marker still hides earlier rows.
   private func refreshDatabase(now: Int64) {
+    countTask?.cancel()
+    countTask = nil
+    countInFlight = false
     let verdict = DatabaseStatementCheck.check(query.databaseText)
     guard verdict.allowed else {
       spillTask?.cancel()
@@ -743,14 +868,6 @@ final class SpillMailbox: @unchecked Sendable {
     var failureText: String?
   }
 
-  /// Stores a finished load for the heartbeat. Overwrites whatever
-  /// an older run left, so only the latest result waits.
-  func store(_ load: Load, generation: Int, key: String) {
-    lock.lock()
-    defer { lock.unlock() }
-    stored = (load, generation, key)
-  }
-
   /// Takes the stored load when it still answers the active key.
   /// Anything older is dropped unread, so a query typed while the
   /// load ran never shows stale rows.
@@ -765,9 +882,40 @@ final class SpillMailbox: @unchecked Sendable {
     return stored.load
   }
 
+  /// Stores a finished load for the heartbeat. Overwrites whatever
+  /// an older run left, so only the latest result waits.
+  func store(_ load: Load, generation: Int, key: String) {
+    lock.lock()
+    defer { lock.unlock() }
+    stored = (load, generation, key)
+  }
+
+  /// Takes the stored count when it still answers the active key.
+  /// Anything older is dropped unread, so a row typed while the
+  /// count ran never shows a stale total.
+  func takeCount(generation: Int, key: String) -> Int?? {
+    lock.lock()
+    defer { lock.unlock() }
+    guard let counted else { return nil }
+    self.counted = nil
+    guard counted.generation == generation, counted.key == key else {
+      return nil
+    }
+    return counted.total
+  }
+
+  /// Stores a finished count for the heartbeat. Overwrites whatever
+  /// an older run left, so only the latest total waits.
+  func storeCount(_ total: Int?, generation: Int, key: String) {
+    lock.lock()
+    defer { lock.unlock() }
+    counted = (total, generation, key)
+  }
+
   // MARK: Private
 
   private let lock = NSLock()
   private var stored: (load: Load, generation: Int, key: String)?
+  private var counted: (total: Int?, generation: Int, key: String)?
 
 }
