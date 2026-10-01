@@ -50,6 +50,16 @@ struct LaunchIDTests {
   }
 
   @Test
+  func timesReadInTheirFixedShapes() {
+    let line = Self.instant.addingTimeInterval(9.637)
+    #expect(LogTimeText.clock(line, timeZone: Self.tokyo) == "14:02:20.118")
+    #expect(LogTimeText.full(line, timeZone: Self.tokyo) == "2026-09-30 14:02:20.118")
+    #expect(LogTimeText.iso(line, timeZone: Self.tokyo) == "2026-09-30T14:02:20.118+09:00")
+    #expect(LogTimeText.offset(-16200) == "-04:30")
+    #expect(LogTimeText.offset(0) == "+00:00")
+  }
+
+  @Test
   func launchesAreEqualByStamp() {
     let current = LaunchID(startedAt: Self.instant, isCurrent: true, timeZone: Self.tokyo)
     let readBack = LaunchID(startedAt: Self.instant, isCurrent: false, timeZone: Self.tokyo)

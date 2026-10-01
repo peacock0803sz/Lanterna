@@ -13,30 +13,11 @@ struct LaunchID: Hashable, Sendable {
   // MARK: Lifecycle
 
   init(startedAt: Date, suffix: Int? = nil, isCurrent: Bool, timeZone: TimeZone = .current) {
-    let parts = Self.parts(of: startedAt, in: timeZone)
     self.startedAt = startedAt
     self.suffix = suffix
     self.isCurrent = isCurrent
-    stamp = String(
-      format: "%04d-%02d-%02d %02d:%02d:%02d.%03d",
-      parts.year,
-      parts.month,
-      parts.day,
-      parts.hour,
-      parts.minute,
-      parts.second,
-      parts.millisecond
-    ) + Self.suffixText(suffix)
-    fileBaseName = String(
-      format: "%04d%02d%02d-%02d%02d%02d.%03d",
-      parts.year,
-      parts.month,
-      parts.day,
-      parts.hour,
-      parts.minute,
-      parts.second,
-      parts.millisecond
-    ) + Self.suffixText(suffix)
+    stamp = LogTimeText.full(startedAt, timeZone: timeZone) + Self.suffixText(suffix)
+    fileBaseName = LogTimeText.fileStamp(startedAt, timeZone: timeZone) + Self.suffixText(suffix)
   }
 
   // MARK: Internal
@@ -113,16 +94,6 @@ struct LaunchID: Hashable, Sendable {
 
   // MARK: Private
 
-  private struct Parts {
-    let year: Int
-    let month: Int
-    let day: Int
-    let hour: Int
-    let minute: Int
-    let second: Int
-    let millisecond: Int
-  }
-
   private static func suffixText(_ suffix: Int?) -> String {
     suffix.map { "-\($0)" } ?? ""
   }
@@ -131,29 +102,6 @@ struct LaunchID: Hashable, Sendable {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = timeZone
     return calendar
-  }
-
-  /// Truncates to the millisecond rather than rounding, so the stamp never
-  /// names an instant after the start. The small allowance keeps a time
-  /// read back from a file name (481 ms stored as 480.9999…) on its own
-  /// millisecond.
-  private static func parts(of date: Date, in timeZone: TimeZone) -> Parts {
-    let wholeSeconds = date.timeIntervalSinceReferenceDate.rounded(.down)
-    let fraction = (date.timeIntervalSinceReferenceDate - wholeSeconds) * 1000
-    let millisecond = Int((fraction + 1e-4).rounded(.down))
-    let components = calendar(in: timeZone).dateComponents(
-      [.year, .month, .day, .hour, .minute, .second],
-      from: Date(timeIntervalSinceReferenceDate: wholeSeconds)
-    )
-    return Parts(
-      year: components.year ?? 0,
-      month: components.month ?? 0,
-      day: components.day ?? 0,
-      hour: components.hour ?? 0,
-      minute: components.minute ?? 0,
-      second: components.second ?? 0,
-      millisecond: min(millisecond, 999)
-    )
   }
 
 }
