@@ -18,6 +18,10 @@ do {
   exit(EX_USAGE)
 }
 
+for flag in cliOptions.retiredFlags {
+  Diagnostics.writeLine(LogLine(.warning, .logs, "launch: \(flag) is no longer used and was ignored"))
+}
+
 /// Read before the run loop starts, ahead of the panel's advance build, so
 /// the read stays off the path with a time budget. A missing file is
 /// scaffolded; anything unreadable falls back to defaults with a line saying
@@ -75,6 +79,14 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
         .config,
         "\(textScaleIssue): \(url.path)",
         context: ["path": .string(url.path), "issue": .string("\(textScaleIssue)")]
+      ))
+    }
+    for key in decoded.deprecatedKeys {
+      Diagnostics.writeLine(LogLine(
+        .warning,
+        .logs,
+        "config: \(key) is no longer used and was ignored",
+        context: ["path": .string(url.path)]
       ))
     }
 

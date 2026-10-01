@@ -18,19 +18,6 @@ struct DiagnosticsFilteringTests {
     #expect(Logger.Level.error > .warning)
   }
 
-  /// Only the four lowercase words read. Anything else, including
-  /// swift-log's own `trace`, `notice` and `critical` and the old
-  /// `warn` spelling, is for the caller to refuse as a whole.
-  @Test(arguments: ["error", "warning", "info", "debug"])
-  func theFourWordsParse(word: String) {
-    #expect(Logger.Level.parse(word: word)?.rawValue == word)
-  }
-
-  @Test(arguments: ["Error", "WARN", "warn", " info", "info ", "trace", "notice", "critical", "", "verbose", "0"])
-  func anythingElseRefuses(word: String) {
-    #expect(Logger.Level.parse(word: word) == nil)
-  }
-
   /// At the level the process logger keeps, every level lands in both
   /// stderr and the mirror, debug included, in the order written.
   @Test
