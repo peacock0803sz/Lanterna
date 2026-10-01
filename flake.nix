@@ -6,7 +6,7 @@
       "https://lanterna.cachix.org"
     ];
     extra-trusted-public-keys = [
-      "lanterna.cachix.org-1:[SECURITY_DATA]"
+      "lanterna.cachix.org-1:ER2QRwMkbWgIZJ4yBsY6M6xawkxBYCBI9JMwx6iSgxc="
     ];
   };
 
