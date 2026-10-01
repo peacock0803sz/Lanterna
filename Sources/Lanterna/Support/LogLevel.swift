@@ -18,11 +18,4 @@ extension Logger.Level {
     default: nil
     }
   }
-
-  /// The level one run uses. The command line wins where it says
-  /// anything; the file covers the rest; silence on both means
-  /// warnings and above.
-  static func effective(cli: Logger.Level?, file: Logger.Level?) -> Logger.Level {
-    cli ?? file ?? .warning
-  }
 }

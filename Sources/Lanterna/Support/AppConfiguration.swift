@@ -289,10 +289,7 @@ extension AppConfiguration {
       appearanceMode: AppearanceMode.effective(from: file),
       searchSettings: SearchSettings.effective(from: file),
       keyBindings: file.keyBindings,
-      textScale: TextScaleLevel.effective(from: file),
-      // The command line wins where it says anything; the file covers
-      // the rest. Never written back to the file.
-      logLevel: Logger.Level.effective(cli: cli.logLevel, file: file.logLevel)
+      textScale: TextScaleLevel.effective(from: file)
     )
   }
 

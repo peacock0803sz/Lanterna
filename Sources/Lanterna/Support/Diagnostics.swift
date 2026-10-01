@@ -152,6 +152,11 @@ enum Diagnostics {
     let context: [String: ContextValue]
   }
 
+  /// The lowest level the process logger lets through. Every level is
+  /// kept: the log window filters what it shows, and nothing is thinned
+  /// before it reaches stderr and the mirror.
+  static let keptLevel = Logger.Level.debug
+
   /// This run, named by when it started. `main` reads it first thing, so
   /// the stamp is the start of the process rather than of the first line.
   static let currentLaunch = LaunchID(startedAt: Date(), isCurrent: true)
@@ -162,13 +167,6 @@ enum Diagnostics {
   /// lock guards what a single thread sets up.
   // swiftlint:disable:next implicitly_unwrapped_optional - Set once by bootstrap before concurrency starts; never nil afterwards
   private(set) nonisolated(unsafe) static var logger: Logger!
-
-  /// The level in force for this process. Read once per launch from the
-  /// effective options and set ahead of the first gated line.
-  static var threshold: Logger.Level {
-    get { logger.logLevel }
-    set { logger.logLevel = newValue }
-  }
 
   /// The mirrored lines, oldest first. Never longer than
   /// `DiagnosticLog.capacity`.
@@ -189,9 +187,7 @@ enum Diagnostics {
   static func bootstrap() {
     LoggingSystem.bootstrap { _ in DiagnosticLogHandler(store: store) }
     logger = Logger(label: "lanterna")
-    // Holds warnings and above until the effective options say otherwise,
-    // so an early line never leans on the logging default.
-    logger.logLevel = .warning
+    logger.logLevel = keptLevel
   }
 
   /// Sends one line out with the call site `LogLine` captured, so the
