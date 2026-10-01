@@ -34,6 +34,7 @@ extension AppDelegate {
       opener: SystemSettings.open,
       appearanceMode: currentValues.appearanceMode,
       onCheckNow: { [weak self] in self?.runUpdateCheck() },
+      diagnostics: makeDiagnosticsDisplay(),
       onChange: { [weak self] values in
         guard let self else { return }
         switch applySettings(values, replacingInvalidFile: false) {

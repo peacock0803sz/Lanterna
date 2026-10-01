@@ -30,6 +30,7 @@ struct SettingsGeneralView: View {
   var checkResultText: String?
   var isChecking = false
   var onCheckNow: () -> Void = { }
+  var diagnostics: DiagnosticsDisplay?
 
   var body: some View {
     Form {
@@ -98,6 +99,9 @@ struct SettingsGeneralView: View {
             .buttonStyle(.bordered)
             .controlSize(.small)
         }
+      }
+      if let diagnostics {
+        SettingsDiagnosticsSection(display: diagnostics)
       }
       Section("Permissions") {
         if missing.isEmpty {

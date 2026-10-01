@@ -26,6 +26,10 @@ final class SavedLogs {
   /// This launch's file, once made.
   private(set) var currentFile: URL?
 
+  /// This launch as its file names it: the same as `launch` unless the
+  /// name was taken and a `-N` was added.
+  private(set) var fileLaunch: LaunchID?
+
   /// The folder for the build that is running, under the user's
   /// Application Support. Nil when that cannot be resolved.
   static func live() -> SavedLogs? {
@@ -35,6 +39,11 @@ final class SavedLogs {
     else { return nil }
     let origin = LogOrigin.of(executable: executable)
     return SavedLogs(store: LaunchLogStore(directory: LaunchLogStore.directory(applicationSupport: support, origin: origin)))
+  }
+
+  /// Deletes every launch saved before this one. This launch's file stays.
+  func deleteEarlierLaunches() {
+    store.deleteAll(except: fileLaunch ?? launch)
   }
 
   /// Makes this launch's file and starts saving to it, the lines written
@@ -64,9 +73,6 @@ final class SavedLogs {
 
   private let version: String
   private var writer: LaunchLogWriter?
-  /// This launch as its file names it: the same as `launch` unless the
-  /// name was taken and a `-N` was added.
-  private var fileLaunch: LaunchID?
 
   private func header(for launch: LaunchID) -> String {
     LaunchLogCoding.header(

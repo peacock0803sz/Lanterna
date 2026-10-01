@@ -54,6 +54,7 @@ final class SettingsWindow: NSWindow {
     opener: @escaping SettingsOpener,
     appearanceMode: AppearanceMode = .system,
     onCheckNow: @escaping () -> Void = { },
+    diagnostics: DiagnosticsDisplay = DiagnosticsDisplay(),
     onChange: @escaping (SettingsValues) -> Void
   ) {
     let model = SettingsModel(values: values, onChange: onChange)
@@ -68,6 +69,7 @@ final class SettingsWindow: NSWindow {
     )
     settingsModel = model
     checkDisplay = display
+    diagnosticsDisplay = diagnostics
     // Held strongly by the delegate; releasing on close would dangle that reference.
     isReleasedWhenClosed = false
     title = "Lanterna Settings"
@@ -82,7 +84,8 @@ final class SettingsWindow: NSWindow {
       version: version,
       missing: missing,
       opener: opener,
-      onCheckNow: onCheckNow
+      onCheckNow: onCheckNow,
+      diagnostics: diagnostics
     )))
     generalHost.preferredContentSize = NSSize(width: Self.contentWidth, height: contentHeight)
     generalHost.sizingOptions = []
@@ -134,6 +137,9 @@ final class SettingsWindow: NSWindow {
   /// Held here so reopening the window starts unconfirmed again.
   private(set) var checkDisplay = UpdateCheckDisplay()
 
+  /// What the Diagnostics section shows, refreshed by the delegate.
+  private(set) var diagnosticsDisplay = DiagnosticsDisplay()
+
   /// The content height for a screen's visible height: the maximum, or
   /// less when the visible height minus the chrome is shorter.
   static func contentHeight(visibleHeight: CGFloat) -> CGFloat {
@@ -153,6 +159,7 @@ struct GeneralTabRoot: View {
   let missing: [MissingPermission]
   let opener: SettingsOpener
   let onCheckNow: () -> Void
+  let diagnostics: DiagnosticsDisplay
 
   var body: some View {
     SettingsGeneralView(
@@ -162,7 +169,8 @@ struct GeneralTabRoot: View {
       opener: opener,
       checkResultText: checkDisplay.resultText,
       isChecking: checkDisplay.isChecking,
-      onCheckNow: onCheckNow
+      onCheckNow: onCheckNow,
+      diagnostics: diagnostics
     )
   }
 }
