@@ -45,17 +45,14 @@ final class GuideWindows {
     versionLogWindow?.appearance = appearanceMode.nsAppearance
   }
 
-  /// Shows this launch so far: the version, the pinned summary, then the
-  /// mirrored lines in order. The store keeps growing underneath either way.
+  /// Shows live and spilled rows in one resizable shell. Reopening keeps
+  /// a single window with fresh contents while the display-only clear mark stays.
   func openVersionLog() {
     // Close the held window first so reopening leaves exactly one.
     versionLogWindow?.close()
     let window = VersionLogWindow(
       version: DisplayedVersion(full: AppVersion.full),
       summary: Diagnostics.launchSummary,
-      entries: Diagnostics.recentEntries.map {
-        DisplayedLogEntry(sequence: $0.sequence, capturedAt: $0.capturedAt, message: $0.message)
-      },
       appearanceMode: appearanceMode
     )
     // Like the guide and settings windows: ordering front alone leaves
