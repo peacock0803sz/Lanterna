@@ -8,7 +8,7 @@ import Foundation
 /// dropped with a count kept, and the failure is reported through
 /// the callback instead of the store, so recording the failure can
 /// never recurse into the failing writer.
-// swiftlint:disable:next no_unchecked_sendable - Every mutable state below is guarded by the lock; the queue only runs one flush at a time
+// swiftlint:disable:next no_unchecked_sendable - Every mutable state below is guarded by the lock; the flush lock runs one flush at a time
 final class LogSpillWriter: @unchecked Sendable {
 
   // MARK: Lifecycle
@@ -17,16 +17,20 @@ final class LogSpillWriter: @unchecked Sendable {
   /// - Parameter onFailure: receives a one-line failure report.
   /// - Parameter bufferCapacity: how many lines wait at most.
   /// - Parameter batchLimit: how many lines one statement carries.
+  /// - Parameter schedule: runs a flush later, off the caller's
+  ///   thread. Tests pass one that never runs and call `drain`.
   init(
     spill: @escaping ([DiagnosticRow]) throws -> Void,
     onFailure: @escaping (String) -> Void,
     bufferCapacity: Int = 1000,
-    batchLimit: Int = 200
+    batchLimit: Int = 200,
+    schedule: @escaping (@escaping () -> Void) -> Void = { LogSpillWriter.background.async(execute: $0) }
   ) {
     self.spill = spill
     self.onFailure = onFailure
     self.bufferCapacity = bufferCapacity
     self.batchLimit = batchLimit
+    self.schedule = schedule
   }
 
   // MARK: Internal
@@ -51,7 +55,7 @@ final class LogSpillWriter: @unchecked Sendable {
     flushing = true
     lock.unlock()
     if !scheduled {
-      queue.async { [weak self] in self?.flush() }
+      schedule { [weak self] in self?.flush() }
     }
   }
 
@@ -62,16 +66,21 @@ final class LogSpillWriter: @unchecked Sendable {
     return Snapshot(buffered: buffer.count, droppedTotal: droppedTotal, lastError: lastError)
   }
 
-  /// Runs one flush on the caller's thread. The background queue
-  /// uses it; tests call it to skip the wait.
-  func flushForTests() {
+  /// Writes every waiting line on the caller's thread before
+  /// returning, after any flush already under way.
+  func drain() {
     flush()
   }
 
   // MARK: Private
 
+  private static let background = DispatchQueue(label: "net.p3ac0ck.Lanterna.logSpill", qos: .utility)
+
   private let lock = NSLock()
-  private let queue = DispatchQueue(label: "net.p3ac0ck.Lanterna.logSpill", qos: .utility)
+  /// Held for a whole flush, so a drain and a scheduled flush never
+  /// interleave their batches and lines stay in order.
+  private let flushLock = NSLock()
+  private let schedule: (@escaping () -> Void) -> Void
   private let spill: ([DiagnosticRow]) throws -> Void
   private let onFailure: (String) -> Void
   private let bufferCapacity: Int
@@ -82,6 +91,8 @@ final class LogSpillWriter: @unchecked Sendable {
   private var lastError: String?
 
   private func flush() {
+    flushLock.lock()
+    defer { flushLock.unlock() }
     while true {
       lock.lock()
       guard !buffer.isEmpty else {
