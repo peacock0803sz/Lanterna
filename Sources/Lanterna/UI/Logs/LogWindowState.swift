@@ -1,6 +1,7 @@
 import Foundation
 import Logging
 import Observation
+import SwiftUI
 
 // MARK: - LogRow
 
@@ -182,6 +183,14 @@ final class LogWindowState {
   @ObservationIgnored var liveTask: Task<Void, Never>?
   @ObservationIgnored var olderTask: Task<Void, Never>?
   @ObservationIgnored var fillTask: Task<Void, Never>?
+
+  /// Which fixed columns show, in what order and how wide, as the table
+  /// keeps it.
+  var columnCustomization = TableColumnCustomization<LogRow>()
+
+  /// The context keys shown as columns, in name order. Kept when the rows
+  /// in range no longer carry them.
+  var contextColumns = [String]()
 
   /// Text a line's message has to hold, in any case. Empty lets every
   /// line through.
