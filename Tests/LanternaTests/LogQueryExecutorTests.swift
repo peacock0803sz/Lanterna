@@ -112,6 +112,24 @@ struct LogQueryExecutorTests {
     #expect(try executor.run(predicate: "1 = 1", values: [], limit: 3).rows.map(\.sequence) == [5, 6, 7])
   }
 
+  @Test(arguments: [
+    (
+      "SELECT * FROM entries WHERE ts_ms > 0 AND launch_id = "
+        + "(SELECT launch_id FROM launches ORDER BY started_at DESC LIMIT 1)",
+      [UInt64(3), 4, 5, 6, 7]
+    ),
+    ("SELECT * FROM entries WHERE ts_ms > (SELECT min(ts_ms) FROM entries LIMIT 1)", [3, 4, 5, 6, 7]),
+    ("SELECT * FROM entries WHERE ts_ms IN (SELECT ts_ms FROM entries LIMIT 100)", [3, 4, 5, 6, 7]),
+    ("SELECT * FROM entries WHERE ts_ms > (SELECT 0 LIMIT 1) ORDER BY ts_ms DESC LIMIT 2", [6, 7]),
+  ])
+  func onlyATopLevelLimitReplacesTheDefaultCap(statement: String, expected: [UInt64]) throws {
+    let store = try LogStoreFixture()
+    defer { store.remove() }
+    try store.insert((1...7).map { row(sequence: UInt64($0), at: Int64($0) * 1000) })
+    let executor = LogQueryExecutor(files: [store.url], liveStore: { _ in nil })
+    #expect(try executor.runStatement(statement, defaultCap: 5).rows.map(\.sequence) == expected)
+  }
+
   @Test
   func ownCapsEndingInALineCommentStillRun() throws {
     let store = try LogStoreFixture()

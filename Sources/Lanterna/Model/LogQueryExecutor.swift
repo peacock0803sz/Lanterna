@@ -184,8 +184,10 @@ final class LogQueryExecutor: Sendable {
     return ExecutedLogQuery(rows: rows, skipped: skipped, skippedLines: skippedLines)
   }
 
+  /// The statement's own top-level LIMIT, or the default. A LIMIT
+  /// inside a subquery bounds that subquery only.
   private func rowCap(in sql: String, default defaultCap: Int = 5000) -> Int {
-    let words = DatabaseStatementCheck.words(in: sql)
+    let words = DatabaseStatementCheck.topLevelWords(in: sql)
     var cap = defaultCap
     var cursor = words.startIndex
     while cursor < words.endIndex {

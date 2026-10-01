@@ -54,16 +54,20 @@ enum DatabaseStatementCheck {
     return Verdict(allowed: true, refusal: nil, effectiveText: base)
   }
 
-  /// The bare words of a statement, lowercased, leaving out string
-  /// literals, quoted names, and comments.
-  static func words(in text: String) -> [String] {
-    scan(Array(text)).words
+  /// The bare words of a statement outside every parenthesis,
+  /// lowercased, leaving out string literals, quoted names, and
+  /// comments, so a subquery's clauses never read as the
+  /// statement's own.
+  static func topLevelWords(in text: String) -> [String] {
+    scan(Array(text)).topLevelWords
   }
 
   // MARK: Private
 
   private struct Scan {
     var words: [String]
+    /// The words found outside every parenthesis.
+    var topLevelWords: [String]
     /// Offsets of the statement separators outside literals and comments.
     var semicolons: [Int]
     /// Just past the last character that is neither blank nor comment.
@@ -104,6 +108,7 @@ enum DatabaseStatementCheck {
   /// escapes in `E'…'`, and `$tag$…$tag$` bodies are all skipped.
   private static func scan(_ characters: [Character]) -> Scan {
     var words = [String]()
+    var topLevelWords = [String]()
     var semicolons = [Int]()
     var codeEnd = 0
     var depth = 0
@@ -113,6 +118,9 @@ enum DatabaseStatementCheck {
     func flush() {
       if !current.isEmpty {
         words.append(current.lowercased())
+        if depth == 0 {
+          topLevelWords.append(current.lowercased())
+        }
         current = ""
       }
     }
@@ -184,7 +192,13 @@ enum DatabaseStatementCheck {
       index += 1
     }
     flush()
-    return Scan(words: words, semicolons: semicolons, codeEnd: codeEnd, balanced: balanced && depth == 0)
+    return Scan(
+      words: words,
+      topLevelWords: topLevelWords,
+      semicolons: semicolons,
+      codeEnd: codeEnd,
+      balanced: balanced && depth == 0
+    )
   }
 
   /// Just past the `*/` closing the comment opened at `start`,
