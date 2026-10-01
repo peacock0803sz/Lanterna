@@ -28,7 +28,9 @@ final class LogSpillWriter: @unchecked Sendable {
     onReport: @escaping (String) -> Void,
     bufferCapacity: Int = 1000,
     batchLimit: Int = 200,
-    schedule: @escaping (@escaping () -> Void) -> Void = { LogSpillWriter.background.async(execute: $0) }
+    schedule: @escaping (@Sendable @escaping () -> Void) -> Void = { work in
+      LogSpillWriter.background.async(execute: work)
+    }
   ) {
     self.spill = spill
     self.onReport = onReport
@@ -84,7 +86,7 @@ final class LogSpillWriter: @unchecked Sendable {
   /// Held for a whole flush, so a drain and a scheduled flush never
   /// interleave their batches and lines stay in order.
   private let flushLock = NSLock()
-  private let schedule: (@escaping () -> Void) -> Void
+  private let schedule: (@Sendable @escaping () -> Void) -> Void
   private let spill: ([DiagnosticRow]) throws -> Void
   private let onReport: (String) -> Void
   private let bufferCapacity: Int
