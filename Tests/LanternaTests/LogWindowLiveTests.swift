@@ -51,17 +51,16 @@ struct LogWindowLiveTests {
     #expect(!state.isPaused)
   }
 
-  /// A jump in the numbers is noted, so the gap can be filled from the
-  /// saved file.
+  /// A jump in the numbers with nothing saved is let go: there is no
+  /// file to fill it from.
   @Test
-  func aJumpInTheNumbersIsNotedAsMissing() {
+  func aJumpInTheNumbersWithNothingSavedIsLetGo() {
     let feed = LogFeed((5 ... 7).map { LogFixture.entry(sequence: $0) })
     let state = Self.state(over: feed)
     state.ingest()
-    #expect(state.missingRanges == [1 ... 4])
-    feed.entries = (10 ... 11).map { LogFixture.entry(sequence: $0) }
-    state.ingest()
-    #expect(state.missingRanges == [1 ... 4, 8 ... 9])
+    #expect(state.missingRanges.isEmpty)
+    #expect(state.filledRanges.isEmpty)
+    #expect(state.rows.map(\.entry?.sequence) == [5, 6, 7])
   }
 
   @Test

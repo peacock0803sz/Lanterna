@@ -28,16 +28,17 @@ extension LogWindowState {
     } else {
       appendRows(newRows)
     }
+    fillMissingIfNeeded()
   }
 
   func pause() {
     isPaused = true
   }
 
-  /// Shows what waited, then keeps following.
+  /// Shows what waited, in number order, then keeps following.
   func resume() {
     isPaused = false
-    let waiting = pendingRows
+    let waiting = pendingRows.sorted { ($0.entry?.sequence ?? 0) < ($1.entry?.sequence ?? 0) }
     pendingRows = []
     appendRows(waiting)
     ingest()

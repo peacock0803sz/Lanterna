@@ -48,6 +48,21 @@ extension Diagnostics.LogEntry {
   }
 }
 
+// MARK: - LaunchScope
+
+/// Which launches the log window shows.
+enum LaunchScope: String, CaseIterable, Sendable {
+  case thisLaunch
+  case allLaunches
+
+  var title: String {
+    switch self {
+    case .thisLaunch: "This launch"
+    case .allLaunches: "All launches"
+    }
+  }
+}
+
 // MARK: - LogWindowState
 
 /// What the log window shows and how it is filtered.
@@ -64,9 +79,15 @@ final class LogWindowState {
   /// one, oldest first; tests pass their own.
   init(
     entriesAfter: @escaping @MainActor (UInt64) -> [Diagnostics.LogEntry] = { Diagnostics.entries(after: $0) },
+    currentLaunch: LaunchID = Diagnostics.currentLaunch,
+    savedLogs: SavedLogSource? = nil,
+    writeLine: @escaping @MainActor (LogLine) -> Void = { Diagnostics.writeLine($0) },
     liveInterval: Duration = .milliseconds(250)
   ) {
     self.entriesAfter = entriesAfter
+    self.currentLaunch = currentLaunch
+    self.savedLogs = savedLogs
+    self.writeLine = writeLine
     self.liveInterval = liveInterval
   }
 
@@ -79,10 +100,27 @@ final class LogWindowState {
   // MARK: Internal
 
   /// Every row read for the current scope, oldest first.
-  private(set) var rows = [LogRow]()
+  var rows = [LogRow]()
 
   /// The rows the filters let through, oldest first.
-  private(set) var shownRows = [LogRow]()
+  var shownRows = [LogRow]()
+
+  /// This launch's lines taken in, by number.
+  var currentRows = [LogRow]()
+
+  /// The saved launches before this one, each opened by its separator.
+  /// Kept once read, so switching back and forth reads the disk once.
+  var olderRows = [LogRow]()
+
+  /// Whether the older launches have been read since they last changed.
+  var hasReadOlder = false
+
+  /// True while saved launches are being read.
+  var isLoading = false
+
+  /// Ranges of this launch already looked for in its file, found or not,
+  /// so none is read twice.
+  var filledRanges = [ClosedRange<UInt64>]()
 
   var selection = Set<LogRow.ID>()
 
@@ -107,8 +145,22 @@ final class LogWindowState {
   var missingRanges = [ClosedRange<UInt64>]()
 
   @ObservationIgnored let entriesAfter: @MainActor (UInt64) -> [Diagnostics.LogEntry]
+  @ObservationIgnored let currentLaunch: LaunchID
+  @ObservationIgnored let savedLogs: SavedLogSource?
+  @ObservationIgnored let writeLine: @MainActor (LogLine) -> Void
   @ObservationIgnored let liveInterval: Duration
   @ObservationIgnored var liveTask: Task<Void, Never>?
+  @ObservationIgnored var olderTask: Task<Void, Never>?
+  @ObservationIgnored var fillTask: Task<Void, Never>?
+
+  /// This launch, or every saved one.
+  var scope = LaunchScope.thisLaunch {
+    didSet {
+      if scope != oldValue {
+        scopeChanged()
+      }
+    }
+  }
 
   /// Lines among `rows`, separators not counted.
   var entryCount: Int {
@@ -140,24 +192,6 @@ final class LogWindowState {
   /// Whether the filters let `row` through.
   func matches(_: LogRow) -> Bool {
     true
-  }
-
-  /// Replaces every row and filters them again.
-  func replaceRows(_ newRows: [LogRow]) {
-    rows = newRows
-    recomputeShownRows()
-  }
-
-  /// Adds rows at the end, filtering only the new ones.
-  func appendRows(_ newRows: [LogRow]) {
-    guard !newRows.isEmpty else { return }
-    rows.append(contentsOf: newRows)
-    shownRows.append(contentsOf: newRows.filter(matches))
-  }
-
-  /// Filters every row again, after a filter changed.
-  func recomputeShownRows() {
-    shownRows = rows.filter(matches)
   }
 
 }
