@@ -124,7 +124,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     guard !outcome.isTotalFailure else {
       // Nothing has been taken from the system yet, so there is nothing
-      // to give back on the way out.
+      // to give back on the way out, beyond the lines saying why.
+      Diagnostics.finishSpilling()
       exit(EX_UNAVAILABLE)
     }
 

@@ -10,7 +10,10 @@ let package = Package(
   dependencies: [
     // Diagnostics levels and backends. Pinned below in
     // Package.resolved; Renovate keeps the pin current.
-    .package(url: "https://github.com/apple/swift-log", from: "1.15.1")
+    .package(url: "https://github.com/apple/swift-log", from: "1.15.1"),
+    // Embedded store behind the log window: persistence and queries.
+    // Pinned below in Package.resolved; Renovate keeps the pin current.
+    .package(url: "https://github.com/duckdb/duckdb-swift", from: "1.1.3"),
   ],
   targets: [
     // Declarations of the private system functions the app calls; the
@@ -27,7 +30,12 @@ let package = Package(
     ),
     .executableTarget(
       name: "Lanterna",
-      dependencies: ["PrivateAPIs", "CMigemo", .product(name: "Logging", package: "swift-log")]
+      dependencies: [
+        "PrivateAPIs",
+        "CMigemo",
+        .product(name: "Logging", package: "swift-log"),
+        .product(name: "DuckDB", package: "duckdb-swift"),
+      ]
     ),
     .testTarget(
       name: "LanternaTests",

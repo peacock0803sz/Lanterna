@@ -50,6 +50,9 @@ extension AppDelegate {
       ProcessInfo.processInfo.endActivity(appNapActivity)
       self.appNapActivity = nil
     }
+    // Last, so every line above, the restore failure included, reaches
+    // the store before either exit below can drop it.
+    Diagnostics.finishSpilling()
 
     // Reaching this exit means the process could not leave the machine
     // with both shortcuts on, and the diagnostics line saying so is easy
