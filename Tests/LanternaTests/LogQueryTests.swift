@@ -128,6 +128,18 @@ struct LogQueryTests {
     }
   }
 
+  @Test(arguments: [
+    "SELECT seq FROM entries WHERE ts_ms >= 0 AND message = $$it's$$",
+    "SELECT seq FROM entries WHERE ts_ms >= 0 AND message = $tag$ ; DELETE $tag$",
+    "SELECT seq FROM entries WHERE ts_ms >= 0 AND message = E'\\''",
+    "SELECT seq FROM entries /* a /* b */ ' */ WHERE ts_ms >= 0",
+  ])
+  func literalsAndNestedCommentsHideTheirContentsFromTheGate(statement: String) {
+    let verdict = DatabaseStatementCheck.check(statement)
+    #expect(verdict.allowed, "\(verdict.refusal ?? "")")
+    #expect(verdict.effectiveText == statement)
+  }
+
   @Test
   func commentsAroundAReadStillPass() {
     let verdict = DatabaseStatementCheck.check(
