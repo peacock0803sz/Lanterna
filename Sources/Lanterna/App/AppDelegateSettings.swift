@@ -26,6 +26,7 @@ extension AppDelegate {
       appearanceMode: currentValues.appearanceMode,
       onCheckNow: { [weak self] in self?.runUpdateCheck() },
       onOpenLogs: { [weak self] in self?.openVersionLog() },
+      launchSummary: Diagnostics.launchSummary,
       onChange: { [weak self] values in
         guard let self else { return }
         switch applySettings(values, replacingInvalidFile: false) {

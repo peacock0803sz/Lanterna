@@ -27,6 +27,7 @@ struct SettingsGeneralView: View {
   let version: DisplayedVersion
   let missing: [MissingPermission]
   let opener: SettingsOpener
+  var launchSummary: String?
   var checkResultText: String?
   var isChecking = false
   var onCheckNow: () -> Void = { }
@@ -48,6 +49,12 @@ struct SettingsGeneralView: View {
               .font(.footnote)
               .foregroundStyle(.secondary)
               .textSelection(.enabled)
+            if let launchSummary {
+              Text(launchSummary)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+            }
           }
           Spacer()
           Button("Open version history") {

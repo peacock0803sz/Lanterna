@@ -53,10 +53,8 @@ final class GuideWindows {
   func openVersionLog() {
     if versionLogWindow == nil {
       versionLogWindow = VersionLogWindow(
-        version: DisplayedVersion(full: AppVersion.full),
-        summary: Diagnostics.launchSummary,
-        appearanceMode: appearanceMode,
-        state: logWindowState
+        state: logWindowState,
+        appearanceMode: appearanceMode
       )
     } else {
       logWindowState.refresh()

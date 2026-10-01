@@ -9,14 +9,10 @@ struct LogWindowView: View {
 
   // MARK: Internal
 
-  let version: DisplayedVersion
-  let summary: String?
-
   @ObservedObject var state: LogWindowState
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      header
       toolbar
       QueryBarView(
         query: $state.query,
@@ -167,28 +163,6 @@ struct LogWindowView: View {
       return section.isCurrent
     }
     return false
-  }
-
-  private var header: some View {
-    HStack(spacing: 10) {
-      if let icon = NSApp.applicationIconImage {
-        Image(nsImage: icon)
-          .resizable()
-          .frame(width: 32, height: 32)
-      }
-      VStack(alignment: .leading) {
-        Text("Lanterna \(version.full)")
-          .font(.headline)
-          .textSelection(.enabled)
-        if let summary {
-          Text(summary)
-            .font(.body)
-            .foregroundStyle(.secondary)
-            .textSelection(.enabled)
-        }
-      }
-    }
-    .padding(12)
   }
 
   private var toolbar: some View {
