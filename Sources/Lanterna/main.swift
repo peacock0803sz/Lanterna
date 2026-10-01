@@ -2,6 +2,10 @@ import AppKit
 import Darwin
 import Logging
 
+// Named first, so the launch's stamp is when the process started rather
+// than when its first line went out.
+_ = Diagnostics.currentLaunch
+
 // Wired before anything can write: the first diagnostics line below
 // already goes through the mirror backend.
 Diagnostics.bootstrap()

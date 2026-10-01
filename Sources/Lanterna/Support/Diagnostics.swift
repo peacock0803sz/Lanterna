@@ -21,7 +21,21 @@ enum DiagnosticLog {
 // swiftlint:disable:next no_unchecked_sendable - Every mutable state below is guarded by the lock
 final class DiagnosticLogStore: @unchecked Sendable {
 
+  // MARK: Lifecycle
+
+  /// `emit` receives exactly what stderr gets; tests pass their own to
+  /// read it back.
+  init(
+    launch: LaunchID = Diagnostics.currentLaunch,
+    emit: @escaping @Sendable (String) -> Void = DiagnosticLogStore.standardError
+  ) {
+    self.launch = launch
+    self.emit = emit
+  }
+
   // MARK: Internal
+
+  let launch: LaunchID
 
   var recent: [Diagnostics.LogEntry] {
     lock.lock()
@@ -35,23 +49,28 @@ final class DiagnosticLogStore: @unchecked Sendable {
     return pinnedSummary
   }
 
+  /// Writes to the real stderr, the message and a newline only.
+  static func standardError(_ text: String) {
+    try? FileHandle.standardError.write(contentsOf: Data(text.utf8))
+  }
+
   /// Emits the line and mirrors it as one locked step. Two calls racing
   /// each other still land in stderr and in the mirror in the same order;
   /// anything weaker would let the on-screen log disagree with what was
-  /// emitted. Only called with lines the logger already let through, so
-  /// the two surfaces cannot drift apart. Tests use `append` directly,
-  /// which mirrors without emitting.
-  func write(_ message: String) {
+  /// emitted. Only the message reaches stderr, so its lines keep the shape
+  /// they always had. Tests use `append` directly, which mirrors without
+  /// emitting.
+  func write(_ record: Diagnostics.Record) {
     lock.lock()
     defer { lock.unlock() }
-    try? FileHandle.standardError.write(contentsOf: Data((message + "\n").utf8))
-    mirror(message)
+    emit(record.message + "\n")
+    mirror(record)
   }
 
-  func append(_ message: String) {
+  func append(_ record: Diagnostics.Record) {
     lock.lock()
     defer { lock.unlock() }
-    mirror(message)
+    mirror(record)
   }
 
   func pin(_ summary: String) {
@@ -63,15 +82,24 @@ final class DiagnosticLogStore: @unchecked Sendable {
   // MARK: Private
 
   private let lock = NSLock()
+  private let emit: @Sendable (String) -> Void
   private var entries = [Diagnostics.LogEntry]()
-  private var nextSequence: UInt64 = 0
+  /// Numbers start at one, as people count rows.
+  private var nextSequence: UInt64 = 1
   private var pinnedSummary: String?
 
   /// Adds one line under the caller's lock.
-  private func mirror(_ message: String) {
-    entries.append(
-      Diagnostics.LogEntry(sequence: nextSequence, capturedAt: Date(), message: message)
-    )
+  private func mirror(_ record: Diagnostics.Record) {
+    entries.append(Diagnostics.LogEntry(
+      launch: launch,
+      sequence: nextSequence,
+      capturedAt: Date(),
+      level: record.level,
+      category: record.category,
+      message: record.message,
+      source: record.source,
+      context: record.context
+    ))
     nextSequence += 1
     if entries.count > DiagnosticLog.capacity {
       entries.removeFirst(entries.count - DiagnosticLog.capacity)
@@ -90,18 +118,43 @@ enum Diagnostics {
 
   // MARK: Internal
 
-  /// One mirrored line: what went to stderr, with when and in what order.
+  /// One line as the handler hands it to the store, before it gets its
+  /// number and time.
+  struct Record: Equatable, Sendable {
+    let level: Logger.Level
+    let category: LogCategory
+    let message: String
+    /// Where the line was written, as `File.swift:123`.
+    let source: String
+    let context: [String: ContextValue]
+  }
+
+  /// One mirrored line: what went to stderr, with when, in what order, and
+  /// what kind of line it is.
   ///
-  /// The time and the number are display metadata only. They never reach
+  /// Everything but the message is display metadata. It never reaches
   /// stderr, so the emitted lines keep the shape 005 through 007 defined.
   struct LogEntry: Equatable, Sendable {
-    /// Increases with every line. Two lines never share one.
+    /// The run that wrote the line.
+    let launch: LaunchID
+    /// Increases with every line of one run, from one. Two lines of a run
+    /// never share one, and nothing renumbers them.
     let sequence: UInt64
     /// When the line was emitted.
     let capturedAt: Date
+    /// One of `error`, `warning`, `info`, `debug`.
+    let level: Logger.Level
+    let category: LogCategory
     /// The line itself, byte for byte what stderr received.
     let message: String
+    /// Where the line was written, as `File.swift:123`.
+    let source: String
+    let context: [String: ContextValue]
   }
+
+  /// This run, named by when it started. `main` reads it first thing, so
+  /// the stamp is the start of the process rather than of the first line.
+  static let currentLaunch = LaunchID(startedAt: Date(), isCurrent: true)
 
   /// The logger this process writes through. Wired once by `bootstrap`,
   /// which `main` calls ahead of the first line on the launch path,
@@ -165,84 +218,5 @@ enum Diagnostics {
 
   /// The store behind the mirror. One per process; the tests hold their own.
   private static let store = DiagnosticLogStore()
-
-}
-
-// MARK: - DiagnosticLogHandler
-
-/// The one backend this run writes through: stderr and the mirror, as one
-/// locked step, so the on-screen log cannot disagree with what was emitted.
-/// Takes whatever the logger lets through; the threshold lives on the
-/// logger rather than here. A future backend (a file, the system log)
-/// arrives as another handler beside this one. Locked around the only
-/// mutable state, so sharing it across execution contexts stays sound.
-// swiftlint:disable:next no_unchecked_sendable - Every mutable state below is guarded by the lock
-final class DiagnosticLogHandler: LogHandler, @unchecked Sendable {
-
-  // MARK: Lifecycle
-
-  init(store: DiagnosticLogStore) {
-    self.store = store
-  }
-
-  // MARK: Internal
-
-  var metadataProvider: Logger.MetadataProvider? {
-    get {
-      lock.lock()
-      defer { lock.unlock() }
-      return providerStorage
-    }
-    set {
-      lock.lock()
-      defer { lock.unlock() }
-      providerStorage = newValue
-    }
-  }
-
-  /// Takes all it receives. The logger gates ahead of this call, so a
-  /// second opinion here would only double the rule.
-  var logLevel: Logger.Level {
-    get {
-      lock.lock()
-      defer { lock.unlock() }
-      return acceptedLevel
-    }
-    set {
-      lock.lock()
-      defer { lock.unlock() }
-      acceptedLevel = newValue
-    }
-  }
-
-  var metadata: Logger.Metadata {
-    get {
-      lock.lock()
-      defer { lock.unlock() }
-      return metadataStorage
-    }
-    set {
-      lock.lock()
-      defer { lock.unlock() }
-      metadataStorage = newValue
-    }
-  }
-
-  subscript(metadataKey key: String) -> Logger.Metadata.Value? {
-    get { metadata[key] }
-    set { metadata[key] = newValue }
-  }
-
-  func log(event: LogEvent) {
-    store.write(event.message.description)
-  }
-
-  // MARK: Private
-
-  private let lock = NSLock()
-  private let store: DiagnosticLogStore
-  private var metadataStorage: Logger.Metadata = [:]
-  private var acceptedLevel = Logger.Level.trace
-  private var providerStorage: Logger.MetadataProvider?
 
 }
