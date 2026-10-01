@@ -37,6 +37,8 @@ struct LiveIndicator: View {
 /// the state the window is in.
 struct ToolbarIconButton: View {
 
+  // MARK: Internal
+
   let systemImage: String
   let label: String
   /// Shown after the label in the tooltip, never read aloud.
@@ -54,11 +56,48 @@ struct ToolbarIconButton: View {
           isProminent ? Color.accentColor : Color.primary.opacity(0.04),
           in: RoundedRectangle(cornerRadius: 6)
         )
+        .opacity(isEnabled ? 1 : 0.4)
         .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
     .help(shortcut.map { "\(label) (\($0))" } ?? label)
     .accessibilityLabel(label)
+  }
+
+  // MARK: Private
+
+  @Environment(\.isEnabled) private var isEnabled
+
+}
+
+// MARK: - LogEmptyState
+
+/// What the table area says when no line is on screen.
+struct LogEmptyState: View {
+
+  /// Whether lines exist and the filters hide them all, rather than none
+  /// having been written.
+  let isFiltering: Bool
+
+  var body: some View {
+    VStack(spacing: 6) {
+      Image(systemName: isFiltering ? "line.3.horizontal.decrease.circle" : "text.page")
+        .font(.system(size: 22))
+        .foregroundStyle(.tertiary)
+        .accessibilityHidden(true)
+      Text(isFiltering ? "No entries match" : "No entries yet")
+        .font(.system(size: 13))
+        .foregroundStyle(.secondary)
+      if isFiltering {
+        Text("Change the search, Level or Category to see more lines.")
+          .font(.system(size: 12))
+          .foregroundStyle(.tertiary)
+      }
+    }
+    .multilineTextAlignment(.center)
+    .padding(24)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .accessibilityElement(children: .combine)
   }
 
 }

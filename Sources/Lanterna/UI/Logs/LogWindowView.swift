@@ -17,6 +17,12 @@ struct LogWindowView: View {
       }
       LogTable(state: state)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay {
+          if !state.canCopyOrExport {
+            LogEmptyState(isFiltering: state.isFiltering)
+              .background(.background)
+          }
+        }
       Divider()
       LogStatusBar(
         totalCount: state.entryCount,
@@ -57,11 +63,13 @@ struct LogWindowView: View {
         action: { state.copy() }
       )
       .keyboardShortcut("c", modifiers: .command)
+      .disabled(!state.canCopyOrExport)
       ToolbarIconButton(
         systemImage: "square.and.arrow.up",
         label: "Export…",
         action: { state.exportWithPanel(attachedTo: NSApp.keyWindow) }
       )
+      .disabled(!state.canCopyOrExport)
     }
     .padding(.leading, 84)
     .padding(.trailing, 14)

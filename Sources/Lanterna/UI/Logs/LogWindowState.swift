@@ -132,6 +132,11 @@ final class LogWindowState {
     return shownRows.compactMap { selection.contains($0.id) ? $0.entry : nil }
   }
 
+  /// Whether any filter is narrowing the list.
+  var isFiltering: Bool {
+    false
+  }
+
   /// Whether the filters let `row` through.
   func matches(_: LogRow) -> Bool {
     true
