@@ -79,10 +79,10 @@ struct AXApplicationWindowReaderMessagingTests {
     }
   }
 
-  /// The window of a Chromium web app shim answers its title with
-  /// `kAXErrorFailure` while every other attribute reads normally. The
-  /// state flags are read the same way, so a refusal there reads as the
-  /// flag being off rather than costing the application its rows.
+  /// A state flag refused with `kAXErrorFailure` reads as the flag being
+  /// off rather than costing the application its rows. The flags are read
+  /// the same way as the title, whose refusal has been seen from a
+  /// Chromium web app shim.
   @Test(arguments: [kAXMinimizedAttribute, fullscreenAttributeName])
   func aRefusedStateFlagReadsAsOff(attribute: String) {
     let application = FakeApplication(windowCount: 2)
