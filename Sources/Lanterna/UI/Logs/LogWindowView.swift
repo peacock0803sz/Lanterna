@@ -186,6 +186,7 @@ struct LogWindowView: View {
       }
       .buttonStyle(.plain)
       .accessibilityLabel(state.isSidebarShown ? "Hide Fields sidebar" : "Show Fields sidebar")
+      .help(state.isSidebarShown ? "Hide Fields sidebar" : "Show Fields sidebar")
       Menu("Level") {
         Button("All levels") { state.setLevelFilter(nil) }
         Divider()
@@ -243,29 +244,50 @@ struct LogWindowView: View {
         }
         .accessibilityLabel("Show latest")
       }
-      Button(state.isPaused ? "Resume" : "Pause") {
+      // Icon actions keep full VoiceOver names with tooltips
+      Button {
         state.togglePause()
+      } label: {
+        Image(systemName: state.isPaused ? "play.fill" : "pause.fill")
       }
+      .buttonStyle(.plain)
       .keyboardShortcut("p", modifiers: .command)
       .accessibilityLabel(state.isPaused ? "Resume live tail" : "Pause live tail")
-      Button("Copy") {
+      .help(state.isPaused ? "Resume live tail" : "Pause live tail")
+      Button {
         state.copyText()
+      } label: {
+        Image(systemName: "doc.on.doc")
       }
+      .buttonStyle(.plain)
       .keyboardShortcut("c", modifiers: .command)
       .accessibilityLabel("Copy selected rows as text")
-      Button("Copy JSON") {
+      .help("Copy selected rows as text")
+      Button {
         state.copyJSON()
+      } label: {
+        Image(systemName: "doc.on.doc.fill")
       }
+      .buttonStyle(.plain)
       .keyboardShortcut("c", modifiers: [.command, .option])
       .accessibilityLabel("Copy selected rows as JSON Lines")
-      Button("Export") {
+      .help("Copy selected rows as JSON Lines")
+      Button {
         state.exportFile()
+      } label: {
+        Image(systemName: "square.and.arrow.up")
       }
+      .buttonStyle(.plain)
       .accessibilityLabel("Export visible rows to a file")
-      Button("Clear") {
+      .help("Export visible rows to a file")
+      Button {
         state.clearView()
+      } label: {
+        Image(systemName: "trash")
       }
+      .buttonStyle(.plain)
       .accessibilityLabel("Clear visible entries")
+      .help("Clear visible entries")
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 6)
