@@ -46,6 +46,7 @@ final class LogWindowState: ObservableObject {
   @Published var allKeptRows = [DiagnosticRow]()
   @Published var jumpTargetID: String?
   @Published var databaseError: String?
+  @Published var isLoading = false
 
   var liveLabel: String {
     if let end = rangeEndMilliseconds, end < nowMilliseconds() {
@@ -122,55 +123,18 @@ final class LogWindowState: ObservableObject {
     }
     let start = resolved.startMilliseconds
     let end = resolved.endMilliseconds
-    let loaded = loadAll(now: now)
-    let afterClear = loaded.filter { row in
-      guard let marker = VersionLogWindow.clearMarkerMilliseconds else { return true }
-      return row.recordedAtMilliseconds > marker
-    }
+    takeFinishedSpill()
     if query.mode == .database {
       refreshDatabase(now: now)
       return
     }
     databaseError = nil
-    allKeptRows = afterClear
-    let timeFiltered = afterClear.filter { row in
-      if let start, row.recordedAtMilliseconds < start {
-        return false
-      }
-      if let end, row.recordedAtMilliseconds > end {
-        return false
-      }
-      return true
-    }
-    let matched: [DiagnosticRow]
-    let text = query.lightweightText.trimmingCharacters(in: .whitespacesAndNewlines)
-    if text.isEmpty {
-      matched = timeFiltered
-    } else {
-      matched = timeFiltered.filter { matchesQueryExcludingTime($0, text: text) }
-    }
-    let afterRange: [DiagnosticRow] =
-      if let end {
-        afterClear.filter { $0.recordedAtMilliseconds > end }
-      } else {
-        []
-      }
-    if isPaused, !sections.isEmpty {
-      let shownIDs = Set(flatVisibleRows.map(\.rowID))
-      let freshIDs = Set(matched.map(\.rowID))
-      pendingCount = freshIDs.subtracting(shownIDs).count
-      afterRangeCount = afterRange.count
-      return
-    }
-    pendingCount = 0
-    afterRangeCount = afterRange.count
-    totalCount = afterClear.count
-    visibleCount = matched.count
-    sections = group(rows: matched)
-    launchCount = sections.count
+    ensureSpillLoad(key: Self.lightweightSpillKey, statement: nil)
+    updateLightweightDisplay(now: now, start: start, end: end)
   }
 
   func togglePause() {
+    lastSpillFinishedAt = nil
     if isPaused {
       isPaused = false
       refresh()
@@ -351,8 +315,31 @@ final class LogWindowState: ObservableObject {
 
   // MARK: Private
 
+  /// The spill key while the lightweight row holds the query.
+  /// The background fetch reads every store without conditions,
+  /// so the key stays put while the text changes and the display
+  /// filters the cached rows again on every heartbeat.
+  private static let lightweightSpillKey = "lightweight"
+
+  /// How long a finished spill load stays fresh while the tail runs.
+  /// An older result starts a new background load on the next
+  /// heartbeat, so rows that aged out of the mirror keep arriving
+  /// without blocking the main thread.
+  private static let spillReloadInterval: TimeInterval = 2
+
   private static let sidebarKey = "LanternaLogSidebarShown"
   private static let histogramKey = "LanternaLogHistogramCollapsed"
+
+  private var spillTask: Task<Void, Never>?
+  private var spillInFlight = false
+  private var spillGeneration = 0
+  private var activeSpillKey = ""
+  private var cachedSpillKey: String?
+  private var cachedSpilledRows = [DiagnosticRow]()
+  private var cachedSkippedCount = 0
+  private var cachedFailureText: String?
+  private var lastSpillFinishedAt: Date?
+  private let spillMailbox = SpillMailbox()
 
   private var effectiveLevelName: String {
     guard let logger = Diagnostics.logger else { return "Warning" }
@@ -365,6 +352,157 @@ final class LogWindowState: ObservableObject {
     case .error: "Error"
     case .critical: "Critical"
     }
+  }
+
+  /// Lists the spill directory and reads the stores. Runs off the
+  /// main thread, so a slow volume never freezes the window.
+  /// Cancellation stops between files; unreadable files are skipped
+  /// with their count kept, and only a refused statement fails the run.
+  nonisolated private static func fetchSpill(statement: String?) -> SpillMailbox.Load {
+    let files = spillStoreFiles()
+    let executor = LogQueryExecutor(files: files, liveStore: Diagnostics.liveSpillStore(at:))
+    do {
+      if let statement {
+        let result = try executor.runStatement(statement)
+        return SpillMailbox.Load(rows: result.rows, skipped: result.skipped.count, failureText: nil)
+      }
+      let result = try executor.run(predicate: "1 = 1", values: [], limit: 5000)
+      return SpillMailbox.Load(rows: result.rows, skipped: result.skipped.count, failureText: nil)
+    } catch is CancellationError {
+      return SpillMailbox.Load(rows: [], skipped: 0, failureText: nil)
+    } catch {
+      if statement != nil {
+        return SpillMailbox.Load(rows: [], skipped: files.count, failureText: String(describing: error))
+      }
+      return SpillMailbox.Load(rows: [], skipped: files.count, failureText: nil)
+    }
+  }
+
+  /// The spill key for one database statement: the exact statement
+  /// text, so editing the row drops the run in flight.
+  private static func databaseSpillKey(for statement: String) -> String {
+    "database:" + statement
+  }
+
+  /// The spill files of this origin, oldest first. Runs off the
+  /// main thread from the background fetch, so a slow volume never
+  /// freezes scrolling, selection, pause, or editing.
+  nonisolated private static func spillStoreFiles() -> [URL] {
+    guard
+      let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+    else {
+      return []
+    }
+    let origin = LogPersistence.currentOrigin()
+    let directory = LogPersistence.directory(applicationSupport: support, origin: origin)
+    guard let names = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else {
+      return []
+    }
+    return names.filter { $0.hasSuffix(".duckdb") }.sorted().map { directory.appendingPathComponent($0) }
+  }
+
+  /// Starts a spill load when the key changed or the cached rows
+  /// went stale, and drops the run in flight when a newer key
+  /// arrives. The timer heartbeat calls this freely: starting work
+  /// never blocks, and only finished results reach the display.
+  private func ensureSpillLoad(key: String, statement: String?) {
+    if key != activeSpillKey {
+      startSpillLoad(key: key, statement: statement)
+      return
+    }
+    guard !spillInFlight, !isPaused else { return }
+    if
+      let finishedAt = lastSpillFinishedAt,
+      Date().timeIntervalSince(finishedAt) < Self.spillReloadInterval
+    {
+      return
+    }
+    startSpillLoad(key: key, statement: statement)
+  }
+
+  /// Runs one spill load off the main thread. The fetch lists the
+  /// directory and reads the stores away from scrolling, selection,
+  /// pause, and editing. It stores the finished load in the mailbox;
+  /// the heartbeat takes it from there and drops it when a newer
+  /// key already replaced it, so the background never touches the
+  /// display itself.
+  private func startSpillLoad(key: String, statement: String?) {
+    spillTask?.cancel()
+    spillGeneration += 1
+    let generation = spillGeneration
+    activeSpillKey = key
+    if cachedSpillKey != key {
+      cachedSpilledRows = []
+      cachedSkippedCount = 0
+      cachedFailureText = nil
+    }
+    spillInFlight = true
+    isLoading = true
+    spillTask = Task.detached(priority: .utility) { [mailbox = self.spillMailbox, statement, generation, key] in
+      let load = Self.fetchSpill(statement: statement)
+      guard !Task.isCancelled else { return }
+      mailbox.store(load, generation: generation, key: key)
+    }
+  }
+
+  /// Takes a finished load from the mailbox onto the display when
+  /// it still answers the active key. A newer key means the query
+  /// moved on while the load ran, so the stale rows never reach
+  /// the sections.
+  private func takeFinishedSpill() {
+    guard let load = spillMailbox.take(generation: spillGeneration, key: activeSpillKey) else {
+      return
+    }
+    spillInFlight = false
+    isLoading = false
+    lastSpillFinishedAt = Date()
+    cachedSpillKey = activeSpillKey
+    cachedSpilledRows = load.rows
+    cachedSkippedCount = load.skipped
+    cachedFailureText = load.failureText
+  }
+
+  /// Merges the cached spill rows with the live mirror and applies
+  /// the display-only filters. Cheap enough for the heartbeat: the
+  /// listing and the store reads already happened in the background.
+  private func updateLightweightDisplay(now: Int64, start: Int64?, end: Int64?) {
+    let afterClear = mergedKeptRows(now: now)
+    allKeptRows = afterClear
+    let timeFiltered = afterClear.filter { row in
+      if let start, row.recordedAtMilliseconds < start {
+        return false
+      }
+      if let end, row.recordedAtMilliseconds > end {
+        return false
+      }
+      return true
+    }
+    let matched: [DiagnosticRow]
+    let text = query.lightweightText.trimmingCharacters(in: .whitespacesAndNewlines)
+    if text.isEmpty {
+      matched = timeFiltered
+    } else {
+      matched = timeFiltered.filter { matchesQueryExcludingTime($0, text: text) }
+    }
+    let afterRange: [DiagnosticRow] =
+      if let end {
+        afterClear.filter { $0.recordedAtMilliseconds > end }
+      } else {
+        []
+      }
+    if isPaused, !sections.isEmpty {
+      let shownIDs = Set(flatVisibleRows.map(\.rowID))
+      let freshIDs = Set(matched.map(\.rowID))
+      pendingCount = freshIDs.subtracting(shownIDs).count
+      afterRangeCount = afterRange.count
+      return
+    }
+    pendingCount = 0
+    afterRangeCount = afterRange.count
+    totalCount = afterClear.count
+    visibleCount = matched.count
+    sections = group(rows: matched)
+    launchCount = sections.count
   }
 
   private func rewriteTimeTokens(with tokens: [String]) {
@@ -414,11 +552,12 @@ final class LogWindowState: ObservableObject {
     }
   }
 
-  private func loadAll(now: Int64) -> [DiagnosticRow] {
+  /// Merges the cached spill rows with the live mirror, the mirror
+  /// winning on a shared key. The clear marker hides earlier rows
+  /// here, so every display path honors one clearing.
+  private func mergedKeptRows(now: Int64) -> [DiagnosticRow] {
     var merged = [String: DiagnosticRow]()
-    let (spilled, skipped) = loadSpilled()
-    skippedCount = skipped
-    for row in spilled {
+    for row in cachedSpilledRows {
       merged["\(row.launchID ?? "spilled")-\(row.sequence)"] = row
     }
     let liveLaunch = Diagnostics.activeLaunchID ?? "current"
@@ -437,38 +576,56 @@ final class LogWindowState: ObservableObject {
       merged["\(liveLaunch)-\(entry.sequence)"] = row
     }
     var rows = Array(merged.values)
-    if skipped > 0 {
-      let top = (rows.map(\.sequence).max() ?? 0) + 1
-      rows.append(
-        DiagnosticRow(
-          sequence: top,
-          recordedAtMilliseconds: now,
-          level: "warning",
-          category: "diagnostics",
-          message: "Skipped \(skipped) stored files that could not be read",
-          launchID: liveLaunch,
-          buildVersion: liveBuild,
-          payloadJSON: nil
-        )
-      )
+    skippedCount = cachedSkippedCount
+    if skippedCount > 0 {
+      rows.append(spillWarningRow(beside: rows, now: now))
     }
-    return rows.sorted {
+    let kept = rows.sorted {
       if $0.recordedAtMilliseconds != $1.recordedAtMilliseconds {
         return $0.recordedAtMilliseconds < $1.recordedAtMilliseconds
       }
       return $0.sequence < $1.sequence
     }
+    guard let marker = VersionLogWindow.clearMarkerMilliseconds else {
+      return kept
+    }
+    return kept.filter { $0.recordedAtMilliseconds > marker }
   }
 
-  /// Runs the database row text and shows what it returns. A refused
-  /// statement shows the refusal instead of rows, using the exact
-  /// contract wording, so the row explains why nothing ran. The
-  /// statement owns its time bounds, so the toolbar range stays out;
-  /// only the clear marker still hides earlier rows. A failed run
-  /// shows the failure the same way.
+  /// One warning row standing in for the spill files left unread.
+  /// Kept beside the rows shown, so the count of skipped files
+  /// never silently vanishes from the display.
+  private func spillWarningRow(beside rows: [DiagnosticRow], now: Int64) -> DiagnosticRow {
+    let liveLaunch = Diagnostics.activeLaunchID ?? "current"
+    let liveBuild = Diagnostics.activeBuildVersion ?? AppVersion.full
+    let top = (rows.map(\.sequence).max() ?? 0) + 1
+    return DiagnosticRow(
+      sequence: top,
+      recordedAtMilliseconds: now,
+      level: "warning",
+      category: "diagnostics",
+      message: "Skipped \(cachedSkippedCount) stored files that could not be read",
+      launchID: liveLaunch,
+      buildVersion: liveBuild,
+      payloadJSON: nil
+    )
+  }
+
+  /// Shows what the database row text returns. A refused statement
+  /// shows the refusal at once with no store read, using the exact
+  /// contract wording, so the row explains why nothing ran. An
+  /// allowed statement reads in the background like the lightweight
+  /// fetch; the heartbeat shows the finished rows. The statement
+  /// owns its time bounds, so the toolbar range stays out; only the
+  /// clear marker still hides earlier rows.
   private func refreshDatabase(now: Int64) {
     let verdict = DatabaseStatementCheck.check(query.databaseText)
     guard verdict.allowed else {
+      spillTask?.cancel()
+      spillTask = nil
+      spillInFlight = false
+      isLoading = false
+      activeSpillKey = Self.databaseSpillKey(for: query.databaseText)
       databaseError = verdict.refusal
       sections = []
       totalCount = 0
@@ -478,84 +635,57 @@ final class LogWindowState: ObservableObject {
       afterRangeCount = 0
       return
     }
-    let files = spillStoreFiles()
-    let executor = LogQueryExecutor(files: files, liveStore: Diagnostics.liveSpillStore(at:))
-    do {
-      let result = try executor.runStatement(verdict.effectiveText)
-      databaseError = nil
-      skippedCount = result.skipped.count
-      var matched = result.rows
-      if let marker = VersionLogWindow.clearMarkerMilliseconds {
-        matched = matched.filter { $0.recordedAtMilliseconds > marker }
-      }
-      if skippedCount > 0 {
-        let liveLaunch = Diagnostics.activeLaunchID ?? "current"
-        let liveBuild = Diagnostics.activeBuildVersion ?? AppVersion.full
-        let top = (matched.map(\.sequence).max() ?? 0) + 1
-        matched.append(
-          DiagnosticRow(
-            sequence: top,
-            recordedAtMilliseconds: now,
-            level: "warning",
-            category: "diagnostics",
-            message: "Skipped \(skippedCount) stored files that could not be read",
-            launchID: liveLaunch,
-            buildVersion: liveBuild,
-            payloadJSON: nil
-          )
-        )
-      }
-      allKeptRows = matched
-      if isPaused, !sections.isEmpty {
-        let shownIDs = Set(flatVisibleRows.map(\.rowID))
-        let freshIDs = Set(matched.map(\.rowID))
-        pendingCount = freshIDs.subtracting(shownIDs).count
-        afterRangeCount = 0
-        return
-      }
-      pendingCount = 0
-      afterRangeCount = 0
-      totalCount = matched.count
-      visibleCount = matched.count
-      sections = group(rows: matched)
-      launchCount = sections.count
-    } catch {
-      databaseError = String(describing: error)
+    let key = Self.databaseSpillKey(for: verdict.effectiveText)
+    ensureSpillLoad(key: key, statement: verdict.effectiveText)
+    updateDatabaseDisplay(now: now, key: key)
+  }
+
+  /// Shows the finished statement rows when they answer the active
+  /// statement. Rows from an older statement stay out while the new
+  /// run is in flight, with the progress mark holding their place.
+  private func updateDatabaseDisplay(now: Int64, key: String) {
+    guard cachedSpillKey == key else {
       sections = []
       totalCount = 0
       visibleCount = 0
       launchCount = 0
       pendingCount = 0
       afterRangeCount = 0
+      return
     }
-  }
-
-  private func spillStoreFiles() -> [URL] {
-    guard
-      let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-    else {
-      return []
+    if let failure = cachedFailureText {
+      databaseError = failure
+      sections = []
+      totalCount = 0
+      visibleCount = 0
+      launchCount = 0
+      pendingCount = 0
+      afterRangeCount = 0
+      return
     }
-    let origin = LogPersistence.currentOrigin()
-    let directory = LogPersistence.directory(applicationSupport: support, origin: origin)
-    guard let names = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else {
-      return []
+    databaseError = nil
+    skippedCount = cachedSkippedCount
+    var matched = cachedSpilledRows
+    if let marker = VersionLogWindow.clearMarkerMilliseconds {
+      matched = matched.filter { $0.recordedAtMilliseconds > marker }
     }
-    return names.filter { $0.hasSuffix(".duckdb") }.sorted().map { directory.appendingPathComponent($0) }
-  }
-
-  private func loadSpilled() -> ([DiagnosticRow], Int) {
-    let files = spillStoreFiles()
-    guard !files.isEmpty else {
-      return ([], 0)
+    if skippedCount > 0 {
+      matched.append(spillWarningRow(beside: matched, now: now))
     }
-    let executor = LogQueryExecutor(files: files, liveStore: Diagnostics.liveSpillStore(at:))
-    do {
-      let result = try executor.run(predicate: "1 = 1", values: [], limit: 5000)
-      return (result.rows, result.skipped.count)
-    } catch {
-      return ([], files.count)
+    allKeptRows = matched
+    if isPaused, !sections.isEmpty {
+      let shownIDs = Set(flatVisibleRows.map(\.rowID))
+      let freshIDs = Set(matched.map(\.rowID))
+      pendingCount = freshIDs.subtracting(shownIDs).count
+      afterRangeCount = 0
+      return
     }
+    pendingCount = 0
+    afterRangeCount = 0
+    totalCount = matched.count
+    visibleCount = matched.count
+    sections = group(rows: matched)
+    launchCount = sections.count
   }
 
   private func storedWord(for level: Logger.Level) -> String {
@@ -576,5 +706,55 @@ final class LogWindowState: ObservableObject {
     board.clearContents()
     board.setString(string, forType: .string)
   }
+
+}
+
+// MARK: - SpillMailbox
+
+/// Holds one finished spill load until the heartbeat takes it.
+///
+/// The background fetch stores here while the main thread takes on
+/// its next heartbeat, so a finishing load never touches the display
+/// itself and the heartbeat only ever picks up finished results.
+/// Every field below crosses the lock, which is why the box carries
+/// an unchecked conformance beside this note.
+// swiftlint:disable:next no_unchecked_sendable - Every mutable field below is guarded by the lock; stored rows are values
+final class SpillMailbox: @unchecked Sendable {
+
+  // MARK: Internal
+
+  /// What one finished background load carries.
+  struct Load: Sendable {
+    var rows: [DiagnosticRow]
+    var skipped: Int
+    var failureText: String?
+  }
+
+  /// Stores a finished load for the heartbeat. Overwrites whatever
+  /// an older run left, so only the latest result waits.
+  func store(_ load: Load, generation: Int, key: String) {
+    lock.lock()
+    defer { lock.unlock() }
+    stored = (load, generation, key)
+  }
+
+  /// Takes the stored load when it still answers the active key.
+  /// Anything older is dropped unread, so a query typed while the
+  /// load ran never shows stale rows.
+  func take(generation: Int, key: String) -> Load? {
+    lock.lock()
+    defer { lock.unlock() }
+    guard let stored else { return nil }
+    self.stored = nil
+    guard stored.generation == generation, stored.key == key else {
+      return nil
+    }
+    return stored.load
+  }
+
+  // MARK: Private
+
+  private let lock = NSLock()
+  private var stored: (load: Load, generation: Int, key: String)?
 
 }

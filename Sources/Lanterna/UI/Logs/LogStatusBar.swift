@@ -15,6 +15,7 @@ struct LogStatusBar: View {
   var isPaused: Bool
   var isFiltered = false
   var showsDetail = false
+  var isLoading = false
 
   @Binding var autoScroll: Bool
 
@@ -24,6 +25,11 @@ struct LogStatusBar: View {
         .font(.caption)
         .foregroundStyle(.secondary)
         .accessibilityLabel(statusText)
+      if isLoading {
+        ProgressView()
+          .controlSize(.small)
+          .accessibilityLabel("Loading spilled logs")
+      }
       Spacer()
       Toggle("Auto-scroll", isOn: $autoScroll)
         .toggleStyle(.checkbox)

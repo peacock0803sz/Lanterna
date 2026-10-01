@@ -105,6 +105,7 @@ struct LogWindowView: View {
         isPaused: state.isPaused,
         isFiltered: state.isFiltering,
         showsDetail: selectedDetailRow != nil,
+        isLoading: state.isLoading,
         autoScroll: $state.autoScroll
       )
     }
