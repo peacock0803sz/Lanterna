@@ -48,6 +48,15 @@ final class DiagnosticLogStore: @unchecked Sendable {
     return pinnedSummary
   }
 
+  /// The file this launch's lines are going to, or nil while none is
+  /// attached or writing to it has failed.
+  var savingTo: URL? {
+    lock.lock()
+    defer { lock.unlock() }
+    guard let writer, !writer.isStopped else { return nil }
+    return writer.url
+  }
+
   /// Writes to the real stderr, the message and a newline only.
   static func standardError(_ text: String) {
     try? FileHandle.standardError.write(contentsOf: Data(text.utf8))
@@ -72,11 +81,49 @@ final class DiagnosticLogStore: @unchecked Sendable {
   /// emitted. Only the message reaches stderr, so its lines keep the shape
   /// they always had. Tests use `append` directly, which mirrors without
   /// emitting.
+  ///
+  /// With a writer attached, the line reaches this launch's file in the
+  /// same locked step, after stderr and the mirror.
   func write(_ record: Diagnostics.Record) {
     lock.lock()
     defer { lock.unlock() }
     emit(record.message + "\n")
-    mirror(record)
+    save(mirror(record))
+  }
+
+  /// Starts saving to `writer`'s file. First writes, in order, every
+  /// mirrored line not yet written, so the lines from before the file
+  /// existed are not lost; done under the lock, so no line slips between
+  /// the catching up and the attaching.
+  func attach(_ writer: LaunchLogWriter) {
+    lock.lock()
+    defer { lock.unlock() }
+    hasDecided = true
+    self.writer = writer
+    for entry in entries where entry.sequence > writtenThrough {
+      save(entry)
+    }
+    writtenThrough = nextSequence - 1
+  }
+
+  /// Stops saving and closes the file. Lines from now on are counted as
+  /// handled, so attaching again later writes only what comes after.
+  func detach() {
+    lock.lock()
+    defer { lock.unlock() }
+    writer?.close()
+    writer = nil
+    hasDecided = true
+    writtenThrough = nextSequence - 1
+  }
+
+  /// Settles that this launch saves nothing for now, without a writer
+  /// ever having been attached.
+  func declineSaving() {
+    lock.lock()
+    defer { lock.unlock() }
+    hasDecided = true
+    writtenThrough = nextSequence - 1
   }
 
   func append(_ record: Diagnostics.Record) {
@@ -99,10 +146,18 @@ final class DiagnosticLogStore: @unchecked Sendable {
   /// Numbers start at one, as people count rows.
   private var nextSequence: UInt64 = 1
   private var pinnedSummary: String?
+  private var writer: LaunchLogWriter?
+  /// The newest line handled for the file: written to it, or passed over
+  /// while nothing was attached.
+  private var writtenThrough: UInt64 = 0
+  /// Whether launch has settled if this run saves. Until it has, lines are
+  /// left for the first `attach` to catch up on.
+  private var hasDecided = false
 
   /// Adds one line under the caller's lock.
-  private func mirror(_ record: Diagnostics.Record) {
-    entries.append(Diagnostics.LogEntry(
+  @discardableResult
+  private func mirror(_ record: Diagnostics.Record) -> Diagnostics.LogEntry {
+    let entry = Diagnostics.LogEntry(
       launch: launch,
       sequence: nextSequence,
       capturedAt: Date(),
@@ -111,11 +166,32 @@ final class DiagnosticLogStore: @unchecked Sendable {
       message: record.message,
       source: record.source,
       context: record.context
-    ))
+    )
+    entries.append(entry)
     nextSequence += 1
     if entries.count > DiagnosticLog.capacity {
       entries.removeFirst(entries.count - DiagnosticLog.capacity)
     }
+    return entry
+  }
+
+  /// Writes one line to the file under the caller's lock. A failed write
+  /// stops saving for the launch and says so once, on stderr and in the
+  /// mirror only; going through the logger would take this lock again.
+  private func save(_ entry: Diagnostics.LogEntry) {
+    guard hasDecided else { return }
+    writtenThrough = entry.sequence
+    guard let writer, !writer.isStopped else { return }
+    guard !writer.append(LaunchLogCoding.line(for: entry)) else { return }
+    let warning = Diagnostics.Record(
+      level: .warning,
+      category: .logs,
+      message: "logs: could not write the saved log; saving stops for this launch: \(writer.url.path)",
+      source: DiagnosticLogHandler.source(file: #fileID, line: #line),
+      context: ["path": .string(writer.url.path)]
+    )
+    emit(warning.message + "\n")
+    writtenThrough = mirror(warning).sequence
   }
 
 }
