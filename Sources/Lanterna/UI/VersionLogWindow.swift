@@ -35,12 +35,18 @@ final class VersionLogWindow: NSWindow {
     isReleasedWhenClosed = false
     title = "Lanterna Logs"
     // The traffic lights share the toolbar's row rather than sitting in a
-    // title bar of their own.
+    // title bar of their own. An empty unified toolbar makes the title bar
+    // as tall as that row, which centres the lights in it; the content
+    // then starts at the very top, under the transparent title bar.
     titleVisibility = .hidden
     titlebarAppearsTransparent = true
+    toolbar = NSToolbar(identifier: "LanternaLogs")
+    toolbarStyle = .unified
     contentMinSize = Self.minimumSize
     appearance = appearanceMode.nsAppearance
-    contentView = NSHostingView(rootView: LogWindowView(state: state))
+    let hosting = NSHostingView(rootView: LogWindowView(state: state))
+    hosting.safeAreaRegions = []
+    contentView = hosting
     setContentSize(Self.fittedSize(visible: NSScreen.main?.visibleFrame.size))
     center()
     // Polling follows what the reader can see: a closed, minimised or
