@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // MARK: - DetailValue
@@ -136,6 +137,90 @@ func leafDetailText(for value: DetailValue) -> String {
   }
 }
 
+// MARK: - LogDetailSourceLink
+
+/// Builds public source links for a stored row.
+///
+/// Reads the commit from the recorded build string, so past launches
+/// keep pointing at the build that emitted them. Shows plain text when
+/// no commit can be read, such as for local uncommitted builds.
+enum LogDetailSourceLink {
+
+  // MARK: Internal
+
+  static func commitHash(from buildVersion: String?) -> String? {
+    guard
+      let raw = buildVersion?.trimmingCharacters(in: .whitespacesAndNewlines),
+      !raw.isEmpty
+    else {
+      return nil
+    }
+    let lowered = raw.lowercased()
+    if lowered.contains("dirty") {
+      return nil
+    }
+    if lowered == "dev" {
+      return nil
+    }
+    if let dashRange = raw.range(of: "-g", options: .backwards) {
+      let tail = String(raw[dashRange.upperBound...])
+      if isHashText(tail) {
+        return tail
+      }
+    }
+    let parts = raw.split(separator: "-")
+    if let last = parts.last.map(String.init), isHashText(last) {
+      return last
+    }
+    if isHashText(raw) {
+      return raw
+    }
+    if raw.hasPrefix("v"), !raw.contains(" "), !raw.contains("/") {
+      return raw
+    }
+    return nil
+  }
+
+  static func splitFileLine(_ text: String) -> (path: String, line: Int?)? {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return nil }
+    guard let colon = trimmed.lastIndex(of: ":") else {
+      return (cleanPath(trimmed), nil)
+    }
+    let head = String(trimmed[..<colon])
+    let tail = String(trimmed[trimmed.index(after: colon)...])
+    let path = cleanPath(head)
+    guard !path.isEmpty else { return nil }
+    if let number = Int(tail.trimmingCharacters(in: .whitespaces)), number > 0 {
+      return (path, number)
+    }
+    return (cleanPath(trimmed), nil)
+  }
+
+  static func url(path: String, line: Int, commit: String) -> URL? {
+    URL(string: "https://github.com/peacock0803sz/Lanterna/blob/\(commit)/\(path)#L\(line)")
+  }
+
+  // MARK: Private
+
+  private static let seven = 7
+  private static let forty = 40
+
+  private static func cleanPath(_ text: String) -> String {
+    var path = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    while path.hasPrefix("/") {
+      path = String(path.dropFirst())
+    }
+    return path
+  }
+
+  private static func isHashText(_ text: String) -> Bool {
+    guard text.count >= seven, text.count <= forty else { return false }
+    return text.allSatisfy { $0.isHexDigit }
+  }
+
+}
+
 // MARK: - LogDetailView
 
 /// Detail pane for one selected row.
@@ -179,6 +264,40 @@ struct LogDetailView: View {
 
   private var parsedFields: [(key: String, value: DetailValue)] {
     parseDetailPayload(row.payloadJSON)
+  }
+
+  private var displayFields: [(key: String, value: DetailValue)] {
+    var fields = parsedFields
+    if let index = fields.firstIndex(where: { $0.key == "source" }) {
+      switch fields[index].value {
+      case .object(var pairs):
+        if !pairs.contains(where: { $0.key == "version" }), let build = row.buildVersion {
+          pairs.append(("version", .string(build)))
+          fields[index] = ("source", .object(pairs))
+        }
+
+      case .array,
+           .string,
+           .number,
+           .boolean,
+           .none:
+        break
+      }
+    }
+    let topVersion = fields.contains { $0.key == "version" }
+    let sourceVersion = fields.contains {
+      guard $0.key == "source" else { return false }
+      guard case .object(let pairs) = $0.value else { return false }
+      return pairs.contains { $0.key == "version" }
+    }
+    if !topVersion, !sourceVersion, let build = row.buildVersion {
+      fields.append(("version", .string(build)))
+    }
+    return fields
+  }
+
+  private var commitForRow: String? {
+    LogDetailSourceLink.commitHash(from: row.buildVersion)
   }
 
   private var head: some View {
@@ -243,7 +362,7 @@ struct LogDetailView: View {
       }
       .padding(.bottom, 4)
       launchRow
-      ForEach(parsedFields, id: \.key) { entry in
+      ForEach(displayFields, id: \.key) { entry in
         nodeView(path: entry.key, key: entry.key, value: entry.value, depth: 0)
       }
     }
@@ -324,6 +443,27 @@ struct LogDetailView: View {
               .foregroundStyle(.secondary)
               .frame(maxWidth: .infinity, alignment: .leading)
           }
+        } else if isVersionRow(path: path, key: key) {
+          Text(row.buildVersion ?? leafDetailText(for: value))
+            .font(.system(.callout, design: .monospaced))
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else if let link = sourceLink(path: path, key: key, value: value) {
+          Button {
+            NSWorkspace.shared.open(link.url)
+          } label: {
+            HStack(spacing: 4) {
+              Text(link.display)
+                .font(.system(.callout, design: .monospaced))
+                .foregroundStyle(.blue)
+              Image(systemName: "arrow.up.right")
+                .font(.caption)
+                .foregroundStyle(.blue)
+            }
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel("Open source \(link.display) in browser")
+          .frame(maxWidth: .infinity, alignment: .leading)
         } else {
           Text(leafDetailText(for: value))
             .font(.system(.callout, design: .monospaced))
@@ -382,12 +522,39 @@ struct LogDetailView: View {
       let summary = collapsed.contains(path) ? collapsedDetailSummary(for: value) : "\(value.childCount) children"
       return "\(key) \(summary) \(state)"
     }
+    if isVersionRow(path: path, key: key) {
+      return "\(key) \(row.buildVersion ?? leafDetailText(for: value))"
+    }
+    if let link = sourceLink(path: path, key: key, value: value) {
+      return "\(key) \(link.display) link"
+    }
     return "\(key) \(leafDetailText(for: value))"
+  }
+
+  private func isVersionRow(path: String, key: String) -> Bool {
+    guard key == "version" else { return false }
+    return path == "version" || path == "source.version" || path.hasSuffix(".version")
+  }
+
+  private func isSourceFileRow(path: String, key: String, value: DetailValue) -> Bool {
+    guard key == "file" || key == "path" else { return false }
+    guard case .string = value else { return false }
+    return path.lowercased().contains("source")
+  }
+
+  private func sourceLink(path: String, key: String, value: DetailValue) -> (display: String, url: URL)? {
+    guard isSourceFileRow(path: path, key: key, value: value) else { return nil }
+    guard case .string(let text) = value else { return nil }
+    guard let split = LogDetailSourceLink.splitFileLine(text) else { return nil }
+    guard let line = split.line else { return nil }
+    guard let commit = commitForRow else { return nil }
+    guard let url = LogDetailSourceLink.url(path: split.path, line: line, commit: commit) else { return nil }
+    return ("\(split.path):\(line)", url)
   }
 
   private func allContainerPaths() -> Set<String> {
     var out = Set<String>()
-    for entry in parsedFields {
+    for entry in displayFields {
       collectContainerPaths(path: entry.key, value: entry.value, into: &out)
     }
     return out
