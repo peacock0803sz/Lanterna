@@ -32,7 +32,7 @@ final class PanelExit {
   init(
     surface: any SwitcherSurface,
     now: @escaping @MainActor () -> ContinuousClock.Instant,
-    writeLine: @escaping @MainActor (Logger.Level, String) -> Void,
+    writeLine: @escaping @MainActor (LogLine) -> Void,
     keyStatusWatchInterval: Duration = KeyStatusWatch.defaultInterval,
     switcher: any WindowSwitching = LiveWindowSwitcher(),
     recordCommit: @escaping @MainActor (WindowItem.Identifier, pid_t) -> Void,
@@ -52,7 +52,7 @@ final class PanelExit {
   // MARK: Internal
 
   /// Read beside the exit, by the ways out in its extension.
-  let writeLine: @MainActor (Logger.Level, String) -> Void
+  let writeLine: @MainActor (LogLine) -> Void
   /// The list the panel is showing, kept so a line can name a row of it.
   ///
   /// The list and not a row read off it. Which row is chosen moves while
@@ -216,11 +216,12 @@ final class PanelExit {
       )
     }
     dismissPanel()
-    writeLine(
+    writeLine(LogLine(
       .info,
+      .activate,
       "closed the panel showing \(named ?? "nothing"); "
         + "Command was let go and the tap never said so"
-    )
+    ))
   }
 
   /// The one place the panel comes off the screen.
@@ -281,11 +282,12 @@ final class PanelExit {
     // happened — so the figure covers the whole of the keyboard-less
     // while rather than only the noticing of it.
     onTakenBack: { [weak self] withoutKeys in
-      self?.writeLine(
+      self?.writeLine(LogLine(
         .info,
+        .activate,
         "panel stopped taking keys; taken back "
           + "\(Diagnostics.millisecondsText(withoutKeys)) ms later"
-      )
+      ))
     },
     onGaveUp: { [weak self] in
       self?.takeDown(because: "stopped taking keys")
@@ -373,14 +375,23 @@ final class PanelExit {
       elapsed: elapsed,
       filter: filterSummary
     )
-    writeLine(.info, SwitchMeasurement(
+    let measurement = SwitchMeasurement(
       appName: take.appName,
       displayTitle: take.displayTitle,
       id: take.id,
       outcome: outcome,
       trigger: trigger,
       elapsed: elapsed
-    ).summaryLine)
+    )
+    writeLine(LogLine(
+      .info,
+      .activate,
+      measurement.summaryLine,
+      context: measurement.context(
+        processIdentifier: take.ownerProcessIdentifier,
+        bundle: row(for: take.id)?.bundleIdentifier
+      )
+    ))
   }
 
   /// Reads the clock after the work, so the figure spans exactly the part
@@ -408,7 +419,7 @@ final class PanelExit {
       elapsed: elapsed,
       filterSummary: filterSummary
     )
-    writeLine(.info, measurement.summaryLine)
+    writeLine(LogLine(.info, .panel, measurement.summaryLine, context: measurement.context))
   }
 
 }

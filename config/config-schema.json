@@ -94,14 +94,12 @@
       "type": "boolean"
     },
     "logLevel": {
-      "description": "The diagnostics threshold. Absent means \"warning\".",
-      "type": "string",
-      "enum": [
-        "error",
-        "warning",
-        "info",
-        "debug"
-      ]
+      "description": "Deprecated; ignored. Every level is recorded now, and the log window\nfilters what it shows. Any value is accepted so older files keep\ntheir other settings.",
+      "deprecated": true
+    },
+    "saveLogsToDisk": {
+      "description": "Whether each launch's log lines are kept on disk, so an earlier\nlaunch can be read after a restart. Absent means on.",
+      "type": "boolean"
     },
     "updateCheckEnabled": {
       "description": "Whether Lanterna checks for newer releases. Absent means off.",

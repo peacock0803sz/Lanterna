@@ -40,11 +40,12 @@ extension PanelPresenter {
       // the keys that end an appearance — and nothing of the kind
       // happened here. The frontmost application changed on its own.
       pendingPress.callOff()
-      writeLine(
+      writeLine(LogLine(
         .info,
+        .panel,
         "called off the press waiting for its first list; "
           + "the frontmost application changed"
-      )
+      ))
       return
     }
     guard surface.isPresented else { return }

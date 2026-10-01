@@ -78,19 +78,21 @@ extension PanelWindowOperations {
     // Written before the passes, so a pass that skips the operated row's
     // application, one still quitting for instance, reads as coming
     // after the request.
-    writeLine(
+    writeLine(LogLine(
       .info,
+      .activate,
       "window operation sent (\(reconciliation.operation.logName) "
         + "\(reconciliation.row.appName)/\(reconciliation.row.displayTitle))"
-    )
+    ))
     for _ in 0 ..< 2 {
       let fresh = await refresh(presented)
       guard appearance == generation else {
-        writeLine(
+        writeLine(LogLine(
           .warning,
+          .activate,
           "window operation left unreconciled (\(reconciliation.operation.logName) "
             + "\(reconciliation.row.appName)/\(reconciliation.row.displayTitle); the panel went)"
-        )
+        ))
         return
       }
       // No list at all, or one whose pass skipped the operated row's
@@ -102,11 +104,12 @@ extension PanelWindowOperations {
       if reconciliation.isDone(fresh.windows) {
         presented = fresh.windows
         replaceList(fresh.windows, anchor)
-        writeLine(
+        writeLine(LogLine(
           .info,
+          .activate,
           "window operation (\(reconciliation.operation.logName) "
             + "\(reconciliation.row.appName)/\(reconciliation.row.displayTitle))"
-        )
+        ))
         if reconciliation.closesWhenEmpty, fresh.windows.isEmpty {
           closeAfterEmptied()
         }
@@ -135,11 +138,12 @@ extension PanelWindowOperations {
     presented = snapshot
     replaceList(snapshot, anchor)
     surface.showNotice("Couldn't \(operation.logName) \(row.displayTitle)")
-    writeLine(
+    writeLine(LogLine(
       .warning,
+      .activate,
       "window operation failed (\(operation.logName) "
         + "\(row.appName)/\(row.displayTitle): \(failure.logDescription))"
-    )
+    ))
   }
 
 }

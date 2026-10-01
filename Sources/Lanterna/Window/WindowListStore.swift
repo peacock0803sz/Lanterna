@@ -17,7 +17,7 @@ final class WindowListStore {
     gather: @escaping @MainActor () async -> WindowListSnapshot = {
       await WindowEnumerator().enumerateRegularApplicationsOffMainThread()
     },
-    writeLine: @escaping @MainActor (Logger.Level, String) -> Void = { Diagnostics.writeLine($1, level: $0) }
+    writeLine: @escaping @MainActor (LogLine) -> Void = { Diagnostics.writeLine($0) }
   ) {
     self.gather = gather
     self.writeLine = writeLine
@@ -33,7 +33,7 @@ final class WindowListStore {
   /// not happen would at least not change what is held.
   init(
     fixed items: [WindowItem],
-    writeLine: @escaping @MainActor (Logger.Level, String) -> Void = { Diagnostics.writeLine($1, level: $0) }
+    writeLine: @escaping @MainActor (LogLine) -> Void = { Diagnostics.writeLine($0) }
   ) {
     let fixed = WindowListSnapshot(
       items: items,
@@ -94,14 +94,14 @@ final class WindowListStore {
   /// the second out. The list it wanted is on its way regardless.
   func refresh() async {
     guard !isRefreshing else {
-      writeLine(.info, "refresh skipped (previous pass still running)")
+      writeLine(LogLine(.info, .enumerate, "refresh skipped (previous pass still running)"))
       return
     }
     isRefreshing = true
     defer { isRefreshing = false }
     let gathered = await gather()
     snapshot = gathered
-    writeLine(.info, gathered.summaryLine)
+    writeLine(LogLine(.info, .enumerate, gathered.summaryLine))
 
     let waiting = waitingForFirstList
     waitingForFirstList = []
@@ -223,6 +223,6 @@ final class WindowListStore {
   /// Callers parked until the first pass produces something.
   private var waitingForFirstList = [CheckedContinuation<Void, Never>]()
   private let gather: @MainActor () async -> WindowListSnapshot
-  private let writeLine: @MainActor (Logger.Level, String) -> Void
+  private let writeLine: @MainActor (LogLine) -> Void
 
 }

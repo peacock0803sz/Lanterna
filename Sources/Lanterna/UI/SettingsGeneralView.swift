@@ -25,11 +25,15 @@ struct SettingsGeneralView: View {
   @Binding var values: SettingsValues
 
   let version: DisplayedVersion
+  /// How this launch started and which permissions it found, pinned at
+  /// launch, so a report can quote it beside the version.
+  var launchSummary: String?
   let missing: [MissingPermission]
   let opener: SettingsOpener
   var checkResultText: String?
   var isChecking = false
   var onCheckNow: () -> Void = { }
+  var diagnostics: DiagnosticsDisplay?
 
   var body: some View {
     Form {
@@ -47,6 +51,14 @@ struct SettingsGeneralView: View {
               .font(.footnote)
               .foregroundStyle(.secondary)
               .textSelection(.enabled)
+            if let launchSummary {
+              Text(launchSummary)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityLabel("Launch summary: \(launchSummary)")
+            }
           }
           Spacer()
           Button("Open version history") {
@@ -98,6 +110,9 @@ struct SettingsGeneralView: View {
             .buttonStyle(.bordered)
             .controlSize(.small)
         }
+      }
+      if let diagnostics {
+        SettingsDiagnosticsSection(values: $values, display: diagnostics)
       }
       Section("Permissions") {
         if missing.isEmpty {

@@ -420,7 +420,7 @@ struct PanelPresenterWaitingForAListTests {
   // MARK: Private
 
   private func storeHoldingNothing(_ fake: HeldGather) -> WindowListStore {
-    WindowListStore(gather: fake.gather, writeLine: { _, _ in })
+    WindowListStore(gather: fake.gather, writeLine: { _ in })
   }
 
 }

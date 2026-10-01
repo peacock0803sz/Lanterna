@@ -33,15 +33,34 @@ struct SettingsPersistenceTests {
   func unsavedKeysSurviveASave() throws {
     let url = try temporaryFile()
     let values = SettingsValues.defaults
-    let config = values.configuration(
-      version: 1,
-      sampleCount: 2,
-      stopMonitorEverySeconds: 5,
-      logLevel: .debug
-    )
+    let config = values.configuration(version: 1, sampleCount: 2, stopMonitorEverySeconds: 5)
     #expect(SettingsSaver.save(config, to: url, replacingInvalidFile: false) == .saved)
     let decoded = try #require(try AppConfiguration.decode(Data(contentsOf: url)).successValue)
-    #expect(decoded.config.logLevel == .debug)
+    #expect(decoded.config.sampleCount == 2)
+    #expect(decoded.config.stopMonitorEverySeconds == 5)
+  }
+
+  /// The retired level key is not carried into a save: a file read with
+  /// it is written back without it.
+  @Test
+  func theRetiredLevelKeyIsNotCarriedIntoASave() throws {
+    let url = try temporaryFile()
+    try Data(#"{"version": 1, "logLevel": "debug"}"#.utf8).write(to: url)
+    let config = SettingsValues.defaults.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(SettingsSaver.save(config, to: url, replacingInvalidFile: false) == .saved)
+    #expect(try !String(contentsOf: url, encoding: .utf8).contains("logLevel"))
+  }
+
+  /// Saving logs is on unless switched off, and only off reaches the file.
+  @Test
+  func savingLogsIsWrittenOnlyWhenSwitchedOff() {
+    var values = SettingsValues.defaults
+    #expect(values.saveLogsToDisk)
+    #expect(values.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil).saveLogsToDisk == nil)
+    values.saveLogsToDisk = false
+    let config = values.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(config.saveLogsToDisk == false)
+    #expect(SettingsValues.effective(from: config).saveLogsToDisk == false)
   }
 
   @Test

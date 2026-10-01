@@ -22,13 +22,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     configFileURL: URL?,
     lanternaDirectory: URL?,
     tableDirectory: URL?,
-    initialValues: SettingsValues
+    initialValues: SettingsValues,
+    savedLogs: SavedLogs? = nil
   ) {
     self.options = options
     self.configFileURL = configFileURL
     self.lanternaDirectory = lanternaDirectory
     self.tableDirectory = tableDirectory
     currentValues = initialValues
+    self.savedLogs = savedLogs
     super.init()
   }
 
@@ -67,6 +69,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   /// What the matcher reads beside the config file, if it resolved.
   let lanternaDirectory: URL?
   let tableDirectory: URL?
+  /// This run's saved launches, if their folder resolved at launch.
+  let savedLogs: SavedLogs?
   /// The values this run uses, kept current as the settings change.
   var currentValues: SettingsValues
   /// The permission answers for this launch, shown in the settings.
@@ -90,8 +94,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // on the next run, so this answer stands for the whole run (FR-005).
     let permissionState = SystemPermissionReader().currentState()
     launchPermissionState = permissionState
-    let guideWindows = GuideWindows(appearanceMode: options.appearanceMode)
+    let guideWindows = GuideWindows(
+      appearanceMode: options.appearanceMode,
+      logState: LogWindowState(savedLogs: savedLogs.map { SavedLogSource.live(store: $0.store) })
+    )
     self.guideWindows = guideWindows
+    guideWindows.logState.setSavingEnabled(currentValues.saveLogsToDisk)
     if OnboardingNeed.isNeeded(state: permissionState, sampleCount: options.sampleCount) {
       guideWindows.openGuide(state: permissionState)
     }
@@ -118,9 +126,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     self.presenter = presenter
 
     let outcome = hotkeys.register(bindings: HotkeyBinding.bindings(for: options.keyBindings))
-    Diagnostics.writeLine(outcome.summaryLine, level: outcome.logLevel)
+    Diagnostics.writeLine(LogLine(outcome.logLevel, .hotkey, outcome.summaryLine))
     for detail in hotkeys.refusedDetails {
-      Diagnostics.writeLine(detail, level: .warning)
+      Diagnostics.writeLine(LogLine(.warning, .hotkey, detail))
     }
     guard !outcome.isTotalFailure else {
       // Nothing has been taken from the system yet, so there is nothing
@@ -136,7 +144,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     let disabling = SystemSwitcherShortcuts.disable(outcome.registered)
     if let line = SystemSwitcherShortcuts.summaryLine(disabling: disabling) {
-      Diagnostics.writeLine(line, level: .warning)
+      Diagnostics.writeLine(LogLine(.warning, .hotkey, line))
     }
 
     startMonitoringModifiers(for: presenter)
@@ -193,13 +201,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // know the phrase at all, and reading a log from the wrong build has
     // misled this project before. The line that is always there doubles as
     // the mark of which build wrote it.
-    Diagnostics.writeLine(
+    Diagnostics.writeLine(LogLine(
+      started ? .info : .warning,
+      .hotkey,
       started
         ? "panel key monitor started; a panel that is up can take the whole keyboard"
         : "panel key monitor could not start; keys reach the frontmost application "
-          + "even while a panel is up",
-      level: started ? .info : .warning
-    )
+          + "even while a panel is up"
+    ))
     panelKeys = channel
   }
 
@@ -222,7 +231,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     self.monitor = monitor
     let outcome = monitor.start()
-    Diagnostics.writeLine(outcome.summaryLine, level: outcome.producedATap ? .info : .error)
+    Diagnostics.writeLine(LogLine(outcome.producedATap ? .info : .error, .modifier, outcome.summaryLine))
     stopPeriodically(monitor, startedWith: outcome)
   }
 
@@ -240,7 +249,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     startedWith outcome: ModifierKeyMonitor.StartOutcome
   ) {
     guard let period = options.stopMonitorEvery, outcome.producedATap else { return }
-    Diagnostics.writeLine(ModifierKeyMonitor.periodicStopAnnouncement(every: period), level: .debug)
+    Diagnostics.writeLine(LogLine(.debug, .modifier, ModifierKeyMonitor.periodicStopAnnouncement(every: period)))
     // `weak` for the same reason the monitor's own loop is: this holds the
     // task, so a strong capture would be the pair keeping each other alive
     // through it.
@@ -375,16 +384,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     if let sampleCount = options.sampleCount {
       // The fixture needs no permission, so the check is skipped with
       // it, and it never changes, so nothing refreshes it.
-      Diagnostics.writeLine("showing \(sampleCount) sample entries (--sample-count)", level: .info)
+      Diagnostics.writeLine(LogLine(.info, .launch, "showing \(sampleCount) sample entries (--sample-count)"))
       return WindowListStore(fixed: SampleWindows.make(count: sampleCount))
     }
     guard AccessibilityPermission.isTrusted(promptingIfNeeded: true) else {
-      Diagnostics.writeLine(
+      Diagnostics.writeLine(LogLine(
+        .warning,
+        .launch,
         "accessibility permission not granted; the window list stays empty for this run; "
           + "grant it in System Settings > Privacy & Security > Accessibility and "
-          + "restart the app",
-        level: .warning
-      )
+          + "restart the app"
+      ))
       // An empty list is held rather than a loop started, which would
       // report the same missing permission on every pass for as long as
       // the process ran.

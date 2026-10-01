@@ -34,7 +34,7 @@ struct ConfigEncodingTests {
     config.fullscreenMode = .separateAtBottom
     config.appearanceMode = .light
     config.romajiScope = .kanaOnly
-    config.logLevel = .debug
+    config.saveLogsToDisk = false
     let decoded = AppConfiguration.decode(AppConfiguration.encode(config))
     #expect(decoded.successValue?.config == config)
   }
@@ -48,5 +48,17 @@ struct ConfigEncodingTests {
     #expect(!text.contains("sampleCount"))
     #expect(!text.contains("appearanceMode"))
     #expect(!text.contains("logLevel"))
+    #expect(!text.contains("saveLogsToDisk"))
+  }
+
+  /// A file still holding the retired level key saves without it.
+  @Test
+  func theRetiredLevelKeyIsNotWrittenBack() throws {
+    let decoded = try #require(
+      AppConfiguration.decode(Data(#"{"version": 1, "logLevel": "debug", "launchAtLogin": true}"#.utf8)).successValue
+    )
+    let text = try #require(String(bytes: AppConfiguration.encode(decoded.config), encoding: .utf8))
+    #expect(!text.contains("logLevel"))
+    #expect(text.contains("launchAtLogin"))
   }
 }

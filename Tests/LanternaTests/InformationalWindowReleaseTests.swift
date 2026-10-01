@@ -31,11 +31,38 @@ struct InformationalWindowReleaseTests {
 
   @Test
   func versionLogWindowIsNotReleasedWhenClosed() {
-    let window = VersionLogWindow(
-      version: DisplayedVersion(full: "0.0.0"),
-      summary: nil,
-      entries: []
-    )
+    let window = VersionLogWindow(state: LogWindowState(readEntries: { [] }))
     #expect(window.isReleasedWhenClosed == false)
+  }
+
+  /// The log window is built once and kept: reopening brings the same
+  /// window forward with the same state behind it.
+  @Test
+  func reopeningTheLogWindowKeepsTheSameWindow() {
+    let guides = GuideWindows(logState: LogWindowState(readEntries: { [] }))
+    let first = guides.logWindow()
+    first.close()
+    #expect(guides.logWindow() === first)
+  }
+
+  @Test
+  func theLogWindowOpensAtItsDefaultSizeAndTitle() {
+    let window = VersionLogWindow(state: LogWindowState(readEntries: { [] }))
+    #expect(window.title == "Lanterna Logs")
+    #expect(
+      window.contentRect(forFrameRect: window.frame).size
+        == VersionLogWindow.fittedSize(visible: NSScreen.main?.visibleFrame.size)
+    )
+    #expect(window.styleMask.contains(.resizable))
+  }
+
+  /// A screen smaller than the default shrinks the window to fit, but
+  /// never below the size the toolbar needs.
+  @Test
+  func theLogWindowFitsASmallScreen() {
+    #expect(VersionLogWindow.fittedSize(visible: NSSize(width: 2560, height: 1400)) == VersionLogWindow.defaultSize)
+    #expect(VersionLogWindow.fittedSize(visible: NSSize(width: 860, height: 560)) == NSSize(width: 820, height: 520))
+    #expect(VersionLogWindow.fittedSize(visible: NSSize(width: 600, height: 300)) == VersionLogWindow.minimumSize)
+    #expect(VersionLogWindow.fittedSize(visible: nil) == VersionLogWindow.defaultSize)
   }
 }

@@ -97,8 +97,22 @@ local function keyBindingsFragment(prop: reflect.Property): Dynamic = new {
   ["additionalProperties"] = false
 }
 
+/// Whether the property takes any value: a retired key, kept only so
+/// older files stay valid.
+local function isAny(prop: reflect.Property): Boolean =
+  if (prop.type is reflect.NullableType)
+    let (inner = (prop.type as reflect.NullableType).member)
+    inner is reflect.DeclaredType
+      && (inner as reflect.DeclaredType).referent.name == "Any"
+  else false
+
 local function fragment(prop: reflect.Property): Dynamic =
-  if (allowedOf(prop) != null)
+  if (isAny(prop))
+    new {
+      description = prop.docComment
+      ["deprecated"] = true
+    }
+  else if (allowedOf(prop) != null)
     new {
       ["type"] = "string"
       ["enum"] = allowedOf(prop)

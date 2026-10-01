@@ -371,10 +371,11 @@ private func handleHotkeyEvent(
   // that switcher off, an unrecorded one is a key that does nothing for no
   // visible reason.
   guard Thread.isMainThread else {
-    Diagnostics.writeLine(
-      "dropped \(combination.name); Carbon ran the handler off the main thread",
-      level: .warning
-    )
+    Diagnostics.writeLine(LogLine(
+      .warning,
+      .hotkey,
+      "dropped \(combination.name); Carbon ran the handler off the main thread"
+    ))
     return OSStatus(eventNotHandledErr)
   }
   MainActor.assumeIsolated {

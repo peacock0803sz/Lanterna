@@ -1,5 +1,3 @@
-import Logging
-
 /// What the settings UI shows and changes, as one value.
 ///
 /// A UI-layer snapshot of the eight user-facing settings. Persistence and
@@ -19,6 +17,7 @@ struct SettingsValues: Equatable, Sendable {
     updateCheckEnabled: false,
     updateChannel: .stable,
     launchAtLogin: false,
+    saveLogsToDisk: true,
     exclusions: [],
     shortcutMemoryLength: 5,
     fuzzyMatchEnabled: true,
@@ -38,6 +37,9 @@ struct SettingsValues: Equatable, Sendable {
   var updateChannel: UpdateChannel
   /// Whether Lanterna starts at login. Absent in the file means off.
   var launchAtLogin: Bool
+  /// Whether each launch's log lines are kept on disk. Absent in the file
+  /// means on.
+  var saveLogsToDisk: Bool
   /// The raw exclusion entries. Empty means no exclusions.
   var exclusions: [ExclusionEntry]
   /// How many characters of a query the shortcut memory covers. Absent
@@ -72,6 +74,7 @@ struct SettingsValues: Equatable, Sendable {
       updateCheckEnabled: config.updateCheckEnabled ?? false,
       updateChannel: UpdateChannel(rawValue: config.updateChannel ?? "stable") ?? .stable,
       launchAtLogin: config.launchAtLogin ?? false,
+      saveLogsToDisk: config.saveLogsToDisk ?? true,
       exclusions: config.exclusions ?? [],
       shortcutMemoryLength: config.shortcutMemoryLength ?? 5,
       fuzzyMatchEnabled: config.fuzzyMatchEnabled ?? true,
@@ -88,14 +91,12 @@ struct SettingsValues: Equatable, Sendable {
   func configuration(
     version: Int,
     sampleCount: Int?,
-    stopMonitorEverySeconds: Int?,
-    logLevel: Logger.Level? = nil
+    stopMonitorEverySeconds: Int?
   ) -> ValidConfiguration {
     var config = ValidConfiguration(
       version: version,
       sampleCount: sampleCount,
-      stopMonitorEverySeconds: stopMonitorEverySeconds,
-      logLevel: logLevel
+      stopMonitorEverySeconds: stopMonitorEverySeconds
     )
     config.appearanceMode = appearanceMode
     config.otherSpaceMode = displayModes.otherSpace
@@ -110,6 +111,9 @@ struct SettingsValues: Equatable, Sendable {
     config.exclusions = exclusions.isEmpty ? nil : exclusions
     // Defaults stay absent, so a later default change reaches saved files.
     let defaults = SettingsValues.defaults
+    if saveLogsToDisk != defaults.saveLogsToDisk {
+      config.saveLogsToDisk = saveLogsToDisk
+    }
     if shortcutMemoryLength != defaults.shortcutMemoryLength {
       config.shortcutMemoryLength = shortcutMemoryLength
     }

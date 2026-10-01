@@ -47,7 +47,7 @@ struct SpaceSwitchHandlerTests {
   func spaceChangeRecordsFrontmostAndRefreshes() async {
     let store = WindowListStore(
       gather: { spaceSnapshot([spaceRow(windowID: 7, owner: otherProcess)]) },
-      writeLine: { _, _ in }
+      writeLine: { _ in }
     )
     let tracker = MRUTracker()
     let reading = FakeFocusedReading(windowID: 7)
@@ -84,7 +84,7 @@ struct SpaceSwitchHandlerTests {
           gatheredAt: .now
         )
       },
-      writeLine: { _, _ in }
+      writeLine: { _ in }
     )
     let tracker = MRUTracker()
     let log = DiagnosticsLog()
@@ -120,7 +120,7 @@ struct SpaceSwitchHandlerTests {
           gatheredAt: .now
         )
       },
-      writeLine: { _, _ in }
+      writeLine: { _ in }
     )
     let tracker = MRUTracker()
     let log = DiagnosticsLog()
@@ -156,7 +156,7 @@ struct SpaceSwitchHandlerTests {
           gatheredAt: .now
         )
       },
-      writeLine: { _, _ in }
+      writeLine: { _ in }
     )
     let tracker = MRUTracker()
     let log = DiagnosticsLog()
@@ -187,7 +187,7 @@ struct SpaceSwitchHandlerTests {
     let rows = [spaceRow(windowID: 8, owner: otherProcess)]
     let store = WindowListStore(
       gather: { spaceSnapshot(rows) },
-      writeLine: { _, _ in }
+      writeLine: { _ in }
     )
     let tracker = MRUTracker()
     let log = DiagnosticsLog()
@@ -214,7 +214,7 @@ struct SpaceSwitchHandlerTests {
   func spaceChangeWithFailedReReadKeepsTheOptimisticRecord() async {
     let store = WindowListStore(
       gather: { spaceSnapshot([spaceRow(windowID: 7, owner: otherProcess)]) },
-      writeLine: { _, _ in }
+      writeLine: { _ in }
     )
     let tracker = MRUTracker()
     let log = DiagnosticsLog()

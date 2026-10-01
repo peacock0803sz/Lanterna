@@ -31,9 +31,6 @@ extension AppConfiguration {
       entries.append(encodedBool(key: "launchAtLogin", value: launchAtLogin))
     }
     entries.append(contentsOf: keyBindingEntries(config))
-    if let logLevel = config.logLevel {
-      entries.append(encodedString(key: "logLevel", value: logLevel.rawValue))
-    }
     if let minimizedMode = config.minimizedMode {
       entries.append(encodedString(key: "minimizedMode", value: minimizedMode.rawValue))
     }
@@ -42,6 +39,9 @@ extension AppConfiguration {
     }
     if let romajiScope = config.romajiScope {
       entries.append(encodedString(key: "romajiScope", value: romajiScope.rawValue))
+    }
+    if let saveLogsToDisk = config.saveLogsToDisk {
+      entries.append(encodedBool(key: "saveLogsToDisk", value: saveLogsToDisk))
     }
     if let sampleCount = config.sampleCount {
       entries.append(encodedInt(key: "sampleCount", value: sampleCount))

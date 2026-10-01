@@ -1,5 +1,4 @@
 import Foundation
-import Logging
 
 // MARK: - AppConfiguration
 
@@ -33,6 +32,7 @@ enum AppConfiguration {
     "romajiScope",
     "launchAtLogin",
     "logLevel",
+    "saveLogsToDisk",
     "updateCheckEnabled",
     "updateChannel",
     "exclusions",
@@ -71,7 +71,7 @@ struct ValidConfiguration: Equatable, Sendable {
     appearanceMode: AppearanceMode? = nil,
     romajiScope: RomajiScope? = nil,
     launchAtLogin: Bool? = nil,
-    logLevel: Logger.Level? = nil,
+    saveLogsToDisk: Bool? = nil,
     updateCheckEnabled: Bool? = nil,
     updateChannel: String? = nil,
     exclusions: [ExclusionEntry]? = nil,
@@ -92,7 +92,7 @@ struct ValidConfiguration: Equatable, Sendable {
     self.appearanceMode = appearanceMode
     self.romajiScope = romajiScope
     self.launchAtLogin = launchAtLogin
-    self.logLevel = logLevel
+    self.saveLogsToDisk = saveLogsToDisk
     self.updateCheckEnabled = updateCheckEnabled
     self.updateChannel = updateChannel
     self.exclusions = exclusions
@@ -116,7 +116,9 @@ struct ValidConfiguration: Equatable, Sendable {
   var appearanceMode: AppearanceMode?
   var romajiScope: RomajiScope?
   var launchAtLogin: Bool?
-  var logLevel: Logger.Level?
+  /// Whether each launch's log lines are kept on disk. Nil means absent,
+  /// which means on.
+  var saveLogsToDisk: Bool?
   var updateCheckEnabled: Bool?
   var updateChannel: String?
   /// The raw exclusion entries. Nil means absent, which means no exclusions.
@@ -186,6 +188,9 @@ struct DecodedConfiguration: Equatable, Sendable {
   /// The fallback note when the text scale was present but invalid.
   /// Nil means absent or valid, which means nothing to report.
   var textScaleIssue: String?
+  /// Retired keys the file still held, read past without a look at their
+  /// values, for one diagnostics line each.
+  var deprecatedKeys = [String]()
 }
 
 // MARK: - ConfigLoadOutcome
@@ -289,10 +294,7 @@ extension AppConfiguration {
       appearanceMode: AppearanceMode.effective(from: file),
       searchSettings: SearchSettings.effective(from: file),
       keyBindings: file.keyBindings,
-      textScale: TextScaleLevel.effective(from: file),
-      // The command line wins where it says anything; the file covers
-      // the rest. Never written back to the file.
-      logLevel: Logger.Level.effective(cli: cli.logLevel, file: file.logLevel)
+      textScale: TextScaleLevel.effective(from: file)
     )
   }
 

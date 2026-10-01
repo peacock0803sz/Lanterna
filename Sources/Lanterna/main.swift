@@ -2,6 +2,10 @@ import AppKit
 import Darwin
 import Logging
 
+// Named first, so the launch's stamp is when the process started rather
+// than when its first line went out.
+_ = Diagnostics.currentLaunch
+
 // Wired before anything can write: the first diagnostics line below
 // already goes through the mirror backend.
 Diagnostics.bootstrap()
@@ -10,8 +14,12 @@ let cliOptions: LaunchArguments.Options
 do {
   cliOptions = try LaunchArguments.parse(ProcessInfo.processInfo.arguments)
 } catch {
-  Diagnostics.writeLine("\(error)\n\(LaunchArguments.usage)", level: .error)
+  Diagnostics.writeLine(LogLine(.error, .launch, "\(error)\n\(LaunchArguments.usage)"))
   exit(EX_USAGE)
+}
+
+for flag in cliOptions.retiredFlags {
+  Diagnostics.writeLine(LogLine(.warning, .logs, "launch: \(flag) is no longer used and was ignored"))
 }
 
 /// Read before the run loop starts, ahead of the panel's advance build, so
@@ -36,7 +44,6 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
   switch outcome {
   case .loaded(let decoded):
     options = AppConfiguration.effectiveOptions(file: decoded.config, cli: cliOptions)
-    Diagnostics.threshold = options.logLevel ?? .warning
     initialValues = SettingsValues.effective(from: decoded.config)
     launchDesired = decoded.config.launchAtLogin ?? false
     openSharedMatcher(
@@ -44,58 +51,101 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
       lanternaDirectory: url.deletingLastPathComponent()
     )
     if decoded.assumedVersion {
-      Diagnostics.writeLine("config loaded (version 1, assumed): \(url.path)", level: .info)
+      Diagnostics.writeLine(LogLine(
+        .info,
+        .config,
+        "config loaded (version 1, assumed): \(url.path)",
+        context: ["path": .string(url.path)]
+      ))
     } else {
-      Diagnostics.writeLine(
+      Diagnostics.writeLine(LogLine(
+        .info,
+        .config,
         "config loaded (version \(decoded.config.version)): \(url.path)",
-        level: .info
-      )
+        context: ["path": .string(url.path)]
+      ))
     }
     for issue in decoded.keyBindingIssues {
-      Diagnostics.writeLine(issue.diagnosticsLine, level: .warning)
+      Diagnostics.writeLine(LogLine(
+        .warning,
+        .config,
+        issue.diagnosticsLine,
+        context: ["path": .string(url.path), "issue": .string(issue.diagnosticsLine)]
+      ))
     }
     if let textScaleIssue = decoded.textScaleIssue {
-      Diagnostics.writeLine("\(textScaleIssue): \(url.path)", level: .warning)
+      Diagnostics.writeLine(LogLine(
+        .warning,
+        .config,
+        "\(textScaleIssue): \(url.path)",
+        context: ["path": .string(url.path), "issue": .string("\(textScaleIssue)")]
+      ))
+    }
+    for key in decoded.deprecatedKeys {
+      Diagnostics.writeLine(LogLine(
+        .warning,
+        .logs,
+        "config: \(key) is no longer used and was ignored",
+        context: ["path": .string(url.path)]
+      ))
     }
 
   case .created:
     options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
-    Diagnostics.threshold = options.logLevel ?? .warning
     initialValues = SettingsValues.defaults
     launchDesired = defaults.launchAtLogin ?? false
     openSharedMatcher(
       scope: .kanaKanji,
       lanternaDirectory: url.deletingLastPathComponent()
     )
-    Diagnostics.writeLine("config not found; created with defaults: \(url.path)", level: .info)
+    Diagnostics.writeLine(LogLine(
+      .info,
+      .config,
+      "config not found; created with defaults: \(url.path)",
+      context: ["path": .string(url.path)]
+    ))
 
   case .failed(let reason):
     options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
-    Diagnostics.threshold = options.logLevel ?? .warning
     initialValues = SettingsValues.defaults
     launchDesired = defaults.launchAtLogin ?? false
     openSharedMatcher(
       scope: .kanaKanji,
       lanternaDirectory: url.deletingLastPathComponent()
     )
-    Diagnostics.writeLine("config invalid (\(reason)); using defaults: \(url.path)", level: .error)
+    Diagnostics.writeLine(LogLine(
+      .error,
+      .config,
+      "config invalid (\(reason)); using defaults: \(url.path)",
+      context: ["path": .string(url.path), "issue": .string("\(reason)")]
+    ))
   }
 } else {
   options = cliOptions
-  Diagnostics.threshold = options.logLevel ?? .warning
   initialValues = SettingsValues.defaults
   launchDesired = false
   configFileURL = nil
   lanternaDirectory = nil
   openSharedMatcher(scope: .kanaKanji, lanternaDirectory: nil)
-  Diagnostics.writeLine("config invalid (cannot resolve directory); using defaults", level: .error)
+  Diagnostics.writeLine(LogLine(
+    .error,
+    .config,
+    "config invalid (cannot resolve directory); using defaults",
+    context: ["issue": .string("cannot resolve directory")]
+  ))
 }
+
+/// Starts this launch's saved log once the settings are read and before the
+/// panel can run, so making the file and trimming old ones stay off the paths
+/// with a time budget. The lines written so far reach the file first.
+let savedLogs = SavedLogs.live()
+savedLogs?.start(saving: initialValues.saveLogsToDisk)
 
 // Brings the login item in line with the saved setting, ahead of the run
 // loop and off the path with a time budget. A change or a failure leaves
 // one diagnostics line; quiet runs stay silent. Never stops the launch.
 if let report = LaunchAtLogin.sync(desired: launchDesired, service: LaunchAtLogin.liveIfBundled()) {
-  Diagnostics.writeLine(report.line, level: report.level)
+  Diagnostics.writeLine(LogLine(report.level, .launch, report.line))
 }
 
 /// Opens the shared matcher for one run, ahead of the run loop.
@@ -113,10 +163,12 @@ func openSharedMatcher(scope: RomajiScope, lanternaDirectory: URL?) {
   if scope == .kanaKanji, let lanternaDirectory {
     let dictURL = lanternaDirectory.appendingPathComponent("migemo-dict", isDirectory: false)
     if FileManager.default.fileExists(atPath: dictURL.path), !active {
-      Diagnostics.writeLine(
+      Diagnostics.writeLine(LogLine(
+        .warning,
+        .config,
         "dict invalid (unreadable format); matching kana only: \(dictURL.path)",
-        level: .warning
-      )
+        context: ["path": .string(dictURL.path), "issue": .string("unreadable format")]
+      ))
     }
   }
 }
@@ -131,7 +183,8 @@ let delegate = AppDelegate(
   configFileURL: configFileURL,
   lanternaDirectory: lanternaDirectory,
   tableDirectory: tableDirectory,
-  initialValues: initialValues
+  initialValues: initialValues,
+  savedLogs: savedLogs
 )
 application.delegate = delegate
 application.run()

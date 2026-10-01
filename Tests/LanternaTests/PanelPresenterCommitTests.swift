@@ -427,7 +427,7 @@ struct PanelPresenterCallOffTests {
 
   private func waitingForItsFirstList(_ fake: HeldGather) -> Fixture {
     Fixture(
-      store: WindowListStore(gather: fake.gather, writeLine: { _, _ in }),
+      store: WindowListStore(gather: fake.gather, writeLine: { _ in }),
       closesOnCommandRelease: true
     )
   }
