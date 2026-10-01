@@ -57,6 +57,11 @@ struct LogWindowView: View {
         action: { state.copy() }
       )
       .keyboardShortcut("c", modifiers: .command)
+      ToolbarIconButton(
+        systemImage: "square.and.arrow.up",
+        label: "Export…",
+        action: { state.exportWithPanel(attachedTo: NSApp.keyWindow) }
+      )
     }
     .padding(.leading, 84)
     .padding(.trailing, 14)
