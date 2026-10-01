@@ -89,13 +89,14 @@ stopMonitorEvery: Int? = null
 /// Whether Lanterna starts at login. Absent means off.
 launchAtLogin: Boolean? = null
 
-/// How much diagnostics to emit: errors only, warnings and above, or
-/// down through info and debug. Absent means "warning".
-typealias LogLevel = "error"|"warning"|"info"|"debug"
+/// Deprecated; ignored. Every level is recorded now, and the log window
+/// filters what it shows. Any value is accepted so older files keep
+/// their other settings.
+logLevel: Any? = null
 
-/// The diagnostics threshold. Absent means "warning".
-@Allowed { values { "error" "warning" "info" "debug" } }
-logLevel: LogLevel? = null
+/// Whether each launch's log lines are kept on disk, so an earlier
+/// launch can be read after a restart. Absent means on.
+saveLogsToDisk: Boolean? = null
 
 /// Whether Lanterna checks for newer releases. Absent means off.
 updateCheckEnabled: Boolean? = null
