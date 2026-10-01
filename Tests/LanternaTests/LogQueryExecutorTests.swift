@@ -93,6 +93,26 @@ struct LogQueryExecutorTests {
     #expect(result.skipped.map(\.url) == [missing])
   }
 
+  @Test
+  func delimitersAndLineBreaksSurviveTheRoundTrip() throws {
+    let store = try LogStoreFixture()
+    defer { store.remove() }
+    let original = DiagnosticRow(
+      sequence: 1,
+      recordedAtMilliseconds: 1000,
+      level: "info",
+      category: "a,b 'c'",
+      message: "it's, \"quoted\"\nline two\r\nline three\rend,",
+      launchID: LogStoreFixture.launchID,
+      buildVersion: LogStoreFixture.buildVersion,
+      payloadJSON: "{\"note\":\"O'Brien, \\\"x\\\"\\n\",\"raw\":\"a,b\"}"
+    )
+    try store.insert([original])
+    let result = try LogQueryExecutor(files: [store.url]).run(predicate: "1 = 1", values: [])
+    #expect(result.skippedLines == 0)
+    #expect(result.rows == [original])
+  }
+
   // MARK: Private
 
   private let smuggled = "SELECT * FROM entries) ORDER BY ts_ms, seq) TO '/dev/null' (HEADER false); "
