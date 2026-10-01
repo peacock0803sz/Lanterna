@@ -339,6 +339,29 @@ enum Diagnostics {
     }
   }
 
+  /// Closes the live spill store ahead of removing its files. The
+  /// writer keeps its place: the next spill opens a fresh store on
+  /// demand, so closing never loses a line. Called around deleting
+  /// saved logs, where the open handle would otherwise keep writing
+  /// to an unlinked file after its directory entry is gone.
+  static func closeLiveSpillStore() {
+    launchStore?.close()
+  }
+
+  /// Opens the live spill store anew after its files were removed.
+  /// Later spills land in a fresh file rather than an unlinked
+  /// handle left behind by the removal.
+  static func reopenLiveSpillStore() {
+    guard let launch = launchStore else {
+      return
+    }
+    do {
+      _ = try launch.database()
+    } catch {
+      mirrorSpillFailure("Spill store unavailable: \(error)")
+    }
+  }
+
   /// closes the store. Called on the way out, since the process may
   /// exit before a scheduled flush runs; a line written afterwards
   /// opens the store again on its own flush.

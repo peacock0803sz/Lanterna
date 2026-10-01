@@ -220,9 +220,8 @@ enum LogPersistence {
   }
 
   /// Removes every spill file of one origin. Used by the settings
-  /// delete action; the running launch keeps spilling to its open
-  /// store, which is closed and reopened by the caller when the
-  /// persist choice changes.
+  /// delete action, which closes the live store before removing and
+  /// opens it anew after, so later spills land in a fresh file.
   static func deleteSavedLogs(in directory: URL) throws {
     for url in spillFiles(in: directory) {
       try FileManager.default.removeItem(at: url)

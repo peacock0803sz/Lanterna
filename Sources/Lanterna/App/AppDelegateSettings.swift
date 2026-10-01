@@ -64,8 +64,10 @@ extension AppDelegate {
   }
 
   /// Removes every spill file of this origin after the settings
-  /// confirmation. A failure stays a diagnostics line; the running
-  /// launch keeps its memory mirror either way.
+  /// confirmation. The live store is closed before the removal and
+  /// opened anew after, so later spills land in a fresh file rather
+  /// than an unlinked handle. A failure stays a diagnostics line;
+  /// the running launch keeps its memory mirror either way.
   func deleteSavedLogs() {
     guard
       let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -76,12 +78,14 @@ extension AppDelegate {
       applicationSupport: support,
       origin: LogPersistence.currentOrigin()
     )
+    Diagnostics.closeLiveSpillStore()
     do {
       try LogPersistence.deleteSavedLogs(in: directory)
       Diagnostics.writeLine("deleted saved logs for this origin", level: .info)
     } catch {
       Diagnostics.writeLine("deleting saved logs failed: \(error)", level: .warning)
     }
+    Diagnostics.reopenLiveSpillStore()
   }
 
   /// Runs one manual update check from the General tab.
