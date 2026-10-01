@@ -22,7 +22,7 @@ final class LogWindowState: ObservableObject {
   init() {
     isSidebarShown = UserDefaults.standard.bool(forKey: Self.sidebarKey)
     isHistogramCollapsed = UserDefaults.standard.bool(forKey: Self.histogramKey)
-    timeLabel = TimeRangeResolver.resolve(timeSelection, launchStart: nil).shortLabel
+    timeLabel = TimeRangeResolver.resolve(timeSelection, launchStart: launchStart).shortLabel
   }
 
   // MARK: Internal
@@ -115,7 +115,7 @@ final class LogWindowState: ObservableObject {
     let resolved = TimeRangeResolver.resolve(
       timeSelection,
       now: Date(timeIntervalSince1970: Double(now) / 1_000),
-      launchStart: nil
+      launchStart: launchStart
     )
     rangeEndMilliseconds = resolved.endMilliseconds
     if resolved.shortLabel != timeLabel {
@@ -233,7 +233,7 @@ final class LogWindowState: ObservableObject {
       return
     }
     timeSelection = selection
-    let resolved = TimeRangeResolver.resolve(selection, launchStart: nil)
+    let resolved = TimeRangeResolver.resolve(selection, launchStart: launchStart)
     timeLabel = resolved.shortLabel
     rewriteTimeTokens(with: resolved.queryTokens)
     refresh()
@@ -242,7 +242,7 @@ final class LogWindowState: ObservableObject {
   func resetTime() {
     timeSelection = TimeRangeSelection()
     pickerTimeTokens = []
-    let resolved = TimeRangeResolver.resolve(timeSelection, launchStart: nil)
+    let resolved = TimeRangeResolver.resolve(timeSelection, launchStart: launchStart)
     timeLabel = resolved.shortLabel
     if query.mode == .lightweight {
       let kept = splitLogQueryTokens(query.lightweightText).filter { entry in
@@ -357,6 +357,13 @@ final class LogWindowState: ObservableObject {
     case .error: "Error"
     case .critical: "Critical"
     }
+  }
+
+  /// When this launch started, for the Since-this-launch range.
+  /// Absent before the first spill, where the range stays open
+  /// and shows everything kept.
+  private var launchStart: Date? {
+    Diagnostics.activeLaunchStartMilliseconds.map { Date(timeIntervalSince1970: Double($0) / 1_000) }
   }
 
   /// Lists the spill directory and reads the stores. Runs off the

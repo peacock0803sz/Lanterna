@@ -141,6 +141,13 @@ struct LogWindowView: View {
     state.query.mode == .lightweight
   }
 
+  /// When this launch started, for the Since-this-launch range.
+  /// Absent before the first spill, where the range stays open
+  /// and shows everything kept.
+  private var launchStart: Date? {
+    Diagnostics.activeLaunchStartMilliseconds.map { Date(timeIntervalSince1970: Double($0) / 1_000) }
+  }
+
   private var selectedDetailRow: DiagnosticRow? {
     guard state.selection.count == 1, let wanted = state.selection.first else { return nil }
     return state.flatVisibleRows.first { $0.rowID == wanted }
@@ -220,7 +227,7 @@ struct LogWindowView: View {
       .popover(isPresented: $showTimePopover) {
         TimeRangeView(
           selection: $state.timeSelection,
-          launchStart: nil,
+          launchStart: launchStart,
           onApply: { selection in
             state.applyTimeSelection(selection)
             showTimePopover = false

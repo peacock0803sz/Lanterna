@@ -170,6 +170,10 @@ enum Diagnostics {
   nonisolated(unsafe) static var activeLaunchID: String?
   /// The build this process spills as, when spilling started.
   nonisolated(unsafe) static var activeBuildVersion: String?
+  /// When this launch started, as milliseconds since the epoch.
+  /// Read by the log window so the Since-this-launch range starts
+  /// at this launch instead of showing everything kept.
+  nonisolated(unsafe) static var activeLaunchStartMilliseconds: Int64?
 
   /// The level in force for this process. Read once per launch from the
   /// effective options and set ahead of the first gated line.
@@ -228,6 +232,7 @@ enum Diagnostics {
     spillPersists = persist
     let origin = LogPersistence.currentOrigin()
     let startedAt = Int64(Foundation.Date().timeIntervalSince1970 * 1000)
+    activeLaunchStartMilliseconds = startedAt
     do {
       let spill: ([DiagnosticRow]) throws -> Void
       if persist {
