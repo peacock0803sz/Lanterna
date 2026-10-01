@@ -97,10 +97,10 @@ enum LogPersistence {
     return directory.appendingPathComponent(name)
   }
 
-  /// Opens a store file for one launch: creates the tables, stamps
-  /// the launch row, and confirms the shape marker. Throws the
-  /// shape error for files of another version instead of reading
-  /// them.
+  /// Opens a store file for one launch. A file holding no tables
+  /// gets them along with the launch row and the shape marker; a
+  /// file already carrying this shape opens as it is. Anything else
+  /// throws the shape error before a single table is created.
   static func openStore(
     at url: URL,
     launchID: String,
@@ -188,25 +188,30 @@ enum LogPersistence {
     startedAtMilliseconds: Int64
   ) throws {
     let connection = try database.connect()
+    // Read before anything is created, so a file of another version
+    // is refused exactly as it was found.
+    let tables = try connection.query("SELECT table_name FROM information_schema.tables")
+    if tables.rowCount > 0 {
+      var found: String?
+      if tables[0].cast(to: String.self).contains("meta") {
+        let stamp = try connection.query("SELECT value FROM meta WHERE key = 'format_version'")
+        found = stamp.rowCount > 0 ? stamp[0].cast(to: String.self)[0] : nil
+      }
+      guard found == String(formatVersion) else {
+        throw OpenError.incompatibleShape(found: found)
+      }
+      return
+    }
     for statement in schemaStatements {
       try connection.execute(statement)
     }
-    let stamped = try connection.query(
-      "SELECT value FROM meta WHERE key = 'format_version' AND value = '\(formatVersion)'"
+    try connection.execute(
+      "INSERT INTO launches(launch_id, started_at, origin, build_version) VALUES ("
+        + "\(literal(launchID)), \(startedAtMilliseconds), \(literal(origin.rawValue)), \(literal(buildVersion)))"
     )
-    if stamped.rowCount == 0 {
-      let metaRows = try connection.query("SELECT key FROM meta")
-      if metaRows.rowCount > 0 {
-        throw OpenError.incompatibleShape(found: nil)
-      }
-      try connection.execute(
-        "INSERT INTO launches(launch_id, started_at, origin, build_version) VALUES ("
-          + "\(literal(launchID)), \(startedAtMilliseconds), \(literal(origin.rawValue)), \(literal(buildVersion)))"
-      )
-      try connection.execute(
-        "INSERT INTO meta(key, value) VALUES ('format_version', '\(formatVersion)')"
-      )
-    }
+    try connection.execute(
+      "INSERT INTO meta(key, value) VALUES ('format_version', '\(formatVersion)')"
+    )
   }
 
 }

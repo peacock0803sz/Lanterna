@@ -1,3 +1,4 @@
+import DuckDB
 import Foundation
 @testable import Lanterna
 import Testing
@@ -67,5 +68,47 @@ struct LogPersistenceRoundTripTests {
     #expect(result.skipped.count == 1)
     #expect(result.skipped.first?.url == garbageURL)
     #expect(!(result.skipped.first?.reason.isEmpty ?? true))
+  }
+
+  @Test(arguments: [
+    ["CREATE TABLE meta(key VARCHAR, value VARCHAR)", "INSERT INTO meta VALUES ('format_version', '0')"],
+    ["CREATE TABLE notes(body VARCHAR)"],
+  ])
+  func otherShapesAreRefusedAndLeftAsFound(setup: [String]) throws {
+    let base = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: base) }
+    let url = base.appendingPathComponent("other.duckdb")
+    do {
+      let connection = try Database(store: .file(at: url)).connect()
+      for statement in setup {
+        try connection.execute(statement)
+      }
+    }
+    #expect(throws: LogPersistence.OpenError.self) {
+      try LogPersistence.openStore(
+        at: url,
+        launchID: "other",
+        origin: .development,
+        buildVersion: "test-build",
+        startedAtMilliseconds: 0
+      )
+    }
+    let tables = try Database(store: .file(at: url)).connect()
+      .query("SELECT table_name FROM information_schema.tables")
+    #expect(tables.rowCount == 1)
+  }
+
+  @Test
+  func freshStoresInMemoryOpenWithTheirTables() throws {
+    let database = try LogPersistence.openEphemeral(
+      launchID: "ephemeral",
+      origin: .development,
+      buildVersion: "test-build",
+      startedAtMilliseconds: 0
+    )
+    let tables = try database.connect().query("SELECT table_name FROM information_schema.tables")
+    #expect(tables.rowCount == LogPersistence.schemaStatements.count)
   }
 }
