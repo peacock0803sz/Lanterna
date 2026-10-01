@@ -14,7 +14,7 @@ struct LogSpillWriterTests {
     var received = [[DiagnosticRow]]()
     let writer = LogSpillWriter(
       spill: { received.append($0) },
-      onFailure: { _ in Issue.record("no failure expected") },
+      onReport: { _ in Issue.record("no failure expected") },
       schedule: { _ in }
     )
     writer.enqueue(row(sequence: 1))
@@ -29,7 +29,7 @@ struct LogSpillWriterTests {
     var received = [[DiagnosticRow]]()
     let writer = LogSpillWriter(
       spill: { received.append($0) },
-      onFailure: { _ in },
+      onReport: { _ in },
       bufferCapacity: 2,
       schedule: { _ in }
     )
@@ -47,7 +47,7 @@ struct LogSpillWriterTests {
     var reports = [String]()
     let writer = LogSpillWriter(
       spill: { _ in throw Probe() },
-      onFailure: { reports.append($0) },
+      onReport: { reports.append($0) },
       schedule: { _ in }
     )
     writer.enqueue(row(sequence: 1))
@@ -60,12 +60,42 @@ struct LogSpillWriterTests {
   }
 
   @Test
+  func aFailingSpellReportsOnceAndSumsUpOnRecovery() {
+    struct Probe: Error { }
+    var failing = true
+    var reports = [String]()
+    let writer = LogSpillWriter(
+      spill: { _ in
+        if failing {
+          throw Probe()
+        }
+      },
+      onReport: { reports.append($0) },
+      bufferCapacity: 2,
+      batchLimit: 1,
+      schedule: { _ in }
+    )
+    for sequence in UInt64(1)...3 {
+      writer.enqueue(row(sequence: sequence))
+    }
+    writer.drain()
+    writer.enqueue(row(sequence: 4))
+    writer.drain()
+    #expect(reports.count == 1)
+    failing = false
+    writer.enqueue(row(sequence: 5))
+    writer.drain()
+    #expect(reports.count == 2)
+    #expect(reports.last?.contains(" 3 lines") == true)
+  }
+
+  @Test
   func onlyTheFirstLineOfABusySpellSchedules() {
     var scheduled = [() -> Void]()
     var received = [UInt64]()
     let writer = LogSpillWriter(
       spill: { received += $0.map(\.sequence) },
-      onFailure: { _ in },
+      onReport: { _ in },
       schedule: { scheduled.append($0) }
     )
     writer.enqueue(row(sequence: 1))

@@ -256,7 +256,7 @@ enum Diagnostics {
       }
       let writer = LogSpillWriter(
         spill: spill,
-        onFailure: { Diagnostics.mirrorSpillFailure($0) }
+        onReport: { Diagnostics.mirrorSpillFailure($0) }
       )
       spillWriter = writer
       store.onMirror = { entry in
