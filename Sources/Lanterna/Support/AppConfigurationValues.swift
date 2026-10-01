@@ -1,21 +1,14 @@
 import Foundation
-import Logging
 
 /// One optional key at a time, split out when the decoding file reached
 /// the file-length limit. The shape of the file stays in `AppConfiguration`;
 /// everything that reads a single key lives here.
 extension AppConfiguration {
-  /// Reads the on-off, channel and log-level keys together, so the assembly stays small.
+  /// Reads the on-off and channel keys together, so the assembly stays small.
   static func checkedSwitches(
     _ dict: [String: Any],
     into config: inout ValidConfiguration
   ) -> Result<Void, ConfigDecodeError> {
-    switch checkedOptionalLogLevel(dict, key: "logLevel") {
-    case .success(let found):
-      config.logLevel = found
-    case .failure(let error):
-      return .failure(error)
-    }
     switch checkedOptionalBool(dict, key: "launchAtLogin") {
     case .success(let found):
       config.launchAtLogin = found
@@ -159,19 +152,6 @@ extension AppConfiguration {
       return .failure(.invalidValue(key: key))
     }
     return .success(number.boolValue)
-  }
-
-  /// Reads the optional log-level key. Only the four words count:
-  /// anything else invalidates the whole file, like any other bad value.
-  static func checkedOptionalLogLevel(
-    _ dict: [String: Any],
-    key: String
-  ) -> Result<Logger.Level?, ConfigDecodeError> {
-    guard let rawValue = dict[key] else { return .success(nil) }
-    guard let text = rawValue as? String, let level = Logger.Level.parse(word: text) else {
-      return .failure(.invalidValue(key: key))
-    }
-    return .success(level)
   }
 
   /// Reads one optional display-mode key. Anything but a `DisplayMode`

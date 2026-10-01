@@ -32,9 +32,6 @@ extension AppConfiguration {
     }
     entries.append(contentsOf: logRetentionEntries(config))
     entries.append(contentsOf: keyBindingEntries(config))
-    if let logLevel = config.logLevel {
-      entries.append(encodedString(key: "logLevel", value: logLevel.rawValue))
-    }
     if let minimizedMode = config.minimizedMode {
       entries.append(encodedString(key: "minimizedMode", value: minimizedMode.rawValue))
     }

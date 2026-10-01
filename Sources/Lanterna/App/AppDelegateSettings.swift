@@ -352,8 +352,7 @@ extension AppDelegate {
     let config = values.configuration(
       version: AppConfiguration.currentVersion,
       sampleCount: preserved?.sampleCount,
-      stopMonitorEverySeconds: preserved?.stopMonitorEverySeconds,
-      logLevel: preserved?.logLevel
+      stopMonitorEverySeconds: preserved?.stopMonitorEverySeconds
     )
     return SettingsSaver.save(
       config,
@@ -415,7 +414,7 @@ extension AppDelegate {
   /// going to supply them.
   /// The on-disk configuration the settings window does not manage, read
   /// back so saving from the window does not drop it: the debug count and
-  /// period, and the log level, which lives in the file alone.
+  /// period, which live in the file alone.
   private func preservedConfiguration() -> ValidConfiguration? {
     guard
       let configFileURL,
