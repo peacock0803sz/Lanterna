@@ -204,16 +204,26 @@ enum LogPersistence {
       }
       return
     }
-    for statement in schemaStatements {
-      try connection.execute(statement)
+    // One transaction, so a failure part way leaves the file empty
+    // and the next open starts over instead of finding tables with
+    // no marker and refusing the file for good.
+    try connection.execute("BEGIN TRANSACTION")
+    do {
+      for statement in schemaStatements {
+        try connection.execute(statement)
+      }
+      try connection.execute(
+        "INSERT INTO launches(launch_id, started_at, origin, build_version) VALUES ("
+          + "\(literal(launchID)), \(startedAtMilliseconds), \(literal(origin.rawValue)), \(literal(buildVersion)))"
+      )
+      try connection.execute(
+        "INSERT INTO meta(key, value) VALUES ('format_version', '\(formatVersion)')"
+      )
+      try connection.execute("COMMIT")
+    } catch {
+      try? connection.execute("ROLLBACK")
+      throw error
     }
-    try connection.execute(
-      "INSERT INTO launches(launch_id, started_at, origin, build_version) VALUES ("
-        + "\(literal(launchID)), \(startedAtMilliseconds), \(literal(origin.rawValue)), \(literal(buildVersion)))"
-    )
-    try connection.execute(
-      "INSERT INTO meta(key, value) VALUES ('format_version', '\(formatVersion)')"
-    )
   }
 
 }

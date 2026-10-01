@@ -101,6 +101,41 @@ struct LogPersistenceRoundTripTests {
   }
 
   @Test
+  func storesOfThisShapeReopenWithTheirRows() throws {
+    let base = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: base) }
+    let url = base.appendingPathComponent("reopened.duckdb")
+    func open() throws -> Database {
+      try LogPersistence.openStore(
+        at: url,
+        launchID: "reopened",
+        origin: .development,
+        buildVersion: "test-build",
+        startedAtMilliseconds: 0
+      )
+    }
+    let row = DiagnosticRow(
+      sequence: 1,
+      recordedAtMilliseconds: 1000,
+      level: "info",
+      category: nil,
+      message: "before close",
+      launchID: "reopened",
+      buildVersion: "test-build",
+      payloadJSON: nil
+    )
+    do {
+      try open().connect().execute(
+        LogPersistence.insertStatement(rows: [row], launchID: "reopened", buildVersion: "test-build")
+      )
+    }
+    let entries = try open().connect().query("SELECT message FROM entries")
+    #expect(Array(entries[0].cast(to: String.self)) == ["before close"])
+  }
+
+  @Test
   func freshStoresInMemoryOpenWithTheirTables() throws {
     let database = try LogPersistence.openEphemeral(
       launchID: "ephemeral",
