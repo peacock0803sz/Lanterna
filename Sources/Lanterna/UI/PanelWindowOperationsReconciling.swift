@@ -78,11 +78,12 @@ extension PanelWindowOperations {
     // Written before the passes, so a pass that skips the operated row's
     // application, one still quitting for instance, reads as coming
     // after the request.
-    writeLine(
+    writeLine(LogLine(
       .info,
+      .activate,
       "window operation sent (\(reconciliation.operation.logName) "
         + "\(reconciliation.row.appName)/\(reconciliation.row.displayTitle))"
-    )
+    ))
     for _ in 0 ..< 2 {
       let fresh = await refresh(presented)
       guard appearance == generation else {
