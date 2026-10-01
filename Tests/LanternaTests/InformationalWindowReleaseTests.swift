@@ -31,11 +31,25 @@ struct InformationalWindowReleaseTests {
 
   @Test
   func versionLogWindowIsNotReleasedWhenClosed() {
-    let window = VersionLogWindow(
-      version: DisplayedVersion(full: "0.0.0"),
-      summary: nil,
-      entries: []
-    )
+    let window = VersionLogWindow(state: LogWindowState(readEntries: { [] }))
     #expect(window.isReleasedWhenClosed == false)
+  }
+
+  /// The log window is built once and kept: reopening brings the same
+  /// window forward with the same state behind it.
+  @Test
+  func reopeningTheLogWindowKeepsTheSameWindow() {
+    let guides = GuideWindows(logState: LogWindowState(readEntries: { [] }))
+    let first = guides.logWindow()
+    first.close()
+    #expect(guides.logWindow() === first)
+  }
+
+  @Test
+  func theLogWindowOpensAtItsDefaultSizeAndTitle() {
+    let window = VersionLogWindow(state: LogWindowState(readEntries: { [] }))
+    #expect(window.title == "Lanterna Logs")
+    #expect(window.contentRect(forFrameRect: window.frame).size == VersionLogWindow.defaultSize)
+    #expect(window.styleMask.contains(.resizable))
   }
 }

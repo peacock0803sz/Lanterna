@@ -10,125 +10,44 @@ struct DisplayedVersion: Equatable {
   let full: String
 }
 
-// MARK: - DisplayedLogEntry
-
-/// One log row as the view shows it.
-struct DisplayedLogEntry: Identifiable, Equatable {
-  /// The store sequence, proving the order.
-  let sequence: UInt64
-  /// When the line was emitted, for reading only.
-  let capturedAt: Date
-  /// The line itself.
-  let message: String
-
-  var id: UInt64 {
-    sequence
-  }
-}
-
 // MARK: - VersionLogWindow
 
-/// The version and log window.
+/// The Lanterna Logs window.
 ///
 /// Independent from the onboarding window: it opens from the menu-bar entry on
-/// any launch, whether or not anything is missing. It reads the store without
-/// changing it, and it owns no keyboard monitoring of any kind.
+/// any launch, whether or not anything is missing. It reads the diagnostics
+/// without changing them, and it owns no keyboard monitoring of any kind. The
+/// contents come from a state the caller keeps, so closing and reopening the
+/// window finds the same filters and rows.
 @MainActor
 final class VersionLogWindow: NSWindow {
-  /// Shows this launch so far: the version, the pinned summary, then the
-  /// mirrored lines in order. A snapshot at opening time; reopening takes a
-  /// fresh one.
-  convenience init(
-    version: DisplayedVersion,
-    summary: String?,
-    entries: [DisplayedLogEntry],
-    appearanceMode: AppearanceMode = .system
-  ) {
+
+  // MARK: Lifecycle
+
+  convenience init(state: LogWindowState, appearanceMode: AppearanceMode = .system) {
     self.init(
-      contentRect: NSRect(x: 0, y: 0, width: 560, height: 420),
-      styleMask: [.titled, .closable, .resizable],
+      contentRect: NSRect(origin: .zero, size: Self.defaultSize),
+      styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
       backing: .buffered,
       defer: false
     )
     // Held strongly by GuideWindows; releasing on close would dangle that reference (#126).
     isReleasedWhenClosed = false
-    title = "Lanterna Version and Logs"
+    title = "Lanterna Logs"
+    // The traffic lights share the toolbar's row rather than sitting in a
+    // title bar of their own.
+    titleVisibility = .hidden
+    titlebarAppearsTransparent = true
+    contentMinSize = Self.minimumSize
     appearance = appearanceMode.nsAppearance
-    contentView = NSHostingView(rootView: VersionLogView(
-      version: version,
-      summary: summary,
-      entries: entries
-    ))
+    contentView = NSHostingView(rootView: LogWindowView(state: state))
+    setContentSize(Self.defaultSize)
     center()
   }
-}
-
-// MARK: - VersionLogView
-
-/// The version and log contents.
-///
-/// Everything here is selectable, so a report can be copied out rather than
-/// retyped. Nothing here edits.
-struct VersionLogView: View {
 
   // MARK: Internal
 
-  let version: DisplayedVersion
-  let summary: String?
-  let entries: [DisplayedLogEntry]
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      HStack(spacing: 10) {
-        if let icon = NSApp.applicationIconImage {
-          Image(nsImage: icon)
-            .resizable()
-            .frame(width: 40, height: 40)
-        }
-        VStack(alignment: .leading) {
-          Text("Lanterna \(version.full)")
-            .font(.headline)
-            .textSelection(.enabled)
-          if let summary {
-            Text(summary)
-              .font(.body)
-              .foregroundStyle(.secondary)
-              .textSelection(.enabled)
-          }
-        }
-      }
-      Divider()
-      ScrollView {
-        LazyVStack(alignment: .leading, spacing: 2) {
-          ForEach(entries) { entry in
-            HStack(alignment: .top, spacing: 8) {
-              Text("#\(entry.sequence)")
-                .font(.system(.body, design: .monospaced))
-                .foregroundStyle(.secondary)
-              Text(Self.timeFormat.string(from: entry.capturedAt))
-                .font(.system(.body, design: .monospaced))
-                .foregroundStyle(.secondary)
-              Text(entry.message)
-                .font(.system(.body, design: .monospaced))
-            }
-            .textSelection(.enabled)
-          }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-      }
-    }
-    .padding(16)
-    .frame(width: 560, height: 420)
-  }
-
-  // MARK: Private
-
-  /// Fixed shape so a report reads the same in every locale.
-  private static let timeFormat: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.dateFormat = "HH:mm:ss"
-    return formatter
-  }()
+  static let defaultSize = NSSize(width: 900, height: 600)
+  static let minimumSize = NSSize(width: 640, height: 360)
 
 }

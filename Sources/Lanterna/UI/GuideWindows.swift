@@ -4,17 +4,23 @@ import AppKit
 ///
 /// Split out of the application delegate when it reached the file-length
 /// limit: these windows share nothing with the hotkey paths, so they stand
-/// alone. Both are snapshots at opening time; reopening takes a fresh one.
+/// alone. The onboarding window is a snapshot at opening time; the log
+/// window is one window for the whole run, over a state that outlives it.
 @MainActor
 final class GuideWindows {
 
   // MARK: Lifecycle
 
-  init(appearanceMode: AppearanceMode = .system) {
+  init(appearanceMode: AppearanceMode = .system, logState: LogWindowState = LogWindowState()) {
     self.appearanceMode = appearanceMode
+    self.logState = logState
   }
 
   // MARK: Internal
+
+  /// What the log window shows. Kept for the whole run, so closing the
+  /// window keeps its filters and rows.
+  let logState: LogWindowState
 
   /// Shows the onboarding window for the launch-time answers.
   ///
@@ -45,24 +51,26 @@ final class GuideWindows {
     versionLogWindow?.appearance = appearanceMode.nsAppearance
   }
 
-  /// Shows this launch so far: the version, the pinned summary, then the
-  /// mirrored lines in order. The store keeps growing underneath either way.
+  /// Brings the log window forward, making it on first use. An open
+  /// window is only brought forward: building it again would throw away
+  /// where the reader was.
   func openVersionLog() {
-    // Close the held window first so reopening leaves exactly one.
-    versionLogWindow?.close()
-    let window = VersionLogWindow(
-      version: DisplayedVersion(full: AppVersion.full),
-      summary: Diagnostics.launchSummary,
-      entries: Diagnostics.recentEntries.map {
-        DisplayedLogEntry(sequence: $0.sequence, capturedAt: $0.capturedAt, message: $0.message)
-      },
-      appearanceMode: appearanceMode
-    )
+    let window = logWindow()
+    logState.reload()
     // Like the guide and settings windows: ordering front alone leaves
     // this behind the frontmost app under the accessory policy.
     NSApp.activate(ignoringOtherApps: true)
     window.makeKeyAndOrderFront(nil)
+  }
+
+  /// The one log window of this run, built on first use.
+  func logWindow() -> VersionLogWindow {
+    if let versionLogWindow {
+      return versionLogWindow
+    }
+    let window = VersionLogWindow(state: logState, appearanceMode: appearanceMode)
     versionLogWindow = window
+    return window
   }
 
   // MARK: Private
@@ -73,7 +81,8 @@ final class GuideWindows {
 
   /// Held so each window stays up until the user closes it.
   private var guideWindow: OnboardingWindow?
-  /// Held the same way, for the version and log window.
+  /// Held the same way, for the log window. Kept after closing, so the
+  /// next open shows the same window.
   private var versionLogWindow: VersionLogWindow?
 
 }
