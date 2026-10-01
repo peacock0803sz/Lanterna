@@ -297,8 +297,8 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
       return []
 
     default:
-      // Only `attributeUnsupported` gets this far: the accessibility
-      // server has no window list to give.
+      // Only `attributeUnsupported` and `failure` get this far: the
+      // accessibility server has no window list to give.
       throw .unavailable(error)
     }
   }
@@ -340,7 +340,9 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
   }
 
   /// Reads one attribute, or `nil` when the element has no such value. An
-  /// absent value is an answer: an untitled window reports no title.
+  /// absent value is an answer: an untitled window reports no title. So is a
+  /// refused one: the window of a Chromium web app shim answers its title
+  /// with `failure` while the rest of it reads normally.
   private func attribute(
     _ element: AXUIElement,
     _ name: String,
@@ -353,9 +355,11 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
   /// Sends one attribute read, separating the answers that are about the
   /// attribute from the failures that are about the application.
   ///
-  /// `success`, `noValue` and `attributeUnsupported` come back as answered:
-  /// what each means depends on what was asked. Everything else ends the
-  /// read.
+  /// `success`, `noValue`, `attributeUnsupported` and `failure` come back as
+  /// answered: what each means depends on what was asked. `failure` is the
+  /// element declining this one attribute, not the application failing to
+  /// answer; a hung application answers `cannotComplete`. Everything else
+  /// ends the read.
   private func send(
     _ name: String,
     to element: AXUIElement,
@@ -369,7 +373,8 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     switch error {
     case .success,
          .noValue,
-         .attributeUnsupported:
+         .attributeUnsupported,
+         .failure:
       return (error, value)
     case .apiDisabled:
       throw .permissionMissing

@@ -46,11 +46,13 @@ struct AXApplicationWindowReaderMessagingTests {
     ])
   }
 
-  /// Only an absent value is an answer; anything else means the application
-  /// could not be read, and its records go with it.
+  /// An absent value is an answer, and so is a refusal to give this one
+  /// window's value; anything else means the application could not be read,
+  /// and its records go with it.
   @Test(arguments: [
     (AXError.noValue, nil),
     (.attributeUnsupported, nil),
+    (.failure, nil),
     (.cannotComplete, ReadFailure.unavailable(.cannotComplete)),
     (.apiDisabled, .permissionMissing),
     (.invalidUIElement, .unavailable(.invalidUIElement)),
@@ -75,6 +77,24 @@ struct AXApplicationWindowReaderMessagingTests {
     case .failure(let reason):
       #expect(reason == failure)
     }
+  }
+
+  /// The window of a Chromium web app shim answers its title with
+  /// `kAXErrorFailure` while every other attribute reads normally. The
+  /// state flags are read the same way, so a refusal there reads as the
+  /// flag being off rather than costing the application its rows.
+  @Test(arguments: [kAXMinimizedAttribute, fullscreenAttributeName])
+  func aRefusedStateFlagReadsAsOff(attribute: String) {
+    let application = FakeApplication(windowCount: 2)
+    application.attributeResult = { index, name in
+      index == 1 && name == attribute ? (.failure, nil) : nil
+    }
+
+    let read = try? application.read().get()
+    #expect(read?.records == [
+      WindowRecord(windowID: 100, title: "Window 0", kind: .standard, isMinimized: false),
+      WindowRecord(windowID: 101, title: "Window 1", kind: .standard, isMinimized: false),
+    ])
   }
 
   /// A dead or unreachable application is answered with the same code as a
@@ -324,6 +344,7 @@ struct AXApplicationWindowReaderMessagingTests {
   /// application without a row and without a reason.
   @Test(arguments: [
     (AXError.attributeUnsupported, nil, ReadFailure.unavailable(.attributeUnsupported)),
+    (.failure, nil, .unavailable(.failure)),
     (.success, "oops", .malformedAnswer),
   ])
   func anAbnormalWindowListAnswerDiscardsTheApplication(
