@@ -50,6 +50,13 @@ struct LogWindowView: View {
         action: state.togglePause
       )
       .keyboardShortcut("p", modifiers: .command)
+      ToolbarIconButton(
+        systemImage: "doc.on.doc",
+        label: "Copy",
+        shortcut: "⌘C",
+        action: { state.copy() }
+      )
+      .keyboardShortcut("c", modifiers: .command)
     }
     .padding(.leading, 84)
     .padding(.trailing, 14)

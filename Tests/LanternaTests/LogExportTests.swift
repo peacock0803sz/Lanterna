@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 @testable import Lanterna
 import Testing
@@ -50,6 +51,54 @@ struct LogExportTests {
     let text = LogExport.jsonLines(LogFixture.entries(count: 3), timeZone: Self.tokyo)
     #expect(text.hasSuffix("}\n"))
     #expect(text.split(separator: "\n").count == 3)
+  }
+
+  /// Copy takes the selected lines on screen, or every line on screen
+  /// when none is selected, and writes nothing when there is none.
+  @Test
+  @MainActor
+  func copyTakesTheSelectionOrElseEveryShownLine() {
+    let pasteboard = NSPasteboard(name: NSPasteboard.Name("lanterna-copy-probe-\(UUID().uuidString)"))
+    defer { pasteboard.releaseGlobally() }
+    let entries = LogFixture.entries(count: 3)
+    let state = LogWindowState(readEntries: { entries })
+    state.ingest()
+    state.copy(to: pasteboard)
+    #expect(pasteboard.string(forType: .string)?.split(separator: "\n").count == 3)
+    state.selection = [state.rows[1].id]
+    state.copy(to: pasteboard)
+    #expect(pasteboard.string(forType: .string) == LogExport.copyLine(entries[1]))
+    state.copy(rowsWithIDs: [state.rows[0].id, state.rows[2].id], to: pasteboard)
+    #expect(pasteboard.string(forType: .string) == LogExport.copyText([entries[0], entries[2]]))
+  }
+
+  @Test
+  @MainActor
+  func nothingOnScreenMakesNoCopyAndNoExport() {
+    let pasteboard = NSPasteboard(name: NSPasteboard.Name("lanterna-copy-probe-\(UUID().uuidString)"))
+    defer { pasteboard.releaseGlobally() }
+    pasteboard.clearContents()
+    pasteboard.setString("untouched", forType: .string)
+    let state = LogWindowState(readEntries: { [] })
+    state.ingest()
+    #expect(!state.canCopyOrExport)
+    state.copy(to: pasteboard)
+    #expect(pasteboard.string(forType: .string) == "untouched")
+  }
+
+  @Test
+  @MainActor
+  func anExportWritesEveryShownLine() throws {
+    let entries = LogFixture.entries(count: 4)
+    let state = LogWindowState(readEntries: { entries })
+    state.ingest()
+    let url = FileManager.default.temporaryDirectory
+      .appendingPathComponent("lanterna-export-\(UUID().uuidString).jsonl")
+    defer { try? FileManager.default.removeItem(at: url) }
+    try state.export(to: url)
+    let written = try String(contentsOf: url, encoding: .utf8)
+    #expect(written.split(separator: "\n").count == state.shownEntryCount)
+    #expect(written.hasSuffix("\n"))
   }
 
   @Test

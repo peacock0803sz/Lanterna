@@ -88,6 +88,10 @@ struct LogTable: View {
       }
     }
     .tableStyle(.inset(alternatesRowBackgrounds: true))
+    .contextMenu(forSelectionType: LogRow.ID.self) { ids in
+      Button("Copy") { state.copy(rowsWithIDs: ids) }
+        .disabled(!state.shownRows.contains { ids.contains($0.id) && !$0.isSeparator })
+    }
   }
 
   @ViewBuilder
