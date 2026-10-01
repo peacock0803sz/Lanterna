@@ -77,7 +77,7 @@ struct PanelWindowOperationsTests {
   /// The request going out is written before any reconciling pass, so a
   /// pass that skips the application while it is still on its way out
   /// reads as coming after the request rather than before it.
-  @Test
+  @Test(.timeLimit(.minutes(1)))
   func aSentRequestIsWrittenBeforeTheReconcilingPasses() async throws {
     let held = HeldRefresh()
     let made = makeOperations(rows: twoApps, held: held)
