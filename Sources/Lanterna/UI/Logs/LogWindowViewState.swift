@@ -19,14 +19,7 @@ extension LogWindowState {
       }
       return "Paused"
     }
-    return "Live · level \(effectiveLevelName) and above"
-  }
-
-  /// Where the Live level comes from. The threshold is fixed at
-  /// launch from the config file or the launch argument, so the
-  /// window only points at the place to change it.
-  var levelHint: String {
-    "Set with logLevel in the config file or --log-level; takes effect on next launch."
+    return "Live"
   }
 
   var flatVisibleRows: [DiagnosticRow] {

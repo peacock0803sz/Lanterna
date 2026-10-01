@@ -71,19 +71,6 @@ final class LogWindowState: ObservableObject {
   var cachedStoreCount: Int?
   var lastCountFinishedAt: Date?
 
-  var effectiveLevelName: String {
-    guard let logger = Diagnostics.logger else { return "Warning" }
-    return switch logger.logLevel {
-    case .trace: "Trace"
-    case .debug: "Debug"
-    case .info: "Info"
-    case .notice: "Notice"
-    case .warning: "Warning"
-    case .error: "Error"
-    case .critical: "Critical"
-    }
-  }
-
   func refresh() {
     let now = nowMilliseconds()
     let resolved = TimeRangeResolver.resolve(

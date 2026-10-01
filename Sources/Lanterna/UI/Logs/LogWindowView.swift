@@ -179,8 +179,6 @@ struct LogWindowView: View {
         .font(.subheadline)
         .fontWeight(.medium)
         .accessibilityLabel(state.liveLabel)
-        .accessibilityHint(state.levelHint)
-        .help(state.levelHint)
       Button {
         state.setSidebarShown(!state.isSidebarShown)
       } label: {
