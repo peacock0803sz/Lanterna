@@ -117,6 +117,16 @@ struct LogWindowView: View {
       .labelsHidden()
       .fixedSize()
       .accessibilityLabel("Launches")
+      Menu {
+        LogColumnsMenu(state: state)
+      } label: {
+        Image(systemName: "tablecells")
+      }
+      .menuStyle(.borderlessButton)
+      .menuIndicator(.hidden)
+      .fixedSize()
+      .help("Columns")
+      .accessibilityLabel("Columns")
       .padding(.trailing, 6)
       ToolbarIconButton(
         systemImage: state.isPaused ? "play.fill" : "pause.fill",

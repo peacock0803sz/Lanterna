@@ -45,52 +45,82 @@ struct LogTable: View {
   @State private var visibility = RowVisibility()
 
   private var table: some View {
-    Table(state.shownRows, selection: $state.selection) {
-      TableColumn("#") { row in
-        if let entry = row.entry {
-          Text(String(entry.sequence))
-            .font(Self.mono)
-            .foregroundStyle(.tertiary)
-            .frame(maxWidth: .infinity, alignment: .trailing)
-        } else {
-          Image(systemName: "arrow.turn.down.right")
-            .foregroundStyle(.secondary)
-            .accessibilityHidden(true)
-        }
+    Table(state.shownRows, selection: $state.selection, columnCustomization: $state.columnCustomization) {
+      TableColumn(LogColumn.launch.title) { row in
+        tracked(row, Text(row.launch.stamp).font(Self.mono).foregroundStyle(.secondary))
+      }
+      .width(min: 140, ideal: 170, max: 220)
+      .customizationID(LogColumn.launch.customizationID)
+      .defaultVisibility(.hidden)
+      TableColumn(LogColumn.sequence.title) { row in
+        tracked(row, sequenceCell(row))
       }
       .width(min: 32, ideal: 44, max: 90)
-      TableColumn("Time") { row in
-        if let entry = row.entry {
-          Text(LogTimeText.clock(entry.capturedAt))
-            .font(Self.mono)
-            .foregroundStyle(.secondary)
-        }
+      .customizationID(LogColumn.sequence.customizationID)
+      TableColumn(LogColumn.time.title) { row in
+        tracked(row, Text(row.entry.map { LogTimeText.clock($0.capturedAt) } ?? "").font(Self.mono).foregroundStyle(.secondary))
       }
       .width(min: 86, ideal: 96, max: 140)
-      TableColumn("Level") { row in
+      .customizationID(LogColumn.time.customizationID)
+      TableColumn(LogColumn.level.title) { row in
         if let entry = row.entry {
           LogLevelBadge(level: entry.level)
         }
       }
       .width(min: 52, ideal: 64, max: 90)
-      TableColumn("Category") { row in
-        if let entry = row.entry {
-          Text(entry.category.rawValue)
-            .font(Self.mono)
-            .foregroundStyle(.secondary)
-        }
+      .customizationID(LogColumn.level.customizationID)
+      TableColumn(LogColumn.category.title) { row in
+        Text(row.entry?.category.rawValue ?? "").font(Self.mono).foregroundStyle(.secondary)
       }
       .width(min: 64, ideal: 96, max: 160)
-      TableColumn("Message") { row in
-        messageCell(row)
-          .onAppear { visibility.appeared(row.id) }
-          .onDisappear { visibility.disappeared(row.id) }
+      .customizationID(LogColumn.category.customizationID)
+      TableColumn(LogColumn.message.title) { row in
+        tracked(row, messageCell(row))
+      }
+      .customizationID(LogColumn.message.customizationID)
+      TableColumn(LogColumn.source.title) { row in
+        Text(row.entry?.source ?? "").font(Self.mono).foregroundStyle(.secondary).lineLimit(1)
+      }
+      .width(min: 90, ideal: 160, max: 320)
+      .customizationID(LogColumn.source.customizationID)
+      .defaultVisibility(.hidden)
+      TableColumnForEach(state.contextColumns, id: \.self) { key in
+        TableColumn(key) { row in
+          Text(row.entry?.context[key]?.displayText ?? "").font(Self.mono).lineLimit(1)
+        }
+        .width(min: 50, ideal: 100, max: 320)
+        .customizationID("context.\(key)")
       }
     }
     .tableStyle(.inset(alternatesRowBackgrounds: true))
+    .onChange(of: state.columnCustomization) { state.keepOneColumnShown() }
     .contextMenu(forSelectionType: LogRow.ID.self) { ids in
       Button("Copy") { state.copy(rowsWithIDs: ids) }
         .disabled(!state.shownRows.contains { ids.contains($0.id) && !$0.isSeparator })
+      Divider()
+      LogColumnsMenu(state: state)
+    }
+  }
+
+  /// Notes the row on and off the screen. Several columns note it, so the
+  /// tail can be followed whichever of them is showing.
+  private func tracked(_ row: LogRow, _ content: some View) -> some View {
+    content
+      .onAppear { visibility.appeared(row.id) }
+      .onDisappear { visibility.disappeared(row.id) }
+  }
+
+  @ViewBuilder
+  private func sequenceCell(_ row: LogRow) -> some View {
+    if let entry = row.entry {
+      Text(String(entry.sequence))
+        .font(Self.mono)
+        .foregroundStyle(.tertiary)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+    } else {
+      Image(systemName: "arrow.turn.down.right")
+        .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
     }
   }
 
@@ -120,20 +150,22 @@ final class RowVisibility {
 
   // MARK: Internal
 
+  /// Counted per cell: a row is on screen while any of its cells is.
   func appeared(_ id: LogRow.ID) {
-    onScreen.insert(id)
+    onScreen[id, default: 0] += 1
   }
 
   func disappeared(_ id: LogRow.ID) {
-    onScreen.remove(id)
+    guard let count = onScreen[id] else { return }
+    onScreen[id] = count > 1 ? count - 1 : nil
   }
 
   func isOnScreen(_ id: LogRow.ID) -> Bool {
-    onScreen.contains(id)
+    onScreen[id] != nil
   }
 
   // MARK: Private
 
-  private var onScreen = Set<LogRow.ID>()
+  private var onScreen = [LogRow.ID: Int]()
 
 }
