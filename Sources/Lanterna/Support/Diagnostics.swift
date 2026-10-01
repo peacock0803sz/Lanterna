@@ -166,6 +166,11 @@ enum Diagnostics {
   // swiftlint:disable:next implicitly_unwrapped_optional - Set once by bootstrap before concurrency starts; never nil afterwards
   private(set) nonisolated(unsafe) static var logger: Logger!
 
+  /// The launch this process spills as, when spilling started.
+  nonisolated(unsafe) static var activeLaunchID: String?
+  /// The build this process spills as, when spilling started.
+  nonisolated(unsafe) static var activeBuildVersion: String?
+
   /// The level in force for this process. Read once per launch from the
   /// effective options and set ahead of the first gated line.
   static var threshold: Logger.Level {
@@ -218,6 +223,8 @@ enum Diagnostics {
     rotation: LogRotation = .daily,
     persist: Bool = true
   ) {
+    activeLaunchID = launchID
+    activeBuildVersion = buildVersion
     let origin = LogPersistence.currentOrigin()
     let startedAt = Int64(Foundation.Date().timeIntervalSince1970 * 1000)
     do {
