@@ -39,6 +39,25 @@ struct DiagnosticsBufferTests {
     #expect(zip(recent, recent.dropFirst()).allSatisfy { $0.sequence + 1 == $1.sequence })
   }
 
+  /// A poll takes only what is newer than what it already has; a reader
+  /// that fell behind the ring gets everything still held.
+  @Test
+  func entriesAfterANumberReturnOnlyTheNewerLines() {
+    let store = DiagnosticLogStore()
+    for index in 0 ..< 5 {
+      store.append(.probe("after-\(index)"))
+    }
+    #expect(store.entries(after: 0).map(\.sequence) == [1, 2, 3, 4, 5])
+    #expect(store.entries(after: 3).map(\.sequence) == [4, 5])
+    #expect(store.entries(after: 5).isEmpty)
+    #expect(store.entries(after: 9).isEmpty)
+    for index in 0 ..< DiagnosticLog.capacity {
+      store.append(.probe("flood-\(index)"))
+    }
+    #expect(store.entries(after: 2).first?.sequence == 6)
+    #expect(store.entries(after: 2).count == DiagnosticLog.capacity)
+  }
+
   /// The level, category, source and context ride along into the mirror.
   @Test
   func entriesKeepWhatKindOfLineTheyAre() {

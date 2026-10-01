@@ -54,6 +54,19 @@ final class DiagnosticLogStore: @unchecked Sendable {
     try? FileHandle.standardError.write(contentsOf: Data(text.utf8))
   }
 
+  /// The mirrored lines numbered after `sequence`, oldest first. Lets a
+  /// reader that polls take only what is new, so the lock the hotkey
+  /// paths also take is held for as little copying as possible.
+  func entries(after sequence: UInt64) -> [Diagnostics.LogEntry] {
+    lock.lock()
+    defer { lock.unlock() }
+    guard let first = entries.first, sequence >= first.sequence else {
+      return entries
+    }
+    let start = Int(sequence - first.sequence) + 1
+    return start < entries.count ? Array(entries[start...]) : []
+  }
+
   /// Emits the line and mirrors it as one locked step. Two calls racing
   /// each other still land in stderr and in the mirror in the same order;
   /// anything weaker would let the on-screen log disagree with what was
@@ -178,6 +191,11 @@ enum Diagnostics {
   /// the startup outcome and the permission state off the view.
   static var launchSummary: String? {
     store.summary
+  }
+
+  /// The mirrored lines numbered after `sequence`, oldest first.
+  static func entries(after sequence: UInt64) -> [LogEntry] {
+    store.entries(after: sequence)
   }
 
   /// Points the logging system at the mirror backend. Called once per
