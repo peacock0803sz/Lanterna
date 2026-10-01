@@ -397,7 +397,7 @@ final class PanelPresenter {
       becameKey: becameKey,
       mru: MRUSummary(firstID: shown.first?.id, source: tracker.newestSource)
     )
-    writeLine(LogLine(.info, .panel, measurement.summaryLine))
+    writeLine(LogLine(.info, .panel, measurement.summaryLine, context: measurement.context))
 
     // Only with a monitor is a release expected at all, and starting below
     // the reading is what keeps the task out of the figure. Filtering starts

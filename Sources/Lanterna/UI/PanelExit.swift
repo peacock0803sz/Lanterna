@@ -375,14 +375,23 @@ final class PanelExit {
       elapsed: elapsed,
       filter: filterSummary
     )
-    writeLine(LogLine(.info, .activate, SwitchMeasurement(
+    let measurement = SwitchMeasurement(
       appName: take.appName,
       displayTitle: take.displayTitle,
       id: take.id,
       outcome: outcome,
       trigger: trigger,
       elapsed: elapsed
-    ).summaryLine))
+    )
+    writeLine(LogLine(
+      .info,
+      .activate,
+      measurement.summaryLine,
+      context: measurement.context(
+        processIdentifier: take.ownerProcessIdentifier,
+        bundle: row(for: take.id)?.bundleIdentifier
+      )
+    ))
   }
 
   /// Reads the clock after the work, so the figure spans exactly the part
@@ -410,7 +419,7 @@ final class PanelExit {
       elapsed: elapsed,
       filterSummary: filterSummary
     )
-    writeLine(LogLine(.info, .panel, measurement.summaryLine))
+    writeLine(LogLine(.info, .panel, measurement.summaryLine, context: measurement.context))
   }
 
 }
