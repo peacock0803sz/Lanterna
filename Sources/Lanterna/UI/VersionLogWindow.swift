@@ -645,6 +645,23 @@ struct LogWindowView: View {
           }
           if state.flatVisibleRows.isEmpty {
             emptyView
+          } else if let detailRow = selectedDetailRow {
+            VSplitView {
+              LogTableView(
+                sections: state.sections,
+                selection: $state.selection,
+                autoScroll: state.autoScroll,
+                jumpTargetID: state.jumpTargetID
+              )
+              .frame(minHeight: 120, maxHeight: .infinity)
+              LogDetailView(
+                row: detailRow,
+                launchStartMilliseconds: selectedDetailLaunchStart,
+                isCurrentLaunch: selectedDetailIsCurrent,
+                onClose: { state.selection.removeAll() }
+              )
+              .frame(minHeight: 160, maxHeight: .infinity)
+            }
           } else {
             LogTableView(
               sections: state.sections,
@@ -665,6 +682,7 @@ struct LogWindowView: View {
         timeLabel: state.timeLabel,
         isPaused: state.isPaused,
         isFiltered: state.isFiltering,
+        showsDetail: selectedDetailRow != nil,
         autoScroll: $state.autoScroll
       )
     }
@@ -698,6 +716,31 @@ struct LogWindowView: View {
 
   private var isLightweight: Bool {
     state.query.mode == .lightweight
+  }
+
+  private var selectedDetailRow: DiagnosticRow? {
+    guard state.selection.count == 1, let wanted = state.selection.first else { return nil }
+    return state.flatVisibleRows.first { $0.rowID == wanted }
+  }
+
+  private var selectedDetailLaunchStart: Int64? {
+    guard let row = selectedDetailRow else { return nil }
+    let key = row.launchID
+    for section in state.sections {
+      if section.launchID == key {
+        return Int64(section.startMilliseconds)
+      }
+    }
+    return nil
+  }
+
+  private var selectedDetailIsCurrent: Bool {
+    guard let row = selectedDetailRow else { return false }
+    let key = row.launchID
+    for section in state.sections where section.launchID == key {
+      return section.isCurrent
+    }
+    return false
   }
 
   private var header: some View {

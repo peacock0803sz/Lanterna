@@ -14,6 +14,7 @@ struct LogStatusBar: View {
   var timeLabel: String
   var isPaused: Bool
   var isFiltered = false
+  var showsDetail = false
 
   @Binding var autoScroll: Bool
 
@@ -54,7 +55,13 @@ struct LogStatusBar: View {
       } else {
         ""
       }
-    return "\(base)\(selected)\(paused) · ⌘C copies selected rows"
+    let detail =
+      if showsDetail {
+        " · esc or × closes the detail · drag the divider to resize"
+      } else {
+        ""
+      }
+    return "\(base)\(selected)\(paused)\(detail) · ⌘C copies selected rows"
   }
 
 }
