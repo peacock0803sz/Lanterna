@@ -278,6 +278,15 @@ enum Diagnostics {
     }
   }
 
+  /// Writes every line still waiting for the spill store, then
+  /// closes the store. Called on the way out, since the process may
+  /// exit before a scheduled flush runs; a line written afterwards
+  /// opens the store again on its own flush.
+  static func finishSpilling() {
+    spillWriter?.drain()
+    launchStore?.close()
+  }
+
   /// The store this launch is writing at `url`, if any. Readers pass
   /// it to `LogQueryExecutor` so the file is never opened twice.
   static func liveSpillStore(at url: URL) -> Database? {
