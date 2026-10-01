@@ -74,6 +74,13 @@ extension PanelWindowOperations {
       )
       return
     }
+    // Written before the passes, so a pass that skips an application on
+    // its way out reads as coming after the request.
+    writeLine(
+      .debug,
+      "window operation sent (\(reconciliation.operation.logName) "
+        + "\(reconciliation.row.appName)/\(reconciliation.row.displayTitle))"
+    )
     for _ in 0 ..< 2 {
       let fresh = await refresh(presented)
       guard appearance == generation else {

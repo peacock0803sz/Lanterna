@@ -74,6 +74,32 @@ struct PanelWindowOperationsTests {
     #expect(made.counts.interruptions == 1)
   }
 
+  /// The request going out is written before any reconciling pass, so a
+  /// pass that skips the application while it is still on its way out
+  /// reads as coming after the request rather than before it.
+  @Test
+  func aSentRequestIsWrittenBeforeTheReconcilingPasses() async throws {
+    let held = HeldRefresh()
+    let made = makeOperations(rows: twoApps, held: held)
+    let running = try #require(
+      made.operations.start(.quitApplication, naming: twoApps[0].id),
+      "the operation was dropped"
+    )
+    await held.waitUntilAsked()
+    #expect(made.log.entries.map(\.level) == [.debug])
+    #expect(made.log.lines == ["window operation sent (quit Safari/Tabs)"])
+    held.finish(with: [twoApps[2]])
+    await running.value
+  }
+
+  /// A request the sender refused never went out, so no line says it did.
+  @Test
+  func aRefusedRequestIsNotWrittenAsSent() async {
+    let made = makeOperations(rows: rows, refreshed: [], close: { _ in .windowGone })
+    await made.operations.operate(.closeWindow, naming: rows[0].id)
+    #expect(!made.log.lines.contains { $0.hasPrefix("window operation sent") })
+  }
+
   /// No pass having finished is undecided rather than an empty list.
   @Test
   func noListIsNotReadAsDone() async {
