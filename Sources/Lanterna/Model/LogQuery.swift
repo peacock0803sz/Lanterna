@@ -16,7 +16,7 @@ struct LogQuery: Equatable, Sendable {
     case database
   }
 
-  /// Starts a fresh row: lightweight, empty, default time window.
+  /// Starts a fresh row: lightweight and empty.
   static var fresh: LogQuery {
     LogQuery()
   }
@@ -41,8 +41,9 @@ struct LogQuery: Equatable, Sendable {
 // MARK: - SQLLiteral
 
 /// One bound value travelling with a translated filter. The
-/// executor inlines these with quoting, so translation never
-/// concatenates caller text into the statement.
+/// executor inlines these with quoting, so a typed value never
+/// reaches the statement unquoted. The one piece of caller text
+/// spliced in as is, a payload path, passes the path check first.
 enum SQLLiteral: Equatable, Sendable {
   case text(String)
   case integer(Int64)
@@ -95,16 +96,17 @@ struct TranslatedFilter: Equatable, Sendable {
 /// Tokens split on whitespace outside double quotes. `field:value`
 /// contains, `field=value` matches exactly, `field!=value`
 /// excludes. Levels compare in debug, info, warning, error order.
-/// Anything else searches the message. Dotted paths read the
-/// payload, with `[]` matching any array element. `after:` and
-/// `before:` bound the recorded time.
+/// `after:` and `before:` bound the recorded time. Any other key
+/// that reads as a path, dotted or not, reads the payload, with
+/// `[]` matching any array element. A token without an operator,
+/// or whose key is no valid path, searches the message.
 enum LightweightFilter {
 
   // MARK: Internal
 
-  /// Parses one row. Unrecognized tokens fall back to message
-  /// search, except malformed level comparisons, which match
-  /// nothing so the empty result stays explainable by its chip.
+  /// Parses one row. Malformed level comparisons and unreadable
+  /// time bounds match nothing rather than searching the message,
+  /// so the empty result stays explainable by its chip.
   static func parse(_ text: String) -> TranslatedFilter {
     var conditions = [FilterCondition]()
     for token in tokens(in: text) {
@@ -396,8 +398,10 @@ enum LightweightFilter {
 // MARK: - DatabaseStatementCheck
 
 /// Decides whether a database-mode statement may run. Only reads
-/// pass: writes are refused outright, statements without a time
-/// bound are refused, and a missing row cap is filled in.
+/// pass: writes are refused outright, statements that never
+/// mention `ts_ms` are refused, and a missing row cap is filled in.
+/// Mentioning the column is all it asks; the statement itself
+/// decides whether that bounds anything.
 enum DatabaseStatementCheck {
 
   // MARK: Internal
