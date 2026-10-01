@@ -1,6 +1,15 @@
 {
   description = "Lanterna";
 
+  nixConfig = {
+    extra-substituters = [
+      "https://lanterna.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "lanterna.cachix.org-1:[SECURITY_DATA]"
+    ];
+  };
+
   inputs = {
     flake-parts.url = "github:hercules-ci/flake-parts";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
