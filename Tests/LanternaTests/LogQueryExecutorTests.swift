@@ -109,6 +109,7 @@ struct LogQueryExecutorTests {
     let executor = LogQueryExecutor(files: [store.url], liveStore: { _ in nil })
     let verdict = DatabaseStatementCheck.check("SELECT * FROM entries WHERE ts_ms >= 0")
     #expect(try executor.runStatement(verdict.effectiveText, defaultCap: 3).rows.map(\.sequence) == [5, 6, 7])
+    #expect(try executor.run(predicate: "1 = 1", values: [], limit: 3).rows.map(\.sequence) == [5, 6, 7])
   }
 
   @Test
