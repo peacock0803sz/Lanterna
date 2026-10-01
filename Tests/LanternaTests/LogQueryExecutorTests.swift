@@ -27,12 +27,18 @@ struct LogQueryExecutorTests {
     try control.database.connect().execute(wrapped)
     #expect(try control.count() == 0)
 
-    for live in [false, true] {
-      let database = store.database
-      let executor = LogQueryExecutor(files: [store.url], liveStore: { _ in live ? database : nil })
-      _ = try? executor.runStatement(smuggled)
-      #expect(try store.count() == 2)
-    }
+    // Live: the count reads through the same instance the read used.
+    let database = store.database
+    _ = try? LogQueryExecutor(files: [store.url], liveStore: { _ in database }).runStatement(smuggled)
+    #expect(try store.count() == 2)
+
+    // Not live: no other instance is open while the reader runs, and
+    // the count opens the file afresh after the reader is gone, so a
+    // write through the reader's own instance would show.
+    let closed = try LogStoreFixture.closedStore(rows: [row(sequence: 1, at: 1000), row(sequence: 2, at: 2000)])
+    defer { try? FileManager.default.removeItem(at: closed.deletingLastPathComponent()) }
+    _ = try? LogQueryExecutor(files: [closed], liveStore: { _ in nil }).runStatement(smuggled)
+    #expect(try LogStoreFixture.count(at: closed) == 2)
   }
 
   @Test
@@ -209,6 +215,20 @@ struct LogStoreFixture {
   /// A path inside the fixture directory for exports.
   var scratch: URL {
     base.appendingPathComponent("scratch.csv")
+  }
+
+  /// A store file holding `rows` with no instance left open on it,
+  /// in a temp directory of its own.
+  static func closedStore(rows: [DiagnosticRow]) throws -> URL {
+    let fixture = try LogStoreFixture()
+    try fixture.insert(rows)
+    return fixture.url
+  }
+
+  /// Counts entries through an instance opened just for the count.
+  static func count(at url: URL) throws -> Int {
+    let result = try Database(store: .file(at: url)).connect().query("SELECT count(*)::VARCHAR FROM entries")
+    return Int(result[0].cast(to: String.self)[0] ?? "") ?? -1
   }
 
   func insert(_ rows: [DiagnosticRow]) throws {
