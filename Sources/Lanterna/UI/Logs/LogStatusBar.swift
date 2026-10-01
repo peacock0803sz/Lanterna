@@ -13,6 +13,7 @@ struct LogStatusBar: View {
   var selectedCount: Int
   var timeLabel: String
   var isPaused: Bool
+  var isFiltered = false
 
   @Binding var autoScroll: Bool
 
@@ -36,10 +37,10 @@ struct LogStatusBar: View {
 
   private var statusText: String {
     let base =
-      if visibleCount == totalCount {
-        "\(visibleCount) of \(totalCount) entries (\(timeLabel)) · \(launchCount) launches"
-      } else {
+      if isFiltered {
         "Showing \(visibleCount) of \(totalCount) entries"
+      } else {
+        "\(visibleCount) of \(totalCount) entries (\(timeLabel)) · \(launchCount) launches"
       }
     let selected =
       if selectedCount > 0 {

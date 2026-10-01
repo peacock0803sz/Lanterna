@@ -643,13 +643,17 @@ struct LogWindowView: View {
           if state.afterRangeCount > 0 {
             afterRangeBanner
           }
-          LogTableView(
-            sections: state.sections,
-            selection: $state.selection,
-            autoScroll: state.autoScroll,
-            jumpTargetID: state.jumpTargetID
-          )
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          if state.flatVisibleRows.isEmpty {
+            emptyView
+          } else {
+            LogTableView(
+              sections: state.sections,
+              selection: $state.selection,
+              autoScroll: state.autoScroll,
+              jumpTargetID: state.jumpTargetID
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+          }
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -660,6 +664,7 @@ struct LogWindowView: View {
         selectedCount: state.selection.count,
         timeLabel: state.timeLabel,
         isPaused: state.isPaused,
+        isFiltered: state.isFiltering,
         autoScroll: $state.autoScroll
       )
     }
@@ -836,6 +841,35 @@ struct LogWindowView: View {
     .padding(.horizontal, 12)
     .padding(.vertical, 4)
     .accessibilityLabel("\(state.afterRangeCount) new after range, show latest")
+  }
+
+  private var emptyView: some View {
+    VStack(spacing: 8) {
+      Spacer()
+      if state.totalCount == 0 {
+        Text("No log entries yet")
+          .font(.body)
+          .foregroundStyle(.secondary)
+          .accessibilityLabel("No log entries yet")
+      } else {
+        Text("No entries match the current filters")
+          .font(.body)
+          .foregroundStyle(.secondary)
+          .accessibilityLabel("No entries match the current filters")
+        if isLightweight {
+          Button("Clear All") {
+            state.clearQuery()
+          }
+          .accessibilityLabel("Clear All filters")
+        }
+      }
+      Spacer()
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .accessibilityElement(children: .contain)
+    .accessibilityLabel(
+      state.totalCount == 0 ? "No log entries yet" : "No entries match the current filters"
+    )
   }
 
   private func requestModeSwitch(_ next: LogQuery.Mode) {
