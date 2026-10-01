@@ -224,8 +224,7 @@ struct Fixture {
 // MARK: - DiagnosticsLog
 
 /// Keeps the lines written to it, so a test can read them back — including
-/// reading that there were none. Records the level beside each line, so a
-/// test can say which lines a threshold would have let through.
+/// reading that there were none. Records the level beside each line,
 @MainActor
 final class DiagnosticsLog {
   private(set) var entries = [(level: Logger.Level, line: String)]()

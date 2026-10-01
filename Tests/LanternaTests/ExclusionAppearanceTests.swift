@@ -22,7 +22,7 @@ private func appearanceRow(appName: String, windowTitle: String, windowID: CGWin
 
 /// What one appearance reports about exclusions.
 ///
-/// Split out the way the log-level suite splits long suites: the filter
+/// Split out the way the filter suite splits long suites: the filter
 /// suite reached the body-length limit, so the appearance report lives
 /// here instead.
 @MainActor
@@ -30,8 +30,7 @@ struct ExclusionAppearanceTests {
 
   // MARK: Internal
 
-  /// An appearance reports how many rows exclusions kept out, below the
-  /// default threshold so an ordinary run stays quiet.
+  /// An appearance reports how many rows exclusions kept out.
   @Test
   func appearanceReportsExcludedCount() {
     let surface = FakeSurface()

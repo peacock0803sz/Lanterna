@@ -1,6 +1,5 @@
 import Foundation
 @testable import Lanterna
-import Logging
 import Testing
 
 /// What survives a restart, and what an invalid file leaves behind.
@@ -36,12 +35,12 @@ struct SettingsPersistenceTests {
     let config = values.configuration(
       version: 1,
       sampleCount: 2,
-      stopMonitorEverySeconds: 5,
-      logLevel: .debug
+      stopMonitorEverySeconds: 5
     )
     #expect(SettingsSaver.save(config, to: url, replacingInvalidFile: false) == .saved)
     let decoded = try #require(try AppConfiguration.decode(Data(contentsOf: url)).successValue)
-    #expect(decoded.config.logLevel == .debug)
+    #expect(decoded.config.sampleCount == 2)
+    #expect(decoded.config.stopMonitorEverySeconds == 5)
   }
 
   @Test
