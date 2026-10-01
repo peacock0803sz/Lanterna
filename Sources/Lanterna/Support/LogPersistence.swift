@@ -13,8 +13,8 @@ enum LogPersistence {
   // MARK: Internal
 
   /// Which copy of the app owns a store: the installed build or a
-  /// development build. The log window and the cleanup only ever
-  /// touch their own origin.
+  /// development build. Each keeps its own directory, so the two
+  /// never write into each other's files.
   enum Origin: String {
     case installed = "app"
     case development = "dev"
@@ -27,8 +27,9 @@ enum LogPersistence {
   }
 
   /// The stored shape this build reads and writes. A file carrying
-  /// any other value is skipped with its count and reason left as
-  /// a diagnostic line; old shapes are never migrated.
+  /// any other value is refused on open and left out of reads, with
+  /// its reason returned beside the results; old shapes are never
+  /// migrated.
   static let formatVersion = 1
 
   /// Tables every store file carries. Entries hold one row per
@@ -138,9 +139,10 @@ enum LogPersistence {
     return database
   }
 
-  /// Quotes one value for an embedded statement. The store only
-  /// ever carries this process's own lines, and quoting the one
-  /// delimiter keeps every byte intact.
+  /// Quotes one value for an embedded statement: stored lines,
+  /// filter values, and file paths alike. The quote is doubled and
+  /// NUL characters, which statement text cannot carry, are dropped;
+  /// every other character survives as is.
   static func literal(_ value: String) -> String {
     "'" + value.replacing("\0", with: "").replacing("'", with: "''") + "'"
   }
