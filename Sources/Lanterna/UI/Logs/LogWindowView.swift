@@ -10,6 +10,7 @@ struct LogWindowView: View {
   var body: some View {
     VStack(spacing: 0) {
       toolbar
+      queryBar
       Divider()
       if state.isPaused {
         PausedBar(pendingCount: state.pendingCount, resume: state.resume)
@@ -28,7 +29,7 @@ struct LogWindowView: View {
         totalCount: state.entryCount,
         shownCount: state.shownEntryCount,
         selectedCount: state.selectedCount,
-        isFiltered: false,
+        isFiltered: state.isFiltering,
         isLoading: state.isLoading
       )
     }
@@ -36,6 +37,37 @@ struct LogWindowView: View {
   }
 
   // MARK: Private
+
+  /// The search field under the toolbar. Matches message text only.
+  private var queryBar: some View {
+    HStack(spacing: 6) {
+      Image(systemName: "magnifyingglass")
+        .font(.system(size: 12))
+        .foregroundStyle(.tertiary)
+        .accessibilityHidden(true)
+      TextField("Search messages", text: $state.searchText)
+        .textFieldStyle(.plain)
+        .font(.system(size: 13))
+        .accessibilityLabel("Search messages")
+      if !state.searchText.isEmpty {
+        Button {
+          state.searchText = ""
+        } label: {
+          Image(systemName: "xmark.circle.fill")
+            .foregroundStyle(.tertiary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Clear search")
+      }
+    }
+    .padding(.horizontal, 8)
+    .frame(height: 26)
+    .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.primary.opacity(0.1)))
+    .padding(.horizontal, 14)
+    .padding(.bottom, 8)
+    .background(.bar)
+  }
 
   /// Shares its row with the window's traffic lights, which the window
   /// draws over the leading inset.
@@ -48,6 +80,26 @@ struct LogWindowView: View {
         LiveIndicator(isPaused: state.isPaused, pendingCount: state.pendingCount)
       }
       Spacer(minLength: 12)
+      Picker("Level", selection: $state.levelFloor) {
+        ForEach(LevelFloor.allCases, id: \.self) { floor in
+          Text(floor.title).tag(floor)
+        }
+      }
+      .pickerStyle(.menu)
+      .labelsHidden()
+      .fixedSize()
+      .accessibilityLabel("Level")
+      Picker("Category", selection: $state.category) {
+        Text("All categories").tag(LogCategory?.none)
+        Divider()
+        ForEach(LogCategory.allCases.sorted { $0.rawValue < $1.rawValue }, id: \.self) { category in
+          Text(category.rawValue).tag(LogCategory?.some(category))
+        }
+      }
+      .pickerStyle(.menu)
+      .labelsHidden()
+      .fixedSize()
+      .accessibilityLabel("Category")
       Picker("Launches", selection: $state.scope) {
         Text(LaunchScope.thisLaunch.title).tag(LaunchScope.thisLaunch)
         Text(LaunchScope.allLaunches.title).tag(LaunchScope.allLaunches)
