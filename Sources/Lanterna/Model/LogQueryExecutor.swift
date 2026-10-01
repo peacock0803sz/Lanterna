@@ -65,7 +65,7 @@ final class LogQueryExecutor: Sendable {
   func runStatement(_ sql: String, progress: @escaping (Double) -> Void = { _ in }) throws -> ExecutedLogQuery {
     try fetch(
       sql: "SELECT seq, ts_ms, level, category, message, launch_id, build_version, payload "
-        + "FROM (\(sql)) ORDER BY ts_ms, seq",
+        + "FROM (\n\(sql)\n) ORDER BY ts_ms, seq",
       limit: rowCap(in: sql),
       progress: progress
     )
@@ -207,7 +207,7 @@ final class LogQueryExecutor: Sendable {
     defer { try? FileManager.default.removeItem(at: out) }
     let export = try PreparedStatement(
       connection: connection,
-      query: "COPY (\(sql)) TO \(LogPersistence.literal(out.path)) (HEADER false)"
+      query: "COPY (\n\(sql)\n) TO \(LogPersistence.literal(out.path)) (HEADER false)"
     )
     _ = try export.execute()
     let text = try String(contentsOf: out, encoding: .utf8)

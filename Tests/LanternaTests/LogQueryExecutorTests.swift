@@ -49,6 +49,18 @@ struct LogQueryExecutorTests {
     #expect(try store.count() == 2)
   }
 
+  @Test
+  func trailingLineCommentsKeepTheWrapperIntact() throws {
+    let store = try LogStoreFixture()
+    defer { store.remove() }
+    try store.insert([row(sequence: 1, at: 1000), row(sequence: 2, at: 2000)])
+    let verdict = DatabaseStatementCheck.check("SELECT * FROM entries WHERE ts_ms >= 0 -- every line")
+    #expect(verdict.allowed)
+    let result = try LogQueryExecutor(files: [store.url]).runStatement(verdict.effectiveText)
+    #expect(result.skipped.isEmpty)
+    #expect(result.rows.map(\.sequence) == [1, 2])
+  }
+
   // MARK: Private
 
   private let smuggled = "SELECT * FROM entries) ORDER BY ts_ms, seq) TO '/dev/null' (HEADER false); "

@@ -413,7 +413,8 @@ enum DatabaseStatementCheck {
     if hasRowCap(words: scanned.words) {
       return Verdict(allowed: true, refusal: nil, effectiveText: base)
     }
-    return Verdict(allowed: true, refusal: nil, effectiveText: base + " LIMIT \(rowLimit)")
+    // On its own line, so a trailing line comment cannot swallow it.
+    return Verdict(allowed: true, refusal: nil, effectiveText: base + "\nLIMIT \(rowLimit)")
   }
 
   /// The bare words of a statement, lowercased, leaving out string
