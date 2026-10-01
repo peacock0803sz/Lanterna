@@ -303,8 +303,7 @@ extension AppDelegate {
     let config = values.configuration(
       version: AppConfiguration.currentVersion,
       sampleCount: preserved?.sampleCount,
-      stopMonitorEverySeconds: preserved?.stopMonitorEverySeconds,
-      logLevel: preserved?.logLevel
+      stopMonitorEverySeconds: preserved?.stopMonitorEverySeconds
     )
     return SettingsSaver.save(
       config,
