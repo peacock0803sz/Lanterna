@@ -1,9 +1,9 @@
 @testable import Lanterna
 import Testing
 
-/// The compact syntax and the statement gate, pinned before the
-/// views lean on them. A change in what a row means must show up
-/// here rather than slipping past silently.
+/// The compact syntax and the statement gate as text: which
+/// fragments, values, and chips a row turns into, and which
+/// statements the gate lets through with what cap.
 struct LogQueryTests {
   @Test
   func bareWordsSearchTheMessage() {
