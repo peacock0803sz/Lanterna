@@ -54,6 +54,7 @@ final class SettingsWindow: NSWindow {
     opener: @escaping SettingsOpener,
     appearanceMode: AppearanceMode = .system,
     onCheckNow: @escaping () -> Void = { },
+    onOpenLogs: @escaping () -> Void = { },
     onChange: @escaping (SettingsValues) -> Void
   ) {
     let model = SettingsModel(values: values, onChange: onChange)
@@ -82,7 +83,8 @@ final class SettingsWindow: NSWindow {
       version: version,
       missing: missing,
       opener: opener,
-      onCheckNow: onCheckNow
+      onCheckNow: onCheckNow,
+      onOpenLogs: onOpenLogs
     )))
     generalHost.preferredContentSize = NSSize(width: Self.contentWidth, height: contentHeight)
     generalHost.sizingOptions = []
@@ -153,6 +155,7 @@ struct GeneralTabRoot: View {
   let missing: [MissingPermission]
   let opener: SettingsOpener
   let onCheckNow: () -> Void
+  let onOpenLogs: () -> Void
 
   var body: some View {
     SettingsGeneralView(
@@ -162,7 +165,8 @@ struct GeneralTabRoot: View {
       opener: opener,
       checkResultText: checkDisplay.resultText,
       isChecking: checkDisplay.isChecking,
-      onCheckNow: onCheckNow
+      onCheckNow: onCheckNow,
+      onOpenLogs: onOpenLogs
     )
   }
 }

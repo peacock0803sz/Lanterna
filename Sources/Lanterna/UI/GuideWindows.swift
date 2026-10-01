@@ -45,21 +45,26 @@ final class GuideWindows {
     versionLogWindow?.appearance = appearanceMode.nsAppearance
   }
 
-  /// Shows live and spilled rows in one resizable shell. Reopening keeps
-  /// a single window with fresh contents while the display-only clear mark stays.
+  /// Shows live and spilled rows in one resizable shell. The window and
+  /// its query are held for the whole launch: reopening brings the same
+  /// window forward with the last query kept and contents refreshed.
+  /// A fresh launch builds a fresh holder, so the first open starts
+  /// from the default query and time range.
   func openVersionLog() {
-    // Close the held window first so reopening leaves exactly one.
-    versionLogWindow?.close()
-    let window = VersionLogWindow(
-      version: DisplayedVersion(full: AppVersion.full),
-      summary: Diagnostics.launchSummary,
-      appearanceMode: appearanceMode
-    )
+    if versionLogWindow == nil {
+      versionLogWindow = VersionLogWindow(
+        version: DisplayedVersion(full: AppVersion.full),
+        summary: Diagnostics.launchSummary,
+        appearanceMode: appearanceMode,
+        state: logWindowState
+      )
+    } else {
+      logWindowState.refresh()
+    }
     // Like the guide and settings windows: ordering front alone leaves
     // this behind the frontmost app under the accessory policy.
     NSApp.activate(ignoringOtherApps: true)
-    window.makeKeyAndOrderFront(nil)
-    versionLogWindow = window
+    versionLogWindow?.makeKeyAndOrderFront(nil)
   }
 
   // MARK: Private
@@ -72,5 +77,8 @@ final class GuideWindows {
   private var guideWindow: OnboardingWindow?
   /// Held the same way, for the version and log window.
   private var versionLogWindow: VersionLogWindow?
+  /// The log query and view options for the whole launch. Held beside
+  /// the window so reopening keeps what was asked before.
+  private var logWindowState = LogWindowState()
 
 }

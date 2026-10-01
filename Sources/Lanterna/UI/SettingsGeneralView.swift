@@ -30,6 +30,7 @@ struct SettingsGeneralView: View {
   var checkResultText: String?
   var isChecking = false
   var onCheckNow: () -> Void = { }
+  var onOpenLogs: () -> Void = { }
 
   var body: some View {
     Form {
@@ -97,6 +98,20 @@ struct SettingsGeneralView: View {
             .disabled(!values.updateCheckEnabled || isChecking)
             .buttonStyle(.bordered)
             .controlSize(.small)
+        }
+      }
+      Section("Diagnostics") {
+        HStack {
+          SettingsFormLabel(
+            title: "Logs",
+            caption: "Watch events live, copy them, or export a file."
+          )
+          Spacer()
+          Button("Show Logs…") {
+            onOpenLogs()
+          }
+          .buttonStyle(.bordered)
+          .controlSize(.small)
         }
       }
       Section("Permissions") {

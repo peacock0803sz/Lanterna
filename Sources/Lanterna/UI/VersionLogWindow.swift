@@ -28,7 +28,8 @@ final class VersionLogWindow: NSWindow {
   convenience init(
     version: DisplayedVersion,
     summary: String?,
-    appearanceMode: AppearanceMode = .system
+    appearanceMode: AppearanceMode = .system,
+    state: LogWindowState
   ) {
     self.init(
       contentRect: NSRect(x: 0, y: 0, width: 900, height: 600),
@@ -40,7 +41,6 @@ final class VersionLogWindow: NSWindow {
     isReleasedWhenClosed = false
     title = "Lanterna Logs"
     appearance = appearanceMode.nsAppearance
-    let state = LogWindowState()
     state.refresh()
     contentView = NSHostingView(rootView: LogWindowView(
       version: version,
@@ -48,6 +48,14 @@ final class VersionLogWindow: NSWindow {
       state: state
     ))
     center()
+  }
+
+  convenience init(
+    version: DisplayedVersion,
+    summary: String?,
+    appearanceMode: AppearanceMode = .system
+  ) {
+    self.init(version: version, summary: summary, appearanceMode: appearanceMode, state: LogWindowState())
   }
 
   // MARK: Internal

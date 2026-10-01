@@ -159,6 +159,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     shutDown()
   }
 
+  /// Shows the version and log window for this launch so far.
+  ///
+  /// Split out beside the settings opener so the menu setup keeps no
+  /// window logic of its own. Also reached from the settings opener,
+  /// so both entries land on the same held window.
+  func openVersionLog() {
+    guideWindows?.openVersionLog()
+  }
+
   // MARK: Private
 
   private let options: LaunchArguments.Options
@@ -354,14 +363,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       openVersionLog: { [weak self] in self?.openVersionLog() }
     )
     self.statusMenu = statusMenu
-  }
-
-  /// Shows the version and log window for this launch so far.
-  ///
-  /// Split out beside the settings opener so the menu setup keeps no
-  /// window logic of its own.
-  private func openVersionLog() {
-    guideWindows?.openVersionLog()
   }
 
   /// Where the panel's rows come from, and whether they are kept current.
