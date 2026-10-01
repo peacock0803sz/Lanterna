@@ -149,6 +149,9 @@ final class LogWindowState {
   /// True while saved launches are being read.
   var isLoading = false
 
+  /// Whether Save logs to disk is on. Off offers this launch alone.
+  var isSavingEnabled = true
+
   /// Ranges of this launch already looked for in its file, found or not,
   /// so none is read twice.
   var filledRanges = [ClosedRange<UInt64>]()

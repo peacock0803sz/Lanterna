@@ -66,7 +66,15 @@ extension LogWindowState {
 
   /// Whether All launches can be offered at all.
   var hasSavedLogs: Bool {
-    savedLogs != nil
+    savedLogs != nil && isSavingEnabled
+  }
+
+  /// Follows Save logs to disk: off fixes the scope to this launch.
+  func setSavingEnabled(_ enabled: Bool) {
+    isSavingEnabled = enabled
+    if !enabled {
+      scope = .thisLaunch
+    }
   }
 
   /// Forgets the older launches read so far, after they changed on disk,
@@ -114,6 +122,10 @@ extension LogWindowState {
   }
 
   func scopeChanged() {
+    if scope == .allLaunches, !hasSavedLogs {
+      scope = .thisLaunch
+      return
+    }
     olderTask?.cancel()
     olderTask = nil
     isLoading = false

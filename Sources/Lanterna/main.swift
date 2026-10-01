@@ -139,7 +139,7 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
 /// panel can run, so making the file and trimming old ones stay off the paths
 /// with a time budget. The lines written so far reach the file first.
 let savedLogs = SavedLogs.live()
-savedLogs?.start()
+savedLogs?.start(saving: initialValues.saveLogsToDisk)
 
 // Brings the login item in line with the saved setting, ahead of the run
 // loop and off the path with a time budget. A change or a failure leaves
