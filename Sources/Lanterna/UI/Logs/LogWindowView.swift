@@ -29,7 +29,7 @@ struct LogWindowView: View {
         shownCount: state.shownEntryCount,
         selectedCount: state.selectedCount,
         isFiltered: false,
-        isLoading: false
+        isLoading: state.isLoading
       )
     }
     .frame(minWidth: 640, minHeight: 360)
@@ -48,6 +48,16 @@ struct LogWindowView: View {
         LiveIndicator(isPaused: state.isPaused, pendingCount: state.pendingCount)
       }
       Spacer(minLength: 12)
+      Picker("Launches", selection: $state.scope) {
+        Text(LaunchScope.thisLaunch.title).tag(LaunchScope.thisLaunch)
+        Text(LaunchScope.allLaunches.title).tag(LaunchScope.allLaunches)
+          .selectionDisabled(!state.hasSavedLogs)
+      }
+      .pickerStyle(.menu)
+      .labelsHidden()
+      .fixedSize()
+      .accessibilityLabel("Launches")
+      .padding(.trailing, 6)
       ToolbarIconButton(
         systemImage: state.isPaused ? "play.fill" : "pause.fill",
         label: state.isPaused ? "Resume" : "Pause",
