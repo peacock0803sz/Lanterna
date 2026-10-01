@@ -101,7 +101,7 @@ final class DiagnosticLogStore: @unchecked Sendable {
 
   private let lock = NSLock()
   private var entries = [Diagnostics.LogEntry]()
-  private var nextSequence: UInt64 = 0
+  private var nextSequence: UInt64 = 1
   private var pinnedSummary: String?
 
   /// Adds one line under the caller's lock.

@@ -7,7 +7,7 @@ import Foundation
 /// grep flow keeps working. Everything else rides alongside and never
 /// leaks into the emitted line.
 struct DiagnosticRow: Equatable, Sendable, Codable {
-  /// Order within one launch. Starts at zero and never restarts.
+  /// Order within one launch. Starts at one for each launch.
   let sequence: UInt64
   /// When the line was recorded, as milliseconds since the epoch.
   /// A plain number keeps every locale reading the same instant.
