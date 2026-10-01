@@ -13,7 +13,7 @@ struct LogWindowStateTests {
   func rowsFollowTheMirrorOldestFirst() {
     let entries = LogFixture.entries(count: 3)
     let state = LogWindowState(readEntries: { entries })
-    state.reload()
+    state.ingest()
     #expect(state.rows.map(\.entry?.sequence) == [1, 2, 3])
     #expect(state.shownRows.map(\.id) == state.rows.map(\.id))
     #expect(state.entryCount == 3)
@@ -37,7 +37,7 @@ struct LogWindowStateTests {
   func theSelectedCountCountsShownLinesOnly() {
     let entries = LogFixture.entries(count: 4)
     let state = LogWindowState(readEntries: { entries })
-    state.reload()
+    state.ingest()
     state.selection = [state.rows[1].id, state.rows[3].id, "elsewhere#9"]
     #expect(state.selectedCount == 2)
     #expect(state.selectedEntries.map(\.sequence) == [2, 4])
@@ -63,9 +63,9 @@ struct LogWindowStateTests {
   func reloadingPicksUpNewLines() {
     let feed = LogFeed(LogFixture.entries(count: 2))
     let state = LogWindowState(readEntries: { feed.entries })
-    state.reload()
+    state.ingest()
     feed.entries.append(LogFixture.entry(sequence: 3))
-    state.reload()
+    state.ingest()
     #expect(state.entryCount == 3)
   }
 }

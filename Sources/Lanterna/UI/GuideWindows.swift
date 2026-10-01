@@ -56,7 +56,6 @@ final class GuideWindows {
   /// where the reader was.
   func openVersionLog() {
     let window = logWindow()
-    logState.reload()
     // Like the guide and settings windows: ordering front alone leaves
     // this behind the frontmost app under the accessory policy.
     NSApp.activate(ignoringOtherApps: true)

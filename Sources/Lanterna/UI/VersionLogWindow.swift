@@ -43,11 +43,27 @@ final class VersionLogWindow: NSWindow {
     contentView = NSHostingView(rootView: LogWindowView(state: state))
     setContentSize(Self.defaultSize)
     center()
+    // Polling follows what the reader can see: a closed, minimised or
+    // fully covered window takes nothing in until it shows again.
+    occlusionObserver = NotificationCenter.default.addObserver(
+      forName: NSWindow.didChangeOcclusionStateNotification,
+      object: self,
+      queue: .main
+    ) { [weak self, weak state] _ in
+      MainActor.assumeIsolated {
+        guard let self else { return }
+        state?.setVisible(self.occlusionState.contains(.visible))
+      }
+    }
   }
 
   // MARK: Internal
 
   static let defaultSize = NSSize(width: 900, height: 600)
   static let minimumSize = NSSize(width: 640, height: 360)
+
+  // MARK: Private
+
+  private var occlusionObserver: (any NSObjectProtocol)?
 
 }

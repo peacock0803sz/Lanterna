@@ -60,22 +60,55 @@ final class LogWindowState {
 
   // MARK: Lifecycle
 
-  /// `readEntries` returns the mirror, oldest first; tests pass their own.
-  init(readEntries: @escaping @MainActor () -> [Diagnostics.LogEntry] = { Diagnostics.recentEntries }) {
-    self.readEntries = readEntries
+  /// `entriesAfter` returns the mirrored lines numbered after the given
+  /// one, oldest first; tests pass their own.
+  init(
+    entriesAfter: @escaping @MainActor (UInt64) -> [Diagnostics.LogEntry] = { Diagnostics.entries(after: $0) },
+    liveInterval: Duration = .milliseconds(250)
+  ) {
+    self.entriesAfter = entriesAfter
+    self.liveInterval = liveInterval
+  }
+
+  /// Reads the whole mirror through `readEntries`, for tests that do not
+  /// care about polling.
+  convenience init(readEntries: @escaping @MainActor () -> [Diagnostics.LogEntry]) {
+    self.init(entriesAfter: { after in readEntries().filter { $0.sequence > after } })
   }
 
   // MARK: Internal
+
+  /// Every row read for the current scope, oldest first.
+  private(set) var rows = [LogRow]()
 
   /// The rows the filters let through, oldest first.
   private(set) var shownRows = [LogRow]()
 
   var selection = Set<LogRow.ID>()
 
-  /// Every row read for the current scope, oldest first.
-  private(set) var rows = [LogRow]() {
-    didSet { recomputeShownRows() }
-  }
+  /// Whether the list holds still. Lines still arrive and wait in
+  /// `pendingRows` until the reader resumes.
+  var isPaused = false
+
+  /// Lines that arrived while paused, oldest first. Kept here rather than
+  /// read again on resume, so lines the mirror has dropped meanwhile are
+  /// not lost.
+  var pendingRows = [LogRow]()
+
+  /// Whether the window is on screen. Polling runs only while it is.
+  var isVisible = false
+
+  /// The number of the newest line of this launch taken in, in `rows` or
+  /// in `pendingRows`.
+  var lastSequence: UInt64 = 0
+
+  /// Numbers of this launch the mirror no longer held when they were
+  /// asked for. Read and cleared by whoever fills them from the saved file.
+  var missingRanges = [ClosedRange<UInt64>]()
+
+  @ObservationIgnored let entriesAfter: @MainActor (UInt64) -> [Diagnostics.LogEntry]
+  @ObservationIgnored let liveInterval: Duration
+  @ObservationIgnored var liveTask: Task<Void, Never>?
 
   /// Lines among `rows`, separators not counted.
   var entryCount: Int {
@@ -99,17 +132,27 @@ final class LogWindowState {
     return shownRows.compactMap { selection.contains($0.id) ? $0.entry : nil }
   }
 
-  /// Reads the mirror again and shows it.
-  func reload() {
-    rows = readEntries().map(LogRow.init(entry:))
+  /// Whether the filters let `row` through.
+  func matches(_: LogRow) -> Bool {
+    true
   }
 
-  // MARK: Private
+  /// Replaces every row and filters them again.
+  func replaceRows(_ newRows: [LogRow]) {
+    rows = newRows
+    recomputeShownRows()
+  }
 
-  private let readEntries: @MainActor () -> [Diagnostics.LogEntry]
+  /// Adds rows at the end, filtering only the new ones.
+  func appendRows(_ newRows: [LogRow]) {
+    guard !newRows.isEmpty else { return }
+    rows.append(contentsOf: newRows)
+    shownRows.append(contentsOf: newRows.filter(matches))
+  }
 
-  private func recomputeShownRows() {
-    shownRows = rows
+  /// Filters every row again, after a filter changed.
+  func recomputeShownRows() {
+    shownRows = rows.filter(matches)
   }
 
 }
