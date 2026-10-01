@@ -42,9 +42,19 @@ struct LogWindowView: View {
       )
     }
     .frame(minWidth: 640, minHeight: 360)
+    .background {
+      // Reached from anywhere in the window, as the window has no menu
+      // to carry Find.
+      Button("Search") { isSearchFocused = true }
+        .keyboardShortcut("f", modifiers: .command)
+        .hidden()
+        .accessibilityHidden(true)
+    }
   }
 
   // MARK: Private
+
+  @FocusState private var isSearchFocused: Bool
 
   /// The search field under the toolbar. Matches message text only.
   private var queryBar: some View {
@@ -57,6 +67,8 @@ struct LogWindowView: View {
         .textFieldStyle(.plain)
         .font(.system(size: 13))
         .accessibilityLabel("Search messages")
+        .focused($isSearchFocused)
+        .help("Search messages (⌘F)")
       if !state.searchText.isEmpty {
         Button {
           state.searchText = ""

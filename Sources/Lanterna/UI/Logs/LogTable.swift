@@ -117,6 +117,7 @@ struct LogTable: View {
         .font(Self.mono)
         .foregroundStyle(.tertiary)
         .frame(maxWidth: .infinity, alignment: .trailing)
+        .accessibilityLabel("Number \(entry.sequence)")
     } else {
       Image(systemName: "arrow.turn.down.right")
         .foregroundStyle(.secondary)
@@ -136,6 +137,7 @@ struct LogTable: View {
       Text(Self.separatorText(row.launch))
         .font(.system(size: 11, weight: .semibold))
         .lineLimit(1)
+        .accessibilityAddTraits(.isHeader)
     }
   }
 
