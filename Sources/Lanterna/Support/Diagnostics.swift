@@ -46,7 +46,7 @@ final class DiagnosticLogStore: @unchecked Sendable {
   /// anything weaker would let the on-screen log disagree with what was
   /// emitted. Only called with lines the logger already let through, so
   /// the two surfaces cannot drift apart. Tests use `append` directly,
-  /// which mirrors without emitting.
+  /// which mirrors without writing to stderr.
   func write(_ message: String) {
     let entry: Diagnostics.LogEntry
     let hook: ((Diagnostics.LogEntry) -> Void)?
@@ -60,7 +60,7 @@ final class DiagnosticLogStore: @unchecked Sendable {
 
   /// Emits a structured line: the message goes to stderr exactly as
   /// given, while the level, grouping, and extra context ride
-  /// alongside in the mirror only.
+  /// alongside in the mirror and the spill store fed from it.
   func write(_ message: String, level: Logger.Level, metadata: Logger.Metadata) {
     let entry: Diagnostics.LogEntry
     let hook: ((Diagnostics.LogEntry) -> Void)?
@@ -141,8 +141,9 @@ enum Diagnostics {
 
   /// One mirrored line: what went to stderr, with when and in what order,
   /// plus the fields the views filter on. The time, the number, and the
-  /// extra fields are display metadata only. They never reach stderr,
-  /// so the emitted lines keep the shape 005 through 007 defined.
+  /// extra fields ride beside the line in the mirror and the spill
+  /// store. They never reach stderr, so the emitted lines keep the
+  /// shape existing readers of stderr rely on.
   struct LogEntry: Equatable, Sendable {
     /// Increases with every line. Two lines never share one.
     let sequence: UInt64
@@ -314,13 +315,15 @@ enum Diagnostics {
   /// The store behind the mirror. One per process; the tests hold their own.
   private static let store = DiagnosticLogStore()
 
-  /// The spill path for this launch. Set once ahead of the run
-  /// loop; read from emitting threads after that.
+  /// The spill path for this launch: the writer and, when the launch
+  /// persists, the store behind it. Set once ahead of the run loop;
+  /// read after that only to drain, look up, and close them.
   private nonisolated(unsafe) static var spillWriter: LogSpillWriter?
   private nonisolated(unsafe) static var launchStore: LogLaunchStore?
 
-  /// The four stored severity words. Non-standard logger levels
-  /// fold into them at record time so level filters never miss.
+  /// The stored severity words. Logger levels without a word of
+  /// their own, trace, notice, and critical, fold into the nearest
+  /// one at record time so level filters never miss.
   private static func storedLevel(for level: Logger.Level) -> String {
     switch level {
     case .trace,
