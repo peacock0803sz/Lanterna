@@ -108,6 +108,35 @@ struct LogQueryTests {
   }
 
   @Test
+  func commentsAndQuotesNeverHideWrites() {
+    for statement in [
+      "SELECT * FROM entries WHERE ts_ms > 0 LIMIT 1 -- '\n) ORDER BY ts_ms) TO '/tmp/x.csv'; "
+        + "DELETE FROM entries; SELECT 1 -- '",
+      "/* x */ DELETE FROM entries WHERE ts_ms > 0",
+      "-- x\nDROP TABLE entries",
+      "WITH doomed AS (SELECT seq FROM entries) DELETE FROM entries WHERE ts_ms > 0",
+      "SELECT * INTO copied FROM entries WHERE ts_ms > 0",
+      "SELECT seq FROM entries WHERE ts_ms > 0 /* ' */ ; DELETE FROM entries",
+      "SELECT seq FROM entries WHERE ts_ms > 0 AND message = $$'$$; DELETE FROM entries",
+      "SELECT seq FROM entries WHERE ts_ms > 0 AND message = E'\\''; DELETE FROM entries",
+      "SELECT seq FROM entries WHERE ts_ms > 0) TO '/tmp/x.csv' (HEADER false) --",
+      "SELECT seq FROM entries WHERE ts_ms > 0 /* unterminated",
+    ] {
+      let verdict = DatabaseStatementCheck.check(statement)
+      #expect(!verdict.allowed, "\(statement)")
+    }
+  }
+
+  @Test
+  func commentsAroundAReadStillPass() {
+    let verdict = DatabaseStatementCheck.check(
+      "-- don't\nSELECT seq FROM entries /* it's */ WHERE ts_ms >= 0; -- done"
+    )
+    #expect(verdict.allowed)
+    #expect(!verdict.effectiveText.contains(";"))
+  }
+
+  @Test
   func quotedWordsNeverReadAsStatements() {
     let verdict = DatabaseStatementCheck.check(
       "SELECT seq FROM entries WHERE ts_ms >= 0 AND message = 'delete me'"

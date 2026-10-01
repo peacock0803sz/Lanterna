@@ -383,15 +383,23 @@ enum DatabaseStatementCheck {
     guard !trimmed.isEmpty else {
       return Verdict(allowed: false, refusal: "Enter a statement to run.", effectiveText: text)
     }
-    let head = strippedLeadingComments(trimmed).lowercased()
-    guard head.hasPrefix("select") || head.hasPrefix("with") else {
+    let characters = Array(trimmed)
+    let scanned = scan(characters)
+    guard scanned.balanced else {
+      return Verdict(
+        allowed: false,
+        refusal: "Close every quote, comment, and parenthesis.",
+        effectiveText: text
+      )
+    }
+    guard scanned.words.first == "select" || scanned.words.first == "with" else {
       return Verdict(allowed: false, refusal: "SQL mode is read-only.", effectiveText: text)
     }
-    let scanned = scan(trimmed)
-    if scanned.hasForbiddenWord {
+    if scanned.words.contains(where: forbidden.contains) {
       return Verdict(allowed: false, refusal: "SQL mode is read-only.", effectiveText: text)
     }
-    if scanned.semicolons > 1 || (scanned.semicolons == 1 && !trimmed.hasSuffix(";")) {
+    let trailingSemicolon = scanned.semicolons == [scanned.codeEnd - 1]
+    if scanned.semicolons.count > 1 || (scanned.semicolons.count == 1 && !trailingSemicolon) {
       return Verdict(allowed: false, refusal: "Run one statement at a time.", effectiveText: text)
     }
     if !scanned.words.contains("ts_ms") {
@@ -401,20 +409,30 @@ enum DatabaseStatementCheck {
         effectiveText: text
       )
     }
+    let base = trailingSemicolon ? String(characters[..<(scanned.codeEnd - 1)]) : trimmed
     if hasRowCap(words: scanned.words) {
-      let base = trimmed.hasSuffix(";") ? String(trimmed.dropLast()) : trimmed
       return Verdict(allowed: true, refusal: nil, effectiveText: base)
     }
-    let base = trimmed.hasSuffix(";") ? String(trimmed.dropLast()) : trimmed
     return Verdict(allowed: true, refusal: nil, effectiveText: base + " LIMIT \(rowLimit)")
+  }
+
+  /// The bare words of a statement, lowercased, leaving out string
+  /// literals, quoted names, and comments.
+  static func words(in text: String) -> [String] {
+    scan(Array(text)).words
   }
 
   // MARK: Private
 
   private struct Scan {
     var words: [String]
-    var hasForbiddenWord: Bool
-    var semicolons: Int
+    /// Offsets of the statement separators outside literals and comments.
+    var semicolons: [Int]
+    /// Just past the last character that is neither blank nor comment.
+    var codeEnd: Int
+    /// Whether every literal and comment closes and every parenthesis
+    /// pairs up, so the statement cannot reach past a wrapper around it.
+    var balanced: Bool
   }
 
   private static let forbidden: Set = [
@@ -441,78 +459,174 @@ enum DatabaseStatementCheck {
     "execute",
   ]
 
-  /// Collects bare words outside string literals, so a quoted
-  /// word like 'delete me' never reads as a statement.
-  private static func scan(_ text: String) -> Scan {
+  /// Reads the statement the way the database lexer does, so a
+  /// quoted word like 'delete me' never reads as a statement and a
+  /// quote inside a comment never hides the words after it. Line
+  /// and nested block comments, doubled-quote escapes, backslash
+  /// escapes in `E'…'`, and `$tag$…$tag$` bodies are all skipped.
+  private static func scan(_ characters: [Character]) -> Scan {
     var words = [String]()
-    var forbidden = false
-    var semicolons = 0
+    var semicolons = [Int]()
+    var codeEnd = 0
+    var depth = 0
+    var balanced = true
     var current = ""
-    var quote: Character?
-    var index = text.startIndex
+    var index = 0
     func flush() {
       if !current.isEmpty {
-        let word = current.lowercased()
-        words.append(word)
-        if forbiddenWordsContain(word) {
-          forbidden = true
-        }
+        words.append(current.lowercased())
         current = ""
       }
     }
-    while index < text.endIndex {
-      let character = text[index]
-      if let open = quote {
-        if character == open {
-          let next = text.index(after: index)
-          if next < text.endIndex, text[next] == open {
-            index = text.index(after: next)
-            continue
-          }
-          quote = nil
-        }
-      } else if character == "'" || character == "\"" || character == "`" {
-        quote = character
-      } else if character == ";" {
+    func next(_ offset: Int = 1) -> Character? {
+      index + offset < characters.count ? characters[index + offset] : nil
+    }
+    while index < characters.count {
+      let character = characters[index]
+      if character == "-", next() == "-" {
         flush()
-        semicolons += 1
-      } else if character.isLetter || character.isNumber || character == "_" {
+        while index < characters.count, characters[index] != "\n", characters[index] != "\r" {
+          index += 1
+        }
+        continue
+      }
+      if character == "/", next() == "*" {
+        flush()
+        guard let end = blockCommentEnd(in: characters, from: index) else {
+          balanced = false
+          break
+        }
+        index = end
+        continue
+      }
+      if character == "'" || character == "\"" || character == "`" {
+        let escaped = character == "'" && current.lowercased() == "e"
+        if escaped {
+          current = ""
+        } else {
+          flush()
+        }
+        guard let end = quoteEnd(in: characters, from: index, backslashEscapes: escaped) else {
+          balanced = false
+          break
+        }
+        index = end
+        codeEnd = end
+        continue
+      }
+      if character == "$", current.isEmpty, let tag = dollarTag(in: characters, at: index) {
+        guard let end = dollarBodyEnd(in: characters, tag: tag, from: index + tag.count) else {
+          balanced = false
+          break
+        }
+        index = end
+        codeEnd = end
+        continue
+      }
+      if !character.isWhitespace {
+        codeEnd = index + 1
+      }
+      if character == ";" {
+        flush()
+        semicolons.append(index)
+      } else if character == "(" {
+        flush()
+        depth += 1
+      } else if character == ")" {
+        flush()
+        depth -= 1
+        if depth < 0 {
+          balanced = false
+        }
+      } else if character.isLetter || character.isNumber || character == "_" || (character == "$" && !current.isEmpty) {
         current.append(character)
       } else {
         flush()
       }
-      index = text.index(after: index)
+      index += 1
     }
     flush()
-    return Scan(words: words, hasForbiddenWord: forbidden, semicolons: semicolons)
+    return Scan(words: words, semicolons: semicolons, codeEnd: codeEnd, balanced: balanced && depth == 0)
   }
 
-  private static func forbiddenWordsContain(_ word: String) -> Bool {
-    forbidden.contains(word)
+  /// Just past the `*/` closing the comment opened at `start`,
+  /// counting nested openings; nil when it never closes.
+  private static func blockCommentEnd(in characters: [Character], from start: Int) -> Int? {
+    var depth = 0
+    var index = start
+    while index + 1 < characters.count {
+      if characters[index] == "/", characters[index + 1] == "*" {
+        depth += 1
+        index += 2
+      } else if characters[index] == "*", characters[index + 1] == "/" {
+        depth -= 1
+        index += 2
+        if depth == 0 {
+          return index
+        }
+      } else {
+        index += 1
+      }
+    }
+    return nil
+  }
+
+  /// Just past the quote closing the one at `start`; nil when it
+  /// never closes.
+  private static func quoteEnd(in characters: [Character], from start: Int, backslashEscapes: Bool) -> Int? {
+    let open = characters[start]
+    var index = start + 1
+    while index < characters.count {
+      let character = characters[index]
+      if backslashEscapes, character == "\\" {
+        index += 2
+        continue
+      }
+      if character == open {
+        if index + 1 < characters.count, characters[index + 1] == open {
+          index += 2
+          continue
+        }
+        return index + 1
+      }
+      index += 1
+    }
+    return nil
+  }
+
+  /// The `$tag$` opening a dollar-quoted body at `start`, if one
+  /// does. A `$` followed by digits is a parameter instead.
+  private static func dollarTag(in characters: [Character], at start: Int) -> [Character]? {
+    var index = start + 1
+    while index < characters.count {
+      let character = characters[index]
+      if character == "$" {
+        return Array(characters[start...index])
+      }
+      let allowed = character.isLetter || character == "_" || (index > start + 1 && character.isNumber)
+      guard allowed else {
+        return nil
+      }
+      index += 1
+    }
+    return nil
+  }
+
+  /// Just past the tag closing a dollar-quoted body; nil when it
+  /// never closes.
+  private static func dollarBodyEnd(in characters: [Character], tag: [Character], from start: Int) -> Int? {
+    var index = start
+    while index + tag.count <= characters.count {
+      if characters[index..<(index + tag.count)].elementsEqual(tag) {
+        return index + tag.count
+      }
+      index += 1
+    }
+    return nil
   }
 
   private static func hasRowCap(words: [String]) -> Bool {
     zip(words, words.dropFirst()).contains { $0 == "limit" && Int($1) != nil }
-  }
-
-  private static func strippedLeadingComments(_ text: String) -> String {
-    var rest = text[...]
-    while true {
-      rest = rest.drop(while: { $0.isWhitespace })
-      if rest.hasPrefix("--") {
-        rest = rest.drop(while: { $0 != "\n" })
-        continue
-      }
-      if rest.hasPrefix("/*") {
-        if let end = rest.range(of: "*/") {
-          rest = rest[end.upperBound...]
-          continue
-        }
-        return ""
-      }
-      break
-    }
-    return String(rest)
   }
 
 }

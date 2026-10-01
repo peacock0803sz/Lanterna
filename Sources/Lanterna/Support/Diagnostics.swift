@@ -278,6 +278,12 @@ enum Diagnostics {
     }
   }
 
+  /// The store this launch is writing at `url`, if any. Readers pass
+  /// it to `LogQueryExecutor` so the file is never opened twice.
+  static func liveSpillStore(at url: URL) -> Database? {
+    launchStore?.openDatabase(at: url)
+  }
+
   /// Pins the launch summary. Called once per launch; later calls replace it.
   static func pinLaunchSummary(_ summary: String) {
     store.pin(summary)

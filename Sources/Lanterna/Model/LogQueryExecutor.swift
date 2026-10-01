@@ -31,9 +31,12 @@ final class LogQueryExecutor: Sendable {
 
   // MARK: Lifecycle
 
-  /// The store files to read, oldest first.
-  init(files: [URL]) {
+  /// - Parameter files: the store files to read, oldest first.
+  /// - Parameter liveStore: the store this process holds open for
+  ///   writing at one of those files, if any.
+  init(files: [URL], liveStore: @escaping @Sendable (URL) -> Database? = { _ in nil }) {
     self.files = files
+    self.liveStore = liveStore
   }
 
   // MARK: Internal
@@ -122,6 +125,7 @@ final class LogQueryExecutor: Sendable {
   }
 
   private let files: [URL]
+  private let liveStore: @Sendable (URL) -> Database?
 
   private func fetch(sql: String, limit: Int, progress: (Double) -> Void) throws -> ExecutedLogQuery {
     var rows = [DiagnosticRow]()
@@ -151,37 +155,7 @@ final class LogQueryExecutor: Sendable {
   }
 
   private func rowCap(in sql: String, default defaultCap: Int = 5000) -> Int {
-    var words = [String]()
-    var current = ""
-    var quote: Character?
-    func flush() {
-      if !current.isEmpty {
-        words.append(current.lowercased())
-        current = ""
-      }
-    }
-    var index = sql.startIndex
-    while index < sql.endIndex {
-      let character = sql[index]
-      if let open = quote {
-        if character == open {
-          let next = sql.index(after: index)
-          if next < sql.endIndex, sql[next] == open {
-            index = sql.index(after: next)
-            continue
-          }
-          quote = nil
-        }
-      } else if character == "'" || character == "\"" || character == "`" {
-        quote = character
-      } else if character.isLetter || character.isNumber || character == "_" {
-        current.append(character)
-      } else {
-        flush()
-      }
-      index = sql.index(after: index)
-    }
-    flush()
+    let words = DatabaseStatementCheck.words(in: sql)
     var cap = defaultCap
     var cursor = words.startIndex
     while cursor < words.endIndex {
@@ -196,12 +170,31 @@ final class LogQueryExecutor: Sendable {
     return cap
   }
 
+  /// Reads one file without ever writing to it. A file this process
+  /// already holds open for writing is read through that same store
+  /// inside a read-only transaction, since a second instance on the
+  /// file would share the process's lock and drop it on close; any
+  /// other file opens in read-only mode. The export runs as a single
+  /// prepared statement, which the database refuses to split.
   private func read(file: URL, sql: String) throws -> (rows: [DiagnosticRow], skippedLines: Int) {
-    guard FileManager.default.fileExists(atPath: file.path) else {
-      throw MissingStoreFile()
+    let connection: Connection
+    let live = liveStore(file)
+    if let live {
+      connection = try live.connect()
+      try connection.execute("BEGIN TRANSACTION READ ONLY")
+    } else {
+      guard FileManager.default.fileExists(atPath: file.path) else {
+        throw MissingStoreFile()
+      }
+      let configuration = Database.Configuration()
+      try configuration.setValue("READ_ONLY", forKey: "access_mode")
+      connection = try Database(store: .file(at: file), configuration: configuration).connect()
     }
-    let database = try Database(store: .file(at: file))
-    let connection = try database.connect()
+    defer {
+      if live != nil {
+        try? connection.execute("ROLLBACK")
+      }
+    }
     let stamped = try connection.query(
       "SELECT value FROM meta WHERE key = 'format_version' AND value = '\(LogPersistence.formatVersion)'"
     )
@@ -212,7 +205,11 @@ final class LogQueryExecutor: Sendable {
       .appendingPathComponent(UUID().uuidString)
       .appendingPathExtension("csv")
     defer { try? FileManager.default.removeItem(at: out) }
-    try connection.execute("COPY (\(sql)) TO \(LogPersistence.literal(out.path)) (HEADER false)")
+    let export = try PreparedStatement(
+      connection: connection,
+      query: "COPY (\(sql)) TO \(LogPersistence.literal(out.path)) (HEADER false)"
+    )
+    _ = try export.execute()
     let text = try String(contentsOf: out, encoding: .utf8)
     return parseCSV(text)
   }

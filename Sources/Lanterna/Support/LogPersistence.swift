@@ -292,6 +292,18 @@ final class LogLaunchStore: @unchecked Sendable {
     return cached!
   }
 
+  /// The store already open at `url`, if this launch is writing
+  /// there. Never opens one, so a read cannot create a file.
+  func openDatabase(at url: URL) -> Database? {
+    lock.lock()
+    defer { lock.unlock() }
+    guard let cached else {
+      return nil
+    }
+    let current = LogPersistence.fileURL(in: directory, launchID: launchID, part: currentPart)
+    return current.standardizedFileURL == url.standardizedFileURL ? cached : nil
+  }
+
   /// Releases the open store. The next write opens a fresh one.
   func close() {
     lock.lock()
