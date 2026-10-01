@@ -314,6 +314,24 @@ struct LogDetailView: View {
         .textSelection(.enabled)
         .accessibilityLabel("Category \(row.category ?? "no category")")
       Spacer()
+      Button("Copy Entry") {
+        copyDetailText()
+      }
+      .buttonStyle(.link)
+      .font(.callout)
+      .accessibilityLabel("Copy Entry")
+      .accessibilityHint("Copies this entry as readable text")
+      Button("Copy as JSON") {
+        copyDetailJSON()
+      }
+      .buttonStyle(.link)
+      .font(.callout)
+      .accessibilityLabel("Copy as JSON")
+      .accessibilityHint("Copies this entry with its stored fields")
+      Rectangle()
+        .fill(Color(nsColor: .separatorColor))
+        .frame(width: 1, height: 16)
+        .accessibilityHidden(true)
       Button {
         onClose()
       } label: {
@@ -395,6 +413,22 @@ struct LogDetailView: View {
     }
     let key = row.launchID ?? "current"
     return "\(key) (\(marker)) · entry #\(row.sequence)"
+  }
+
+  private func copyDetailText() {
+    let body = LogExport.textLines(rows: [row])
+    guard !body.isEmpty else { return }
+    let board = NSPasteboard.general
+    board.clearContents()
+    board.setString(body, forType: .string)
+  }
+
+  private func copyDetailJSON() {
+    let body = LogExport.jsonLines(rows: [row])
+    guard !body.isEmpty else { return }
+    let board = NSPasteboard.general
+    board.clearContents()
+    board.setString(body, forType: .string)
   }
 
   private func nodeView(path: String, key: String, value: DetailValue, depth: Int) -> AnyView {
