@@ -47,7 +47,8 @@ struct LogQueryTests {
   func arrayPathsMatchAnyElement() {
     let parsed = LightweightFilter.parse("attempts[].result=failed")
     #expect(parsed.conditions[0].fragment.contains("[*]"))
-    #expect(parsed.conditions[0].values == [.text("\"failed\"")])
+    #expect(parsed.conditions[0].fragment.contains("list_contains"))
+    #expect(parsed.conditions[0].values == [.text("failed")])
   }
 
   @Test

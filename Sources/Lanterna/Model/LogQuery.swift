@@ -323,17 +323,11 @@ enum LightweightFilter {
   private static func payloadCondition(path: String, op: String, value: String, source: String) -> FilterCondition {
     let dotted = path.replacing("[]", with: "[*]")
     let reader = "json_extract_string(payload, '$.\(dotted)')"
+    if path.contains("[]") {
+      return arrayPayloadCondition(path: path, reader: reader, op: op, value: value, source: source)
+    }
     switch op {
     case "=":
-      if path.contains("[]") {
-        let quoted = "\"" + value.replacing("'", with: "") + "\""
-        return FilterCondition(
-          fragment: "instr(\(reader), ?) > 0",
-          values: [.text(quoted)],
-          chip: "\(path) is \(value)",
-          source: source
-        )
-      }
       return FilterCondition(
         fragment: "\(reader) = ?",
         values: [.text(value)],
@@ -352,6 +346,44 @@ enum LightweightFilter {
     default:
       return FilterCondition(
         fragment: "instr(\(reader), ?) > 0",
+        values: [.text(value)],
+        chip: "\(path) contains \(value)",
+        source: source
+      )
+    }
+  }
+
+  /// A path through `[]` reads back a list of every element's value,
+  /// so the comparison runs per element: any element matching, or
+  /// none for the excluded form. A missing payload reads as no
+  /// elements.
+  private static func arrayPayloadCondition(
+    path: String,
+    reader: String,
+    op: String,
+    value: String,
+    source: String
+  ) -> FilterCondition {
+    switch op {
+    case "=":
+      FilterCondition(
+        fragment: "coalesce(list_contains(\(reader), ?), false)",
+        values: [.text(value)],
+        chip: "\(path) is \(value)",
+        source: source
+      )
+
+    case "!=":
+      FilterCondition(
+        fragment: "NOT coalesce(list_contains(\(reader), ?), false)",
+        values: [.text(value)],
+        chip: "\(path) is not \(value)",
+        source: source
+      )
+
+    default:
+      FilterCondition(
+        fragment: "coalesce(len(list_filter(\(reader), element -> instr(element, ?) > 0)) > 0, false)",
         values: [.text(value)],
         chip: "\(path) contains \(value)",
         source: source
