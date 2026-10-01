@@ -10,6 +10,15 @@ import Foundation
 extension LogWindowState {
 
   var liveLabel: String {
+    if timeSelection.kind == .relativeNow {
+      if isPaused {
+        if pendingCount > 0 {
+          return "Paused · \(pendingCount) new entries waiting"
+        }
+        return "Paused"
+      }
+      return "Live"
+    }
     if let end = rangeEndMilliseconds, end < nowMilliseconds() {
       return "Not live · range ends \(LogExport.fullTime(milliseconds: end).prefix(19))"
     }
