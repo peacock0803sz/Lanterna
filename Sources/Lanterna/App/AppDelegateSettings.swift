@@ -8,6 +8,22 @@ extension AppDelegate {
 
   // MARK: Internal
 
+  /// What one origin keeps on disk, for the settings Saved logs row.
+  /// Missing directories read as nothing kept.
+  static func savedLogArchiveStatus() -> LogPersistence.ArchiveStatus {
+    let empty = LogPersistence.ArchiveStatus(totalBytes: 0, launchCount: 0, oldest: nil)
+    guard
+      let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+    else {
+      return empty
+    }
+    let directory = LogPersistence.directory(
+      applicationSupport: support,
+      origin: LogPersistence.currentOrigin()
+    )
+    return LogPersistence.archiveStatus(in: directory)
+  }
+
   /// Opens the settings window on the current values.
   ///
   /// Reopening takes a fresh snapshot: the window edits a copy, and
@@ -27,6 +43,8 @@ extension AppDelegate {
       onCheckNow: { [weak self] in self?.runUpdateCheck() },
       onOpenLogs: { [weak self] in self?.openVersionLog() },
       launchSummary: Diagnostics.launchSummary,
+      savedLogs: { AppDelegate.savedLogArchiveStatus() },
+      onDeleteSavedLogs: { [weak self] in self?.deleteSavedLogs() },
       onChange: { [weak self] values in
         guard let self else { return }
         switch applySettings(values, replacingInvalidFile: false) {
@@ -43,6 +61,27 @@ extension AppDelegate {
     NSApp.activate(ignoringOtherApps: true)
     window.makeKeyAndOrderFront(nil)
     settingsWindow = window
+  }
+
+  /// Removes every spill file of this origin after the settings
+  /// confirmation. A failure stays a diagnostics line; the running
+  /// launch keeps its memory mirror either way.
+  func deleteSavedLogs() {
+    guard
+      let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+    else {
+      return
+    }
+    let directory = LogPersistence.directory(
+      applicationSupport: support,
+      origin: LogPersistence.currentOrigin()
+    )
+    do {
+      try LogPersistence.deleteSavedLogs(in: directory)
+      Diagnostics.writeLine("deleted saved logs for this origin", level: .info)
+    } catch {
+      Diagnostics.writeLine("deleting saved logs failed: \(error)", level: .warning)
+    }
   }
 
   /// Runs one manual update check from the General tab.

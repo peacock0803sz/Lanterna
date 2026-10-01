@@ -26,11 +26,29 @@ enum LogPersistence {
     case incompatibleShape(found: String?)
   }
 
+  /// What one origin keeps on disk: how much room its spill files
+  /// take, how many launches they cover, and the oldest day among
+  /// them. Read for the settings display; removing needs the call
+  /// below.
+  struct ArchiveStatus: Equatable, Sendable {
+    var totalBytes: Int64
+    var launchCount: Int
+    var oldest: Foundation.Date?
+  }
+
   /// The stored shape this build reads and writes. A file carrying
   /// any other value is refused on open and left out of reads, with
   /// its reason returned beside the results; old shapes are never
   /// migrated.
   static let formatVersion = 1
+
+  /// The retention choices the settings offer, in days. Absent in the
+  /// file means thirty days.
+  static let offeredRetentionDays = [7, 30, 90]
+
+  /// The disk caps the settings offer, in gigabytes. Absent in the
+  /// file means five gigabytes.
+  static let offeredDiskLimitsGB = [1, 5, 20]
 
   /// Tables every store file carries. Entries hold one row per
   /// diagnostic line, launches one row per launch, meta the shape
@@ -180,7 +198,73 @@ enum LogPersistence {
       + "SELECT seq FROM entries ORDER BY ts_ms DESC, seq DESC LIMIT \(limit))"
   }
 
+  /// Reads what one origin keeps on disk. Missing directories and
+  /// unreadable entries read as nothing kept rather than failing.
+  static func archiveStatus(in directory: URL) -> ArchiveStatus {
+    let files = spillFiles(in: directory)
+    var total: Int64 = 0
+    var oldest: Foundation.Date?
+    var launches = Set<String>()
+    for url in files {
+      if let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey]) {
+        total += Int64(values.fileSize ?? 0)
+        if let modified = values.contentModificationDate {
+          if oldest == nil || modified < oldest! {
+            oldest = modified
+          }
+        }
+      }
+      launches.insert(launchStem(of: url.lastPathComponent))
+    }
+    return ArchiveStatus(totalBytes: total, launchCount: launches.count, oldest: oldest)
+  }
+
+  /// Removes every spill file of one origin. Used by the settings
+  /// delete action; the running launch keeps spilling to its open
+  /// store, which is closed and reopened by the caller when the
+  /// persist choice changes.
+  static func deleteSavedLogs(in directory: URL) throws {
+    for url in spillFiles(in: directory) {
+      try FileManager.default.removeItem(at: url)
+    }
+  }
+
+  /// The spill files of one origin, oldest first. Read-only opens
+  /// never create the directory, so a missing one means no files.
+  static func spillFiles(in directory: URL) -> [URL] {
+    guard let names = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else {
+      return []
+    }
+    let urls = names.filter { $0.hasSuffix(".duckdb") }.sorted().map {
+      directory.appendingPathComponent($0)
+    }
+    return urls.sorted { left, right in
+      let leftDate = (try? left.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+      let rightDate = (try? right.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+      return (leftDate ?? .distantPast) < (rightDate ?? .distantPast)
+    }
+  }
+
   // MARK: Private
+
+  /// The launch one spill file belongs to: the file stem without
+  /// the in-launch rotation suffix.
+  private static func launchStem(of fileName: String) -> String {
+    var stem = fileName
+    if stem.hasSuffix(".duckdb") {
+      stem = String(stem.dropLast(".duckdb".count))
+    }
+    let suffixes = ["-part"]
+    for marker in suffixes {
+      if let range = stem.range(of: marker, options: .backwards) {
+        let tail = stem[range.upperBound...]
+        if tail.count == 3, tail.allSatisfy(\.isNumber) {
+          return String(stem[..<range.lowerBound])
+        }
+      }
+    }
+    return stem
+  }
 
   private static func prepare(
     database: Database,
@@ -232,16 +316,58 @@ enum LogPersistence {
 
 /// How often a launch starts a sibling file inside its run.
 /// The launch boundary always starts a new file regardless.
-enum LogRotation: Equatable, Sendable {
+enum LogRotation: Hashable, Equatable, Sendable {
   case hourly
   case daily
   case weekly
+
+  // MARK: Lifecycle
+
+  /// Reads one config word. Unknown words read as nil, so callers
+  /// fall back to the default.
+  init?(configWord: String) {
+    switch configWord {
+    case "hourly": self = .hourly
+    case "daily": self = .daily
+    case "weekly": self = .weekly
+    default: return nil
+    }
+  }
+
+  // MARK: Internal
+
+  /// The words the settings and the config file use, in menu order.
+  /// Absent in the file means daily.
+  static let offered: [LogRotation] = [.hourly, .daily, .weekly]
+
+  /// The config words in the same order, for validation.
+  static let offeredWords = ["hourly", "daily", "weekly"]
+
+  /// The word the config file holds for this choice.
+  var configWord: String {
+    switch self {
+    case .hourly: "hourly"
+    case .daily: "daily"
+    case .weekly: "weekly"
+    }
+  }
+
+  /// The menu name for this choice.
+  var menuName: String {
+    switch self {
+    case .hourly: "Hourly"
+    case .daily: "Daily"
+    case .weekly: "Weekly"
+    }
+  }
 
   /// Which period one instant falls in. Two instants sharing a
   /// bucket share a file.
   func bucket(milliseconds: Int64) -> Int64 {
     milliseconds / periodMilliseconds
   }
+
+  // MARK: Private
 
   private var periodMilliseconds: Int64 {
     switch self {

@@ -19,6 +19,10 @@ struct SettingsValues: Equatable, Sendable {
     updateCheckEnabled: false,
     updateChannel: .stable,
     launchAtLogin: false,
+    keepLogsAcrossLaunches: true,
+    logRotation: .daily,
+    logRetentionDays: 30,
+    logDiskLimitGB: 5,
     exclusions: [],
     shortcutMemoryLength: 5,
     fuzzyMatchEnabled: true,
@@ -38,6 +42,18 @@ struct SettingsValues: Equatable, Sendable {
   var updateChannel: UpdateChannel
   /// Whether Lanterna starts at login. Absent in the file means off.
   var launchAtLogin: Bool
+  /// Whether spilled archives stay on disk across launches. Absent in
+  /// the file means kept.
+  var keepLogsAcrossLaunches: Bool
+  /// How often a launch starts a new spill file. Absent in the file
+  /// means daily.
+  var logRotation: LogRotation
+  /// How long spill files are kept, in days. Absent in the file means
+  /// thirty days.
+  var logRetentionDays: Int
+  /// The disk cap for spill files, in gigabytes. Absent in the file
+  /// means five gigabytes.
+  var logDiskLimitGB: Int
   /// The raw exclusion entries. Empty means no exclusions.
   var exclusions: [ExclusionEntry]
   /// How many characters of a query the shortcut memory covers. Absent
@@ -72,6 +88,10 @@ struct SettingsValues: Equatable, Sendable {
       updateCheckEnabled: config.updateCheckEnabled ?? false,
       updateChannel: UpdateChannel(rawValue: config.updateChannel ?? "stable") ?? .stable,
       launchAtLogin: config.launchAtLogin ?? false,
+      keepLogsAcrossLaunches: config.keepLogsAcrossLaunches ?? true,
+      logRotation: config.logRotation.flatMap(LogRotation.init(configWord:)) ?? .daily,
+      logRetentionDays: config.logRetentionDays ?? 30,
+      logDiskLimitGB: config.logDiskLimitGB ?? 5,
       exclusions: config.exclusions ?? [],
       shortcutMemoryLength: config.shortcutMemoryLength ?? 5,
       fuzzyMatchEnabled: config.fuzzyMatchEnabled ?? true,
@@ -106,6 +126,15 @@ struct SettingsValues: Equatable, Sendable {
     config.launchAtLogin = launchAtLogin
     config.updateCheckEnabled = updateCheckEnabled
     config.updateChannel = updateChannel.rawValue
+    // Absent means the defaults, so defaults stay out of the file and a
+    // later default change reaches saved files.
+    let retentionDefaults = SettingsValues.defaults
+    config.keepLogsAcrossLaunches = keepLogsAcrossLaunches == retentionDefaults.keepLogsAcrossLaunches
+      ? nil
+      : keepLogsAcrossLaunches
+    config.logRotation = logRotation == retentionDefaults.logRotation ? nil : logRotation.configWord
+    config.logRetentionDays = logRetentionDays == retentionDefaults.logRetentionDays ? nil : logRetentionDays
+    config.logDiskLimitGB = logDiskLimitGB == retentionDefaults.logDiskLimitGB ? nil : logDiskLimitGB
     // Empty stays absent, so clearing the list removes the key.
     config.exclusions = exclusions.isEmpty ? nil : exclusions
     // Defaults stay absent, so a later default change reaches saved files.

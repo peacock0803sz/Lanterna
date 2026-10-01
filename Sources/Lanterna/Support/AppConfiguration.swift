@@ -32,6 +32,10 @@ enum AppConfiguration {
     "appearanceMode",
     "romajiScope",
     "launchAtLogin",
+    "keepLogsAcrossLaunches",
+    "logRotation",
+    "logRetentionDays",
+    "logDiskLimitGB",
     "logLevel",
     "updateCheckEnabled",
     "updateChannel",
@@ -71,6 +75,10 @@ struct ValidConfiguration: Equatable, Sendable {
     appearanceMode: AppearanceMode? = nil,
     romajiScope: RomajiScope? = nil,
     launchAtLogin: Bool? = nil,
+    keepLogsAcrossLaunches: Bool? = nil,
+    logRotation: String? = nil,
+    logRetentionDays: Int? = nil,
+    logDiskLimitGB: Int? = nil,
     logLevel: Logger.Level? = nil,
     updateCheckEnabled: Bool? = nil,
     updateChannel: String? = nil,
@@ -92,6 +100,10 @@ struct ValidConfiguration: Equatable, Sendable {
     self.appearanceMode = appearanceMode
     self.romajiScope = romajiScope
     self.launchAtLogin = launchAtLogin
+    self.keepLogsAcrossLaunches = keepLogsAcrossLaunches
+    self.logRotation = logRotation
+    self.logRetentionDays = logRetentionDays
+    self.logDiskLimitGB = logDiskLimitGB
     self.logLevel = logLevel
     self.updateCheckEnabled = updateCheckEnabled
     self.updateChannel = updateChannel
@@ -116,6 +128,18 @@ struct ValidConfiguration: Equatable, Sendable {
   var appearanceMode: AppearanceMode?
   var romajiScope: RomajiScope?
   var launchAtLogin: Bool?
+  /// Whether spilled archives stay on disk across launches. Nil means
+  /// absent, which means kept.
+  var keepLogsAcrossLaunches: Bool?
+  /// The spill rotation word within a launch. Nil means absent, which
+  /// means daily. Kept as a string like `updateChannel`.
+  var logRotation: String?
+  /// How long spill files are kept, in days. Nil means absent, which
+  /// means thirty days.
+  var logRetentionDays: Int?
+  /// The disk cap for spill files, in gigabytes. Nil means absent,
+  /// which means five gigabytes.
+  var logDiskLimitGB: Int?
   var logLevel: Logger.Level?
   var updateCheckEnabled: Bool?
   var updateChannel: String?
@@ -407,6 +431,12 @@ extension AppConfiguration {
     switch checkedOptionalExclusions(dict, key: "exclusions") {
     case .success(let found):
       config.exclusions = found
+    case .failure(let error):
+      return .failure(error)
+    }
+    switch checkedLogRetention(dict, into: &config) {
+    case .success:
+      break
     case .failure(let error):
       return .failure(error)
     }

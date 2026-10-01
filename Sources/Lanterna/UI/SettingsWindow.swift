@@ -56,6 +56,10 @@ final class SettingsWindow: NSWindow {
     onCheckNow: @escaping () -> Void = { },
     onOpenLogs: @escaping () -> Void = { },
     launchSummary: String? = nil,
+    savedLogs: @escaping () -> LogPersistence.ArchiveStatus = {
+      LogPersistence.ArchiveStatus(totalBytes: 0, launchCount: 0, oldest: nil)
+    },
+    onDeleteSavedLogs: @escaping () -> Void = { },
     onChange: @escaping (SettingsValues) -> Void
   ) {
     let model = SettingsModel(values: values, onChange: onChange)
@@ -86,7 +90,9 @@ final class SettingsWindow: NSWindow {
       opener: opener,
       onCheckNow: onCheckNow,
       onOpenLogs: onOpenLogs,
-      launchSummary: launchSummary
+      launchSummary: launchSummary,
+      savedLogs: savedLogs,
+      onDeleteSavedLogs: onDeleteSavedLogs
     )))
     generalHost.preferredContentSize = NSSize(width: Self.contentWidth, height: contentHeight)
     generalHost.sizingOptions = []
@@ -159,6 +165,8 @@ struct GeneralTabRoot: View {
   let onCheckNow: () -> Void
   let onOpenLogs: () -> Void
   let launchSummary: String?
+  let savedLogs: () -> LogPersistence.ArchiveStatus
+  let onDeleteSavedLogs: () -> Void
 
   var body: some View {
     SettingsGeneralView(
@@ -170,7 +178,9 @@ struct GeneralTabRoot: View {
       checkResultText: checkDisplay.resultText,
       isChecking: checkDisplay.isChecking,
       onCheckNow: onCheckNow,
-      onOpenLogs: onOpenLogs
+      onOpenLogs: onOpenLogs,
+      savedLogs: savedLogs,
+      onDeleteSavedLogs: onDeleteSavedLogs
     )
   }
 }

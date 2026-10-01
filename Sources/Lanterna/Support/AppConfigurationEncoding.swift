@@ -30,6 +30,7 @@ extension AppConfiguration {
     if let launchAtLogin = config.launchAtLogin {
       entries.append(encodedBool(key: "launchAtLogin", value: launchAtLogin))
     }
+    entries.append(contentsOf: logRetentionEntries(config))
     entries.append(contentsOf: keyBindingEntries(config))
     if let logLevel = config.logLevel {
       entries.append(encodedString(key: "logLevel", value: logLevel.rawValue))
@@ -122,6 +123,24 @@ extension AppConfiguration {
       entries.append(encodedBool(key: "updateCheckEnabled", value: updateCheckEnabled))
     }
     return entries
+  }
+
+  /// The spill retention lines, in canonical order, skipping absent values.
+  private static func logRetentionEntries(_ config: ValidConfiguration) -> [String] {
+    var lines = [String]()
+    if let keepLogsAcrossLaunches = config.keepLogsAcrossLaunches {
+      lines.append(encodedBool(key: "keepLogsAcrossLaunches", value: keepLogsAcrossLaunches))
+    }
+    if let logRotation = config.logRotation {
+      lines.append(encodedString(key: "logRotation", value: logRotation))
+    }
+    if let logRetentionDays = config.logRetentionDays {
+      lines.append(encodedInt(key: "logRetentionDays", value: logRetentionDays))
+    }
+    if let logDiskLimitGB = config.logDiskLimitGB {
+      lines.append(encodedInt(key: "logDiskLimitGB", value: logDiskLimitGB))
+    }
+    return lines
   }
 
   /// One `"key": "value"` line, indented two spaces.

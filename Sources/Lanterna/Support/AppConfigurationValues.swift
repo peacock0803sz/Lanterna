@@ -37,6 +37,79 @@ extension AppConfiguration {
     return .success(())
   }
 
+  /// Reads the spill retention keys together, so the assembly stays small.
+  static func checkedLogRetention(
+    _ dict: [String: Any],
+    into config: inout ValidConfiguration
+  ) -> Result<Void, ConfigDecodeError> {
+    switch checkedOptionalBool(dict, key: "keepLogsAcrossLaunches") {
+    case .success(let found):
+      config.keepLogsAcrossLaunches = found
+    case .failure(let error):
+      return .failure(error)
+    }
+    switch checkedOptionalRotation(dict, key: "logRotation") {
+    case .success(let found):
+      config.logRotation = found
+    case .failure(let error):
+      return .failure(error)
+    }
+    switch checkedOptionalRetentionDays(dict, key: "logRetentionDays") {
+    case .success(let found):
+      config.logRetentionDays = found
+    case .failure(let error):
+      return .failure(error)
+    }
+    switch checkedOptionalDiskLimit(dict, key: "logDiskLimitGB") {
+    case .success(let found):
+      config.logDiskLimitGB = found
+    case .failure(let error):
+      return .failure(error)
+    }
+    return .success(())
+  }
+
+  /// Reads the optional rotation word. Only the three known words count:
+  /// anything else invalidates the whole file, like any other bad value.
+  static func checkedOptionalRotation(
+    _ dict: [String: Any],
+    key: String
+  ) -> Result<String?, ConfigDecodeError> {
+    guard let rawValue = dict[key] else { return .success(nil) }
+    guard
+      let text = rawValue as? String,
+      LogRotation.offeredWords.contains(text)
+    else {
+      return .failure(.invalidValue(key: key))
+    }
+    return .success(text)
+  }
+
+  /// Reads one optional retention key. Only the offered choices count:
+  /// anything else invalidates the whole file, like any other bad value.
+  static func checkedOptionalRetentionDays(
+    _ dict: [String: Any],
+    key: String
+  ) -> Result<Int?, ConfigDecodeError> {
+    guard let rawValue = dict[key] else { return .success(nil) }
+    guard let value = jsonInt(rawValue), LogPersistence.offeredRetentionDays.contains(value) else {
+      return .failure(.invalidValue(key: key))
+    }
+    return .success(value)
+  }
+
+  /// Reads one optional disk cap key, the same strict way.
+  static func checkedOptionalDiskLimit(
+    _ dict: [String: Any],
+    key: String
+  ) -> Result<Int?, ConfigDecodeError> {
+    guard let rawValue = dict[key] else { return .success(nil) }
+    guard let value = jsonInt(rawValue), LogPersistence.offeredDiskLimitsGB.contains(value) else {
+      return .failure(.invalidValue(key: key))
+    }
+    return .success(value)
+  }
+
   /// Reads one optional integer key with its lower bound.
   static func checkedOptionalInt(
     _ dict: [String: Any],

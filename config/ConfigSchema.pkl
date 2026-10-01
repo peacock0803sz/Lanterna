@@ -89,6 +89,26 @@ stopMonitorEvery: Int? = null
 /// Whether Lanterna starts at login. Absent means off.
 launchAtLogin: Boolean? = null
 
+/// Whether spilled log archives stay on disk across launches. Absent means kept.
+keepLogsAcrossLaunches: Boolean? = null
+
+/// How often a launch starts a new spill file within its run: one period per file.
+typealias LogArchiveRotation = "hourly"|"daily"|"weekly"
+
+/// The spill rotation within a launch. Absent means "daily".
+@Allowed { values { "hourly" "daily" "weekly" } }
+logRotation: LogArchiveRotation? = null
+
+/// How long spill files are kept, in days. Only the offered choices count.
+/// Absent means thirty days.
+@Minimum { value = 0 }
+logRetentionDays: Int? = null
+
+/// The disk cap for spill files, in gigabytes. Only the offered choices
+/// count. Absent means five gigabytes.
+@Minimum { value = 0 }
+logDiskLimitGB: Int? = null
+
 /// How much diagnostics to emit: errors only, warnings and above, or
 /// down through info and debug. Absent means "warning".
 typealias LogLevel = "error"|"warning"|"info"|"debug"

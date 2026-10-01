@@ -93,6 +93,29 @@
       "description": "Whether Lanterna starts at login. Absent means off.",
       "type": "boolean"
     },
+    "keepLogsAcrossLaunches": {
+      "description": "Whether spilled log archives stay on disk across launches. Absent means kept.",
+      "type": "boolean"
+    },
+    "logRotation": {
+      "description": "The spill rotation within a launch. Absent means \"daily\".",
+      "type": "string",
+      "enum": [
+        "hourly",
+        "daily",
+        "weekly"
+      ]
+    },
+    "logRetentionDays": {
+      "description": "How long spill files are kept, in days. Only the offered choices count.\nAbsent means thirty days.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "logDiskLimitGB": {
+      "description": "The disk cap for spill files, in gigabytes. Only the offered choices\ncount. Absent means five gigabytes.",
+      "type": "integer",
+      "minimum": 0
+    },
     "logLevel": {
       "description": "The diagnostics threshold. Absent means \"warning\".",
       "type": "string",
