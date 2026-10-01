@@ -17,7 +17,7 @@ final class PanelPresenter {
     keyBindings: KeyBindingTable = .defaults,
     ownProcessIdentifier: pid_t = getpid(),
     now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
-    writeLine: @escaping @MainActor (Logger.Level, String) -> Void = { Diagnostics.writeLine($1, level: $0) },
+    writeLine: @escaping @MainActor (LogLine) -> Void = { Diagnostics.writeLine($0) },
     closesOnCommandRelease: @escaping @MainActor () -> Bool = { false },
     commandIsHeld: @escaping @MainActor () -> Bool = {
       CGEventSource.flagsState(.combinedSessionState).contains(.maskCommand)
@@ -55,7 +55,7 @@ final class PanelPresenter {
   let ownProcessIdentifier: pid_t
   /// Handed on to the way out, built beside the presenter.
   let now: @MainActor () -> ContinuousClock.Instant
-  let writeLine: @MainActor (Logger.Level, String) -> Void
+  let writeLine: @MainActor (LogLine) -> Void
 
   /// A press that arrived before any list had been gathered and is waiting
   /// for one.
@@ -232,11 +232,12 @@ final class PanelPresenter {
     // too, and that one is already answered — the release calls the
     // pending press off. Here is what nothing else covers.
     if closesOnCommandRelease(), !commandIsHeld() {
-      writeLine(
+      writeLine(LogLine(
         .info,
+        .panel,
         "turned away \(combination.name); Command was already up by the time "
           + "the press arrived"
-      )
+      ))
       return
     }
     // A press is already waiting for the first list and is the one that
@@ -396,7 +397,7 @@ final class PanelPresenter {
       becameKey: becameKey,
       mru: MRUSummary(firstID: shown.first?.id, source: tracker.newestSource)
     )
-    writeLine(.info, measurement.summaryLine)
+    writeLine(LogLine(.info, .panel, measurement.summaryLine))
 
     // Only with a monitor is a release expected at all, and starting below
     // the reading is what keeps the task out of the figure. Filtering starts

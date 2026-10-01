@@ -310,7 +310,7 @@ private func handleModifierEvent(
     // nothing reaches here. It says so all the same rather than slipping
     // away quietly, because a return with nothing written would read
     // exactly like a tap that was never sent an event at all.
-    Diagnostics.writeLine("event ignored; the callback arrived with no way back to the tap", level: .warning)
+    Diagnostics.writeLine(LogLine(.warning, .hotkey, "event ignored; the callback arrived with no way back to the tap"))
     return Unmanaged.passUnretained(event)
   }
   let tap = Unmanaged<SystemEventTap>.fromOpaque(userInfo).takeUnretainedValue()
@@ -321,11 +321,12 @@ private func handleModifierEvent(
     // dropping it in silence: a disable notice lost here would look
     // exactly like a tap that never went down, and the type is the only
     // thing in the line that tells those two apart.
-    Diagnostics.writeLine(
+    Diagnostics.writeLine(LogLine(
+      .warning,
+      .hotkey,
       "modifier monitor callback ran off the main thread; event ignored "
-        + "(type \(type.rawValue))",
-      level: .warning
-    )
+        + "(type \(type.rawValue))"
+    ))
     return Unmanaged.passUnretained(event)
   }
   // Read out here rather than inside the hop. `CGEvent` is not `Sendable`,

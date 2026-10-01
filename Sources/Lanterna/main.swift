@@ -14,7 +14,7 @@ let cliOptions: LaunchArguments.Options
 do {
   cliOptions = try LaunchArguments.parse(ProcessInfo.processInfo.arguments)
 } catch {
-  Diagnostics.writeLine("\(error)\n\(LaunchArguments.usage)", level: .error)
+  Diagnostics.writeLine(LogLine(.error, .launch, "\(error)\n\(LaunchArguments.usage)"))
   exit(EX_USAGE)
 }
 
@@ -48,18 +48,15 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
       lanternaDirectory: url.deletingLastPathComponent()
     )
     if decoded.assumedVersion {
-      Diagnostics.writeLine("config loaded (version 1, assumed): \(url.path)", level: .info)
+      Diagnostics.writeLine(LogLine(.info, .config, "config loaded (version 1, assumed): \(url.path)"))
     } else {
-      Diagnostics.writeLine(
-        "config loaded (version \(decoded.config.version)): \(url.path)",
-        level: .info
-      )
+      Diagnostics.writeLine(LogLine(.info, .config, "config loaded (version \(decoded.config.version)): \(url.path)"))
     }
     for issue in decoded.keyBindingIssues {
-      Diagnostics.writeLine(issue.diagnosticsLine, level: .warning)
+      Diagnostics.writeLine(LogLine(.warning, .config, issue.diagnosticsLine))
     }
     if let textScaleIssue = decoded.textScaleIssue {
-      Diagnostics.writeLine("\(textScaleIssue): \(url.path)", level: .warning)
+      Diagnostics.writeLine(LogLine(.warning, .config, "\(textScaleIssue): \(url.path)"))
     }
 
   case .created:
@@ -71,7 +68,7 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
       scope: .kanaKanji,
       lanternaDirectory: url.deletingLastPathComponent()
     )
-    Diagnostics.writeLine("config not found; created with defaults: \(url.path)", level: .info)
+    Diagnostics.writeLine(LogLine(.info, .config, "config not found; created with defaults: \(url.path)"))
 
   case .failed(let reason):
     options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
@@ -82,7 +79,7 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
       scope: .kanaKanji,
       lanternaDirectory: url.deletingLastPathComponent()
     )
-    Diagnostics.writeLine("config invalid (\(reason)); using defaults: \(url.path)", level: .error)
+    Diagnostics.writeLine(LogLine(.error, .config, "config invalid (\(reason)); using defaults: \(url.path)"))
   }
 } else {
   options = cliOptions
@@ -92,14 +89,14 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
   configFileURL = nil
   lanternaDirectory = nil
   openSharedMatcher(scope: .kanaKanji, lanternaDirectory: nil)
-  Diagnostics.writeLine("config invalid (cannot resolve directory); using defaults", level: .error)
+  Diagnostics.writeLine(LogLine(.error, .config, "config invalid (cannot resolve directory); using defaults"))
 }
 
 // Brings the login item in line with the saved setting, ahead of the run
 // loop and off the path with a time budget. A change or a failure leaves
 // one diagnostics line; quiet runs stay silent. Never stops the launch.
 if let report = LaunchAtLogin.sync(desired: launchDesired, service: LaunchAtLogin.liveIfBundled()) {
-  Diagnostics.writeLine(report.line, level: report.level)
+  Diagnostics.writeLine(LogLine(report.level, .launch, report.line))
 }
 
 /// Opens the shared matcher for one run, ahead of the run loop.
@@ -117,10 +114,7 @@ func openSharedMatcher(scope: RomajiScope, lanternaDirectory: URL?) {
   if scope == .kanaKanji, let lanternaDirectory {
     let dictURL = lanternaDirectory.appendingPathComponent("migemo-dict", isDirectory: false)
     if FileManager.default.fileExists(atPath: dictURL.path), !active {
-      Diagnostics.writeLine(
-        "dict invalid (unreadable format); matching kana only: \(dictURL.path)",
-        level: .warning
-      )
+      Diagnostics.writeLine(LogLine(.warning, .config, "dict invalid (unreadable format); matching kana only: \(dictURL.path)"))
     }
   }
 }

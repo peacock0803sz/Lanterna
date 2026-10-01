@@ -330,7 +330,7 @@ struct UnreportedReleaseWatchTests {
       interval: .milliseconds(1),
       isPanelUp: { [surface] in surface.isPresented },
       commandIsHeld: { [hold] in hold.read() },
-      onUnreportedRelease: { [log] in log.write("found a release") }
+      onUnreportedRelease: { [log] in log.write(LogLine(.warning, .panel, "found a release")) }
     )
   }
 

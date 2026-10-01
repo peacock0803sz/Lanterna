@@ -14,14 +14,14 @@ extension PanelExit {
   /// over it, so the tidying can go on.
   func closeAfterEmptiedList(operation: WindowOperation) {
     dismissPanel()
-    writeLine(.info, "closed the panel (\(operation.logName) emptied the list)")
+    writeLine(LogLine(.info, .activate, "closed the panel (\(operation.logName) emptied the list)"))
   }
 
   /// The wording for the disappearances that are the app tidying up after
   /// itself rather than the user deciding anything.
   func takeDown(because reason: String) {
     dismissPanel()
-    writeLine(.info, "panel hidden (\(reason))")
+    writeLine(LogLine(.info, .activate, "panel hidden (\(reason))"))
   }
 
   /// Swaps the list an appearance is showing, whenever an operation moves
@@ -43,9 +43,10 @@ extension PanelExit {
   /// Leaving the panel up would keep any dialog hidden behind it.
   func closeAfterInterruptedOperation(operation: WindowOperation, appName: String, displayTitle: String) {
     dismissPanel()
-    writeLine(
+    writeLine(LogLine(
       .warning,
+      .activate,
       "closed the panel (\(operation.logName) not confirmed: \(appName)/\(displayTitle))"
-    )
+    ))
   }
 }

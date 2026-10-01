@@ -100,7 +100,7 @@ private final class CountingGather {
 struct WindowListStoreTests {
   @Test
   func theFirstPassPutsAListInPlace() async {
-    let store = WindowListStore(gather: { snapshot(count: 3) }, writeLine: { _, _ in })
+    let store = WindowListStore(gather: { snapshot(count: 3) }, writeLine: { _ in })
     #expect(store.snapshot == nil)
     await store.refresh()
     #expect(store.snapshot?.items.count == 3)
@@ -111,7 +111,7 @@ struct WindowListStoreTests {
     var counts = [3, 7]
     let store = WindowListStore(
       gather: { snapshot(count: counts.removeFirst()) },
-      writeLine: { _, _ in }
+      writeLine: { _ in }
     )
     await store.refresh()
     await store.refresh()
@@ -149,7 +149,7 @@ struct WindowListStoreTests {
   @Test
   func aRefreshAfterThePassHasFinishedRunsNormally() async {
     let fake = ReentrantGather(answers: [snapshot(count: 3), snapshot(count: 9)])
-    let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
+    let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
     fake.store = store
 
     await store.refresh()
@@ -177,7 +177,7 @@ struct WindowListStoreTests {
 
   @Test
   func liveListsAreLive() {
-    let store = WindowListStore(gather: { snapshot(count: 1) }, writeLine: { _, _ in })
+    let store = WindowListStore(gather: { snapshot(count: 1) }, writeLine: { _ in })
     #expect(store.isLive == true)
   }
 
@@ -186,7 +186,7 @@ struct WindowListStoreTests {
   /// back after it had already been paid for.
   @Test
   func aListThatArrivedIsNeverTakenAway() async {
-    let store = WindowListStore(gather: { snapshot(count: 3) }, writeLine: { _, _ in })
+    let store = WindowListStore(gather: { snapshot(count: 3) }, writeLine: { _ in })
     await store.refresh()
     store.stop()
     #expect(store.snapshot?.items.count == 3)
@@ -201,7 +201,7 @@ struct WindowListStoreTests {
     var counts = [3, 7]
     let store = WindowListStore(
       gather: { snapshot(count: counts.removeFirst()) },
-      writeLine: { _, _ in }
+      writeLine: { _ in }
     )
     await store.refresh()
     store.stop()
@@ -212,7 +212,7 @@ struct WindowListStoreTests {
   @Test
   func aHeldListIsHandedOverWithoutGatheringAgain() async {
     let fake = HeldGather(answer: snapshot(count: 5))
-    let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
+    let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
     let pass = Task { await store.refresh() }
     await fake.waitUntilCalled()
     fake.finish()
@@ -225,7 +225,7 @@ struct WindowListStoreTests {
 
   @Test
   func askingBeforeAnyPassHasRunGathersOne() async {
-    let store = WindowListStore(gather: { snapshot(count: 2) }, writeLine: { _, _ in })
+    let store = WindowListStore(gather: { snapshot(count: 2) }, writeLine: { _ in })
     let items = await store.listWhenGathered()
     #expect(items.count == 2)
   }
@@ -237,7 +237,7 @@ struct WindowListStoreTests {
   @Test
   func askingDuringAPassWaitsForThatPassRatherThanStartingAnother() async {
     let fake = HeldGather(answer: snapshot(count: 5))
-    let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
+    let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
 
     let pass = Task { await store.refresh() }
     await fake.waitUntilCalled()
@@ -262,7 +262,7 @@ struct WindowListStoreTests {
   @Test(.timeLimit(.minutes(1)))
   func theLoopKeepsGoingUntilItIsStopped() async {
     let fake = CountingGather(answer: snapshot(count: 3))
-    let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
+    let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
 
     store.start(interval: .milliseconds(1))
     await fake.waitUntilCalled(times: 3)
@@ -280,7 +280,7 @@ struct WindowListStoreTests {
   @Test(.timeLimit(.minutes(1)))
   func stoppingEndsTheLoop() async {
     let fake = CountingGather(answer: snapshot(count: 3))
-    let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
+    let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
 
     store.start(interval: .milliseconds(1))
     await fake.waitUntilCalled(times: 3)
@@ -300,7 +300,7 @@ struct WindowListStoreTests {
   @Test(.timeLimit(.minutes(1)))
   func startingAgainReplacesTheLoopRatherThanAddingOne() async {
     let fake = CountingGather(answer: snapshot(count: 3))
-    let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
+    let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
 
     store.start(interval: .milliseconds(1))
     store.start(interval: .milliseconds(1))

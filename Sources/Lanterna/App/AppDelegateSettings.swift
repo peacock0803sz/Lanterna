@@ -75,10 +75,7 @@ extension AppDelegate {
     panel?.exclusionRules = compiled.rules
     presenter?.exclusionRules = compiled.rules
     if compiled.invalid > 0 {
-      Diagnostics.writeLine(
-        "ignored \(compiled.invalid) invalid exclusion entries",
-        level: .info
-      )
+      Diagnostics.writeLine(LogLine(.info, .config, "ignored \(compiled.invalid) invalid exclusion entries"))
     }
   }
 
@@ -87,10 +84,7 @@ extension AppDelegate {
   func makePanelAndPresenter(windowList: WindowListStore) -> (SwitcherPanel, PanelPresenter) {
     let compiled = WindowExclusion.compile(options.exclusionEntries)
     if compiled.invalid > 0 {
-      Diagnostics.writeLine(
-        "ignored \(compiled.invalid) invalid exclusion entries",
-        level: .info
-      )
+      Diagnostics.writeLine(LogLine(.info, .config, "ignored \(compiled.invalid) invalid exclusion entries"))
     }
     let panel = SwitcherPanel(
       displayModes: options.displayModes,
@@ -175,7 +169,7 @@ extension AppDelegate {
         service: LaunchAtLogin.liveIfBundled()
       )
     {
-      Diagnostics.writeLine(report.line, level: report.level)
+      Diagnostics.writeLine(LogLine(report.level, .config, report.line))
     }
     return saveSettings(valuesForSave, replacingInvalidFile: replacingInvalidFile)
   }
@@ -190,7 +184,7 @@ extension AppDelegate {
     channel: UpdateChannel,
     display: UpdateCheckDisplay
   ) {
-    Diagnostics.writeLine(UpdateCheck.diagnosticsLine(result, channel: channel), level: .info)
+    Diagnostics.writeLine(LogLine(.info, .config, UpdateCheck.diagnosticsLine(result, channel: channel)))
     guard settingsWindow?.checkDisplay === display else { return }
     display.isChecking = false
     switch result {
@@ -318,29 +312,26 @@ extension AppDelegate {
     // then takes only what the new table claimed.
     let restoreFailures = SystemSwitcherShortcuts.restore()
     if let line = SystemSwitcherShortcuts.summaryLine(restoring: restoreFailures) {
-      Diagnostics.writeLine(line, level: .warning)
+      Diagnostics.writeLine(LogLine(.warning, .hotkey, line))
     }
     let outcome = hotkeys.register(bindings: HotkeyBinding.bindings(for: bindings))
-    Diagnostics.writeLine(outcome.summaryLine, level: outcome.logLevel)
+    Diagnostics.writeLine(LogLine(outcome.logLevel, .hotkey, outcome.summaryLine))
     for detail in hotkeys.refusedDetails {
-      Diagnostics.writeLine(detail, level: .warning)
+      Diagnostics.writeLine(LogLine(.warning, .hotkey, detail))
     }
     // The panel takes the new table only once something answers for
     // it: a total failure keeps the previous table, which still opens.
     guard !outcome.isTotalFailure else {
-      Diagnostics.writeLine(
-        "new keybindings registered nothing; keeping the previous table",
-        level: .error
-      )
+      Diagnostics.writeLine(LogLine(.error, .hotkey, "new keybindings registered nothing; keeping the previous table"))
       hotkeys.unregister()
       let recovery = hotkeys.register(bindings: HotkeyBinding.bindings(for: previous))
-      Diagnostics.writeLine(recovery.summaryLine, level: recovery.logLevel)
+      Diagnostics.writeLine(LogLine(recovery.logLevel, .hotkey, recovery.summaryLine))
       return false
     }
     presenter?.keyBindings = bindings
     let disabling = SystemSwitcherShortcuts.disable(outcome.registered)
     if let line = SystemSwitcherShortcuts.summaryLine(disabling: disabling) {
-      Diagnostics.writeLine(line, level: .warning)
+      Diagnostics.writeLine(LogLine(.warning, .hotkey, line))
     }
     return true
   }

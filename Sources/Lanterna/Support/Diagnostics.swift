@@ -194,8 +194,14 @@ enum Diagnostics {
     logger.logLevel = .warning
   }
 
-  static func writeLine(_ message: String, level: Logger.Level) {
-    logger.log(level: level, "\(message)")
+  /// Sends one line out with the call site `LogLine` captured, so the
+  /// source names the file that wrote it rather than this one.
+  static func writeLine(_ line: LogLine) {
+    var metadata: Logger.Metadata = [DiagnosticLogHandler.categoryKey: .string(line.category.rawValue)]
+    if !line.context.isEmpty {
+      metadata[DiagnosticLogHandler.contextKey] = .stringConvertible(ContextBox(values: line.context))
+    }
+    logger.log(level: line.level, "\(line.message)", metadata: metadata, file: line.file, line: line.line)
   }
 
   /// Pins the launch summary. Called once per launch; later calls replace it.

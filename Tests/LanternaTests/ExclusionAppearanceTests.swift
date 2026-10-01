@@ -39,7 +39,7 @@ struct ExclusionAppearanceTests {
     let log = DiagnosticsLog()
     let selection = PanelSelection(surface: surface)
     let filter = PanelFilter(selection: selection, surface: surface)
-    filter.writeLine = { log.write($0, $1) }
+    filter.writeLine = { log.write($0) }
     filter.exclusionRules = WindowExclusion.compile([
       ExclusionEntry(app: "^Safari$", titlePattern: "Update")
     ]).rules

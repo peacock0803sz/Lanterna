@@ -24,7 +24,7 @@ final class PanelWindowOperations {
     hider: any ApplicationHiding,
     minimizer: any WindowMinimizing,
     ownProcessIdentifier: pid_t,
-    writeLine: @escaping @MainActor (Logger.Level, String) -> Void,
+    writeLine: @escaping @MainActor (LogLine) -> Void,
     closeAfterEmptied: @escaping @MainActor () -> Void,
     closeForInterruption: @escaping @MainActor (WindowOperation, String, String) -> Void
   ) {
@@ -50,7 +50,7 @@ final class PanelWindowOperations {
   /// carried into the answer. Nothing when no pass has finished.
   let refresh: @MainActor ([WindowItem]) async -> ReconcilingList?
   /// Reached beside the operations, by the reconciling half.
-  let writeLine: @MainActor (Logger.Level, String) -> Void
+  let writeLine: @MainActor (LogLine) -> Void
   let closeAfterEmptied: @MainActor () -> Void
   let closeForInterruption: @MainActor (WindowOperation, String, String) -> Void
   /// Reached beside the operations, by the reconciling half.
@@ -85,7 +85,7 @@ final class PanelWindowOperations {
   @discardableResult
   func start(_ operation: WindowOperation, naming id: WindowItem.Identifier?) -> Task<Void, Never>? {
     guard operatingIn != appearance else {
-      writeLine(.warning, "window operation dropped (\(operation.logName); another is still reconciling)")
+      writeLine(LogLine(.warning, .activate, "window operation dropped (\(operation.logName); another is still reconciling)"))
       return nil
     }
     let generation = appearance

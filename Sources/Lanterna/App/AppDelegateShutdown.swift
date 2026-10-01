@@ -17,7 +17,7 @@ extension AppDelegate {
   func shutDown() {
     let restoreFailures = SystemSwitcherShortcuts.restore()
     if let line = SystemSwitcherShortcuts.summaryLine(restoring: restoreFailures) {
-      Diagnostics.writeLine(line, level: .error)
+      Diagnostics.writeLine(LogLine(.error, .launch, line))
     }
     hotkeys?.unregister()
     windowList?.stop()

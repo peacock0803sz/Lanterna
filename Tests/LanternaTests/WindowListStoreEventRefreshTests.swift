@@ -178,7 +178,7 @@ struct WindowListStoreEventRefreshTests {
   @Test(.timeLimit(.minutes(1)))
   func stoppingReleasesAParkedEventRefresh() async {
     let fake = HeldGather(answer: eventSnapshot(count: 5))
-    let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
+    let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
 
     let pass = Task { await store.refreshEventually() }
     await fake.waitUntilCalled()
@@ -197,7 +197,7 @@ struct WindowListStoreEventRefreshTests {
   @Test(.timeLimit(.minutes(1)))
   func twoEventRefreshesDuringOnePassProduceOnlyOneExtraPass() async {
     let fake = HeldGather(answer: eventSnapshot(count: 5))
-    let store = WindowListStore(gather: fake.gather, writeLine: { _, _ in })
+    let store = WindowListStore(gather: fake.gather, writeLine: { _ in })
 
     let pass = Task { await store.refreshEventually() }
     await fake.waitUntilCalled()

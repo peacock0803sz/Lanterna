@@ -49,9 +49,9 @@ final class PanelFilter {
   /// tests can read what an appearance reports without stderr. Falls
   /// silent while the diagnostics logger is down (tests reading no log),
   /// because the process only wires it on the launch path.
-  var writeLine: @MainActor (Logger.Level, String) -> Void = { level, line in
+  var writeLine: @MainActor (LogLine) -> Void = { line in
     guard Diagnostics.logger != nil else { return }
-    Diagnostics.writeLine(line, level: level)
+    Diagnostics.writeLine(line)
   }
 
   /// The compiled exclusion rules. Read at launch from the config file
@@ -86,7 +86,7 @@ final class PanelFilter {
     // Without rules there is nothing to report, so stay quiet.
     guard !exclusionRules.isEmpty else { return }
     let excluded = fullWindows.count - WindowExclusion.excluding(fullWindows, rules: exclusionRules).count
-    writeLine(.info, "excluded \(excluded) of \(fullWindows.count) windows")
+    writeLine(LogLine(.info, .filter, "excluded \(excluded) of \(fullWindows.count) windows"))
   }
 
   /// Switches filtering on for the panel that is up, drawing at once: the

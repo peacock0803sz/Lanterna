@@ -25,7 +25,7 @@ final class ModifierKeyMonitor {
     healthCheckInterval: Duration = defaultHealthCheckInterval,
     onCommandRelease: @escaping @MainActor () -> Void,
     now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
-    writeLine: @escaping @MainActor (Logger.Level, String) -> Void = { Diagnostics.writeLine($1, level: $0) }
+    writeLine: @escaping @MainActor (LogLine) -> Void = { Diagnostics.writeLine($0) }
   ) {
     self.tap = tap
     self.healthCheckInterval = healthCheckInterval
@@ -209,14 +209,15 @@ final class ModifierKeyMonitor {
     // Read before the putting-back moves it.
     let downFor = checkedAt - lastKnownEnabledAt
     guard enableTap() else {
-      writeLine(.error, "modifier monitor was found disabled; could not re-enable it")
+      writeLine(LogLine(.error, .modifier, "modifier monitor was found disabled; could not re-enable it"))
       return
     }
-    writeLine(
+    writeLine(LogLine(
       .warning,
+      .modifier,
       "modifier monitor was found disabled; re-enabled "
         + "\(Diagnostics.millisecondsText(downFor)) ms after it went down"
-    )
+    ))
   }
 
   /// Switches the tap off deliberately, so the loop can be watched putting
@@ -250,18 +251,20 @@ final class ModifierKeyMonitor {
   /// the recovery, which is the one place the fault would not be.
   func stopOnPurpose() {
     guard tap.disable() else {
-      writeLine(
+      writeLine(LogLine(
         .debug,
+        .modifier,
         "modifier monitor could not be stopped on purpose "
           + "(\(LaunchArguments.stopMonitorEveryFlag.name))"
-      )
+      ))
       return
     }
-    writeLine(
+    writeLine(LogLine(
       .debug,
+      .modifier,
       "modifier monitor stopped on purpose "
         + "(\(LaunchArguments.stopMonitorEveryFlag.name))"
-    )
+    ))
   }
 
   /// Takes the tap down.
@@ -304,7 +307,7 @@ final class ModifierKeyMonitor {
   private let healthCheckInterval: Duration
   private let onCommandRelease: @MainActor () -> Void
   private let now: @MainActor () -> ContinuousClock.Instant
-  private let writeLine: @MainActor (Logger.Level, String) -> Void
+  private let writeLine: @MainActor (LogLine) -> Void
 
   /// What the first `start()` achieved. Present from that call onwards, and
   /// the reason a repeat call need attempt nothing.
@@ -358,10 +361,10 @@ final class ModifierKeyMonitor {
   /// between the two to measure.
   private func putBackAfterBeingTold() {
     guard enableTap() else {
-      writeLine(.error, "modifier monitor was disabled by the system; could not re-enable it")
+      writeLine(LogLine(.error, .modifier, "modifier monitor was disabled by the system; could not re-enable it"))
       return
     }
-    writeLine(.warning, "modifier monitor was disabled by the system; re-enabled")
+    writeLine(LogLine(.warning, .modifier, "modifier monitor was disabled by the system; re-enabled"))
   }
 
   /// `enable()` and the one thing every successful enabling owes: moving the
