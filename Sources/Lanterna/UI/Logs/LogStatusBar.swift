@@ -24,6 +24,8 @@ struct LogStatusBar: View {
       Text(statusText)
         .font(.caption)
         .foregroundStyle(.secondary)
+        .lineLimit(2)
+        .fixedSize(horizontal: false, vertical: true)
         .accessibilityLabel(statusText)
       if isLoading {
         ProgressView()
@@ -34,6 +36,7 @@ struct LogStatusBar: View {
       Toggle("Auto-scroll", isOn: $autoScroll)
         .toggleStyle(.checkbox)
         .font(.caption)
+        .fixedSize()
         .accessibilityLabel("Auto-scroll")
     }
     .padding(.horizontal, 12)
