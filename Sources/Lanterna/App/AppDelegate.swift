@@ -94,7 +94,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // on the next run, so this answer stands for the whole run (FR-005).
     let permissionState = SystemPermissionReader().currentState()
     launchPermissionState = permissionState
-    let guideWindows = GuideWindows(appearanceMode: options.appearanceMode)
+    let guideWindows = GuideWindows(
+      appearanceMode: options.appearanceMode,
+      logState: LogWindowState(savedLogs: savedLogs.map { SavedLogSource.live(store: $0.store) })
+    )
     self.guideWindows = guideWindows
     if OnboardingNeed.isNeeded(state: permissionState, sampleCount: options.sampleCount) {
       guideWindows.openGuide(state: permissionState)
