@@ -119,6 +119,20 @@ struct LaunchLogStoreTests {
   }
 
   @Test
+  func theUsageSaysHowMuchHowManyAndSinceWhen() throws {
+    let folder = try TemporaryFolder()
+    let store = LaunchLogStore(directory: folder.url, timeZone: Self.tokyo)
+    #expect(store.usage().summary(timeZone: Self.tokyo) == "No saved logs yet.")
+    for index in 0 ..< 2 {
+      _ = try store.create(for: Self.launch(index), version: "v0")
+    }
+    let usage = store.usage()
+    #expect(usage.launchCount == 2)
+    #expect(usage.byteCount > 0)
+    #expect(usage.summary(timeZone: Self.tokyo) == "0.0 MB across 2 launches · oldest Sep 30")
+  }
+
+  @Test
   func eachOriginKeepsItsOwnFolder() {
     let support = URL(fileURLWithPath: "/tmp/support")
     #expect(

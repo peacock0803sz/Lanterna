@@ -45,6 +45,37 @@ struct SavedLaunchRead: Sendable {
   let isReadable: Bool
 }
 
+// MARK: - SavedLogsUsage
+
+/// The saved launches in brief, for the settings.
+struct SavedLogsUsage: Equatable, Sendable {
+
+  // MARK: Internal
+
+  let byteCount: Int
+  let launchCount: Int
+  let oldest: Date?
+
+  /// `4.1 MB across 6 launches · oldest Sep 28`, or that there are none.
+  func summary(timeZone: TimeZone = .current) -> String {
+    guard launchCount > 0 else { return "No saved logs yet." }
+    let size = String(format: "%.1f MB", Double(byteCount) / 1_048_576)
+    let launches = launchCount == 1 ? "1 launch" : "\(launchCount) launches"
+    guard let oldest else { return "\(size) across \(launches)" }
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = timeZone
+    let parts = calendar.dateComponents([.month, .day], from: oldest)
+    let month = Self.months[max(0, min(11, (parts.month ?? 1) - 1))]
+    return "\(size) across \(launches) · oldest \(month) \(parts.day ?? 1)"
+  }
+
+  // MARK: Private
+
+  /// Fixed English month names, so the line reads the same in every locale.
+  private static let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+}
+
 // MARK: - LaunchLogStore
 
 /// Where saved launches live, and making, trimming, deleting and reading
@@ -142,6 +173,17 @@ struct LaunchLogStore: Sendable {
       total -= oldest.byteCount
       others.removeFirst()
     }
+  }
+
+  /// How much the saved launches take, how many there are, and when the
+  /// oldest started.
+  func usage() -> SavedLogsUsage {
+    let files = files()
+    return SavedLogsUsage(
+      byteCount: files.reduce(0) { $0 + $1.byteCount },
+      launchCount: files.count,
+      oldest: files.first?.launch.startedAt
+    )
   }
 
   /// Deletes every saved launch but `current`; with nil, every one.
