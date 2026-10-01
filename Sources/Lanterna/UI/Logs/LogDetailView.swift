@@ -355,7 +355,7 @@ struct LogDetailView: View {
       .padding(10)
       .background(Color(nsColor: .textBackgroundColor))
       .clipShape(RoundedRectangle(cornerRadius: 8))
-      .accessibilityLabel("Full message")
+      .accessibilityLabel("Full message: \(row.message)")
   }
 
   private var fieldsSection: some View {

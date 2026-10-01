@@ -342,12 +342,18 @@ struct HistogramView: View {
             }
           }
           .accessibilityElement(children: .ignore)
-          .accessibilityLabel(
-            "\(LogExport.displayTime(milliseconds: bucket.startMilliseconds)) – \(LogExport.displayTime(milliseconds: bucket.endMilliseconds)) · \(bucket.filteredCount) entries"
-          )
+          .accessibilityLabel(bucketLabel(for: bucket))
       }
     }
     .frame(height: height)
+  }
+
+  /// Spoken name for one bucket: the covered span with the entry count.
+  private func bucketLabel(for bucket: HistogramBucket) -> String {
+    let start = LogExport.displayTime(milliseconds: bucket.startMilliseconds)
+    let end = LogExport.displayTime(milliseconds: bucket.endMilliseconds)
+    let mark = bucket.holdsSelection ? ", selected" : ""
+    return "\(start) – \(end) · \(bucket.filteredCount) entries\(mark)"
   }
 
   private func barColor(for bucket: HistogramBucket) -> Color {
