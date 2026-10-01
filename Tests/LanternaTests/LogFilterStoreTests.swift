@@ -64,7 +64,10 @@ struct LogFilterStoreTests {
       row(4, level: "debug", category: "ax", message: "debug ax", payload: "{\"attempts\":[]}"),
     ])
     let parsed = LightweightFilter.parse(filter)
-    return try LogQueryExecutor(files: [store.url]).run(predicate: parsed.predicate, values: parsed.values)
+    return try LogQueryExecutor(files: [store.url], liveStore: { _ in nil }).run(
+      predicate: parsed.predicate,
+      values: parsed.values
+    )
   }
 
   private func row(

@@ -37,16 +37,36 @@ struct LogQueryExecutorTests {
 
   @Test
   func liveStoresReadInsideATransactionTheWriterOutlives() throws {
+    // The file holds one row and the live store another, so the
+    // answer shows which of the two the read went through.
     let store = try LogStoreFixture()
     defer { store.remove() }
     try store.insert([row(sequence: 1, at: 1000)])
-    let database = store.database
-    let executor = LogQueryExecutor(files: [store.url], liveStore: { _ in database })
+    let live = try LogPersistence.openEphemeral(
+      launchID: LogStoreFixture.launchID,
+      origin: .development,
+      buildVersion: LogStoreFixture.buildVersion,
+      startedAtMilliseconds: 0
+    )
+    try live.connect().execute(
+      LogPersistence.insertStatement(
+        rows: [row(sequence: 9, at: 9000)],
+        launchID: LogStoreFixture.launchID,
+        buildVersion: LogStoreFixture.buildVersion
+      )
+    )
+    let storeURL = store.url
+    let executor = LogQueryExecutor(files: [store.url], liveStore: { $0 == storeURL ? live : nil })
     let result = try executor.run(predicate: "1 = 1", values: [])
-    #expect(result.rows.map(\.sequence) == [1])
+    #expect(result.rows.map(\.sequence) == [9])
     #expect(result.skipped.isEmpty)
-    try store.insert([row(sequence: 2, at: 2000)])
-    #expect(try store.count() == 2)
+    try live.connect().execute(
+      LogPersistence.insertStatement(
+        rows: [row(sequence: 10, at: 10000)],
+        launchID: LogStoreFixture.launchID,
+        buildVersion: LogStoreFixture.buildVersion
+      )
+    )
   }
 
   @Test
@@ -56,7 +76,7 @@ struct LogQueryExecutorTests {
     try store.insert([row(sequence: 1, at: 1000), row(sequence: 2, at: 2000)])
     let verdict = DatabaseStatementCheck.check("SELECT * FROM entries WHERE ts_ms >= 0 -- every line")
     #expect(verdict.allowed)
-    let result = try LogQueryExecutor(files: [store.url]).runStatement(verdict.effectiveText)
+    let result = try LogQueryExecutor(files: [store.url], liveStore: { _ in nil }).runStatement(verdict.effectiveText)
     #expect(result.skipped.isEmpty)
     #expect(result.rows.map(\.sequence) == [1, 2])
   }
@@ -69,7 +89,7 @@ struct LogQueryExecutorTests {
     defer { newer.remove() }
     try older.insert([row(sequence: 1, at: 1000), row(sequence: 2, at: 2000), row(sequence: 3, at: 3000)])
     try newer.insert([row(sequence: 4, at: 4000), row(sequence: 5, at: 5000)])
-    let executor = LogQueryExecutor(files: [older.url, newer.url])
+    let executor = LogQueryExecutor(files: [older.url, newer.url], liveStore: { _ in nil })
     #expect(try executor.run(predicate: "1 = 1", values: [], limit: 3).rows.map(\.sequence) == [3, 4, 5])
     let statement = try executor.runStatement("SELECT * FROM entries WHERE ts_ms >= 0 ORDER BY ts_ms DESC LIMIT 2")
     #expect(statement.rows.map(\.sequence) == [4, 5])
@@ -80,7 +100,7 @@ struct LogQueryExecutorTests {
     let store = try LogStoreFixture()
     defer { store.remove() }
     try store.insert((1...7).map { row(sequence: UInt64($0), at: Int64($0) * 1000) })
-    let executor = LogQueryExecutor(files: [store.url])
+    let executor = LogQueryExecutor(files: [store.url], liveStore: { _ in nil })
     let verdict = DatabaseStatementCheck.check("SELECT * FROM entries WHERE ts_ms >= 0")
     #expect(try executor.runStatement(verdict.effectiveText, defaultCap: 3).rows.map(\.sequence) == [5, 6, 7])
   }
@@ -94,7 +114,7 @@ struct LogQueryExecutorTests {
       "SELECT * FROM entries WHERE ts_ms >= 0 ORDER BY ts_ms DESC LIMIT 2 -- newest pair"
     )
     #expect(verdict.allowed)
-    let result = try LogQueryExecutor(files: [store.url]).runStatement(verdict.effectiveText)
+    let result = try LogQueryExecutor(files: [store.url], liveStore: { _ in nil }).runStatement(verdict.effectiveText)
     #expect(result.rows.map(\.sequence) == [6, 7])
   }
 
@@ -104,7 +124,7 @@ struct LogQueryExecutorTests {
     defer { first.remove() }
     let second = try LogStoreFixture()
     defer { second.remove() }
-    let executor = LogQueryExecutor(files: [first.url, second.url])
+    let executor = LogQueryExecutor(files: [first.url, second.url], liveStore: { _ in nil })
     #expect(throws: LogQueryExecutor.StatementError.self) {
       try executor.runStatement("SELECT no_such_column FROM entries WHERE ts_ms >= 0")
     }
@@ -112,7 +132,7 @@ struct LogQueryExecutorTests {
       try executor.run(predicate: "no_such_column = 1", values: [])
     }
     let missing = first.base.appendingPathComponent("missing.duckdb")
-    let result = try LogQueryExecutor(files: [missing, first.url]).run(predicate: "1 = 1", values: [])
+    let result = try LogQueryExecutor(files: [missing, first.url], liveStore: { _ in nil }).run(predicate: "1 = 1", values: [])
     #expect(result.skipped.map(\.url) == [missing])
   }
 
@@ -131,7 +151,7 @@ struct LogQueryExecutorTests {
       payloadJSON: "{\"note\":\"O'Brien, \\\"x\\\"\\n\",\"raw\":\"a,b\"}"
     )
     try store.insert([original])
-    let result = try LogQueryExecutor(files: [store.url]).run(predicate: "1 = 1", values: [])
+    let result = try LogQueryExecutor(files: [store.url], liveStore: { _ in nil }).run(predicate: "1 = 1", values: [])
     #expect(result.skippedLines == 0)
     #expect(result.rows == [original])
   }

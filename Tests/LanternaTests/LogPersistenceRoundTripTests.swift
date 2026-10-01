@@ -61,7 +61,7 @@ struct LogPersistenceRoundTripTests {
     )
     let garbageURL = base.appendingPathComponent("garbage.duckdb")
     try "not a database".write(to: garbageURL, atomically: true, encoding: .utf8)
-    let executor = LogQueryExecutor(files: [storeURL, garbageURL])
+    let executor = LogQueryExecutor(files: [storeURL, garbageURL], liveStore: { _ in nil })
     let result = try executor.run(predicate: "1 = 1", values: [])
     #expect(result.rows.map(\.sequence) == [1, 2, 3])
     #expect(result.rows.first?.message == "first")

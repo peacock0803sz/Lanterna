@@ -32,8 +32,9 @@ final class LogQueryExecutor: Sendable {
 
   /// - Parameter files: the store files to read, oldest first.
   /// - Parameter liveStore: the store this process holds open for
-  ///   writing at one of those files, if any.
-  init(files: [URL], liveStore: @escaping @Sendable (URL) -> Database? = { _ in nil }) {
+  ///   writing at one of those files, if any. Required, so a caller
+  ///   cannot forget it and open the live file a second time.
+  init(files: [URL], liveStore: @escaping @Sendable (URL) -> Database?) {
     self.files = files
     self.liveStore = liveStore
   }
