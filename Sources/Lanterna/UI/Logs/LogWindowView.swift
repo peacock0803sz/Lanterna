@@ -292,7 +292,13 @@ struct LogWindowView: View {
   private var emptyView: some View {
     VStack(spacing: 8) {
       Spacer()
-      if state.totalCount == 0 {
+      if let error = state.databaseError {
+        Text(error)
+          .font(.body)
+          .foregroundStyle(.secondary)
+          .textSelection(.enabled)
+          .accessibilityLabel(error)
+      } else if state.totalCount == 0 {
         Text("No log entries yet")
           .font(.body)
           .foregroundStyle(.secondary)
@@ -314,7 +320,7 @@ struct LogWindowView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .accessibilityElement(children: .contain)
     .accessibilityLabel(
-      state.totalCount == 0 ? "No log entries yet" : "No entries match the current filters"
+      state.databaseError ?? (state.totalCount == 0 ? "No log entries yet" : "No entries match the current filters")
     )
   }
 

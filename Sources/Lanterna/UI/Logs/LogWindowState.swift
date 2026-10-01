@@ -45,6 +45,7 @@ final class LogWindowState: ObservableObject {
   @Published var isHistogramCollapsed = false
   @Published var allKeptRows = [DiagnosticRow]()
   @Published var jumpTargetID: String?
+  @Published var databaseError: String?
 
   var liveLabel: String {
     if let end = rangeEndMilliseconds, end < nowMilliseconds() {
@@ -126,6 +127,11 @@ final class LogWindowState: ObservableObject {
       guard let marker = VersionLogWindow.clearMarkerMilliseconds else { return true }
       return row.recordedAtMilliseconds > marker
     }
+    if query.mode == .database {
+      refreshDatabase(now: now)
+      return
+    }
+    databaseError = nil
     allKeptRows = afterClear
     let timeFiltered = afterClear.filter { row in
       if let start, row.recordedAtMilliseconds < start {
@@ -137,15 +143,11 @@ final class LogWindowState: ObservableObject {
       return true
     }
     let matched: [DiagnosticRow]
-    if query.mode == .lightweight {
-      let text = query.lightweightText.trimmingCharacters(in: .whitespacesAndNewlines)
-      if text.isEmpty {
-        matched = timeFiltered
-      } else {
-        matched = timeFiltered.filter { matchesQueryExcludingTime($0, text: text) }
-      }
-    } else {
+    let text = query.lightweightText.trimmingCharacters(in: .whitespacesAndNewlines)
+    if text.isEmpty {
       matched = timeFiltered
+    } else {
+      matched = timeFiltered.filter { matchesQueryExcludingTime($0, text: text) }
     }
     let afterRange: [DiagnosticRow] =
       if let end {
@@ -458,18 +460,92 @@ final class LogWindowState: ObservableObject {
     }
   }
 
-  private func loadSpilled() -> ([DiagnosticRow], Int) {
+  /// Runs the database row text and shows what it returns. A refused
+  /// statement shows the refusal instead of rows, using the exact
+  /// contract wording, so the row explains why nothing ran. The
+  /// statement owns its time bounds, so the toolbar range stays out;
+  /// only the clear marker still hides earlier rows. A failed run
+  /// shows the failure the same way.
+  private func refreshDatabase(now: Int64) {
+    let verdict = DatabaseStatementCheck.check(query.databaseText)
+    guard verdict.allowed else {
+      databaseError = verdict.refusal
+      sections = []
+      totalCount = 0
+      visibleCount = 0
+      launchCount = 0
+      pendingCount = 0
+      afterRangeCount = 0
+      return
+    }
+    let files = spillStoreFiles()
+    let executor = LogQueryExecutor(files: files, liveStore: Diagnostics.liveSpillStore(at:))
+    do {
+      let result = try executor.runStatement(verdict.effectiveText)
+      databaseError = nil
+      skippedCount = result.skipped.count
+      var matched = result.rows
+      if let marker = VersionLogWindow.clearMarkerMilliseconds {
+        matched = matched.filter { $0.recordedAtMilliseconds > marker }
+      }
+      if skippedCount > 0 {
+        let liveLaunch = Diagnostics.activeLaunchID ?? "current"
+        let liveBuild = Diagnostics.activeBuildVersion ?? AppVersion.full
+        let top = (matched.map(\.sequence).max() ?? 0) + 1
+        matched.append(
+          DiagnosticRow(
+            sequence: top,
+            recordedAtMilliseconds: now,
+            level: "warning",
+            category: "diagnostics",
+            message: "Skipped \(skippedCount) stored files that could not be read",
+            launchID: liveLaunch,
+            buildVersion: liveBuild,
+            payloadJSON: nil
+          )
+        )
+      }
+      allKeptRows = matched
+      if isPaused, !sections.isEmpty {
+        let shownIDs = Set(flatVisibleRows.map(\.rowID))
+        let freshIDs = Set(matched.map(\.rowID))
+        pendingCount = freshIDs.subtracting(shownIDs).count
+        afterRangeCount = 0
+        return
+      }
+      pendingCount = 0
+      afterRangeCount = 0
+      totalCount = matched.count
+      visibleCount = matched.count
+      sections = group(rows: matched)
+      launchCount = sections.count
+    } catch {
+      databaseError = String(describing: error)
+      sections = []
+      totalCount = 0
+      visibleCount = 0
+      launchCount = 0
+      pendingCount = 0
+      afterRangeCount = 0
+    }
+  }
+
+  private func spillStoreFiles() -> [URL] {
     guard
       let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
     else {
-      return ([], 0)
+      return []
     }
     let origin = LogPersistence.currentOrigin()
     let directory = LogPersistence.directory(applicationSupport: support, origin: origin)
     guard let names = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else {
-      return ([], 0)
+      return []
     }
-    let files = names.filter { $0.hasSuffix(".duckdb") }.sorted().map { directory.appendingPathComponent($0) }
+    return names.filter { $0.hasSuffix(".duckdb") }.sorted().map { directory.appendingPathComponent($0) }
+  }
+
+  private func loadSpilled() -> ([DiagnosticRow], Int) {
+    let files = spillStoreFiles()
     guard !files.isEmpty else {
       return ([], 0)
     }
