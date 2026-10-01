@@ -48,15 +48,35 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
       lanternaDirectory: url.deletingLastPathComponent()
     )
     if decoded.assumedVersion {
-      Diagnostics.writeLine(LogLine(.info, .config, "config loaded (version 1, assumed): \(url.path)"))
+      Diagnostics.writeLine(LogLine(
+        .info,
+        .config,
+        "config loaded (version 1, assumed): \(url.path)",
+        context: ["path": .string(url.path)]
+      ))
     } else {
-      Diagnostics.writeLine(LogLine(.info, .config, "config loaded (version \(decoded.config.version)): \(url.path)"))
+      Diagnostics.writeLine(LogLine(
+        .info,
+        .config,
+        "config loaded (version \(decoded.config.version)): \(url.path)",
+        context: ["path": .string(url.path)]
+      ))
     }
     for issue in decoded.keyBindingIssues {
-      Diagnostics.writeLine(LogLine(.warning, .config, issue.diagnosticsLine))
+      Diagnostics.writeLine(LogLine(
+        .warning,
+        .config,
+        issue.diagnosticsLine,
+        context: ["path": .string(url.path), "issue": .string(issue.diagnosticsLine)]
+      ))
     }
     if let textScaleIssue = decoded.textScaleIssue {
-      Diagnostics.writeLine(LogLine(.warning, .config, "\(textScaleIssue): \(url.path)"))
+      Diagnostics.writeLine(LogLine(
+        .warning,
+        .config,
+        "\(textScaleIssue): \(url.path)",
+        context: ["path": .string(url.path), "issue": .string("\(textScaleIssue)")]
+      ))
     }
 
   case .created:
@@ -68,7 +88,12 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
       scope: .kanaKanji,
       lanternaDirectory: url.deletingLastPathComponent()
     )
-    Diagnostics.writeLine(LogLine(.info, .config, "config not found; created with defaults: \(url.path)"))
+    Diagnostics.writeLine(LogLine(
+      .info,
+      .config,
+      "config not found; created with defaults: \(url.path)",
+      context: ["path": .string(url.path)]
+    ))
 
   case .failed(let reason):
     options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
@@ -79,7 +104,12 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
       scope: .kanaKanji,
       lanternaDirectory: url.deletingLastPathComponent()
     )
-    Diagnostics.writeLine(LogLine(.error, .config, "config invalid (\(reason)); using defaults: \(url.path)"))
+    Diagnostics.writeLine(LogLine(
+      .error,
+      .config,
+      "config invalid (\(reason)); using defaults: \(url.path)",
+      context: ["path": .string(url.path), "issue": .string("\(reason)")]
+    ))
   }
 } else {
   options = cliOptions
@@ -89,7 +119,12 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
   configFileURL = nil
   lanternaDirectory = nil
   openSharedMatcher(scope: .kanaKanji, lanternaDirectory: nil)
-  Diagnostics.writeLine(LogLine(.error, .config, "config invalid (cannot resolve directory); using defaults"))
+  Diagnostics.writeLine(LogLine(
+    .error,
+    .config,
+    "config invalid (cannot resolve directory); using defaults",
+    context: ["issue": .string("cannot resolve directory")]
+  ))
 }
 
 // Brings the login item in line with the saved setting, ahead of the run
@@ -114,7 +149,12 @@ func openSharedMatcher(scope: RomajiScope, lanternaDirectory: URL?) {
   if scope == .kanaKanji, let lanternaDirectory {
     let dictURL = lanternaDirectory.appendingPathComponent("migemo-dict", isDirectory: false)
     if FileManager.default.fileExists(atPath: dictURL.path), !active {
-      Diagnostics.writeLine(LogLine(.warning, .config, "dict invalid (unreadable format); matching kana only: \(dictURL.path)"))
+      Diagnostics.writeLine(LogLine(
+        .warning,
+        .config,
+        "dict invalid (unreadable format); matching kana only: \(dictURL.path)",
+        context: ["path": .string(dictURL.path), "issue": .string("unreadable format")]
+      ))
     }
   }
 }

@@ -8,6 +8,15 @@ extension AppDelegate {
 
   // MARK: Internal
 
+  /// What the skipped-exclusions line carries beside its wording.
+  var invalidExclusionContext: [String: ContextValue] {
+    var context: [String: ContextValue] = ["issue": .string("invalid exclusion entries")]
+    if let configFileURL {
+      context["path"] = .string(configFileURL.path)
+    }
+    return context
+  }
+
   /// Opens the settings window on the current values.
   ///
   /// Reopening takes a fresh snapshot: the window edits a copy, and
@@ -75,7 +84,12 @@ extension AppDelegate {
     panel?.exclusionRules = compiled.rules
     presenter?.exclusionRules = compiled.rules
     if compiled.invalid > 0 {
-      Diagnostics.writeLine(LogLine(.info, .config, "ignored \(compiled.invalid) invalid exclusion entries"))
+      Diagnostics.writeLine(LogLine(
+        .info,
+        .config,
+        "ignored \(compiled.invalid) invalid exclusion entries",
+        context: invalidExclusionContext
+      ))
     }
   }
 
@@ -84,7 +98,12 @@ extension AppDelegate {
   func makePanelAndPresenter(windowList: WindowListStore) -> (SwitcherPanel, PanelPresenter) {
     let compiled = WindowExclusion.compile(options.exclusionEntries)
     if compiled.invalid > 0 {
-      Diagnostics.writeLine(LogLine(.info, .config, "ignored \(compiled.invalid) invalid exclusion entries"))
+      Diagnostics.writeLine(LogLine(
+        .info,
+        .config,
+        "ignored \(compiled.invalid) invalid exclusion entries",
+        context: invalidExclusionContext
+      ))
     }
     let panel = SwitcherPanel(
       displayModes: options.displayModes,
