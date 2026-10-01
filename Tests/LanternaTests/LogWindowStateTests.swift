@@ -27,6 +27,13 @@ struct LogWindowStateTests {
   }
 
   @Test
+  func aMessageWithLineBreaksStaysOnOneRow() {
+    let entry = LogFixture.entry(sequence: 1, message: "first\nsecond\r\nthird\rfourth")
+    #expect(entry.oneLineMessage == "first⏎second⏎third⏎fourth")
+    #expect(LogTable.separatorText(LogFixture.launch) == "This launch · \(LogFixture.launch.stamp)")
+  }
+
+  @Test
   func theSelectedCountCountsShownLinesOnly() {
     let entries = LogFixture.entries(count: 4)
     let state = LogWindowState(readEntries: { entries })

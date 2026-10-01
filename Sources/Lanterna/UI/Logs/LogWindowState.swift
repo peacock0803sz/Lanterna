@@ -35,6 +35,19 @@ struct LogRow: Identifiable, Equatable, Sendable {
 
 }
 
+// MARK: - Diagnostics.LogEntry + oneLineMessage
+
+extension Diagnostics.LogEntry {
+  /// The message on one line: each line break becomes `⏎`, so a row and a
+  /// copied line never split in two.
+  var oneLineMessage: String {
+    message
+      .replacing("\r\n", with: "⏎")
+      .replacing("\n", with: "⏎")
+      .replacing("\r", with: "⏎")
+  }
+}
+
 // MARK: - LogWindowState
 
 /// What the log window shows and how it is filtered.
