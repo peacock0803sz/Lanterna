@@ -37,6 +37,22 @@ struct LogWindowStateTests {
   }
 
   @Test
+  func theStatusLineReadsInTheContractWording() {
+    #expect(
+      LogStatusBar.summary(totalCount: 9, shownCount: 9, selectedCount: 0, isFiltered: false, isLoading: false)
+        == "9 entries · 0 selected"
+    )
+    #expect(
+      LogStatusBar.summary(totalCount: 9, shownCount: 2, selectedCount: 1, isFiltered: true, isLoading: false)
+        == "Showing 2 of 9 entries · 1 selected"
+    )
+    #expect(
+      LogStatusBar.summary(totalCount: 0, shownCount: 0, selectedCount: 0, isFiltered: false, isLoading: true)
+        == "Loading saved logs…"
+    )
+  }
+
+  @Test
   func reloadingPicksUpNewLines() {
     let feed = LogFeed(LogFixture.entries(count: 2))
     let state = LogWindowState(readEntries: { feed.entries })
