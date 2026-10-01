@@ -75,6 +75,24 @@ struct LogQueryExecutorTests {
     #expect(statement.rows.map(\.sequence) == [4, 5])
   }
 
+  @Test
+  func refusedStatementsFailTheRunInsteadOfSkippingEveryFile() throws {
+    let first = try LogStoreFixture()
+    defer { first.remove() }
+    let second = try LogStoreFixture()
+    defer { second.remove() }
+    let executor = LogQueryExecutor(files: [first.url, second.url])
+    #expect(throws: LogQueryExecutor.StatementError.self) {
+      try executor.runStatement("SELECT no_such_column FROM entries WHERE ts_ms >= 0")
+    }
+    #expect(throws: LogQueryExecutor.StatementError.self) {
+      try executor.run(predicate: "no_such_column = 1", values: [])
+    }
+    let missing = first.base.appendingPathComponent("missing.duckdb")
+    let result = try LogQueryExecutor(files: [missing, first.url]).run(predicate: "1 = 1", values: [])
+    #expect(result.skipped.map(\.url) == [missing])
+  }
+
   // MARK: Private
 
   private let smuggled = "SELECT * FROM entries) ORDER BY ts_ms, seq) TO '/dev/null' (HEADER false); "

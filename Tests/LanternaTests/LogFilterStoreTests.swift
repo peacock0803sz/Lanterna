@@ -5,8 +5,8 @@ import Testing
 // MARK: - LogFilterStoreTests
 
 /// Translated lightweight filters run against a real store, so a
-/// predicate the database cannot bind shows up as a skipped file
-/// rather than as an empty result that looks like no match.
+/// predicate the database cannot bind fails here rather than
+/// passing as text that only looks right.
 struct LogFilterStoreTests {
 
   // MARK: Internal

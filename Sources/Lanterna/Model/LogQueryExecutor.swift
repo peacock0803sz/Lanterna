@@ -41,10 +41,28 @@ final class LogQueryExecutor: Sendable {
 
   // MARK: Internal
 
+  /// The database refused the statement itself, on a file whose shape
+  /// already checked out, so every other file would refuse it too. The
+  /// run fails with this rather than returning no rows beside a skip
+  /// per file.
+  struct StatementError: Error, CustomStringConvertible {
+    var underlying: any Error
+
+    var description: String {
+      if
+        case DatabaseError.preparedStatementFailedToInitialize(let reason) = underlying,
+        let reason
+      {
+        return reason
+      }
+      return String(describing: underlying)
+    }
+  }
+
   /// Runs a lightweight predicate over every file and merges the
   /// rows by time and order, keeping the newest `limit` of them.
-  /// Unreadable files are skipped with their reason kept, never
-  /// failing the whole run.
+  /// Unreadable files are skipped with their reason kept; only a
+  /// statement the database refuses fails the whole run.
   func run(
     predicate: String,
     values: [SQLLiteral],
@@ -139,6 +157,8 @@ final class LogQueryExecutor: Sendable {
         let found = try read(file: file, sql: sql)
         rows.append(contentsOf: found.rows)
         skippedLines += found.skippedLines
+      } catch let error as StatementError {
+        throw error
       } catch {
         skipped.append(SkippedStoreFile(url: file, reason: String(describing: error)))
       }
@@ -209,10 +229,15 @@ final class LogQueryExecutor: Sendable {
       .appendingPathComponent(UUID().uuidString)
       .appendingPathExtension("csv")
     defer { try? FileManager.default.removeItem(at: out) }
-    let export = try PreparedStatement(
-      connection: connection,
-      query: "COPY (\n\(sql)\n) TO \(LogPersistence.literal(out.path)) (HEADER false)"
-    )
+    let export: PreparedStatement
+    do {
+      export = try PreparedStatement(
+        connection: connection,
+        query: "COPY (\n\(sql)\n) TO \(LogPersistence.literal(out.path)) (HEADER false)"
+      )
+    } catch {
+      throw StatementError(underlying: error)
+    }
     _ = try export.execute()
     let text = try String(contentsOf: out, encoding: .utf8)
     return parseCSV(text)
