@@ -22,11 +22,10 @@ struct ExecutedLogQuery: Equatable, Sendable {
 
 /// Runs read queries across one origin's store files.
 ///
-/// The bundled database client exposes no typed reads to library
-/// clients, so each run lets the store write its answer to a
-/// temporary comma-separated file and parses that back. The
-/// statement still does the filtering, counting, and ordering;
-/// only the last transport step goes through text.
+/// Each run lets the store write its answer to a temporary
+/// comma-separated file and parses that back. The statement still
+/// does the filtering, ordering, and capping; only the last
+/// transport step goes through text.
 final class LogQueryExecutor: Sendable {
 
   // MARK: Lifecycle
@@ -78,10 +77,10 @@ final class LogQueryExecutor: Sendable {
     )
   }
 
-  /// Runs a checked database statement. The statement must project
-  /// the entry columns in store order; the executor wraps it so the
-  /// merged order holds across files, and keeps the newest rows up
-  /// to the statement's own cap.
+  /// Runs a checked database statement. The statement must yield
+  /// the entry columns under their stored names, since the wrapper
+  /// picks them by name; the wrapper keeps the merged order across
+  /// files, and the newest rows up to the statement's own cap.
   func runStatement(_ sql: String, progress: @escaping (Double) -> Void = { _ in }) throws -> ExecutedLogQuery {
     try fetch(
       sql: "SELECT seq, ts_ms, level, category, message, launch_id, build_version, payload "
