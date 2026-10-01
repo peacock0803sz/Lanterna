@@ -41,7 +41,7 @@ final class VersionLogWindow: NSWindow {
     contentMinSize = Self.minimumSize
     appearance = appearanceMode.nsAppearance
     contentView = NSHostingView(rootView: LogWindowView(state: state))
-    setContentSize(Self.defaultSize)
+    setContentSize(Self.fittedSize(visible: NSScreen.main?.visibleFrame.size))
     center()
     // Polling follows what the reader can see: a closed, minimised or
     // fully covered window takes nothing in until it shows again.
@@ -60,7 +60,20 @@ final class VersionLogWindow: NSWindow {
   // MARK: Internal
 
   static let defaultSize = NSSize(width: 900, height: 600)
-  static let minimumSize = NSSize(width: 640, height: 360)
+  /// Wide enough for the toolbar's title, pickers and buttons side by side.
+  static let minimumSize = NSSize(width: 780, height: 360)
+  /// Room kept around the window on a screen smaller than the default.
+  static let screenMargin: CGFloat = 40
+
+  /// The default size, shrunk to fit a smaller screen's visible area but
+  /// never below the minimum.
+  static func fittedSize(visible: NSSize?) -> NSSize {
+    guard let visible else { return defaultSize }
+    return NSSize(
+      width: max(minimumSize.width, min(defaultSize.width, visible.width - screenMargin)),
+      height: max(minimumSize.height, min(defaultSize.height, visible.height - screenMargin))
+    )
+  }
 
   // MARK: Private
 

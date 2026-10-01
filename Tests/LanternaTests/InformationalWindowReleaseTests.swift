@@ -49,7 +49,20 @@ struct InformationalWindowReleaseTests {
   func theLogWindowOpensAtItsDefaultSizeAndTitle() {
     let window = VersionLogWindow(state: LogWindowState(readEntries: { [] }))
     #expect(window.title == "Lanterna Logs")
-    #expect(window.contentRect(forFrameRect: window.frame).size == VersionLogWindow.defaultSize)
+    #expect(
+      window.contentRect(forFrameRect: window.frame).size
+        == VersionLogWindow.fittedSize(visible: NSScreen.main?.visibleFrame.size)
+    )
     #expect(window.styleMask.contains(.resizable))
+  }
+
+  /// A screen smaller than the default shrinks the window to fit, but
+  /// never below the size the toolbar needs.
+  @Test
+  func theLogWindowFitsASmallScreen() {
+    #expect(VersionLogWindow.fittedSize(visible: NSSize(width: 2560, height: 1400)) == VersionLogWindow.defaultSize)
+    #expect(VersionLogWindow.fittedSize(visible: NSSize(width: 860, height: 560)) == NSSize(width: 820, height: 520))
+    #expect(VersionLogWindow.fittedSize(visible: NSSize(width: 600, height: 300)) == VersionLogWindow.minimumSize)
+    #expect(VersionLogWindow.fittedSize(visible: nil) == VersionLogWindow.defaultSize)
   }
 }

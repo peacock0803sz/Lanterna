@@ -41,7 +41,7 @@ struct LogWindowView: View {
         isLoading: state.isLoading
       )
     }
-    .frame(minWidth: 640, minHeight: 360)
+    .frame(minWidth: VersionLogWindow.minimumSize.width, minHeight: VersionLogWindow.minimumSize.height)
     .background {
       // Reached from anywhere in the window, as the window has no menu
       // to carry Find.
@@ -97,8 +97,12 @@ struct LogWindowView: View {
         Text("Lanterna Logs")
           .font(.system(size: 13, weight: .bold))
           .accessibilityAddTraits(.isHeader)
+          .lineLimit(1)
         LiveIndicator(isPaused: state.isPaused, pendingCount: state.pendingCount)
       }
+      // Gives way first when the window is narrow, so the controls keep
+      // their full width.
+      .layoutPriority(-1)
       Spacer(minLength: 12)
       Picker("Level", selection: $state.levelFloor) {
         ForEach(LevelFloor.allCases, id: \.self) { floor in
