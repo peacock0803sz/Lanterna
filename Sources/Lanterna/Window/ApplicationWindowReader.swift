@@ -71,7 +71,7 @@ enum ReadFailure: Error, Sendable, Equatable {
   /// Anything else: a `kAXErrorCannotComplete` answered at once because the
   /// application quit or is not reachable yet, `kAXErrorInvalidUIElement`,
   /// an element whose messaging timeout could not be set, or a window list
-  /// the accessibility server does not support.
+  /// the accessibility server does not support or refuses to give.
   case unavailable(AXError)
 }
 
@@ -297,8 +297,10 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
       return []
 
     default:
-      // Only `attributeUnsupported` gets this far: the accessibility
-      // server has no window list to give.
+      // Only `attributeUnsupported` and `failure` get this far: the
+      // accessibility server has no window list to give. A refusal that
+      // is harmless on one window's attribute is not harmless here,
+      // since without the list there is nothing to read.
       throw .unavailable(error)
     }
   }
@@ -340,7 +342,9 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
   }
 
   /// Reads one attribute, or `nil` when the element has no such value. An
-  /// absent value is an answer: an untitled window reports no title.
+  /// absent value is an answer: an untitled window reports no title. So is a
+  /// refused one: the window of a Chromium web app shim answers its title
+  /// with `failure` while the rest of it reads normally.
   private func attribute(
     _ element: AXUIElement,
     _ name: String,
@@ -353,9 +357,13 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
   /// Sends one attribute read, separating the answers that are about the
   /// attribute from the failures that are about the application.
   ///
-  /// `success`, `noValue` and `attributeUnsupported` come back as answered:
-  /// what each means depends on what was asked. Everything else ends the
-  /// read.
+  /// `success`, `noValue`, `attributeUnsupported` and `failure` come back as
+  /// answered: what each means depends on what was asked. A `failure` on a
+  /// window has been seen from an element declining one attribute while
+  /// the rest of it reads normally, and a hung application answers
+  /// `cannotComplete` instead, so `failure` alone is no verdict on the
+  /// application. The window list is the exception, and its caller
+  /// handles it. Everything else ends the read.
   private func send(
     _ name: String,
     to element: AXUIElement,
@@ -369,7 +377,8 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     switch error {
     case .success,
          .noValue,
-         .attributeUnsupported:
+         .attributeUnsupported,
+         .failure:
       return (error, value)
     case .apiDisabled:
       throw .permissionMissing
