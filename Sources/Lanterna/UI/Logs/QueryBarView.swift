@@ -18,12 +18,22 @@ struct QueryBarView: View {
   var queryFocused: FocusState<Bool>.Binding
   var onCommit: () -> Void
   var onModeSwitchRequest: (LogQuery.Mode) -> Void
+  var timeLabel = ""
+  var pendingFilteredCount = 0
+  var isPaused = false
+  var onRemoveChip: (String) -> Void = { _ in }
+  var onClearAll: () -> Void = { }
+  var onResumeFiltered: () -> Void = { }
 
   var body: some View {
-    HStack(spacing: 10) {
-      searchField
-      modePicker
-      guideButton
+    VStack(alignment: .leading, spacing: 6) {
+      HStack(spacing: 10) {
+        searchField
+        modePicker
+        guideButton
+      }
+      chipsRow
+      pendingRow
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 10)
@@ -149,6 +159,87 @@ struct QueryBarView: View {
 
   private var lightweightExample: String {
     "level>=warn category:ax \"AX\" app.bundle=com.vivaldi.Vivaldi"
+  }
+
+  private var parsedConditions: TranslatedFilter {
+    LightweightFilter.parse(query.lightweightText)
+  }
+
+  private var visibleChips: [(original: String, display: String)] {
+    let conditions = parsedConditions.conditions
+    var out = [(String, String)]()
+    let hasTime = conditions.contains {
+      $0.chip.hasPrefix("After ") || $0.chip.hasPrefix("Before ")
+    }
+    if hasTime, !timeLabel.isEmpty {
+      out.append(("__time__", "Time: \(timeLabel)"))
+    }
+    for condition in conditions {
+      if condition.chip.hasPrefix("After ") || condition.chip.hasPrefix("Before ") {
+        continue
+      }
+      out.append((condition.chip, displayName(for: condition.chip)))
+    }
+    return out
+  }
+
+  @ViewBuilder
+  private var chipsRow: some View {
+    if query.mode == .database {
+      Text("Chips and toolbar filters stay off while SQL mode holds the statement.")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("Chips disabled in SQL mode")
+    } else if !visibleChips.isEmpty {
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(spacing: 6) {
+          ForEach(visibleChips, id: \.original) { entry in
+            HStack(spacing: 4) {
+              Text(entry.display)
+                .font(.caption)
+              Button {
+                onRemoveChip(entry.original)
+              } label: {
+                Image(systemName: "xmark")
+                  .font(.caption)
+              }
+              .buttonStyle(.plain)
+              .accessibilityLabel("Remove filter \(entry.display)")
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(.quaternary.opacity(0.6))
+            .clipShape(Capsule())
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Filter \(entry.display)")
+          }
+          Button("Clear All") {
+            onClearAll()
+          }
+          .font(.caption)
+          .accessibilityLabel("Clear All filters")
+        }
+      }
+    }
+  }
+
+  @ViewBuilder
+  private var pendingRow: some View {
+    if isPaused, pendingFilteredCount > 0, query.mode == .lightweight {
+      Button("\(pendingFilteredCount) new \u{00B7} Resume to show") {
+        onResumeFiltered()
+      }
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .accessibilityLabel("\(pendingFilteredCount) new, resume to show")
+    }
+  }
+
+  private func displayName(for chip: String) -> String {
+    if chip == "Level: warning, error" {
+      return "Level: Warnings & Errors"
+    }
+    return chip
   }
 
 }
