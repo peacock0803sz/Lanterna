@@ -241,6 +241,7 @@ final class LogWindowState: ObservableObject {
 
   func resetTime() {
     timeSelection = TimeRangeSelection()
+    pickerTimeTokens = []
     let resolved = TimeRangeResolver.resolve(timeSelection, launchStart: nil)
     timeLabel = resolved.shortLabel
     if query.mode == .lightweight {
@@ -340,6 +341,10 @@ final class LogWindowState: ObservableObject {
   private var cachedFailureText: String?
   private var lastSpillFinishedAt: Date?
   private let spillMailbox = SpillMailbox()
+  /// The time tokens the picker mirrored into the query row. Only
+  /// these stay out of row matching, since the toolbar range already
+  /// applies them as bounds; anything hand-typed still filters.
+  private var pickerTimeTokens = Set<String>()
 
   private var effectiveLevelName: String {
     guard let logger = Diagnostics.logger else { return "Warning" }
@@ -482,7 +487,7 @@ final class LogWindowState: ObservableObject {
     if text.isEmpty {
       matched = timeFiltered
     } else {
-      matched = timeFiltered.filter { matchesQueryExcludingTime($0, text: text) }
+      matched = timeFiltered.filter { matchesQuery($0, text: text, excluding: pickerTimeTokens) }
     }
     let afterRange: [DiagnosticRow] =
       if let end {
@@ -510,6 +515,7 @@ final class LogWindowState: ObservableObject {
       guard let key = logQueryKey(of: entry)?.lowercased() else { return true }
       return key != "after" && key != "before"
     }
+    pickerTimeTokens = Set(tokens)
     query.lightweightText = (kept + tokens).joined(separator: " ")
   }
 

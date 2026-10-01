@@ -1,3 +1,4 @@
+import Foundation
 @testable import Lanterna
 import Testing
 
@@ -5,6 +6,9 @@ import Testing
 /// fragments, values, and chips a row turns into, and which
 /// statements the gate lets through with what cap.
 struct LogQueryTests {
+
+  // MARK: Internal
+
   @Test
   func bareWordsSearchTheMessage() {
     let parsed = LightweightFilter.parse("AX")
@@ -74,6 +78,37 @@ struct LogQueryTests {
   func emptyRowsMatchAll() {
     #expect(LightweightFilter.parse("").predicate == "1 = 1")
     #expect(LightweightFilter.parse("   ").predicate == "1 = 1")
+  }
+
+  @Test
+  func handTypedTimeBoundsFilterLikePickerBounds() {
+    let bound = "2026-06-01T00:00:00"
+    let mills = millsOf(bound)
+    let earlier = DiagnosticRow(
+      sequence: 1,
+      recordedAtMilliseconds: mills - 3_600_000,
+      level: "info",
+      category: nil,
+      message: "old",
+      launchID: nil,
+      buildVersion: nil,
+      payloadJSON: nil
+    )
+    let later = DiagnosticRow(
+      sequence: 2,
+      recordedAtMilliseconds: mills + 3_600_000,
+      level: "info",
+      category: nil,
+      message: "new",
+      launchID: nil,
+      buildVersion: nil,
+      payloadJSON: nil
+    )
+    #expect(matchesQuery(later, text: "after:\(bound)", excluding: []))
+    #expect(!matchesQuery(earlier, text: "after:\(bound)", excluding: []))
+    #expect(matchesQuery(earlier, text: "before:\(bound)", excluding: []))
+    #expect(!matchesQuery(later, text: "before:\(bound)", excluding: []))
+    #expect(matchesQuery(earlier, text: "after:\(bound)", excluding: ["after:\(bound)"]))
   }
 
   @Test
@@ -163,4 +198,18 @@ struct LogQueryTests {
     #expect(!verdict.allowed)
     #expect(verdict.refusal == "SQL needs a time bound (after/before on ts_ms).")
   }
+
+  // MARK: Private
+
+  private func millsOf(_ bound: String) -> Int64 {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+    guard let date = formatter.date(from: bound) else {
+      Issue.record("test bound should parse")
+      return 0
+    }
+    return Int64(date.timeIntervalSince1970 * 1_000)
+  }
+
 }

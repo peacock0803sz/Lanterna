@@ -410,12 +410,14 @@ func logQueryKey(of token: String) -> String? {
   return nil
 }
 
-/// Whether every token besides the time bounds matches the row.
-/// Time bounds stay with the toolbar range, so the query text can
-/// mirror them for chips without double filtering here.
-func matchesQueryExcludingTime(_ row: DiagnosticRow, text: String) -> Bool {
+/// Whether every token besides the listed ones matches the row.
+/// The toolbar range already applies its own mirrored tokens as
+/// bounds, so those stay out here to avoid double filtering. A
+/// hand-typed time bound is not among them and filters the row
+/// like a picker bound does.
+func matchesQuery(_ row: DiagnosticRow, text: String, excluding: Set<String>) -> Bool {
   for token in splitLogQueryTokens(text) {
-    if let key = logQueryKey(of: token)?.lowercased(), key == "after" || key == "before" {
+    if excluding.contains(token) {
       continue
     }
     if !matchesLogQueryToken(row, token: token) {
