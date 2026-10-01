@@ -1,8 +1,5 @@
 @testable import Lanterna
-import Logging
 import Testing
-
-// MARK: - DiagnosticsBufferTests
 
 /// The ring keeps a mirror of every emitted line without changing the lines
 /// themselves. Each test holds its own store and fills past the cap, so no
@@ -45,28 +42,5 @@ struct DiagnosticsBufferTests {
     }
     #expect(store.summary == "buffer-summary-probe")
     #expect(store.recent.count == DiagnosticLog.capacity)
-  }
-}
-
-/// Structured lines keep their level, grouping, and payload beside
-/// the message, while the mirrored message stays byte-identical.
-extension DiagnosticsBufferTests {
-  @Test
-  func structuredLinesKeepLevelCategoryAndPayload() {
-    let store = DiagnosticLogStore()
-    var logger = Logger(label: "buffer-probe", factory: { _ in DiagnosticLogHandler(store: store) })
-    logger.logLevel = .debug
-    logger.warning(
-      "buffer-structured-probe",
-      metadata: ["category": "ax", "app": ["bundle": "com.example"], "attempts": [["result": "failed"]]]
-    )
-    let recent = store.recent
-    #expect(recent.count == 1)
-    #expect(recent[0].message == "buffer-structured-probe")
-    #expect(recent[0].level == .warning)
-    #expect(recent[0].category == "ax")
-    let payload = recent[0].payloadJSON ?? ""
-    #expect(payload.contains("com.example"))
-    #expect(payload.contains("failed"))
   }
 }

@@ -1,4 +1,3 @@
-import DuckDB
 import Foundation
 import Logging
 
@@ -24,11 +23,6 @@ final class DiagnosticLogStore: @unchecked Sendable {
 
   // MARK: Internal
 
-  /// Runs after the mirror fills, outside the lock, so a slow
-  /// consumer never blocks emitting. Set once per launch before
-  /// concurrency starts; read on every write after that.
-  var onMirror: ((Diagnostics.LogEntry) -> Void)?
-
   var recent: [Diagnostics.LogEntry] {
     lock.lock()
     defer { lock.unlock() }
@@ -46,49 +40,18 @@ final class DiagnosticLogStore: @unchecked Sendable {
   /// anything weaker would let the on-screen log disagree with what was
   /// emitted. Only called with lines the logger already let through, so
   /// the two surfaces cannot drift apart. Tests use `append` directly,
-  /// which mirrors without writing to stderr.
+  /// which mirrors without emitting.
   func write(_ message: String) {
-    let entry: Diagnostics.LogEntry
-    let hook: ((Diagnostics.LogEntry) -> Void)?
     lock.lock()
+    defer { lock.unlock() }
     try? FileHandle.standardError.write(contentsOf: Data((message + "\n").utf8))
-    entry = mirror(message, level: .info, category: nil, payloadJSON: nil)
-    hook = onMirror
-    lock.unlock()
-    hook?(entry)
-  }
-
-  /// Emits a structured line: the message goes to stderr exactly as
-  /// given, while the level, grouping, and extra context ride
-  /// alongside in the mirror and the spill store fed from it.
-  func write(_ message: String, level: Logger.Level, metadata: Logger.Metadata) {
-    let entry: Diagnostics.LogEntry
-    let hook: ((Diagnostics.LogEntry) -> Void)?
-    lock.lock()
-    try? FileHandle.standardError.write(contentsOf: Data((message + "\n").utf8))
-    entry = mirror(message, level: level, category: metadata.category, payloadJSON: metadata.payloadJSON)
-    hook = onMirror
-    lock.unlock()
-    hook?(entry)
+    mirror(message)
   }
 
   func append(_ message: String) {
-    let entry: Diagnostics.LogEntry
-    let hook: ((Diagnostics.LogEntry) -> Void)?
-    lock.lock()
-    entry = mirror(message, level: .info, category: nil, payloadJSON: nil)
-    hook = onMirror
-    lock.unlock()
-    hook?(entry)
-  }
-
-  /// Records a line that must not leave the process: no stderr echo
-  /// and no spill. Used for failures of the spill path itself, where
-  /// emitting would recurse back into the failing writer.
-  func remember(_ message: String, level: Logger.Level) {
     lock.lock()
     defer { lock.unlock() }
-    _ = mirror(message, level: level, category: nil, payloadJSON: nil)
+    mirror(message)
   }
 
   func pin(_ summary: String) {
@@ -105,26 +68,14 @@ final class DiagnosticLogStore: @unchecked Sendable {
   private var pinnedSummary: String?
 
   /// Adds one line under the caller's lock.
-  private func mirror(
-    _ message: String,
-    level: Logger.Level,
-    category: String?,
-    payloadJSON: String?
-  ) -> Diagnostics.LogEntry {
-    let entry = Diagnostics.LogEntry(
-      sequence: nextSequence,
-      capturedAt: Foundation.Date(),
-      message: message,
-      level: level,
-      category: category,
-      payloadJSON: payloadJSON
+  private func mirror(_ message: String) {
+    entries.append(
+      Diagnostics.LogEntry(sequence: nextSequence, capturedAt: Date(), message: message)
     )
-    entries.append(entry)
     nextSequence += 1
     if entries.count > DiagnosticLog.capacity {
       entries.removeFirst(entries.count - DiagnosticLog.capacity)
     }
-    return entry
   }
 
 }
@@ -139,24 +90,17 @@ enum Diagnostics {
 
   // MARK: Internal
 
-  /// One mirrored line: what went to stderr, with when and in what order,
-  /// plus the fields the views filter on. The time, the number, and the
-  /// extra fields ride beside the line in the mirror and the spill
-  /// store. They never reach stderr, so the emitted lines keep the
-  /// shape existing readers of stderr rely on.
+  /// One mirrored line: what went to stderr, with when and in what order.
+  ///
+  /// The time and the number are display metadata only. They never reach
+  /// stderr, so the emitted lines keep the shape 005 through 007 defined.
   struct LogEntry: Equatable, Sendable {
     /// Increases with every line. Two lines never share one.
     let sequence: UInt64
     /// When the line was emitted.
-    let capturedAt: Foundation.Date
+    let capturedAt: Date
     /// The line itself, byte for byte what stderr received.
     let message: String
-    /// How severe the line is. Mirrors the logger words.
-    let level: Logger.Level
-    /// Where the line comes from, when the caller said so.
-    let category: String?
-    /// Extra context as JSON text. Absent when the caller attached none.
-    let payloadJSON: String?
   }
 
   /// The logger this process writes through. Wired once by `bootstrap`,
@@ -201,99 +145,6 @@ enum Diagnostics {
     logger.log(level: level, "\(message)")
   }
 
-  /// Records a spill-path failure where it stays visible: in the
-  /// mirror only, without echoing or spilling.
-  static func mirrorSpillFailure(_ message: String) {
-    store.remember(message, level: .warning)
-  }
-
-  /// Starts spilling mirrored lines to the store. Called once per
-  /// launch from the main thread ahead of the run loop, before any
-  /// concurrency starts. The current window keeps reading the
-  /// mirror, so nothing on screen changes.
-  static func startSpilling(
-    applicationSupport: URL,
-    launchID: String = UUID().uuidString,
-    buildVersion: String = AppVersion.full,
-    rotation: LogRotation = .daily,
-    persist: Bool = true
-  ) {
-    let origin = LogPersistence.currentOrigin()
-    let startedAt = Int64(Foundation.Date().timeIntervalSince1970 * 1000)
-    do {
-      let spill: ([DiagnosticRow]) throws -> Void
-      if persist {
-        let directory = LogPersistence.directory(applicationSupport: applicationSupport, origin: origin)
-        let launch = LogLaunchStore(
-          directory: directory,
-          launchID: launchID,
-          origin: origin,
-          buildVersion: buildVersion,
-          startedAtMilliseconds: startedAt,
-          rotation: rotation
-        )
-        launchStore = launch
-        spill = { rows in
-          let database = try launch.database()
-          let connection = try database.connect()
-          try connection.execute(
-            LogPersistence.insertStatement(rows: rows, launchID: launchID, buildVersion: buildVersion)
-          )
-        }
-      } else {
-        let database = try LogPersistence.openEphemeral(
-          launchID: launchID,
-          origin: origin,
-          buildVersion: buildVersion,
-          startedAtMilliseconds: startedAt
-        )
-        spill = { rows in
-          let connection = try database.connect()
-          try connection.execute(
-            LogPersistence.insertStatement(rows: rows, launchID: launchID, buildVersion: buildVersion)
-          )
-          try connection.execute(LogPersistence.trimStatement())
-        }
-      }
-      let writer = LogSpillWriter(
-        spill: spill,
-        onReport: { Diagnostics.mirrorSpillFailure($0) }
-      )
-      spillWriter = writer
-      store.onMirror = { entry in
-        writer.enqueue(
-          DiagnosticRow(
-            sequence: entry.sequence,
-            recordedAtMilliseconds: Int64(entry.capturedAt.timeIntervalSince1970 * 1000),
-            level: storedLevel(for: entry.level),
-            category: entry.category,
-            message: entry.message,
-            launchID: launchID,
-            buildVersion: buildVersion,
-            payloadJSON: entry.payloadJSON
-          )
-        )
-      }
-    } catch {
-      mirrorSpillFailure("Spill store unavailable: \(error)")
-    }
-  }
-
-  /// Writes every line still waiting for the spill store, then
-  /// closes the store. Called on the way out, since the process may
-  /// exit before a scheduled flush runs; a line written afterwards
-  /// opens the store again on its own flush.
-  static func finishSpilling() {
-    spillWriter?.drain()
-    launchStore?.close()
-  }
-
-  /// The store this launch is writing at `url`, if any. Readers pass
-  /// it to `LogQueryExecutor` so the file is never opened twice.
-  static func liveSpillStore(at url: URL) -> Database? {
-    launchStore?.openDatabase(at: url)
-  }
-
   /// Pins the launch summary. Called once per launch; later calls replace it.
   static func pinLaunchSummary(_ summary: String) {
     store.pin(summary)
@@ -315,96 +166,6 @@ enum Diagnostics {
   /// The store behind the mirror. One per process; the tests hold their own.
   private static let store = DiagnosticLogStore()
 
-  /// The spill path for this launch: the writer and, when the launch
-  /// persists, the store behind it. Set once ahead of the run loop;
-  /// read after that only to drain, look up, and close them.
-  private nonisolated(unsafe) static var spillWriter: LogSpillWriter?
-  private nonisolated(unsafe) static var launchStore: LogLaunchStore?
-
-  /// The stored severity words. Logger levels without a word of
-  /// their own, trace, notice, and critical, fold into the nearest
-  /// one at record time so level filters never miss.
-  private static func storedLevel(for level: Logger.Level) -> String {
-    switch level {
-    case .trace,
-         .debug:
-      "debug"
-    case .info,
-         .notice:
-      "info"
-    case .warning:
-      "warning"
-    case .error,
-         .critical:
-      "error"
-    }
-  }
-
-}
-
-// MARK: - Logger Metadata grouping
-
-extension Logger.Metadata {
-  /// The grouping word the caller attached under the shared key,
-  /// if any. Kept out of the emitted line and read by the views.
-  var category: String? {
-    guard case .string(let word) = self["category"] else {
-      return nil
-    }
-    return word
-  }
-
-  /// The attached context as JSON text, keeping nested keys and
-  /// arrays. Absent when nothing was attached.
-  var payloadJSON: String? {
-    guard !isEmpty else {
-      return nil
-    }
-    return "{\(map { "\($0.key.jsonQuoted):\($0.value.jsonText)" }.joined(separator: ","))}"
-  }
-}
-
-extension Logger.MetadataValue {
-  /// Renders one metadata value as JSON text. Convertible values
-  /// read through their description, so every shape survives.
-  fileprivate var jsonText: String {
-    switch self {
-    case .string(let text):
-      text.jsonQuoted
-    case .stringConvertible(let convertible):
-      convertible.description.jsonQuoted
-    case .array(let values):
-      "[\(values.map(\.jsonText).joined(separator: ","))]"
-    case .dictionary(let pairs):
-      "{\(pairs.lazy.map { "\($0.key.jsonQuoted):\($0.value.jsonText)" }.joined(separator: ","))}"
-    }
-  }
-}
-
-extension String {
-  /// Quotes one string for JSON, escaping what JSON forbids raw.
-  fileprivate var jsonQuoted: String {
-    var out = "\""
-    for scalar in unicodeScalars {
-      switch scalar {
-      case "\"": out += "\\\""
-      case "\\": out += "\\\\"
-      case "\n": out += "\\n"
-      case "\r": out += "\\r"
-      case "\t": out += "\\t"
-      case Unicode.Scalar(0x08): out += "\\b"
-      case Unicode.Scalar(0x0C): out += "\\f"
-      default:
-        if scalar.value < 0x20 {
-          out += String(format: "\\u%04x", scalar.value)
-        } else {
-          out.unicodeScalars.append(scalar)
-        }
-      }
-    }
-    out += "\""
-    return out
-  }
 }
 
 // MARK: - DiagnosticLogHandler
@@ -473,7 +234,7 @@ final class DiagnosticLogHandler: LogHandler, @unchecked Sendable {
   }
 
   func log(event: LogEvent) {
-    store.write(event.message.description, level: event.level, metadata: event.metadata ?? [:])
+    store.write(event.message.description)
   }
 
   // MARK: Private
