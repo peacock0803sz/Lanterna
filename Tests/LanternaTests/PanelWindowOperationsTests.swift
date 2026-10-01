@@ -92,7 +92,8 @@ struct PanelWindowOperationsTests {
     await running.value
   }
 
-  /// A request the sender refused never went out, so no line says it did.
+  /// A request the sender reported as failed is not written as sent; the
+  /// failure line speaks for it instead.
   @Test
   func aRefusedRequestIsNotWrittenAsSent() async {
     let made = makeOperations(rows: rows, refreshed: [], close: { _ in .windowGone })
