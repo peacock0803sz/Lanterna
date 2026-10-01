@@ -63,6 +63,7 @@ struct LogTableView: View {
   @Binding var selection: Set<String>
 
   var autoScroll: Bool
+  var jumpTargetID: String?
 
   var body: some View {
     ScrollViewReader { proxy in
@@ -83,6 +84,12 @@ struct LogTableView: View {
         guard autoScroll, let next else { return }
         withAnimation(.none) {
           proxy.scrollTo(next, anchor: .bottom)
+        }
+      }
+      .onChange(of: jumpTargetID) { _, next in
+        guard let next else { return }
+        withAnimation(.none) {
+          proxy.scrollTo(next, anchor: .center)
         }
       }
     }

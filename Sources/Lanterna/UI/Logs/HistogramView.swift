@@ -36,6 +36,8 @@ struct HistogramView: View {
 
   @Binding var isCollapsed: Bool
 
+  var isFilteringEnabled = true
+
   var onJumpToMilliseconds: (Int64) -> Void = { _ in }
   var onShowInterval: (Int64, Int64) -> Void = { _, _ in }
   var onShowLaunch: (String) -> Void = { _ in }
@@ -322,14 +324,17 @@ struct HistogramView: View {
             Button("Show Only This Interval") {
               onShowInterval(bucket.startMilliseconds, bucket.endMilliseconds)
             }
+            .disabled(!isFilteringEnabled)
             Button("Show Only This Launch") {
               if let launch = launchNear(milliseconds: bucket.startMilliseconds) {
                 onShowLaunch(launch)
               }
             }
+            .disabled(!isFilteringEnabled)
             Button("Reset Time Range") {
               onResetTime()
             }
+            .disabled(!isFilteringEnabled)
             Divider()
             Button("Copy Entries in This Interval") {
               onCopyInterval(bucket.startMilliseconds, bucket.endMilliseconds)

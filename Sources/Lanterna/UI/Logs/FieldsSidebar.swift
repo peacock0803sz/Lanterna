@@ -16,6 +16,7 @@ struct FieldsSidebar: View {
 
   var visibleRows: [DiagnosticRow]
   var allRows: [DiagnosticRow]
+  var isEnabled = true
   var onApply: (String) -> Void = { _ in }
   var onExclude: (String) -> Void = { _ in }
   var onClose: () -> Void = { }
@@ -197,6 +198,7 @@ struct FieldsSidebar: View {
       .opacity(dimmed ? 0.4 : 1)
     }
     .buttonStyle(.plain)
+    .disabled(!isEnabled)
     .accessibilityLabel("\(value), \(count) entries\(dimmed ? ", outside range" : "")")
     .accessibilityHint("Click to filter, Option-click to exclude")
   }
