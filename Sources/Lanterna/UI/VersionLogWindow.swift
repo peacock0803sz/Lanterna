@@ -36,13 +36,16 @@ final class VersionLogWindow: NSWindow {
   ) {
     self.init(
       contentRect: NSRect(x: 0, y: 0, width: 1100, height: 600),
-      styleMask: [.titled, .closable, .resizable],
+      styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
       backing: .buffered,
       defer: false
     )
     // Held strongly by GuideWindows; releasing on close would dangle that reference.
     isReleasedWhenClosed = false
     title = "Lanterna Logs"
+    // Unified header keeps system traffic lights in the same row as toolbar content
+    titleVisibility = .hidden
+    titlebarAppearsTransparent = true
     appearance = appearanceMode.nsAppearance
     state.refresh()
     contentView = NSHostingView(rootView: LogWindowView(state: state))

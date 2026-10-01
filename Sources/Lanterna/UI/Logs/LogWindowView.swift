@@ -175,10 +175,6 @@ struct LogWindowView: View {
 
   private var toolbar: some View {
     HStack(spacing: 10) {
-      Text(state.liveLabel)
-        .font(.subheadline)
-        .fontWeight(.medium)
-        .accessibilityLabel(state.liveLabel)
       Button {
         state.setSidebarShown(!state.isSidebarShown)
       } label: {
@@ -187,6 +183,24 @@ struct LogWindowView: View {
       .buttonStyle(.plain)
       .accessibilityLabel(state.isSidebarShown ? "Hide Fields sidebar" : "Show Fields sidebar")
       .help(state.isSidebarShown ? "Hide Fields sidebar" : "Show Fields sidebar")
+      // Title block pairs the window name with live status in one row
+      VStack(alignment: .leading, spacing: 1) {
+        Text("Lanterna Logs")
+          .font(.headline)
+        HStack(spacing: 4) {
+          Circle()
+            .fill(state.isPaused ? .orange : .green)
+            .frame(width: 6, height: 6)
+            .accessibilityHidden(true)
+          Text(state.liveLabel)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(state.liveLabel)
+      }
+      .accessibilityElement(children: .contain)
+      .accessibilityLabel("Lanterna Logs, \(state.liveLabel)")
       Menu("Level") {
         Button("All levels") { state.setLevelFilter(nil) }
         Divider()
