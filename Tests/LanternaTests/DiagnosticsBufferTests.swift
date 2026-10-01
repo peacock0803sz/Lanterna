@@ -55,7 +55,7 @@ extension DiagnosticsBufferTests {
   func structuredLinesKeepLevelCategoryAndPayload() {
     let store = DiagnosticLogStore()
     var logger = Logger(label: "buffer-probe", factory: { _ in DiagnosticLogHandler(store: store) })
-    logger.logLevel = .debug
+    logger.logLevel = .trace
     logger.warning(
       "buffer-structured-probe",
       metadata: ["category": "ax", "app": ["bundle": "com.example"], "attempts": [["result": "failed"]]]

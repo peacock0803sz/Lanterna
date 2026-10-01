@@ -36,7 +36,6 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
   switch outcome {
   case .loaded(let decoded):
     options = AppConfiguration.effectiveOptions(file: decoded.config, cli: cliOptions)
-    Diagnostics.threshold = options.logLevel ?? .warning
     initialValues = SettingsValues.effective(from: decoded.config)
     launchDesired = decoded.config.launchAtLogin ?? false
     openSharedMatcher(
@@ -60,7 +59,6 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
 
   case .created:
     options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
-    Diagnostics.threshold = options.logLevel ?? .warning
     initialValues = SettingsValues.defaults
     launchDesired = defaults.launchAtLogin ?? false
     openSharedMatcher(
@@ -71,7 +69,6 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
 
   case .failed(let reason):
     options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
-    Diagnostics.threshold = options.logLevel ?? .warning
     initialValues = SettingsValues.defaults
     launchDesired = defaults.launchAtLogin ?? false
     openSharedMatcher(
@@ -82,7 +79,6 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
   }
 } else {
   options = cliOptions
-  Diagnostics.threshold = options.logLevel ?? .warning
   initialValues = SettingsValues.defaults
   launchDesired = false
   configFileURL = nil

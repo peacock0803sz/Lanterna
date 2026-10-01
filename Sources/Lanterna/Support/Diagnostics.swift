@@ -175,13 +175,6 @@ enum Diagnostics {
   /// at this launch instead of showing everything kept.
   nonisolated(unsafe) static var activeLaunchStartMilliseconds: Int64?
 
-  /// The level in force for this process. Read once per launch from the
-  /// effective options and set ahead of the first gated line.
-  static var threshold: Logger.Level {
-    get { logger.logLevel }
-    set { logger.logLevel = newValue }
-  }
-
   /// The mirrored lines, oldest first. Never longer than
   /// `DiagnosticLog.capacity`.
   static var recentEntries: [LogEntry] {
@@ -201,9 +194,8 @@ enum Diagnostics {
   static func bootstrap() {
     LoggingSystem.bootstrap { _ in DiagnosticLogHandler(store: store) }
     logger = Logger(label: "lanterna")
-    // Holds warnings and above until the effective options say otherwise,
-    // so an early line never leans on the logging default.
-    logger.logLevel = .warning
+    // Record everything; filtering happens through window queries alone.
+    logger.logLevel = .trace
   }
 
   static func writeLine(_ message: String, level: Logger.Level) {

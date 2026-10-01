@@ -5,8 +5,8 @@ import Logging
 
 /// The one backend this run writes through: stderr and the mirror, as one
 /// locked step, so the on-screen log cannot disagree with what was emitted.
-/// Takes whatever the logger lets through; the threshold lives on the
-/// logger rather than here. A future backend (a file, the system log)
+/// Takes everything the logger sends; the logger records at its most
+/// verbose setting so nothing is gated here. A future backend (a file, the system log)
 /// arrives as another handler beside this one. Locked around the only
 /// mutable state, so sharing it across execution contexts stays sound.
 // swiftlint:disable:next no_unchecked_sendable - Every mutable state below is guarded by the lock
@@ -33,7 +33,7 @@ final class DiagnosticLogHandler: LogHandler, @unchecked Sendable {
     }
   }
 
-  /// Takes all it receives. The logger gates ahead of this call, so a
+  /// Takes all it receives. The logger records everything, so a
   /// second opinion here would only double the rule.
   var logLevel: Logger.Level {
     get {
