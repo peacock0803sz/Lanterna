@@ -86,7 +86,7 @@ struct PanelWindowOperationsTests {
       "the operation was dropped"
     )
     await held.waitUntilAsked()
-    #expect(made.log.entries.map(\.level) == [.debug])
+    #expect(made.log.entries.map(\.level) == [.info])
     #expect(made.log.lines == ["window operation sent (quit Safari/Tabs)"])
     held.finish(with: [twoApps[2]])
     await running.value

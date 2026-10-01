@@ -40,7 +40,8 @@ extension PanelWindowOperations {
   /// interruption too.
   /// A failure winds the look back instead of waiting. The sender said it
   /// could not act, though a time-out may come after the request went out
-  /// and the application may still act on it.
+  /// and the application may still act on it. A send that goes through is
+  /// written before the first pass.
   ///
   /// Every swap moves the choice to the row now standing where the
   /// operated one stood among the rows shown before the operation, or to
@@ -74,10 +75,11 @@ extension PanelWindowOperations {
       )
       return
     }
-    // Written before the passes, so a pass that skips an application on
-    // its way out reads as coming after the request.
+    // Written before the passes, so a pass that skips the operated row's
+    // application, one still quitting for instance, reads as coming
+    // after the request.
     writeLine(
-      .debug,
+      .info,
       "window operation sent (\(reconciliation.operation.logName) "
         + "\(reconciliation.row.appName)/\(reconciliation.row.displayTitle))"
     )
