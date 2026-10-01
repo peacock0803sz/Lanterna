@@ -42,8 +42,9 @@ final class LogQueryExecutor: Sendable {
   // MARK: Internal
 
   /// Runs a lightweight predicate over every file and merges the
-  /// rows by time and order. Unreadable files are skipped with
-  /// their reason kept, never failing the whole run.
+  /// rows by time and order, keeping the newest `limit` of them.
+  /// Unreadable files are skipped with their reason kept, never
+  /// failing the whole run.
   func run(
     predicate: String,
     values: [SQLLiteral],
@@ -53,7 +54,7 @@ final class LogQueryExecutor: Sendable {
     let whereClause = try inline(values, into: predicate)
     return try fetch(
       sql: "SELECT seq, ts_ms, level, category, message, launch_id, build_version, payload "
-        + "FROM entries WHERE \(whereClause) ORDER BY ts_ms, seq LIMIT \(limit)",
+        + "FROM entries WHERE \(whereClause) ORDER BY ts_ms DESC, seq DESC LIMIT \(limit)",
       limit: limit,
       progress: progress
     )
@@ -61,11 +62,12 @@ final class LogQueryExecutor: Sendable {
 
   /// Runs a checked database statement. The statement must project
   /// the entry columns in store order; the executor wraps it so the
-  /// merged order holds across files.
+  /// merged order holds across files, and keeps the newest rows up
+  /// to the statement's own cap.
   func runStatement(_ sql: String, progress: @escaping (Double) -> Void = { _ in }) throws -> ExecutedLogQuery {
     try fetch(
       sql: "SELECT seq, ts_ms, level, category, message, launch_id, build_version, payload "
-        + "FROM (\n\(sql)\n) ORDER BY ts_ms, seq",
+        + "FROM (\n\(sql)\n) ORDER BY ts_ms DESC, seq DESC",
       limit: rowCap(in: sql),
       progress: progress
     )
@@ -148,8 +150,10 @@ final class LogQueryExecutor: Sendable {
       }
       return $0.sequence < $1.sequence
     }
+    // Each file sent its newest rows, so the cap keeps the newest
+    // across files too, matching the trim of the non-persisted store.
     if rows.count > limit {
-      rows = Array(rows.prefix(limit))
+      rows = Array(rows.suffix(limit))
     }
     return ExecutedLogQuery(rows: rows, skipped: skipped, skippedLines: skippedLines)
   }

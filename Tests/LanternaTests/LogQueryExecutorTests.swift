@@ -61,6 +61,20 @@ struct LogQueryExecutorTests {
     #expect(result.rows.map(\.sequence) == [1, 2])
   }
 
+  @Test
+  func theRowCapKeepsTheNewestAcrossFiles() throws {
+    let older = try LogStoreFixture()
+    defer { older.remove() }
+    let newer = try LogStoreFixture()
+    defer { newer.remove() }
+    try older.insert([row(sequence: 1, at: 1000), row(sequence: 2, at: 2000), row(sequence: 3, at: 3000)])
+    try newer.insert([row(sequence: 4, at: 4000), row(sequence: 5, at: 5000)])
+    let executor = LogQueryExecutor(files: [older.url, newer.url])
+    #expect(try executor.run(predicate: "1 = 1", values: [], limit: 3).rows.map(\.sequence) == [3, 4, 5])
+    let statement = try executor.runStatement("SELECT * FROM entries WHERE ts_ms >= 0 ORDER BY ts_ms DESC LIMIT 2")
+    #expect(statement.rows.map(\.sequence) == [4, 5])
+  }
+
   // MARK: Private
 
   private let smuggled = "SELECT * FROM entries) ORDER BY ts_ms, seq) TO '/dev/null' (HEADER false); "
