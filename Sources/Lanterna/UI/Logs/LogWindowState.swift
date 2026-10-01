@@ -271,11 +271,12 @@ final class LogWindowState: ObservableObject {
     }
     launchStarts.sort { $0.start < $1.start }
     let latestKey = launchStarts.last?.key
+    let activeKey = Diagnostics.activeLaunchID ?? latestKey
     return launchStarts.compactMap { entry in
       guard let rows = byLaunch[entry.key] else { return nil }
       return LogLaunchSection(
         launchID: entry.key == "current" ? nil : entry.key,
-        isCurrent: entry.key == latestKey,
+        isCurrent: entry.key == activeKey,
         startMilliseconds: entry.start,
         rows: rows
       )
