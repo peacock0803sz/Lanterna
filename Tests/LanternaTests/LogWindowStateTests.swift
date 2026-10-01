@@ -33,6 +33,19 @@ struct LogWindowStateTests {
     #expect(LogTable.separatorText(LogFixture.launch) == "This launch · \(LogFixture.launch.stamp)")
   }
 
+  /// The detail names the launch and the source on every line, and lists
+  /// the context only for a line that carries one.
+  @Test
+  func theDetailListsSourceAlwaysAndContextWhenThereIsOne() {
+    let plain = LogFixture.entry(sequence: 7)
+    #expect(LogDetailView.fieldRows(for: plain).map(\.key) == ["launch", "source"])
+    #expect(LogDetailView.fieldRows(for: plain)[0].value == "\(LogFixture.launch.stamp) (this launch) · #7")
+    #expect(LogDetailView.contextRows(for: plain).isEmpty)
+    let switched = LogFixture.entry(sequence: 8, context: ["pid": .int(8123), "app": .string("Vivaldi")])
+    #expect(LogDetailView.contextRows(for: switched).map(\.key) == ["app", "pid"])
+    #expect(LogDetailView.contextRows(for: switched).map(\.value) == ["Vivaldi", "8123"])
+  }
+
   @Test
   func theSelectedCountCountsShownLinesOnly() {
     let entries = LogFixture.entries(count: 4)
