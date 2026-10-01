@@ -1,7 +1,12 @@
 import SwiftUI
 
+// MARK: - LogTable
+
 /// The log lines as a table: number, time, level, category and message,
 /// one line per row however long the message is.
+///
+/// Follows new lines only while the last row is on screen, so a reader
+/// partway up keeps their place.
 struct LogTable: View {
 
   // MARK: Internal
@@ -9,6 +14,37 @@ struct LogTable: View {
   @Bindable var state: LogWindowState
 
   var body: some View {
+    ScrollViewReader { proxy in
+      table
+        .onAppear {
+          if let last = state.shownRows.last?.id {
+            proxy.scrollTo(last, anchor: .bottom)
+          }
+        }
+        .onChange(of: state.shownRows.last?.id) { previous, last in
+          guard
+            !state.isPaused,
+            let previous,
+            let last,
+            visibility.isOnScreen(previous)
+          else { return }
+          proxy.scrollTo(last, anchor: .bottom)
+        }
+    }
+  }
+
+  /// `This launch · …` for the run reading it, `Launch · …` for the rest.
+  static func separatorText(_ launch: LaunchID) -> String {
+    "\(launch.isCurrent ? "This launch" : "Launch") · \(launch.stamp)"
+  }
+
+  // MARK: Private
+
+  private static let mono = Font.system(size: 11, design: .monospaced)
+
+  @State private var visibility = RowVisibility()
+
+  private var table: some View {
     Table(state.shownRows, selection: $state.selection) {
       TableColumn("#") { row in
         if let entry = row.entry {
@@ -46,29 +82,54 @@ struct LogTable: View {
       }
       .width(min: 64, ideal: 96, max: 160)
       TableColumn("Message") { row in
-        if let entry = row.entry {
-          Text(entry.oneLineMessage)
-            .font(.system(size: 12))
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .help(entry.message)
-        } else {
-          Text(Self.separatorText(row.launch))
-            .font(.system(size: 11, weight: .semibold))
-            .lineLimit(1)
-        }
+        messageCell(row)
+          .onAppear { visibility.appeared(row.id) }
+          .onDisappear { visibility.disappeared(row.id) }
       }
     }
     .tableStyle(.inset(alternatesRowBackgrounds: true))
   }
 
-  /// `This launch · …` for the run reading it, `Launch · …` for the rest.
-  static func separatorText(_ launch: LaunchID) -> String {
-    "\(launch.isCurrent ? "This launch" : "Launch") · \(launch.stamp)"
+  @ViewBuilder
+  private func messageCell(_ row: LogRow) -> some View {
+    if let entry = row.entry {
+      Text(entry.oneLineMessage)
+        .font(.system(size: 12))
+        .lineLimit(1)
+        .truncationMode(.tail)
+        .help(entry.message)
+    } else {
+      Text(Self.separatorText(row.launch))
+        .font(.system(size: 11, weight: .semibold))
+        .lineLimit(1)
+    }
+  }
+
+}
+
+// MARK: - RowVisibility
+
+/// Which rows the table has on screen, kept outside observation so that
+/// scrolling does not redraw the table.
+@MainActor
+final class RowVisibility {
+
+  // MARK: Internal
+
+  func appeared(_ id: LogRow.ID) {
+    onScreen.insert(id)
+  }
+
+  func disappeared(_ id: LogRow.ID) {
+    onScreen.remove(id)
+  }
+
+  func isOnScreen(_ id: LogRow.ID) -> Bool {
+    onScreen.contains(id)
   }
 
   // MARK: Private
 
-  private static let mono = Font.system(size: 11, design: .monospaced)
+  private var onScreen = Set<LogRow.ID>()
 
 }
