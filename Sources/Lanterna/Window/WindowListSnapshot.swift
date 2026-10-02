@@ -20,9 +20,11 @@ struct WindowListSnapshot {
     gatheringDuration: Duration,
     skipped: [SkippedApplication],
     droppedWithoutID: Int,
-    gatheredAt: ContinuousClock.Instant
+    gatheredAt: ContinuousClock.Instant,
+    spacesUnread: Bool = false
   ) {
     assert(Set(items.map(\.id)).count == items.count, "window ids must be unique")
+    self.spacesUnread = spacesUnread
     self.items = items
     self.applicationCount = applicationCount
     self.gatheringDuration = gatheringDuration
@@ -56,6 +58,9 @@ struct WindowListSnapshot {
   /// When this pass started observing. The sweep spares records newer
   /// than this: a snapshot that predates a use could not have observed it.
   let gatheredAt: ContinuousClock.Instant
+  /// Whether the pass found no Space any display is showing, so grouping
+  /// by Space drew one list. Said on the summary line.
+  let spacesUnread: Bool
 
   // When this pass finished assembling. The sweep spares records newer
   // than this: a snapshot that predates a use could not have observed it.
@@ -84,6 +89,9 @@ struct WindowListSnapshot {
     }
     if droppedWithoutID > 0 {
       line += "; dropped \(droppedWithoutID) elements without a window id"
+    }
+    if spacesUnread {
+      line += "; Spaces unread"
     }
     return line
   }

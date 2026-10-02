@@ -248,7 +248,8 @@ struct WindowEnumerator {
       gatheringDuration: ContinuousClock.now - startedAt,
       skipped: skipped,
       droppedWithoutID: droppedWithoutID,
-      gatheredAt: startedAt
+      gatheredAt: startedAt,
+      spacesUnread: gathered.spaces.displaysUnread && !items.isEmpty
     )
   }
 

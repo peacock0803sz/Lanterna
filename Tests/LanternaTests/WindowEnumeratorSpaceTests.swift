@@ -175,6 +175,25 @@ struct WindowEnumeratorSpaceTests {
     ])
   }
 
+  /// A server naming no shown Space is said on the pass's line, once the
+  /// pass has windows to group.
+  @Test
+  func unreadSpacesAreSaidOnTheSummaryLine() {
+    struct Unread: SpaceLocating {
+      func windowsOnOtherSpaces(among _: [CGWindowID]) -> Set<CGWindowID> {
+        []
+      }
+
+      func reading(among _: [CGWindowID]) -> SpaceReading {
+        SpaceReading(displaysUnread: true)
+      }
+    }
+    let enumerator = WindowEnumerator(reader: FakeReader(reads), locator: Unread())
+    #expect(enumerator.enumerate(applications: applications, startedAt: .now).summaryLine.hasSuffix("; Spaces unread"))
+    let plain = WindowEnumerator(reader: FakeReader(reads), locator: FakeSpaceLocator())
+    #expect(!plain.enumerate(applications: applications, startedAt: .now).summaryLine.contains("Spaces unread"))
+  }
+
   /// Without the displays' Spaces there is no group to join.
   @Test
   func noLayoutLeavesRowsUngrouped() {

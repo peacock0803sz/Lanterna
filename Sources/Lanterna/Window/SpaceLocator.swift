@@ -32,6 +32,9 @@ struct SpaceReading: Sendable {
   var spaces = [CGWindowID: [CGSSpaceID]]()
   /// The displays and their Spaces, or nil when they could not be read.
   var layout: SpaceLayout?
+  /// Whether the window server was asked and named no Space any display
+  /// is showing, which leaves grouping by Space with nothing to go on.
+  var displaysUnread = false
 }
 
 extension SpaceLocating {
@@ -133,7 +136,10 @@ struct WindowServerSpaceLocator: SpaceLocating {
     let displays = answer as? [[String: Any]] ?? []
     let currentSpaces = SpacePlacement.currentSpaces(from: displays)
     let fullscreenSpaces = SpacePlacement.fullscreenSpaces(from: displays)
-    var reading = SpaceReading(layout: displays.isEmpty ? nil : SpaceLayout.read(from: displays))
+    var reading = SpaceReading(
+      layout: displays.isEmpty ? nil : SpaceLayout.read(from: displays),
+      displaysUnread: currentSpaces.isEmpty
+    )
     for windowID in windowIDs {
       let windowSpaces = Self.spaces(of: windowID, connection: connection)
       reading.spaces[windowID] = windowSpaces
