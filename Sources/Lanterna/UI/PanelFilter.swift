@@ -1,4 +1,4 @@
-import Darwin
+import AppKit
 import Logging
 
 // MARK: - ChoiceAnchor
@@ -73,11 +73,12 @@ final class PanelFilter {
   }
 
   /// The band over a list narrowed to one application, or nil while every
-  /// application is listed. Named after a row of that application when
-  /// one is listed, and plainly otherwise.
+  /// application is listed. Named the way that application's rows name
+  /// it, or by the running application when it has no row.
   var scopeBand: ScopeBand? {
     guard let owner = scope.narrowedOwner else { return nil }
     let name = fullWindows.first { $0.ownerProcessIdentifier == owner }?.appName
+      ?? NSRunningApplication(processIdentifier: owner)?.localizedName
     return ScopeBand(appName: name ?? "Active app", toggleKey: scopeToggleKey)
   }
 
