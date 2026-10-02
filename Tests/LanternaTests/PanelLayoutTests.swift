@@ -28,7 +28,7 @@ private func layoutRow(
 // MARK: - PanelLayoutTests
 
 /// The list as it draws, held against the split the display modes make:
-/// the layout is the one place the three readers of that split now ask.
+/// the layout is the one place every reader of that split asks.
 @MainActor
 struct PanelLayoutTests {
 

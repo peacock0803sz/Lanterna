@@ -5,8 +5,9 @@ import Testing
 /// What the keys deciding which rows the switcher lists, and how it
 /// groups them, read as.
 ///
-/// Decoding conventions live in `ConfigStoreTests`; these cover the new
-/// keys: present values win, absent keys mean the defaults, and anything
+/// Decoding conventions live in `ConfigStoreTests`; these cover the
+/// scope, the mode for applications with no window, grouping, the
+/// section placements and the manual group keys: present values win, absent keys mean the defaults, and anything
 /// outside the schema invalidates the whole file.
 struct GroupingConfigTests {
 

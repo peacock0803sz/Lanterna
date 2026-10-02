@@ -31,8 +31,8 @@ local function isBoolean(prop: reflect.Property): Boolean =
 
 /// Whether the property is the exclusion list.
 ///
-/// Matched by name: more than one key now holds a listing, and each
-/// renders its own item shape.
+/// Matched by name, since several keys hold listings with different item
+/// shapes.
 local function isExclusions(prop: reflect.Property): Boolean = prop.name == "exclusions"
 
 /// Whether the property is the group assignment list.

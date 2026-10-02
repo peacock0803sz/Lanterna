@@ -33,11 +33,12 @@ struct PanelLayoutManualTests {
 
   // MARK: Internal
 
-  /// The documented example: two named groups, hidden apps inside each
-  /// group, minimized windows at the end, and no heading for the empty
-  /// third group.
+  /// Two named groups with hidden apps placed inside each group and
+  /// minimized windows at the end: each group draws its own rows and its
+  /// hidden apps under its heading, the minimized windows follow every
+  /// group, and the empty third group draws no heading.
   @Test
-  func theDocumentedExampleLaysOutAsWritten() {
+  func namedGroupsKeepHiddenAppsInsideAndMinimizedAtTheEnd() {
     let ghostty = appRow(1, app: "Ghostty", bundle: "com.mitchellh.ghostty")
     let xcode = appRow(2, app: "Xcode", bundle: "com.apple.dt.Xcode")
     let safari = appRow(3, app: "Safari", bundle: "com.apple.Safari")
