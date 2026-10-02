@@ -121,6 +121,22 @@ struct PanelLayoutManualTests {
     #expect(titles(PanelLayout.make(rows: rows, modes: .defaults, query: "", grouping: policy)) == ["Safari, Mail", "Slack"])
   }
 
+  /// An application whose rows all sit in a section gathered after every
+  /// group is not named in its group's heading: the heading names only
+  /// the applications drawn under it.
+  @Test
+  func appNamesLeaveOutRowsGatheredAtTheEnd() {
+    let rows = [
+      appRow(1, app: "Safari", bundle: "a"),
+      appRow(2, app: "Preview", bundle: "b", isMinimized: true),
+      appRow(3, app: "Slack", bundle: "c"),
+    ]
+    var policy = manual(count: 2, style: .appNames)
+    policy.assignments = [GroupAssignment(bundleID: "c", group: 2)]
+    let layout = PanelLayout.make(rows: rows, modes: .defaults, query: "", grouping: policy)
+    #expect(lines(layout) == ["[1] Safari", "Safari", "[2] Slack", "Slack", "minimized", "Preview"])
+  }
+
   /// One group with rows, or grouping off, reads exactly as the list does
   /// ungrouped, whatever the placements say.
   @Test

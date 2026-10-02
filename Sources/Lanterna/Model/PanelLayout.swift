@@ -122,9 +122,12 @@ struct PanelLayout {
     guard grouping.mode != .none else {
       return PanelLayout(blocks: flat(ordinary: ordinary, subgroups: subgroups), rankedRows: ranked)
     }
-    let grouper = Grouper(rows: ranked, policy: grouping)
     let placed = SectionPlacement(grouping: grouping, subgroups: subgroups)
-    let groups = grouper.orders(of: ordinary + placed.within.flatMap(\.1))
+    // Headings are read off the rows each group draws, so a section
+    // gathered after every group lends no group its name.
+    let grouped = ordinary + placed.within.flatMap(\.1)
+    let grouper = Grouper(rows: grouped, policy: grouping)
+    let groups = grouper.orders(of: grouped)
     guard groups.count > 1 else {
       return PanelLayout(blocks: flat(ordinary: ordinary, subgroups: subgroups), rankedRows: ranked)
     }
