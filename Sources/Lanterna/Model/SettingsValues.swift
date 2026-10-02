@@ -108,6 +108,7 @@ struct SettingsValues: Equatable, Sendable {
     config.hiddenAppMode = displayModes.hiddenApp
     config.minimizedMode = displayModes.minimized
     config.fullscreenMode = displayModes.fullscreen
+    config.windowlessAppMode = displayModes.windowlessApp
     config.romajiScope = romajiScope
     config.launchAtLogin = launchAtLogin
     config.updateCheckEnabled = updateCheckEnabled

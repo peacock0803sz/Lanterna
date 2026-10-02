@@ -24,6 +24,9 @@ extension AppConfiguration {
     if let windowScope = config.windowScope {
       entries.append(encodedString(key: "windowScope", value: windowScope.rawValue))
     }
+    if let windowlessAppMode = config.windowlessAppMode {
+      entries.append(encodedString(key: "windowlessAppMode", value: windowlessAppMode.rawValue))
+    }
     return entries
   }
 

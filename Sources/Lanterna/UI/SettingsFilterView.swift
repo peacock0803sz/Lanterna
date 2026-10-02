@@ -73,6 +73,18 @@ struct SettingsFilterView: View {
           )
         }
         .pickerStyle(.menu)
+        Picker(selection: $values.displayModes.windowlessApp) {
+          Text("Show").tag(DisplayMode.show)
+          Text("Hide").tag(DisplayMode.hide)
+          Text("Separate at bottom").tag(DisplayMode.separateAtBottom)
+        } label: {
+          SettingsFormLabel(
+            title: "Apps without windows",
+            caption: "Running apps with no open window: mix them in, keep them out, or park them below. "
+              + "Choosing one brings the app forward."
+          )
+        }
+        .pickerStyle(.menu)
       }
       Section("Search") {
         Picker(selection: $values.romajiScope) {

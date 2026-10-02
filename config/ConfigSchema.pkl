@@ -76,6 +76,11 @@ minimizedMode: DisplayMode? = null
 @Allowed { values { "show" "hide" "separateAtBottom" } }
 fullscreenMode: DisplayMode? = null
 
+/// Running applications with no open window, each listed as a row of its
+/// own. Absent means "hide".
+@Allowed { values { "show" "hide" "separateAtBottom" } }
+windowlessAppMode: DisplayMode? = null
+
 /// Fixture entries to show instead of live windows.
 /// Absent means live windows. Must be zero or more when present.
 @Minimum { value = 0 }

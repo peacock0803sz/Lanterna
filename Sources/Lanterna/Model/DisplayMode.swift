@@ -103,7 +103,8 @@ struct DisplayModes: Equatable, Sendable {
       otherSpace: config.otherSpaceMode ?? defaults.otherSpace,
       hiddenApp: config.hiddenAppMode ?? defaults.hiddenApp,
       minimized: config.minimizedMode ?? defaults.minimized,
-      fullscreen: config.fullscreenMode ?? defaults.fullscreen
+      fullscreen: config.fullscreenMode ?? defaults.fullscreen,
+      windowlessApp: config.windowlessAppMode ?? defaults.windowlessApp
     )
   }
 

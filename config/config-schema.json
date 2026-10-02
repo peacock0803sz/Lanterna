@@ -79,6 +79,15 @@
         "separateAtBottom"
       ]
     },
+    "windowlessAppMode": {
+      "description": "Running applications with no open window, each listed as a row of its\nown. Absent means \"hide\".",
+      "type": "string",
+      "enum": [
+        "show",
+        "hide",
+        "separateAtBottom"
+      ]
+    },
     "sampleCount": {
       "description": "Fixture entries to show instead of live windows.\nAbsent means live windows. Must be zero or more when present.",
       "type": "integer",

@@ -45,6 +45,21 @@ struct GroupingConfigTests {
     #expect(AppConfiguration.decode(AppConfiguration.encode(changed)).successValue?.config == changed)
   }
 
+  /// The mode for applications with no window reads like the other modes,
+  /// stays out by default, and is written with them on every save.
+  @Test
+  func theWindowlessModeReadsLikeTheOtherModes() throws {
+    let absent = try #require(decode("{\"version\": 1}").successValue)
+    #expect(absent.config.windowlessAppMode == nil)
+    #expect(DisplayModes.effective(from: absent.config).windowlessApp == .hide)
+    let present = try #require(decode("{\"version\": 1, \"windowlessAppMode\": \"separateAtBottom\"}").successValue)
+    #expect(DisplayModes.effective(from: present.config).windowlessApp == .separateAtBottom)
+    #expect(decode("{\"version\": 1, \"windowlessAppMode\": \"park\"}").failureValue == .invalidValue(key: "windowlessAppMode"))
+    let saved = SettingsValues.defaults.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    let text = try #require(String(bytes: AppConfiguration.encode(saved), encoding: .utf8))
+    #expect(text.contains("\"windowlessAppMode\": \"hide\""))
+  }
+
   // MARK: Private
 
   private func decode(_ text: String) -> Result<DecodedConfiguration, ConfigDecodeError> {

@@ -28,6 +28,7 @@ enum AppConfiguration {
     "hiddenAppMode",
     "minimizedMode",
     "fullscreenMode",
+    "windowlessAppMode",
     "appearanceMode",
     "romajiScope",
     "launchAtLogin",
@@ -69,6 +70,7 @@ struct ValidConfiguration: Equatable, Sendable {
     hiddenAppMode: DisplayMode? = nil,
     minimizedMode: DisplayMode? = nil,
     fullscreenMode: DisplayMode? = nil,
+    windowlessAppMode: DisplayMode? = nil,
     appearanceMode: AppearanceMode? = nil,
     romajiScope: RomajiScope? = nil,
     launchAtLogin: Bool? = nil,
@@ -91,6 +93,7 @@ struct ValidConfiguration: Equatable, Sendable {
     self.hiddenAppMode = hiddenAppMode
     self.minimizedMode = minimizedMode
     self.fullscreenMode = fullscreenMode
+    self.windowlessAppMode = windowlessAppMode
     self.appearanceMode = appearanceMode
     self.romajiScope = romajiScope
     self.launchAtLogin = launchAtLogin
@@ -116,6 +119,7 @@ struct ValidConfiguration: Equatable, Sendable {
   var hiddenAppMode: DisplayMode?
   var minimizedMode: DisplayMode?
   var fullscreenMode: DisplayMode?
+  var windowlessAppMode: DisplayMode?
   var appearanceMode: AppearanceMode?
   var romajiScope: RomajiScope?
   var launchAtLogin: Bool?
@@ -353,7 +357,7 @@ extension AppConfiguration {
     return .success((version, false))
   }
 
-  /// Reads the four display-mode keys into the configuration.
+  /// Reads the display-mode keys into the configuration.
   private static func checkedDisplayModes(
     _ dict: [String: Any],
     into config: inout ValidConfiguration
@@ -363,6 +367,7 @@ extension AppConfiguration {
       ("hiddenAppMode", \.hiddenAppMode),
       ("minimizedMode", \.minimizedMode),
       ("fullscreenMode", \.fullscreenMode),
+      ("windowlessAppMode", \.windowlessAppMode),
     ]
     for (key, path) in keys {
       switch checkedOptionalMode(dict, key: key) {
