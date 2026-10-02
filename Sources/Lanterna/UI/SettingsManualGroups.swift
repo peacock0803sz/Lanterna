@@ -148,7 +148,8 @@ struct SettingsManualGroupSections: View {
   }
 
   private func isAssigned(_ bundleID: String) -> Bool {
-    grouping.assignments.contains { $0.bundleID.lowercased() == bundleID.lowercased() }
+    let key = GroupAssignment.matchKey(bundleID)
+    return grouping.assignments.contains { GroupAssignment.matchKey($0.bundleID) == key }
   }
 
   private func appCountWording(_ group: Int) -> String {

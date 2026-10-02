@@ -172,6 +172,38 @@ struct GroupingConfigTests {
     #expect(saved.groupAssignments == [GroupAssignment(bundleID: "com.apple.mail", group: 2)])
   }
 
+  /// Whitespace around a bundle identifier is dropped when saving and
+  /// when reading, so the stored identifier is the one that matches, and
+  /// a padded repeat of an earlier one is still a repeat.
+  @Test
+  func bundleIdentifiersAreStoredTrimmed() throws {
+    var values = SettingsValues.defaults
+    values.grouping.assignments = [
+      GroupAssignment(bundleID: " com.apple.mail\n", group: 2),
+      GroupAssignment(bundleID: "com.apple.mail", group: 1),
+    ]
+    let saved = values.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(saved.groupAssignments == [GroupAssignment(bundleID: "com.apple.mail", group: 2)])
+    let text = "{\"version\": 1, \"groupAssignments\": ["
+      + "{\"bundleID\": \" com.apple.Safari \", \"group\": 2}, "
+      + "{\"bundleID\": \"com.apple.safari\", \"group\": 1}]}"
+    let decoded = try #require(decode(text).successValue)
+    #expect(decoded.config.groupAssignments == [GroupAssignment(bundleID: "com.apple.Safari", group: 2)])
+    #expect(decoded.groupAssignmentIssues.map(\.diagnosticsLine) == [
+      "group assignment skipped (duplicate bundleID com.apple.safari): groupAssignments[1]"
+    ])
+  }
+
+  /// A padded assignment still places its application's rows.
+  @Test
+  func aPaddedAssignmentStillMatches() {
+    var policy = GroupingPolicy()
+    policy.mode = .manual
+    policy.groupCount = 2
+    policy.assignments = [GroupAssignment(bundleID: "\tcom.apple.mail ", group: 2)]
+    #expect(policy.group(forBundleID: "com.apple.Mail") == 2)
+  }
+
   // MARK: Private
 
   private func decode(_ text: String) -> Result<DecodedConfiguration, ConfigDecodeError> {

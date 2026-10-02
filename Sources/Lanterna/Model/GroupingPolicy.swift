@@ -45,14 +45,23 @@ enum GroupHeadingStyle: String, Sendable {
 /// One application assigned to one manual group, by bundle identifier.
 struct GroupAssignment: Hashable, Identifiable, Sendable {
 
-  // MARK: Internal
-
   /// Row identity for the settings list, never encoded. Equality and
   /// hashing cover the visible fields alone, as for exclusion entries.
   let id = UUID()
   var bundleID: String
   /// The group number, 1 to 9. Kept when the group count falls below it.
   var group: Int
+
+  /// A bundle identifier as it is stored: without surrounding whitespace,
+  /// which no bundle identifier contains.
+  static func trimmed(_ bundleID: String) -> String {
+    bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  /// What two bundle identifiers compare by: trimmed, and without case.
+  static func matchKey(_ bundleID: String) -> String {
+    trimmed(bundleID).lowercased()
+  }
 
   static func ==(lhs: GroupAssignment, rhs: GroupAssignment) -> Bool {
     lhs.bundleID == rhs.bundleID && lhs.group == rhs.group
@@ -90,12 +99,12 @@ struct GroupingPolicy: Equatable, Sendable {
 
   /// The manual group an application's rows join. An application with no
   /// bundle identifier, with no assignment, or assigned past the count
-  /// joins the first group. Bundle identifiers compare without case, and
-  /// the first assignment of one wins.
+  /// joins the first group. Bundle identifiers compare trimmed and without
+  /// case, and the first assignment of one wins.
   func group(forBundleID bundleID: String?) -> Int {
     guard let bundleID else { return 1 }
-    let folded = bundleID.lowercased()
-    guard let assigned = assignments.first(where: { $0.bundleID.lowercased() == folded })?.group else {
+    let key = GroupAssignment.matchKey(bundleID)
+    guard let assigned = assignments.first(where: { GroupAssignment.matchKey($0.bundleID) == key })?.group else {
       return 1
     }
     return (1 ... groupCount).contains(assigned) ? assigned : 1

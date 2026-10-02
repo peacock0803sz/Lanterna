@@ -51,10 +51,10 @@ enum AssignmentAppResolver {
     installed: @MainActor (String) -> ResolvedExclusionApp? = ExclusionAppResolver.installedApp,
     isRunning: @MainActor (String) -> Bool = Self.isRunning
   ) -> AssignmentNote {
-    let trimmed = bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+    let trimmed = GroupAssignment.trimmed(bundleID)
     guard !trimmed.isEmpty else { return .blank }
-    let folded = trimmed.lowercased()
-    if earlier.contains(where: { $0.bundleID.trimmingCharacters(in: .whitespaces).lowercased() == folded }) {
+    let key = GroupAssignment.matchKey(trimmed)
+    if earlier.contains(where: { GroupAssignment.matchKey($0.bundleID) == key }) {
       return .alreadyAssigned
     }
     guard let app = installed(trimmed) else { return .missing }

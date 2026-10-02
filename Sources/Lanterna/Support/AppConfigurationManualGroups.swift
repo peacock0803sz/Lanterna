@@ -139,8 +139,8 @@ extension AppConfiguration {
   private static func assignment(from entry: Any) -> Result<GroupAssignment, UnreadableAssignment> {
     guard
       let object = entry as? [String: Any],
-      let bundleID = object["bundleID"] as? String,
-      !bundleID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+      let bundleID = (object["bundleID"] as? String).map(GroupAssignment.trimmed),
+      !bundleID.isEmpty,
       let rawGroup = object["group"], let group = jsonInt(rawGroup)
     else {
       return .failure(UnreadableAssignment(text: "unreadable entry"))

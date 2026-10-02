@@ -50,6 +50,20 @@ struct AssignmentAppResolverTests {
     #expect(note.text == "Already assigned")
   }
 
+  /// Whitespace around either identifier, newlines included, does not
+  /// hide a repeat: both sides are trimmed the same way.
+  @Test
+  func aPaddedRepeatIsAlreadyAssigned() {
+    let earlier = [GroupAssignment(bundleID: "com.apple.safari\n", group: 2)]
+    let note = AssignmentAppResolver.note(
+      for: " com.apple.Safari\t",
+      earlier: earlier,
+      installed: installed,
+      isRunning: { _ in true }
+    )
+    #expect(note == .alreadyAssigned)
+  }
+
   @Test
   func aBlankRowSaysNothingYet() {
     #expect(resolve("  ", running: []) == .blank)

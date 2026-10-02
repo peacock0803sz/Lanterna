@@ -171,14 +171,15 @@ struct SettingsValues: Equatable, Sendable {
 
   // MARK: Private
 
-  /// The assignments for saving: rows with a bundle identifier, the first
-  /// of each identifier ignoring case, in the order shown. A row the
-  /// editor shows as already assigned is left out here.
+  /// The assignments for saving: rows with a bundle identifier, trimmed,
+  /// the first of each identifier ignoring case, in the order shown. A
+  /// row the editor shows as already assigned is left out here.
   private static func savedAssignments(_ assignments: [GroupAssignment]) -> [GroupAssignment] {
     var seen = Set<String>()
-    return assignments.filter { entry in
-      let trimmed = entry.bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
-      return !trimmed.isEmpty && seen.insert(trimmed.lowercased()).inserted
+    return assignments.compactMap { entry in
+      let trimmed = GroupAssignment.trimmed(entry.bundleID)
+      guard !trimmed.isEmpty, seen.insert(GroupAssignment.matchKey(trimmed)).inserted else { return nil }
+      return GroupAssignment(bundleID: trimmed, group: entry.group)
     }
   }
 
