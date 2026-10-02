@@ -149,6 +149,40 @@ struct WindowEnumeratorSpaceTests {
     #expect(snapshot.summaryLine.contains("; 2 on other Spaces"))
   }
 
+  /// Each window carries the group of the Space it is on, named after the
+  /// desktop and, with several displays, the display; a window the server
+  /// says nothing about joins the first shown Space.
+  @Test
+  func rowsCarryTheGroupOfTheirSpace() {
+    let layout = SpaceLayout(displays: [
+      SpaceLayout.Display(
+        identifier: "MAIN",
+        spaces: [.init(id: 1, isFullscreen: false, desktopNumber: 1), .init(id: 2, isFullscreen: false, desktopNumber: 2)],
+        current: 1
+      ),
+      SpaceLayout.Display(identifier: "SIDE", spaces: [.init(id: 5, isFullscreen: false, desktopNumber: 1)], current: 5),
+    ])
+    let enumerator = WindowEnumerator(
+      reader: FakeReader(reads),
+      locator: FakeSpaceLocator(spaces: [10: [2], 20: [5]], layout: layout),
+      displayNames: { ["MAIN": "Studio Display"] }
+    )
+    let groups = enumerator.enumerate(applications: applications, startedAt: .now).items.map(\.spaceGroup)
+    #expect(groups == [
+      SpaceGroup(order: 2, title: "Desktop 2", detail: "Studio Display"),
+      SpaceGroup(order: 0, title: "Desktop 1", detail: "Studio Display · shown"),
+      SpaceGroup(order: 1, title: "Desktop 1", detail: "Display 2 · shown"),
+    ])
+  }
+
+  /// Without the displays' Spaces there is no group to join.
+  @Test
+  func noLayoutLeavesRowsUngrouped() {
+    let enumerator = WindowEnumerator(reader: FakeReader(reads), locator: FakeSpaceLocator())
+    let snapshot = enumerator.enumerate(applications: applications, startedAt: .now)
+    #expect(snapshot.items.allSatisfy { $0.spaceGroup == nil })
+  }
+
   // MARK: Private
 
   private let applications = [application(100), application(200, name: "Mail")]

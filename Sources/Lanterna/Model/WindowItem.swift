@@ -22,6 +22,7 @@ struct WindowItem: Identifiable {
     isHidden: Bool = false,
     isOnOtherSpace: Bool = false,
     isFullscreen: Bool = false,
+    spaceGroup: SpaceGroup? = nil,
     icon: NSImage
   ) {
     precondition(!appName.isEmpty, "appName must not be empty")
@@ -35,6 +36,7 @@ struct WindowItem: Identifiable {
     self.isHidden = isHidden
     self.isOnOtherSpace = isOnOtherSpace
     self.isFullscreen = isFullscreen
+    self.spaceGroup = spaceGroup
     self.icon = icon
   }
 
@@ -101,6 +103,10 @@ struct WindowItem: Identifiable {
   /// Whether the window is natively fullscreen. Read as one AX attribute;
   /// a manually zoomed window is not fullscreen.
   let isFullscreen: Bool
+  /// The Space group the row joins when the list groups by Space. Nil
+  /// when the Spaces could not be read, which leaves every row in one
+  /// group.
+  let spaceGroup: SpaceGroup?
   let icon: NSImage
 
   /// Whether the row is minimised or its application hidden. The hide and
@@ -146,6 +152,7 @@ struct WindowItem: Identifiable {
       isHidden: isHidden,
       isOnOtherSpace: isOnOtherSpace,
       isFullscreen: isFullscreen,
+      spaceGroup: spaceGroup,
       icon: icon
     )
   }
@@ -164,6 +171,7 @@ struct WindowItem: Identifiable {
       isHidden: hidden,
       isOnOtherSpace: isOnOtherSpace,
       isFullscreen: isFullscreen,
+      spaceGroup: spaceGroup,
       icon: icon
     )
   }
@@ -181,6 +189,7 @@ struct WindowItem: Identifiable {
       isHidden: isHidden,
       isOnOtherSpace: isOnOtherSpace,
       isFullscreen: fullscreen,
+      spaceGroup: spaceGroup,
       icon: icon
     )
   }
