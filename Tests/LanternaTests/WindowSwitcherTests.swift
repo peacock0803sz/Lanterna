@@ -222,6 +222,25 @@ struct WindowSwitcherTests {
     #expect(peer.operationNames == ["activate", "unminimize", "raise"])
   }
 
+  /// An application with no window is only brought forward: there is no
+  /// window to look for, unminimize or raise.
+  @Test
+  func anApplicationRowOnlyActivates() {
+    let peer = ScriptedAccessibility(windowCount: 0)
+    let application = ActivationTarget(
+      id: .application(4242),
+      ownerProcessIdentifier: 4242,
+      appName: "Music",
+      displayTitle: "Music"
+    )
+    #expect(peer.switcher().switchTo(application) == .switched)
+    #expect(peer.operationNames == ["activate"])
+    #expect(peer.createPIDs.isEmpty)
+
+    peer.activateAnswer = .missing
+    #expect(peer.switcher().switchTo(application) == .failed(.applicationGone))
+  }
+
   // MARK: Private
 
   private func target(windowID: CGWindowID = 101) -> ActivationTarget {

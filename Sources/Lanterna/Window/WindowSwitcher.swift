@@ -114,6 +114,11 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
   static let unreachableAnswerCeiling = Duration.milliseconds(500)
 
   func switchTo(_ target: ActivationTarget) -> ActivationOutcome {
+    // An application with no window has nothing to resolve or raise:
+    // bringing it forward is the whole switch.
+    guard target.id.windowID != nil else {
+      return activate(target).map { .failed($0) } ?? .switched
+    }
     // 0. Resolve the row back to an element, reading only the owning
     // application's list. Never a fresher list: the target is what the
     // appearance showed.
