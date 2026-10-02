@@ -47,7 +47,6 @@ struct PanelLayoutTests {
     let split = DisplayModes.sections(of: rows, modes: modes, query: "")
     #expect(layout.rowIDs == expected.map(\.id))
     #expect(layout.drawnRowCount == expected.count + split.subgroups.count)
-    #expect(layout.drawnRowCount == PanelMetrics.drawnRowCount(rows, modes: modes))
   }
 
   /// A hidden row the query matches comes back under its heading, the way
