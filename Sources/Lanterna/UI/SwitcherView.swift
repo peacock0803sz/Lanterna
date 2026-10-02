@@ -217,7 +217,8 @@ struct SwitcherView: View {
   }
 
   /// The one line drawn in place of rows when nothing is left to show:
-  /// a query matching nothing, or an active application with no row.
+  /// a query matching nothing, an active application with no row, or
+  /// every row hidden by the display modes or excluded with no query.
   private var emptyLine: some View {
     Text("No windows")
       .font(.system(size: scaled(13)))

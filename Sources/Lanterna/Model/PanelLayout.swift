@@ -4,10 +4,9 @@ import Foundation
 
 /// The switcher list as it draws: headings and rows, in drawing order.
 ///
-/// The filter, the view and the panel height each used to split the rows
-/// on their own and agreed only because they passed the same arguments.
-/// They now all read this one value, so a rule about where a row goes is
-/// written once and cannot be applied differently in one of the three.
+/// The filter, the view and the panel height all read this one value, so
+/// a rule about where a row goes is written once and cannot be applied
+/// differently by any of them.
 struct PanelLayout {
 
   // MARK: Internal
