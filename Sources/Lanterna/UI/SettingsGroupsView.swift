@@ -19,13 +19,21 @@ struct SettingsGroupsView: View {
         Picker(selection: $values.grouping.mode) {
           Text("Don't group").tag(GroupingMode.none)
           Text("By Space").tag(GroupingMode.bySpace)
+          Text("Manually").tag(GroupingMode.manual)
         } label: {
           SettingsFormLabel(
             title: "Group windows",
-            caption: "Keep one list, or group rows by the Space they live on, shown Spaces first."
+            caption: "Keep one list, group rows by the Space they live on, or group apps the way you assign "
+              + "them below."
           )
         }
         .pickerStyle(.menu)
+        if values.grouping.mode == .manual {
+          SettingsManualGroupRows(grouping: $values.grouping)
+        }
+      }
+      if values.grouping.mode == .manual {
+        SettingsManualGroupSections(grouping: $values.grouping)
       }
       if values.grouping.mode != .none {
         Section {

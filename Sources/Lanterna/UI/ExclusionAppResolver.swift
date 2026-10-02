@@ -26,7 +26,7 @@ enum ExclusionAppResolver {
   /// Finds the app named by one exclusion row.
   static func resolve(
     app: String,
-    installed: @MainActor (String) -> ResolvedExclusionApp? = defaultInstalled,
+    installed: @MainActor (String) -> ResolvedExclusionApp? = installedApp,
     running: @MainActor () -> [ResolvedExclusionApp?] = defaultRunning
   ) -> ResolvedExclusionApp? {
     guard !app.isEmpty else { return nil }
@@ -45,10 +45,9 @@ enum ExclusionAppResolver {
     return nil
   }
 
-  // MARK: Private
-
   /// Installed lookup through the workspace, leaving case handling there.
-  private static func defaultInstalled(_ bundleID: String) -> ResolvedExclusionApp? {
+  /// Shared with the group assignment rows, which look up nothing else.
+  static func installedApp(_ bundleID: String) -> ResolvedExclusionApp? {
     guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
       return nil
     }
@@ -59,6 +58,8 @@ enum ExclusionAppResolver {
       ?? FileManager.default.displayName(atPath: url.path)
     return ResolvedExclusionApp(name: name, bundleIdentifier: identifier)
   }
+
+  // MARK: Private
 
   /// A snapshot of the running apps, with gaps kept as gaps.
   private static func defaultRunning() -> [ResolvedExclusionApp?] {
