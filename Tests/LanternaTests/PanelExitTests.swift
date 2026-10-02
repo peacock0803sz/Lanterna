@@ -261,7 +261,7 @@ struct PanelExitTests {
     #expect(
       fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
         == "committed \(third.appName) — \(third.displayTitle) "
-        + "(window \(third.id.windowID)) 4.8 ms after Return"
+        + "(\(third.id.logWord)) 4.8 ms after Return"
     )
     #expect(!fixture.log.lines.contains(where: { $0.hasPrefix("cancelled ") }))
   }

@@ -313,7 +313,7 @@ struct PanelExitMeasurement: Sendable {
     id: WindowItem.Identifier
   ) -> String {
     let name = oneLine(appName, fallback: unnamedApplication)
-    return "\(name) — \(oneLine(displayTitle, fallback: name)) (window \(id.windowID))"
+    return "\(name) — \(oneLine(displayTitle, fallback: name)) (\(id.logWord))"
   }
 
   /// Flattens a name or title into something that can sit on one line.

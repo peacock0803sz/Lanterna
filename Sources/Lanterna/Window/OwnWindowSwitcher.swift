@@ -44,7 +44,10 @@ struct OwnWindowSwitcher: WindowSwitching, Sendable {
     guard MainActor.assumeIsolated({ activateApp(true) }) else {
       return .failed(.other(reason: "activation refused"))
     }
-    guard MainActor.assumeIsolated({ showWindow(target.id.windowID) }) else {
+    guard
+      let windowID = target.id.windowID,
+      MainActor.assumeIsolated({ showWindow(windowID) })
+    else {
       return .failed(.windowGone)
     }
     return .switched

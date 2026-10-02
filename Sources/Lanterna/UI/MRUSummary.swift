@@ -34,6 +34,6 @@ struct MRUSummary: Equatable, Sendable {
     guard let firstID else {
       return "mru first none via none"
     }
-    return "mru first (window \(firstID.windowID)) via \(sourceWord)"
+    return "mru first (\(firstID.logWord)) via \(sourceWord)"
   }
 }

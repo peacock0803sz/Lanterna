@@ -17,7 +17,7 @@ import Darwin
 /// must not merge with the dead record. The window-server id stays the word
 /// the diagnostics line prints; the pair is only ever the dictionary key.
 struct MRUKey: Hashable, Sendable {
-  let windowID: CGWindowID
+  let id: WindowItem.Identifier
   let ownerProcessIdentifier: pid_t
 }
 
@@ -108,7 +108,7 @@ final class MRUTracker {
     ownerProcessIdentifier: pid_t,
     origin: RecordOrigin
   ) {
-    let key = MRUKey(windowID: id.windowID, ownerProcessIdentifier: ownerProcessIdentifier)
+    let key = MRUKey(id: id, ownerProcessIdentifier: ownerProcessIdentifier)
     records[key] = UsageRecord(
       id: id,
       ownerProcessIdentifier: ownerProcessIdentifier,
@@ -197,10 +197,7 @@ final class MRUTracker {
     var recorded = [(item: WindowItem, sequence: UInt64)]()
     var unrecorded = [WindowItem]()
     for item in items {
-      let key = MRUKey(
-        windowID: item.id.windowID,
-        ownerProcessIdentifier: item.ownerProcessIdentifier
-      )
+      let key = MRUKey(id: item.id, ownerProcessIdentifier: item.ownerProcessIdentifier)
       if let record = records[key] {
         recorded.append((item, record.sequence))
       } else {
@@ -244,12 +241,7 @@ final class MRUTracker {
     var live = Set<MRUKey>()
     live.reserveCapacity(items.count)
     for item in items {
-      live.insert(
-        MRUKey(
-          windowID: item.id.windowID,
-          ownerProcessIdentifier: item.ownerProcessIdentifier
-        )
-      )
+      live.insert(MRUKey(id: item.id, ownerProcessIdentifier: item.ownerProcessIdentifier))
     }
     records = records.filter { entry in
       live.contains(entry.key)

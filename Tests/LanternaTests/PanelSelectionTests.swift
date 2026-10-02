@@ -124,7 +124,7 @@ struct PanelSelectionTests {
     #expect(
       fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
         == "committed \(fourth.appName) — \(fourth.displayTitle) "
-        + "(window \(fourth.id.windowID)) 4.8 ms after Command was released"
+        + "(\(fourth.id.logWord)) 4.8 ms after Command was released"
     )
   }
 
@@ -146,8 +146,8 @@ struct PanelSelectionTests {
     _ = fixture.presenter.handleKeyStroke(press(kVK_UpArrow))
     fixture.presenter.handleCommandRelease()
 
-    #expect(fixture.log.lines.last?.contains("(window \(last.id.windowID))") == true)
-    #expect(fixture.log.lines.last?.contains("(window \(first.id.windowID))") == false)
+    #expect(fixture.log.lines.last?.contains("(\(last.id.logWord))") == true)
+    #expect(fixture.log.lines.last?.contains("(\(first.id.logWord))") == false)
   }
 
   /// A key given no meaning is swallowed and moves nothing. `PanelKeyInput`

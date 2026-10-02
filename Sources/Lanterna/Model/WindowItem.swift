@@ -44,9 +44,39 @@ struct WindowItem: Identifiable {
   ///
   /// The window-server id is unique while the window exists and is
   /// independent of the title, so two windows showing the same title stay two
-  /// rows and a renamed window keeps its row.
-  struct Identifier: Hashable, Sendable {
-    let windowID: CGWindowID
+  /// rows and a renamed window keeps its row. A running application with no
+  /// window at all is a row of its own, named by its process, so nothing that
+  /// needs a window can be handed one by mistake.
+  enum Identifier: Hashable, Sendable {
+    case window(CGWindowID)
+    case application(pid_t)
+
+    // MARK: Lifecycle
+
+    init(windowID: CGWindowID) {
+      self = .window(windowID)
+    }
+
+    // MARK: Internal
+
+    /// The window-server id, or nil for an application row.
+    var windowID: CGWindowID? {
+      if case .window(let windowID) = self {
+        windowID
+      } else {
+        nil
+      }
+    }
+
+    /// How diagnostic lines name the row: `window 42` or `application 512`.
+    var logWord: String {
+      switch self {
+      case .window(let windowID):
+        "window \(windowID)"
+      case .application(let processIdentifier):
+        "application \(processIdentifier)"
+      }
+    }
   }
 
   let id: Identifier
@@ -78,6 +108,11 @@ struct WindowItem: Identifiable {
   /// the display modes, not this flag.
   var isParked: Bool {
     isMinimized || isHidden
+  }
+
+  /// Whether the row stands for a running application with no window.
+  var isWindowless: Bool {
+    id.windowID == nil
   }
 
   /// Title to draw. Trimming decides emptiness only: a title that has any
