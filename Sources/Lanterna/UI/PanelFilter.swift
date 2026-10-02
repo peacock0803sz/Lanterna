@@ -94,6 +94,12 @@ final class PanelFilter {
     shown(in: fullWindows)
   }
 
+  /// The rows on screen as the layout lays them out, for a caller that
+  /// needs their ranked order beside the drawing order.
+  var shownLayout: PanelLayout {
+    layout(of: fullWindows)
+  }
+
   /// Starts an appearance over the whole ordered list, remembering nothing.
   /// Filtering answers keystrokes only when the appearance asked for it.
   /// Draws nothing: the caller opens the choice and the panel on
@@ -248,6 +254,10 @@ final class PanelFilter {
   /// panel opened, a keystroke arrived, or a list was swapped in, and the
   /// choice and the drawing read one order in both orderings.
   private func shown(in windows: [WindowItem]) -> [WindowItem] {
+    layout(of: windows).rows
+  }
+
+  private func layout(of windows: [WindowItem]) -> PanelLayout {
     PanelLayout.make(
       rows: windows,
       modes: displayModes,
@@ -258,17 +268,20 @@ final class PanelFilter {
       memory: rememberedID,
       owner: scope.narrowedOwner,
       grouping: grouping
-    ).rows
+    )
   }
 
   /// Narrows the rows, puts the remembered row first in its section,
   /// follows the choice onto them, and tells the panel, drawing once.
   /// The exits resolve off the whole shown list: identities are unique,
-  /// so a narrowed row reads back as itself either way.
+  /// so a narrowed row reads back as itself either way. The fallback to
+  /// the first match reads the ranked order, so a grouped list falls
+  /// back to the best match rather than to the first group's top row.
   private func apply() {
-    let matched = shownWindows
+    let layout = shownLayout
+    let matched = layout.rows
     let matchedList = matched.map(\.id)
-    let chosen = state.resolveSelection(matched: matchedList, incoming: selection.chosenID)
+    let chosen = state.resolveSelection(matched: layout.rankedRows.map(\.id), incoming: selection.chosenID)
     selection.retarget(to: matchedList, selecting: chosen)
     surface.updateList(windows: matched, selecting: selection.chosenID, query: state.query, filterActive: isActive)
     lastSummary = FilterLogSummary(

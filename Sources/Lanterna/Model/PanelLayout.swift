@@ -49,6 +49,13 @@ struct PanelLayout {
 
   let blocks: [Block]
 
+  /// The same rows in the order the ranking left them, before grouping
+  /// split them up: the ordinary rows, then each parked section in turn.
+  /// Without grouping this is the drawing order. Which row stands first
+  /// or second in recent use is read here, since a group can draw ahead
+  /// of the window in front.
+  let rankedRows: [WindowItem]
+
   /// The rows in drawing order, which is the order the arrows step through.
   var rows: [WindowItem] {
     blocks.compactMap { block in
@@ -111,14 +118,15 @@ struct PanelLayout {
     if let memory {
       moveToFront(memory, ordinary: &ordinary, subgroups: &subgroups)
     }
+    let ranked = ordinary + subgroups.flatMap(\.1)
     guard grouping.mode != .none else {
-      return PanelLayout(blocks: flat(ordinary: ordinary, subgroups: subgroups))
+      return PanelLayout(blocks: flat(ordinary: ordinary, subgroups: subgroups), rankedRows: ranked)
     }
-    let grouper = Grouper(rows: ordinary + subgroups.flatMap(\.1), policy: grouping)
+    let grouper = Grouper(rows: ranked, policy: grouping)
     let placed = SectionPlacement(grouping: grouping, subgroups: subgroups)
     let groups = grouper.orders(of: ordinary + placed.within.flatMap(\.1))
     guard groups.count > 1 else {
-      return PanelLayout(blocks: flat(ordinary: ordinary, subgroups: subgroups))
+      return PanelLayout(blocks: flat(ordinary: ordinary, subgroups: subgroups), rankedRows: ranked)
     }
     var blocks = [Block]()
     for order in groups {
@@ -135,7 +143,7 @@ struct PanelLayout {
       blocks.append(.subgroupHeading(subgroup, group: nil))
       blocks += members.map { Block.row($0, isInSubgroup: true) }
     }
-    return PanelLayout(blocks: blocks)
+    return PanelLayout(blocks: blocks, rankedRows: ranked)
   }
 
   // MARK: Private

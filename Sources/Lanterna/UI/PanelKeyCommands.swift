@@ -65,6 +65,12 @@ final class PanelKeyCommands {
     filter.shownWindows
   }
 
+  /// The same rows as laid out, with their ranked order beside the
+  /// drawing order.
+  var shownLayout: PanelLayout {
+    filter.shownLayout
+  }
+
   /// Whether filtering answers keystrokes right now. The presenter asks
   /// before sending keystrokes here and before treating a released
   /// Command as anything.
