@@ -114,13 +114,14 @@ struct PanelLayoutTests {
     #expect(layout.windowCount < layout.drawnRowCount)
   }
 
-  /// Nothing to draw draws nothing for now; the empty notice comes with
-  /// its own height later.
+  /// Nothing to draw still takes the one line that says so.
   @Test
-  func noRowsDrawNothing() {
+  func noRowsTakeTheEmptyLine() {
     let layout = PanelLayout.make(rows: [], modes: .defaults, query: "")
-    #expect(layout.drawnRowCount == 0)
+    #expect(layout.drawnRowCount == 1)
     #expect(layout.windowCount == 0)
+    let unmatched = PanelLayout.make(rows: rows, modes: .defaults, query: "zzz")
+    #expect(unmatched.drawnRowCount == 1)
   }
 
   // MARK: Private

@@ -100,6 +100,9 @@ struct SwitcherView: View {
       }
       ScrollViewReader { proxy in
         List {
+          if layout.blocks.isEmpty {
+            emptyLine
+          }
           ForEach(layout.blocks, id: \.key) { block in
             switch block {
             case .subgroupHeading(let subgroup, let nested):
@@ -195,6 +198,19 @@ struct SwitcherView: View {
       fuzzy: fuzzyMatchEnabled,
       ordering: .mru
     )
+  }
+
+  /// The one line drawn in place of rows when nothing is left to show:
+  /// a query matching nothing, or an active application with no row.
+  private var emptyLine: some View {
+    Text("No windows")
+      .font(.system(size: scaled(13)))
+      .foregroundStyle(.tertiary)
+      .frame(maxWidth: .infinity, alignment: .center)
+      .frame(height: PanelMetrics.rowHeight(for: textScale))
+      .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
+      .listRowSeparator(.hidden)
+      .listRowBackground(Color.clear)
   }
 
   private static func wording(count: Int) -> String {

@@ -51,10 +51,11 @@ struct PanelLayout {
     rows.map(\.id)
   }
 
-  /// How many lines the list draws: every row and every heading. The list
-  /// gives each one at least a row's height.
+  /// How many lines the list draws: every row and every heading, or the
+  /// one line saying there is nothing to show. The list gives each one at
+  /// least a row's height.
   var drawnRowCount: Int {
-    blocks.count
+    max(blocks.count, 1)
   }
 
   /// How many window rows the list draws. Headings are not windows.

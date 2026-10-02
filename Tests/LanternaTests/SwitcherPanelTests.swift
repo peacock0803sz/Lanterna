@@ -41,12 +41,13 @@ struct SwitcherPanelTests {
     #expect(panel.collectionBehavior.contains(.ignoresCycle))
   }
 
+  /// An empty list still takes the one line saying there is nothing.
   @Test(arguments: [0, 3, 30])
   func panelSizeFollowsTheContent(rowCount: Int) {
     let panel = panel(rowCount: rowCount)
     let contentRect = panel.contentRect(forFrameRect: panel.frame)
     #expect(contentRect.width == PanelMetrics.width)
-    #expect(contentRect.height == PanelMetrics.height(rowCount: rowCount))
+    #expect(contentRect.height == PanelMetrics.height(rowCount: max(rowCount, 1)))
   }
 
   /// The height has to follow a swapped-in list as closely as it follows the
@@ -58,7 +59,7 @@ struct SwitcherPanelTests {
     panel.update(windows: SampleWindows.make(count: rowCount))
     let contentRect = panel.contentRect(forFrameRect: panel.frame)
     #expect(contentRect.width == PanelMetrics.width)
-    #expect(contentRect.height == PanelMetrics.height(rowCount: rowCount))
+    #expect(contentRect.height == PanelMetrics.height(rowCount: max(rowCount, 1)))
   }
 
   /// A list with parked rows draws one heading row for the subgroup, and the height
