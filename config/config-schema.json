@@ -563,7 +563,7 @@
       ]
     },
     "otherSpacePlacement": {
-      "description": "Where the windows-on-other-spaces section goes when grouped. Absent means \"endOfList\".",
+      "description": "Where the windows-on-other-spaces section goes when grouped. Absent means \"endOfList\".\nIgnored when grouping by Space, which puts those windows in their own Space's group.",
       "type": "string",
       "enum": [
         "endOfList",
@@ -595,7 +595,7 @@
       ]
     },
     "windowlessAppPlacement": {
-      "description": "Where the apps-without-windows section goes when grouped. Absent means \"endOfList\".",
+      "description": "Where the apps-without-windows section goes when grouped. Absent means \"endOfList\".\nGrouping by Space always puts it after the last group, since those apps are on no Space.",
       "type": "string",
       "enum": [
         "endOfList",

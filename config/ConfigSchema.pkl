@@ -191,6 +191,7 @@ grouping: GroupingMode? = null
 typealias SubgroupPlacement = "endOfList"|"withinGroup"
 
 /// Where the windows-on-other-spaces section goes when grouped. Absent means "endOfList".
+/// Ignored when grouping by Space, which puts those windows in their own Space's group.
 @Allowed { values { "endOfList" "withinGroup" } }
 otherSpacePlacement: SubgroupPlacement? = null
 
@@ -207,6 +208,7 @@ minimizedPlacement: SubgroupPlacement? = null
 fullscreenPlacement: SubgroupPlacement? = null
 
 /// Where the apps-without-windows section goes when grouped. Absent means "endOfList".
+/// Grouping by Space always puts it after the last group, since those apps are on no Space.
 @Allowed { values { "endOfList" "withinGroup" } }
 windowlessAppPlacement: SubgroupPlacement? = null
 
