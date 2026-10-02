@@ -1,6 +1,8 @@
-import CoreGraphics
+import AppKit
 import Dispatch
 import Synchronization
+
+// MARK: - WindowEnumerator
 
 /// Turns the running applications into the list the panel draws.
 ///
@@ -15,10 +17,12 @@ struct WindowEnumerator {
 
   init(
     reader: any ApplicationWindowReading = AXApplicationWindowReader(),
-    locator: any SpaceLocating = WindowServerSpaceLocator()
+    locator: any SpaceLocating = WindowServerSpaceLocator(),
+    displayNames: @escaping @MainActor () -> [String: String] = Self.screenNames
   ) {
     self.reader = reader
     self.locator = locator
+    self.displayNames = displayNames
   }
 
   // MARK: Internal
@@ -98,16 +102,36 @@ struct WindowEnumerator {
   // MARK: Private
 
   /// What the worker side of a pass hands back: one read per application,
-  /// in input order, and the windows found to be on another Space or only
-  /// on fullscreen Spaces.
+  /// in input order, and the whole Space reading — which windows are on
+  /// another Space or only on fullscreen Spaces, the Spaces each window
+  /// is on, and the displays' layout.
   private struct Gathered: Sendable {
     let results: [Result<ApplicationRead, ReadFailure>]
-    let onOtherSpace: Set<CGWindowID>
-    let fullscreen: Set<CGWindowID>
+    let spaces: SpaceReading
   }
 
   private let reader: any ApplicationWindowReading
   private let locator: any SpaceLocating
+  /// Each display's name by its identifier, read on the main thread where
+  /// the screens live.
+  private let displayNames: @MainActor () -> [String: String]
+
+  /// The names of the screens, keyed the way the window server names
+  /// displays in its Space lists.
+  private static func screenNames() -> [String: String] {
+    var names = [String: String]()
+    for screen in NSScreen.screens {
+      guard
+        let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
+        let uuid = CGDisplayCreateUUIDFromDisplayID(number.uint32Value)?.takeRetainedValue(),
+        let text = CFUUIDCreateString(nil, uuid) as String?
+      else {
+        continue
+      }
+      names[text] = screen.localizedName
+    }
+    return names
+  }
 
   /// The blocking half of a pass: the reads, then one Space query for
   /// every window they found. Shared by both paths, and run wherever the
@@ -122,11 +146,7 @@ struct WindowEnumerator {
     let windowIDs = results.flatMap { result in
       (try? result.get())?.records.map(\.windowID) ?? []
     }
-    return Gathered(
-      results: results,
-      onOtherSpace: locator.windowsOnOtherSpaces(among: windowIDs),
-      fullscreen: locator.fullscreenWindows(among: windowIDs)
-    )
+    return Gathered(results: results, spaces: locator.reading(among: windowIDs))
   }
 
   /// Reads all applications concurrently, one result per input position.
@@ -178,8 +198,12 @@ struct WindowEnumerator {
     startedAt: ContinuousClock.Instant
   ) -> WindowListSnapshot {
     var items = [WindowItem]()
+    var windowless = [WindowItem]()
     var skipped = [WindowListSnapshot.SkippedApplication]()
     var droppedWithoutID = 0
+    // The screens are asked only when there is a layout to name.
+    let names = gathered.spaces.layout == nil ? [:] : displayNames()
+    let grouping = SpaceGrouping(reading: gathered.spaces, displayNames: names)
     for (application, result) in zip(ordered, gathered.results) {
       switch result {
       case .failure(let reason):
@@ -193,6 +217,13 @@ struct WindowEnumerator {
 
       case .success(let read):
         droppedWithoutID += read.droppedWithoutID
+        // Read and found empty, which is not the same as unread: only an
+        // answer of no windows at all makes the application a row. A
+        // window dropped for want of an id is still a window.
+        if read.records.isEmpty, read.droppedWithoutID == 0 {
+          windowless.append(row(standingFor: application))
+          continue
+        }
         items.append(
           contentsOf: read.records
             .sorted { $0.windowID < $1.windowID }
@@ -200,21 +231,42 @@ struct WindowEnumerator {
               item(
                 for: record,
                 of: application,
-                isOnOtherSpace: gathered.onOtherSpace.contains(record.windowID),
-                isFullscreenSpace: gathered.fullscreen.contains(record.windowID)
+                isOnOtherSpace: gathered.spaces.onOtherSpace.contains(record.windowID),
+                isFullscreenSpace: gathered.spaces.fullscreen.contains(record.windowID),
+                spaceGroup: grouping.group(of: record.windowID, appName: application.name)
               )
             }
         )
       }
     }
 
+    // After every window, by name: recency moves the ones it knows, and
+    // the rest stay last in an order a reader can predict.
+    windowless.sort { $0.appName.localizedStandardCompare($1.appName) == .orderedAscending }
     return WindowListSnapshot(
-      items: items,
+      items: items + windowless,
       applicationCount: ordered.count,
       gatheringDuration: ContinuousClock.now - startedAt,
       skipped: skipped,
       droppedWithoutID: droppedWithoutID,
-      gatheredAt: startedAt
+      gatheredAt: startedAt,
+      spacesUnread: gathered.spaces.displaysUnread && !items.isEmpty
+    )
+  }
+
+  /// The row for an application with no window: its name and icon, and
+  /// no title.
+  private func row(standingFor application: RunningApplicationInfo) -> WindowItem {
+    WindowItem(
+      id: .application(application.processIdentifier),
+      ownerProcessIdentifier: application.processIdentifier,
+      appName: application.name,
+      bundleIdentifier: application.bundleIdentifier,
+      windowTitle: "",
+      kind: .standard,
+      isMinimized: false,
+      isHidden: application.isHidden,
+      icon: application.icon
     )
   }
 
@@ -222,7 +274,8 @@ struct WindowEnumerator {
     for record: WindowRecord,
     of application: RunningApplicationInfo,
     isOnOtherSpace: Bool,
-    isFullscreenSpace: Bool = false
+    isFullscreenSpace: Bool = false,
+    spaceGroup: SpaceGroup? = nil
   ) -> WindowItem {
     WindowItem(
       id: WindowItem.Identifier(windowID: record.windowID),
@@ -235,8 +288,35 @@ struct WindowEnumerator {
       isHidden: application.isHidden,
       isOnOtherSpace: isOnOtherSpace,
       isFullscreen: record.isFullscreen || isFullscreenSpace,
+      spaceGroup: spaceGroup,
       icon: application.icon
     )
+  }
+
+}
+
+// MARK: - SpaceGrouping
+
+/// Which Space group each window of one pass joins, and what the group is
+/// called. Nil throughout when the displays could not be read or none is
+/// showing anything.
+struct SpaceGrouping {
+
+  // MARK: Internal
+
+  let reading: SpaceReading
+  let displayNames: [String: String]
+
+  func group(of windowID: CGWindowID, appName: String) -> SpaceGroup? {
+    guard
+      let layout = reading.layout,
+      let spaceID = layout.group(forWindowOn: reading.spaces[windowID] ?? []),
+      let order = layout.groupOrder.firstIndex(of: spaceID)
+    else {
+      return nil
+    }
+    let heading = layout.heading(for: spaceID, displayNames: displayNames, fullscreenAppName: appName)
+    return SpaceGroup(order: order, title: heading.title, detail: heading.detail)
   }
 
 }

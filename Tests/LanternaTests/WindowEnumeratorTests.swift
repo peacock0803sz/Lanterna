@@ -125,6 +125,9 @@ struct WindowEnumeratorTests {
       ]
     )
     #expect(result.droppedWithoutID == 5)
+    // An application whose windows were all dropped still has windows,
+    // so it is not listed as an application without one.
+    #expect(result.items.allSatisfy { !$0.isWindowless })
   }
 
   @Test
@@ -136,15 +139,34 @@ struct WindowEnumeratorTests {
     #expect(result.applicationCount == 2)
   }
 
-  /// An application with no open window is a normal answer, not a failure.
+  /// An application with no open window is a normal answer, not a failure:
+  /// it becomes one row standing for the application, with no title.
   @Test
-  func anApplicationWithoutWindowsIsNeitherListedNorSkipped() {
+  func anApplicationWithoutWindowsIsARowOfItsOwn() {
     let result = snapshot(
       applications: [application(100)],
       reads: [100: read([])]
     )
-    #expect(result.items.isEmpty)
+    #expect(result.items.map(\.id) == [.application(100)])
+    #expect(result.items.first?.windowTitle == "")
+    #expect(result.items.first?.isWindowless == true)
     #expect(result.skipped.isEmpty)
+  }
+
+  /// Rows for applications with no window come after every window row, in
+  /// name order, and an application that could not be read is not one.
+  @Test
+  func applicationRowsComeLastByNameAndNeverForAFailedRead() {
+    let result = snapshot(
+      applications: [
+        application(100, name: "Music"),
+        application(200, name: "Finder"),
+        application(300, name: "Calendar"),
+        application(400, name: "Mail"),
+      ],
+      reads: [100: read([]), 200: read([record(10)]), 300: read([]), 400: .failure(.timedOut)]
+    )
+    #expect(result.items.map(\.id) == [WindowItem.Identifier(windowID: 10), .application(300), .application(100)])
   }
 
   /// Nothing in the Dock at all leaves the concurrent read with no work to

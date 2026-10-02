@@ -11,6 +11,9 @@ enum PanelMetrics {
   /// filter chrome's is.
   static let noticeHeight: CGFloat = 22
 
+  /// Extra height for the band over a list narrowed to one application.
+  static let scopeBandHeight: CGFloat = 32
+
   /// Extra height for the filter chrome while filtering is on, whether the query
   /// reads anything or not. An estimate, because SwiftUI lays the query row
   /// out.
@@ -29,18 +32,18 @@ enum PanelMetrics {
     query: String = "",
     exclusions: [ExclusionRule] = [],
     fuzzy: Bool = false,
-    ordering: SearchOrdering = .mru
+    ordering: SearchOrdering = .mru,
+    grouping: GroupingPolicy = GroupingPolicy()
   ) -> Int {
-    let (ordinary, subgroups) = DisplayModes.sections(
-      of: windows,
+    PanelLayout.make(
+      rows: windows,
       modes: modes,
       query: query,
       exclusions: exclusions,
       fuzzy: fuzzy,
-      ordering: ordering
-    )
-    let subgroupRows = subgroups.reduce(0) { $0 + $1.1.count }
-    return ordinary.count + subgroupRows + subgroups.count
+      ordering: ordering,
+      grouping: grouping
+    ).drawnRowCount
   }
 
   /// Height for a given number of rows. The panel grows with its content until
@@ -81,20 +84,30 @@ enum PanelMetrics {
     (noticeHeight * scale.factor).rounded()
   }
 
+  /// Extra height for the band over a list narrowed to one application,
+  /// at one step. An estimate, for the reason the filter chrome's is.
+  static func scopeBandHeight(for scale: TextScaleLevel) -> CGFloat {
+    (scopeBandHeight * scale.factor).rounded()
+  }
+
   /// The full content height at one step: rows plus chrome plus the
-  /// note when one shows, capped as one total so a large step never
-  /// outgrows the screen.
+  /// band and the note when they show, capped as one total so a large
+  /// step never outgrows the screen.
   static func totalHeight(
     rowCount: Int,
     query: String,
     filterActive: Bool,
     notice: Bool,
+    scopeBand: Bool = false,
     for scale: TextScaleLevel
   ) -> CGFloat {
     var total = height(rowCount: rowCount, for: scale)
       + filterChromeHeight(query: query, filterActive: filterActive, for: scale)
     if notice {
       total += noticeHeight(for: scale)
+    }
+    if scopeBand {
+      total += scopeBandHeight(for: scale)
     }
     return min(total, maximumHeight)
   }
@@ -106,6 +119,7 @@ enum PanelMetrics {
     query: String,
     filterActive: Bool,
     notice: Bool,
+    scopeBand: Bool = false,
     for scale: TextScaleLevel
   ) -> CGSize {
     CGSize(
@@ -115,6 +129,7 @@ enum PanelMetrics {
         query: query,
         filterActive: filterActive,
         notice: notice,
+        scopeBand: scopeBand,
         for: scale
       )
     )

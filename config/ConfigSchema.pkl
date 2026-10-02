@@ -14,6 +14,11 @@ open class Minimum extends Annotation {
   value: Int
 }
 
+/// Upper bound annotation for integer keys, read the same way.
+open class Maximum extends Annotation {
+  value: Int
+}
+
 /// Schema generation. Stays 1 for this revision.
 version: Int = 1
 
@@ -75,6 +80,11 @@ minimizedMode: DisplayMode? = null
 /// Native fullscreen windows. Absent means "show".
 @Allowed { values { "show" "hide" "separateAtBottom" } }
 fullscreenMode: DisplayMode? = null
+
+/// Running applications with no open window, each listed as a row of its
+/// own. Absent means "hide".
+@Allowed { values { "show" "hide" "separateAtBottom" } }
+windowlessAppMode: DisplayMode? = null
 
 /// Fixture entries to show instead of live windows.
 /// Absent means live windows. Must be zero or more when present.
@@ -144,6 +154,7 @@ open class KeyBindings {
   previous: Listing<KeyBinding>? = null
   commit: Listing<KeyBinding>? = null
   cancel: Listing<KeyBinding>? = null
+  toggleScope: Listing<KeyBinding>? = null
   deleteBackward: Listing<KeyBinding>? = null
   clearQuery: Listing<KeyBinding>? = null
   closeWindow: Listing<KeyBinding>? = null
@@ -159,3 +170,74 @@ keybindings: KeyBindings? = null
 /// Absent means 1.0 (the current size). The value allowlist lives in
 /// Swift, like the upper bound of `shortcutMemoryLength`.
 textScale: Number? = null
+
+/// Which applications' windows each showing starts on.
+typealias WindowScope = "allApps"|"frontApp"
+
+/// Every application's windows, or only those of the application in
+/// front when the panel opens. Absent means "allApps".
+@Allowed { values { "allApps" "frontApp" } }
+windowScope: WindowScope? = null
+
+/// How the switcher list groups its rows.
+typealias GroupingMode = "none"|"bySpace"|"manual"
+
+/// One list, one group per Space with the shown Spaces first, or groups
+/// made by assigning applications. Absent means "none".
+@Allowed { values { "none" "bySpace" "manual" } }
+grouping: GroupingMode? = null
+
+/// Where one kind's parked section goes once the list is grouped.
+typealias SubgroupPlacement = "endOfList"|"withinGroup"
+
+/// Where the windows-on-other-spaces section goes when grouped. Absent means "endOfList".
+/// Ignored when grouping by Space, which puts those windows in their own Space's group.
+@Allowed { values { "endOfList" "withinGroup" } }
+otherSpacePlacement: SubgroupPlacement? = null
+
+/// Where the hidden-apps section goes when grouped. Absent means "endOfList".
+@Allowed { values { "endOfList" "withinGroup" } }
+hiddenAppPlacement: SubgroupPlacement? = null
+
+/// Where the minimized section goes when grouped. Absent means "endOfList".
+@Allowed { values { "endOfList" "withinGroup" } }
+minimizedPlacement: SubgroupPlacement? = null
+
+/// Where the fullscreen section goes when grouped. Absent means "endOfList".
+@Allowed { values { "endOfList" "withinGroup" } }
+fullscreenPlacement: SubgroupPlacement? = null
+
+/// Where the apps-without-windows section goes when grouped. Absent means "endOfList".
+/// Grouping by Space always puts it after the last group, since those apps are on no Space.
+@Allowed { values { "endOfList" "withinGroup" } }
+windowlessAppPlacement: SubgroupPlacement? = null
+
+/// How many manual groups there are, 1 to 9. Absent means 1.
+@Minimum { value = 1 }
+@Maximum { value = 9 }
+groupCount: Int? = null
+
+/// What a manual group heading says.
+typealias GroupHeadingStyle = "number"|"name"|"appNames"
+
+/// The group number, the name given to the group, or the names of the
+/// apps in it. Absent means "number".
+@Allowed { values { "number" "name" "appNames" } }
+groupHeadingStyle: GroupHeadingStyle? = null
+
+/// The names given to manual groups, keyed "1" to "9". Names for groups
+/// past the count are kept. Absent means no names.
+groupNames: Mapping<String, String>? = null
+
+/// One application assigned to one manual group.
+open class GroupAssignment {
+  /// The application's bundle identifier, compared without case.
+  bundleID: String
+  /// The group number, 1 to 9.
+  group: Int
+}
+
+/// Applications assigned to manual groups. Entries that are invalid on
+/// their own, or name an application an earlier entry named, are ignored
+/// one by one. Absent means every application joins the first group.
+groupAssignments: Listing<GroupAssignment>? = null

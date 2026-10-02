@@ -41,12 +41,13 @@ struct SwitcherPanelTests {
     #expect(panel.collectionBehavior.contains(.ignoresCycle))
   }
 
+  /// An empty list still takes the one line saying there is nothing.
   @Test(arguments: [0, 3, 30])
   func panelSizeFollowsTheContent(rowCount: Int) {
     let panel = panel(rowCount: rowCount)
     let contentRect = panel.contentRect(forFrameRect: panel.frame)
     #expect(contentRect.width == PanelMetrics.width)
-    #expect(contentRect.height == PanelMetrics.height(rowCount: rowCount))
+    #expect(contentRect.height == PanelMetrics.height(rowCount: max(rowCount, 1)))
   }
 
   /// The height has to follow a swapped-in list as closely as it follows the
@@ -58,7 +59,7 @@ struct SwitcherPanelTests {
     panel.update(windows: SampleWindows.make(count: rowCount))
     let contentRect = panel.contentRect(forFrameRect: panel.frame)
     #expect(contentRect.width == PanelMetrics.width)
-    #expect(contentRect.height == PanelMetrics.height(rowCount: rowCount))
+    #expect(contentRect.height == PanelMetrics.height(rowCount: max(rowCount, 1)))
   }
 
   /// A list with parked rows draws one heading row for the subgroup, and the height
@@ -115,6 +116,25 @@ struct SwitcherPanelTests {
         == PanelMetrics.height(rowCount: 2)
         + PanelMetrics.filterChromeHeight(query: rows[2].appName, filterActive: true)
     )
+  }
+
+  /// A grouped list draws a heading over each group, and the height makes
+  /// room for every heading as it does for every row.
+  @Test
+  func groupHeadingsTakeHeight() throws {
+    let panel = panel(rowCount: 5)
+    var grouping = GroupingPolicy()
+    grouping.mode = .manual
+    grouping.groupCount = 2
+    let windows = SampleWindows.make(count: 3)
+    let moved = try #require(windows[2].bundleIdentifier)
+    #expect(windows[0].bundleIdentifier != moved)
+    grouping.assignments = [GroupAssignment(bundleID: moved, group: 2)]
+    panel.grouping = grouping
+    panel.update(windows: windows)
+    #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 5))
+    panel.updateList(windows: windows, selecting: nil, query: "", filterActive: false)
+    #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 5))
   }
 
   /// A query typed in one appearance is gone when the next one opens:

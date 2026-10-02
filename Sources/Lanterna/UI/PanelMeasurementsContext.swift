@@ -37,10 +37,12 @@ extension SwitchMeasurement {
       "app": .string(appName),
       "pid": .int(Int(processIdentifier)),
       "window": .string(displayTitle),
-      "windowId": .string(String(format: "0x%x", id.windowID)),
       "result": .string(resultWord),
       "ms": .int(Diagnostics.wholeMilliseconds(elapsed)),
     ]
+    if let windowID = id.windowID {
+      context["windowId"] = .string(String(format: "0x%x", windowID))
+    }
     if let bundle {
       context["bundle"] = .string(bundle)
     }

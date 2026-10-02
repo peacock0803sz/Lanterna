@@ -22,6 +22,7 @@ struct WindowItem: Identifiable {
     isHidden: Bool = false,
     isOnOtherSpace: Bool = false,
     isFullscreen: Bool = false,
+    spaceGroup: SpaceGroup? = nil,
     icon: NSImage
   ) {
     precondition(!appName.isEmpty, "appName must not be empty")
@@ -35,6 +36,7 @@ struct WindowItem: Identifiable {
     self.isHidden = isHidden
     self.isOnOtherSpace = isOnOtherSpace
     self.isFullscreen = isFullscreen
+    self.spaceGroup = spaceGroup
     self.icon = icon
   }
 
@@ -44,9 +46,39 @@ struct WindowItem: Identifiable {
   ///
   /// The window-server id is unique while the window exists and is
   /// independent of the title, so two windows showing the same title stay two
-  /// rows and a renamed window keeps its row.
-  struct Identifier: Hashable, Sendable {
-    let windowID: CGWindowID
+  /// rows and a renamed window keeps its row. A running application with no
+  /// window at all is a row of its own, named by its process, so nothing that
+  /// needs a window can be handed one by mistake.
+  enum Identifier: Hashable, Sendable {
+    case window(CGWindowID)
+    case application(pid_t)
+
+    // MARK: Lifecycle
+
+    init(windowID: CGWindowID) {
+      self = .window(windowID)
+    }
+
+    // MARK: Internal
+
+    /// The window-server id, or nil for an application row.
+    var windowID: CGWindowID? {
+      if case .window(let windowID) = self {
+        windowID
+      } else {
+        nil
+      }
+    }
+
+    /// How diagnostic lines name the row: `window 42` or `application 512`.
+    var logWord: String {
+      switch self {
+      case .window(let windowID):
+        "window \(windowID)"
+      case .application(let processIdentifier):
+        "application \(processIdentifier)"
+      }
+    }
   }
 
   let id: Identifier
@@ -71,6 +103,10 @@ struct WindowItem: Identifiable {
   /// Whether the window is natively fullscreen. Read as one AX attribute;
   /// a manually zoomed window is not fullscreen.
   let isFullscreen: Bool
+  /// The Space group the row joins when the list groups by Space. Nil
+  /// when the Spaces could not be read, which leaves every row in one
+  /// group.
+  let spaceGroup: SpaceGroup?
   let icon: NSImage
 
   /// Whether the row is minimised or its application hidden. The hide and
@@ -78,6 +114,11 @@ struct WindowItem: Identifiable {
   /// the display modes, not this flag.
   var isParked: Bool {
     isMinimized || isHidden
+  }
+
+  /// Whether the row stands for a running application with no window.
+  var isWindowless: Bool {
+    id.windowID == nil
   }
 
   /// Title to draw. Trimming decides emptiness only: a title that has any
@@ -111,6 +152,7 @@ struct WindowItem: Identifiable {
       isHidden: isHidden,
       isOnOtherSpace: isOnOtherSpace,
       isFullscreen: isFullscreen,
+      spaceGroup: spaceGroup,
       icon: icon
     )
   }
@@ -129,6 +171,7 @@ struct WindowItem: Identifiable {
       isHidden: hidden,
       isOnOtherSpace: isOnOtherSpace,
       isFullscreen: isFullscreen,
+      spaceGroup: spaceGroup,
       icon: icon
     )
   }
@@ -146,6 +189,7 @@ struct WindowItem: Identifiable {
       isHidden: isHidden,
       isOnOtherSpace: isOnOtherSpace,
       isFullscreen: fullscreen,
+      spaceGroup: spaceGroup,
       icon: icon
     )
   }

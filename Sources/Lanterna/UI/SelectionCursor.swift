@@ -46,9 +46,15 @@ struct SelectionCursor: Equatable, Sendable {
   /// opens on the first: choosing is the panel's business, stepping is the
   /// cursor's, and the two meet in `PanelSelection` rather than here. A
   /// list of one keeps its first row, and an empty list keeps nothing.
-  mutating func selectSecond() {
-    guard ids.count >= 2 else { return }
-    selectedID = ids[1]
+  ///
+  /// Second in `ranking` when one is given, and second as drawn otherwise.
+  /// A grouped list draws its rows in another order than recent use put
+  /// them in, and the row to open on is the one recent use put second,
+  /// wherever its group draws.
+  mutating func selectSecond(by ranking: [WindowItem.Identifier]? = nil) {
+    let order = ranking ?? ids
+    guard order.count >= 2 else { return }
+    select(order[1])
   }
 
   mutating func moveToNext() {

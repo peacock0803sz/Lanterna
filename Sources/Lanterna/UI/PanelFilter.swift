@@ -1,3 +1,4 @@
+import AppKit
 import Logging
 
 // MARK: - ChoiceAnchor
@@ -59,9 +60,30 @@ final class PanelFilter {
   /// rows and these decide which leave before anything else sees them.
   var exclusionRules = [ExclusionRule]()
 
+  /// Which applications' rows this appearance lists, and whose they are
+  /// when narrowed. The configured scope is set from the settings.
+  var scope = ScopeState()
+
+  /// How the band names the key that switches the scope back.
+  var scopeToggleKey: String?
+
+  /// How the rows are grouped. Read at launch from the config file and
+  /// whenever the settings change, like the modes.
+  var grouping = GroupingPolicy()
+
   /// Whether a query is narrowing the list right now.
   var isFiltering: Bool {
     !state.query.isEmpty
+  }
+
+  /// The band over a list narrowed to one application, or nil while every
+  /// application is listed. Named the way that application's rows name
+  /// it, or by the running application when it has no row.
+  var scopeBand: ScopeBand? {
+    guard let owner = scope.narrowedOwner else { return nil }
+    let name = fullWindows.first { $0.ownerProcessIdentifier == owner }?.appName
+      ?? NSRunningApplication(processIdentifier: owner)?.localizedName
+    return ScopeBand(appName: name ?? "Active app", toggleKey: scopeToggleKey)
   }
 
   /// The rows on screen: the whole list narrowed by the query and the
@@ -72,13 +94,20 @@ final class PanelFilter {
     shown(in: fullWindows)
   }
 
+  /// The rows on screen as the layout lays them out, for a caller that
+  /// needs their ranked order beside the drawing order.
+  var shownLayout: PanelLayout {
+    layout(of: fullWindows)
+  }
+
   /// Starts an appearance over the whole ordered list, remembering nothing.
   /// Filtering answers keystrokes only when the appearance asked for it.
   /// Draws nothing: the caller opens the choice and the panel on
   /// `shownWindows`, so the modes narrow the list before either sees it.
-  func begin(fullWindows: [WindowItem], filtering: Bool = false) {
+  func begin(fullWindows: [WindowItem], filtering: Bool = false, activeApplication: pid_t? = nil) {
     self.fullWindows = fullWindows
     state = FilterState()
+    scope.begin(target: activeApplication)
     let shown = shownWindows
     state.previousMatchedIDs = Set(shown.map(\.id))
     lastSummary = FilterLogSummary(query: "", matchedCount: shown.count, totalCount: fullWindows.count)
@@ -152,6 +181,18 @@ final class PanelFilter {
     lastSummary
   }
 
+  /// Switches this appearance between every application's rows and the
+  /// active application's alone, keeping the query. The choice stays on
+  /// its row when the row is still listed, and goes to the first row
+  /// otherwise, the way narrowing moves it.
+  func toggleScope() {
+    scope.toggle()
+    surface.showScope(scopeBand)
+    apply()
+    let word = scope.current.rawValue
+    writeLine(LogLine(.info, .panel, "scope \(word)", context: ["scope": .string(word)]))
+  }
+
   /// Narrows one keystroke further. Answers nothing while inactive.
   func append(_ text: String) {
     guard isActive else { return }
@@ -208,58 +249,39 @@ final class PanelFilter {
     return shortcutMemory.lookup(query: state.query)
   }
 
-  /// Moves the remembered row to the front of its own section, leaving
-  /// every other row where the ranking put it. Parking and hiding stand:
-  /// a remembered row never leaves its section for another one.
-  private func memoryFirstInSections(
-    ordinary: [WindowItem],
-    subgroups: [(DisplaySubgroup, [WindowItem])],
-    remembered: WindowItem.Identifier
-  ) -> [WindowItem] {
-    var ordinary = ordinary
-    var subgroups = subgroups
-    if let index = ordinary.firstIndex(where: { $0.id == remembered }) {
-      let row = ordinary.remove(at: index)
-      ordinary.insert(row, at: 0)
-      return ordinary + subgroups.flatMap(\.1)
-    }
-    for section in subgroups.indices {
-      if let index = subgroups[section].1.firstIndex(where: { $0.id == remembered }) {
-        let row = subgroups[section].1.remove(at: index)
-        subgroups[section].1.insert(row, at: 0)
-        break
-      }
-    }
-    return ordinary + subgroups.flatMap(\.1)
+  /// The rows one list shows, in drawing order. Read through the layout,
+  /// so the modes keep a row out and place it the same way whether the
+  /// panel opened, a keystroke arrived, or a list was swapped in, and the
+  /// choice and the drawing read one order in both orderings.
+  private func shown(in windows: [WindowItem]) -> [WindowItem] {
+    layout(of: windows).rows
   }
 
-  /// modes keep a row out and place it the same way whether the panel
-  /// opened, a keystroke arrived, or a list was swapped in. Sections are
-  /// split first and the remembered row moves within its own section, so
-  /// the choice and the drawing read one order in both orderings.
-  private func shown(in windows: [WindowItem]) -> [WindowItem] {
-    let (ordinary, subgroups) = DisplayModes.sections(
-      of: windows,
+  private func layout(of windows: [WindowItem]) -> PanelLayout {
+    PanelLayout.make(
+      rows: windows,
       modes: displayModes,
       query: state.query,
       exclusions: exclusionRules,
       fuzzy: searchSettings.fuzzyMatchEnabled,
-      ordering: searchSettings.ordering
+      ordering: searchSettings.ordering,
+      memory: rememberedID,
+      owner: scope.narrowedOwner,
+      grouping: grouping
     )
-    guard let remembered = rememberedID else {
-      return ordinary + subgroups.flatMap(\.1)
-    }
-    return memoryFirstInSections(ordinary: ordinary, subgroups: subgroups, remembered: remembered)
   }
 
   /// Narrows the rows, puts the remembered row first in its section,
   /// follows the choice onto them, and tells the panel, drawing once.
   /// The exits resolve off the whole shown list: identities are unique,
-  /// so a narrowed row reads back as itself either way.
+  /// so a narrowed row reads back as itself either way. The fallback to
+  /// the first match reads the ranked order, so a grouped list falls
+  /// back to the best match rather than to the first group's top row.
   private func apply() {
-    let matched = shownWindows
+    let layout = shownLayout
+    let matched = layout.rows
     let matchedList = matched.map(\.id)
-    let chosen = state.resolveSelection(matched: matchedList, incoming: selection.chosenID)
+    let chosen = state.resolveSelection(matched: layout.rankedRows.map(\.id), incoming: selection.chosenID)
     selection.retarget(to: matchedList, selecting: chosen)
     surface.updateList(windows: matched, selecting: selection.chosenID, query: state.query, filterActive: isActive)
     lastSummary = FilterLogSummary(

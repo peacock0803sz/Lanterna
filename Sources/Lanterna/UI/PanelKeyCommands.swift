@@ -1,3 +1,5 @@
+import AppKit
+
 /// What a key press does to a panel that is up.
 ///
 /// Split from the presenter, which decides when a panel goes up. What becomes
@@ -51,9 +53,22 @@ final class PanelKeyCommands {
   /// when settings change, the way the exclusion rules are.
   private(set) var keyBindings: KeyBindingTable
 
+  /// Which application is in front as a panel opens. The panel never
+  /// activates this process, so the answer is the application the user
+  /// was in. Injected so tests name it without a window server.
+  var frontmostProcessIdentifier: @MainActor () -> pid_t? = {
+    NSWorkspace.shared.frontmostApplication?.processIdentifier
+  }
+
   /// The rows on screen, which the choice and the panel open on.
   var shownWindows: [WindowItem] {
     filter.shownWindows
+  }
+
+  /// The same rows as laid out, with their ranked order beside the
+  /// drawing order.
+  var shownLayout: PanelLayout {
+    filter.shownLayout
   }
 
   /// Whether filtering answers keystrokes right now. The presenter asks
@@ -64,9 +79,24 @@ final class PanelKeyCommands {
   }
 
   /// Starts an appearance over the whole ordered list, filtering only
-  /// when the appearance asked for it.
+  /// when the appearance asked for it, on the configured scope. The band
+  /// is handed over before the panel goes up, so the panel sizes for it.
   func beginFiltering(fullWindows: [WindowItem], filtering: Bool = false) {
-    filter.begin(fullWindows: fullWindows, filtering: filtering)
+    filter.scopeToggleKey = keyBindings[.toggleScope].first?.displayName
+    filter.begin(fullWindows: fullWindows, filtering: filtering, activeApplication: frontmostProcessIdentifier())
+    surface.showScope(filter.scopeBand)
+  }
+
+  /// Hands a changed scope setting to the live filter. The panel that is
+  /// up keeps its own until it closes.
+  func updateWindowScope(_ scope: WindowScope) {
+    filter.scope.configured = scope
+  }
+
+  /// Hands a changed grouping to the live filter, so the next list it
+  /// lays out groups the new way.
+  func updateGrouping(_ grouping: GroupingPolicy) {
+    filter.grouping = grouping
   }
 
   /// Hands changed rules to the live filter, so a settings change
@@ -183,6 +213,9 @@ final class PanelKeyCommands {
 
     case .windowOperation(let operation):
       operate?(operation, selection.chosenID)
+
+    case .toggleScope:
+      filter.toggleScope()
 
     case .filterText(let text):
       filter.append(text)

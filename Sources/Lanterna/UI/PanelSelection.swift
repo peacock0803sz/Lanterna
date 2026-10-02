@@ -44,12 +44,16 @@ final class PanelSelection {
   /// recorded switch that never landed still leaves this choice, which
   /// no focus read here could tell apart.
   ///
+  /// Second by `ranking` when one is given: a grouped list draws a group
+  /// at a time, so the row second in recent use can draw anywhere, and
+  /// the choice follows it there by identity.
+  ///
   /// Tells the panel nothing, because there is no panel yet: the chosen row
   /// travels with the list in the call that puts one there, and a redraw
   /// before that would be a redraw of nothing.
-  func beginSecond(_ ids: [WindowItem.Identifier]) {
+  func beginSecond(_ ids: [WindowItem.Identifier], ranking: [WindowItem.Identifier]? = nil) {
     var opened = SelectionCursor(ids: ids)
-    opened.selectSecond()
+    opened.selectSecond(by: ranking)
     cursor = opened
   }
 

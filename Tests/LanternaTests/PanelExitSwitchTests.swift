@@ -118,12 +118,12 @@ struct PanelExitSwitchTests {
     #expect(
       lines[1]
         == "committed \(row.appName) — \(row.displayTitle) "
-        + "(window \(row.id.windowID)) 4.8 ms after Command was released"
+        + "(\(row.id.logWord)) 4.8 ms after Command was released"
     )
     #expect(
       lines[2]
         == "switched to \(row.appName) — \(row.displayTitle) "
-        + "(window \(row.id.windowID)) 4.8 ms after Command was released"
+        + "(\(row.id.logWord)) 4.8 ms after Command was released"
     )
   }
 
@@ -142,7 +142,7 @@ struct PanelExitSwitchTests {
     #expect(
       lines[2]
         == "could not switch to \(row.appName) — \(row.displayTitle) "
-        + "(window \(row.id.windowID)) (window gone) 4.8 ms after Command was released"
+        + "(\(row.id.logWord)) (window gone) 4.8 ms after Command was released"
     )
   }
 
@@ -182,7 +182,7 @@ struct PanelExitSwitchTests {
     #expect(
       lines[2]
         == "switched to \(row.appName) — \(row.displayTitle) "
-        + "(window \(row.id.windowID)) 4.8 ms after Return"
+        + "(\(row.id.logWord)) 4.8 ms after Return"
     )
   }
 

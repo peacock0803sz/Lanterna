@@ -25,6 +25,8 @@ enum DisplaySubgroup: Sendable, Hashable {
   case hiddenApp
   case minimized
   case fullscreen
+  /// Running applications with no window, each a row of its own.
+  case windowlessApp
 
   /// The subgroups in the order they draw.
   static let drawingOrder: [DisplaySubgroup] = [
@@ -32,6 +34,7 @@ enum DisplaySubgroup: Sendable, Hashable {
     .hiddenApp,
     .minimized,
     .fullscreen,
+    .windowlessApp,
   ]
 }
 
@@ -67,6 +70,9 @@ struct DisplayModes: Equatable, Sendable {
   var hiddenApp: DisplayMode
   var minimized: DisplayMode
   var fullscreen: DisplayMode
+  /// Rows for running applications with no window. Kept out unless asked
+  /// for, which is how the list read before such rows existed.
+  var windowlessApp = DisplayMode.hide
 
   /// Where one row goes. Hiding wins over parking. A row matching the
   /// query escapes hiding into the subgroup of the first of its kinds, in
@@ -80,12 +86,7 @@ struct DisplayModes: Equatable, Sendable {
     queryIsEmpty: Bool,
     matchesQuery: Bool
   ) -> RowPlacement {
-    let applicable: [(DisplayMode, DisplaySubgroup)] = [
-      (row.isOnOtherSpace ? modes.otherSpace : nil, .otherSpace),
-      (row.isHidden ? modes.hiddenApp : nil, .hiddenApp),
-      (row.isMinimized ? modes.minimized : nil, .minimized),
-      (row.isFullscreen ? modes.fullscreen : nil, .fullscreen),
-    ].compactMap { mode, subgroup in mode.map { ($0, subgroup) } }
+    let applicable = applicableKinds(of: row, modes: modes)
     if let hiding = applicable.first(where: { $0.0 == .hide }) {
       return !queryIsEmpty && matchesQuery ? .separated(hiding.1) : .hidden
     }
@@ -102,7 +103,8 @@ struct DisplayModes: Equatable, Sendable {
       otherSpace: config.otherSpaceMode ?? defaults.otherSpace,
       hiddenApp: config.hiddenAppMode ?? defaults.hiddenApp,
       minimized: config.minimizedMode ?? defaults.minimized,
-      fullscreen: config.fullscreenMode ?? defaults.fullscreen
+      fullscreen: config.fullscreenMode ?? defaults.fullscreen,
+      windowlessApp: config.windowlessAppMode ?? defaults.windowlessApp
     )
   }
 
@@ -198,6 +200,26 @@ struct DisplayModes: Equatable, Sendable {
   }
 
   // MARK: Private
+
+  /// The kinds one row is, each with its mode, in drawing order. A row
+  /// with no window is that kind and nothing else: an application hidden
+  /// with no window is still an application with no window, and only that
+  /// kind's mode says where it goes.
+  private static func applicableKinds(
+    of row: WindowItem,
+    modes: DisplayModes
+  ) -> [(DisplayMode, DisplaySubgroup)] {
+    guard !row.isWindowless else {
+      return [(modes.windowlessApp, .windowlessApp)]
+    }
+    let kinds: [(DisplayMode?, DisplaySubgroup)] = [
+      (row.isOnOtherSpace ? modes.otherSpace : nil, .otherSpace),
+      (row.isHidden ? modes.hiddenApp : nil, .hiddenApp),
+      (row.isMinimized ? modes.minimized : nil, .minimized),
+      (row.isFullscreen ? modes.fullscreen : nil, .fullscreen),
+    ]
+    return kinds.compactMap { mode, subgroup in mode.map { ($0, subgroup) } }
+  }
 
   /// One section ranked best-match-first: contiguous substring matches,
   /// then earlier match starts, with ties in the order they arrived in.

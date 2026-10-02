@@ -54,7 +54,7 @@ struct PanelPresenterUnreportedReleaseTests {
     #expect(
       fixture.log.lines.last
         == "closed the panel showing \(second.appName) — \(second.displayTitle) "
-        + "(window \(second.id.windowID)); "
+        + "(\(second.id.logWord)); "
         + "Command was let go and the tap never said so"
     )
   }
@@ -87,7 +87,7 @@ struct PanelPresenterUnreportedReleaseTests {
     #expect(
       fixture.log.lines.last
         == "closed the panel showing \(fourth.appName) — \(fourth.displayTitle) "
-        + "(window \(fourth.id.windowID)); "
+        + "(\(fourth.id.logWord)); "
         + "Command was let go and the tap never said so"
     )
   }

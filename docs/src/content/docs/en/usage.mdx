@@ -80,29 +80,43 @@ While the switcher is up, hold `Cmd` and press one of these keys to act on the c
 | <kbd>⌘</kbd><kbd>H</kbd> | Hides the app.        |
 | <kbd>⌘</kbd><kbd>M</kbd> | Minimizes the window. |
 
-By default, hidden apps and minimized windows move below the other windows, grouped under headings such as HIDDEN APPS and MINIMIZED. If an action fails, the list goes back to how it was and a short note appears. You cannot act on Lanterna's own row.
+By default, hidden apps and minimized windows move below the other windows, grouped under headings such as HIDDEN APPS and MINIMIZED. If an action fails, the list goes back to how it was and a short note appears. You cannot act on Lanterna's own row. On the row of an app with no open window, closing and minimizing have nothing to act on and say so, while quitting and hiding act on the app.
+
+## Narrowing and grouping the list
+
+Press <kbd>⌘</kbd><kbd>/</kbd> while the switcher is up to list only the windows of the app that was in front when it opened. A band above the list names that app, the query stays as typed, and pressing the key again brings every app back. The next time the switcher opens it starts on the Show windows of setting in the Filter tab, which can make Active app the starting point.
+
+Apps that are running with no open window can be listed as rows of their own, reading "No open windows". Choosing one brings the app forward. Apps without windows in the Filter tab shows them, hides them, or keeps them below the other windows under APPS WITHOUT WINDOWS. Hidden is the default, and a query naming such an app still finds it.
+
+The Groups tab can group the list:
+
+- By Space puts the windows of each Space under a heading naming the desktop, and the display when there is more than one. Spaces in view come first. Windows on another Space join their own group instead of a section below.
+- Manually lets you choose up to nine groups and assign apps to them by bundle ID, either from the running apps or by typing the ID. Headings show the group number, a name you give the group, or the names of the apps in it. Apps you have not assigned join the first group.
+
+When the list is grouped, each kind of section below the windows, such as MINIMIZED, can go at the end of the list or inside each group. By Space is the exception for two kinds: apps without windows always go after the last group, since they are on no Space, and the setting for windows on another Space does not apply, since those windows join their own group. A list with only one group shows no heading.
 
 ## Customizing keybindings
 
 Every keybinding below can be changed through the `keybindings` section of the config file or the Keyboard tab of Settings. Keys are physical positions, so they work the same under any input source.
 
-| Action             | Default keys                             |
-| ------------------ | ---------------------------------------- |
-| Show               | <kbd>⌘</kbd><kbd>Tab</kbd>               |
-| Show in reverse    | <kbd>⇧</kbd><kbd>⌘</kbd><kbd>Tab</kbd>   |
-| Show for filtering | <kbd>⌘</kbd><kbd>Space</kbd>             |
-| Next               | <kbd>↓</kbd>                             |
-| Previous           | <kbd>↑</kbd>                             |
-| Commit             | <kbd>↩</kbd>, keypad `Enter`             |
-| Cancel             | <kbd>esc</kbd>, <kbd>⌘</kbd><kbd>.</kbd> |
-| Delete backward    | <kbd>⌫</kbd>                             |
-| Clear query        | <kbd>esc</kbd>                           |
-| Close window       | <kbd>⌘</kbd><kbd>W</kbd>                 |
-| Quit application   | <kbd>⌘</kbd><kbd>Q</kbd>                 |
-| Hide application   | <kbd>⌘</kbd><kbd>H</kbd>                 |
-| Minimize window    | <kbd>⌘</kbd><kbd>M</kbd>                 |
+| Action                 | Default keys                             |
+| ---------------------- | ---------------------------------------- |
+| Show                   | <kbd>⌘</kbd><kbd>Tab</kbd>               |
+| Show in reverse        | <kbd>⇧</kbd><kbd>⌘</kbd><kbd>Tab</kbd>   |
+| Show for filtering     | <kbd>⌘</kbd><kbd>Space</kbd>             |
+| Next                   | <kbd>↓</kbd>                             |
+| Previous               | <kbd>↑</kbd>                             |
+| Commit                 | <kbd>↩</kbd>, keypad `Enter`             |
+| Cancel                 | <kbd>esc</kbd>, <kbd>⌘</kbd><kbd>.</kbd> |
+| Toggle active app only | <kbd>⌘</kbd><kbd>/</kbd>                 |
+| Delete backward        | <kbd>⌫</kbd>                             |
+| Clear query            | <kbd>esc</kbd>                           |
+| Close window           | <kbd>⌘</kbd><kbd>W</kbd>                 |
+| Quit application       | <kbd>⌘</kbd><kbd>Q</kbd>                 |
+| Hide application       | <kbd>⌘</kbd><kbd>H</kbd>                 |
+| Minimize window        | <kbd>⌘</kbd><kbd>M</kbd>                 |
 
-Show, Show in reverse, and Show for filtering reach across the system, and the window actions would fire while typing, so every key for those needs `Cmd`, `Ctrl`, or `Opt`. A key already used by another action is refused, except that Clear query and Cancel may share keys. An action left with no keys falls back to its defaults, but if the defaults are also taken the action can stay unbound with a diagnostics entry. Invocation changes apply at once.
+Show, Show in reverse, and Show for filtering reach across the system, and the window actions and Toggle active app only would fire while typing, so every key for those needs `Cmd`, `Ctrl`, or `Opt`. A key already used by another action is refused, except that Clear query and Cancel may share keys. An action left with no keys falls back to its defaults, but if the defaults are also taken the action can stay unbound with a diagnostics entry. Invocation changes apply at once.
 
 ## Links
 

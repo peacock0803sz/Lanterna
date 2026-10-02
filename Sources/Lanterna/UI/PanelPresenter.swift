@@ -173,6 +173,17 @@ final class PanelPresenter {
     didSet { pushSearchSettings() }
   }
 
+  /// Which applications' rows each appearance starts on, handed to the
+  /// key commands. A panel that is up keeps its own until it closes.
+  var windowScope = WindowScope.allApps {
+    didSet { keyCommands.updateWindowScope(windowScope) }
+  }
+
+  /// How the rows are grouped, handed to the key commands like the modes.
+  var grouping = GroupingPolicy() {
+    didSet { keyCommands.updateGrouping(grouping) }
+  }
+
   /// The resolved key bindings, handed to the key commands. A change
   /// lands on the live panel at once, like the exclusion rules.
   var keyBindings = KeyBindingTable.defaults {
@@ -382,8 +393,9 @@ final class PanelPresenter {
     tracker.noteSnapshotObserved(store.snapshot?.gatheredAt ?? now())
     let ordered = tracker.ordered(windows, skipping: store.snapshot?.skippedOwners ?? [])
     keyCommands.beginFiltering(fullWindows: ordered, filtering: combination == .filter)
-    let shown = keyCommands.shownWindows
-    selection.beginSecond(shown.map(\.id))
+    let layout = keyCommands.shownLayout
+    let shown = layout.rows
+    selection.beginSecond(layout.rowIDs, ranking: layout.rankedRows.map(\.id))
     operations.begin(windows: ordered)
     surface.present(windows: shown, selecting: selection.chosenID, filterActive: keyCommands.isFilteringActive)
     let becameKey = surface.takeKeys()
@@ -395,7 +407,7 @@ final class PanelPresenter {
       deliveryDelay: deliveryDelay,
       gatheredOnDemand: gatheredOnDemand,
       becameKey: becameKey,
-      mru: MRUSummary(firstID: shown.first?.id, source: tracker.newestSource)
+      mru: MRUSummary(firstID: layout.rankedRows.first?.id, source: tracker.newestSource)
     )
     writeLine(LogLine(.info, .panel, measurement.summaryLine, context: measurement.context))
 

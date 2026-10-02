@@ -130,10 +130,11 @@ final class PanelWindowOperations {
   }
 
   /// The named row, unless it is out of scope — the process's own row is
-  /// never a target, and a parked row (`isParked`) is left alone by
+  /// never a target, a row with no window is no target for closing or
+  /// minimizing a window, and a parked row (`isParked`) is left alone by
   /// hiding and minimizing.
   /// Out of scope is not a failure: nothing happens, and no line says
-  /// anything.
+  /// anything. A row with no window says so on a notice instead.
   private func resolve(
     _ id: WindowItem.Identifier?,
     for operation: WindowOperation
@@ -143,6 +144,12 @@ final class PanelWindowOperations {
     }
     let row = presented[index]
     guard row.ownerProcessIdentifier != ownProcessIdentifier else {
+      return nil
+    }
+    // An application row has no window to close or minimize. Saying so
+    // keeps the press from reading as ignored.
+    if row.isWindowless, operation == .closeWindow || operation == .minimizeWindow {
+      surface.showNotice(operation == .closeWindow ? "No window to close" : "No window to minimize")
       return nil
     }
     if row.isParked, operation == .hideApplication || operation == .minimizeWindow {

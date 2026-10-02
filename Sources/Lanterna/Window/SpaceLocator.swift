@@ -15,11 +15,38 @@ protocol SpaceLocating: Sendable {
   /// The ids among `windowIDs` known to sit only on fullscreen Spaces.
   /// Default empty so fakes naming only other-Space windows keep working.
   func fullscreenWindows(among windowIDs: [CGWindowID]) -> Set<CGWindowID>
+  /// Everything one pass needs about Spaces, read together: which windows
+  /// are elsewhere or fullscreen, which Spaces each window is on, and the
+  /// displays' Spaces. The default asks the two questions above and knows
+  /// no layout, so fakes naming only those keep working.
+  func reading(among windowIDs: [CGWindowID]) -> SpaceReading
+}
+
+// MARK: - SpaceReading
+
+/// One pass's answer about Spaces.
+struct SpaceReading: Sendable {
+  var onOtherSpace = Set<CGWindowID>()
+  var fullscreen = Set<CGWindowID>()
+  /// The Spaces each window is on, for the windows the server answered.
+  var spaces = [CGWindowID: [CGSSpaceID]]()
+  /// The displays and their Spaces, or nil when they could not be read.
+  var layout: SpaceLayout?
+  /// Whether the window server was asked and named no Space any display
+  /// is showing, which leaves grouping by Space with nothing to go on.
+  var displaysUnread = false
 }
 
 extension SpaceLocating {
   func fullscreenWindows(among _: [CGWindowID]) -> Set<CGWindowID> {
     []
+  }
+
+  func reading(among windowIDs: [CGWindowID]) -> SpaceReading {
+    SpaceReading(
+      onOtherSpace: windowsOnOtherSpaces(among: windowIDs),
+      fullscreen: fullscreenWindows(among: windowIDs)
+    )
   }
 }
 
@@ -81,54 +108,49 @@ enum SpacePlacement {
 
 /// Asks the window server.
 ///
-/// One call for the displays' current Spaces, then one per window, because
+/// One call for the displays' Spaces, then one per window, because
 /// `CGSCopySpacesForWindows` answers a batch with a single list that does
-/// not say which window each Space belongs to. Each call goes to the window
-/// server alone, with no application in the way, so a wedged application
-/// cannot hold one up the way it holds up an accessibility message.
+/// not say which window each Space belongs to. The answer for each window
+/// is asked once and serves every question about it. Each call goes to the
+/// window server alone, with no application in the way, so a wedged
+/// application cannot hold one up the way it holds up an accessibility
+/// message.
 struct WindowServerSpaceLocator: SpaceLocating {
 
   // MARK: Internal
 
   func windowsOnOtherSpaces(among windowIDs: [CGWindowID]) -> Set<CGWindowID> {
-    guard !windowIDs.isEmpty else {
-      return []
-    }
-    let connection = CGSMainConnectionID()
-    let displays: CFArray? = CGSCopyManagedDisplaySpaces(connection)
-    let currentSpaces = SpacePlacement.currentSpaces(
-      from: displays as? [[String: Any]] ?? []
-    )
-    // Without a current Space every answer would read false anyway.
-    guard !currentSpaces.isEmpty else {
-      return []
-    }
-    return Set(windowIDs.filter { windowID in
-      SpacePlacement.isOnOtherSpace(
-        windowSpaces: Self.spaces(of: windowID, connection: connection),
-        currentSpaces: currentSpaces
-      )
-    })
+    reading(among: windowIDs).onOtherSpace
   }
 
   func fullscreenWindows(among windowIDs: [CGWindowID]) -> Set<CGWindowID> {
+    reading(among: windowIDs).fullscreen
+  }
+
+  func reading(among windowIDs: [CGWindowID]) -> SpaceReading {
     guard !windowIDs.isEmpty else {
-      return []
+      return SpaceReading()
     }
     let connection = CGSMainConnectionID()
-    let displays: CFArray? = CGSCopyManagedDisplaySpaces(connection)
-    let fullscreenSpaces = SpacePlacement.fullscreenSpaces(
-      from: displays as? [[String: Any]] ?? []
+    let answer: CFArray? = CGSCopyManagedDisplaySpaces(connection)
+    let displays = answer as? [[String: Any]] ?? []
+    let currentSpaces = SpacePlacement.currentSpaces(from: displays)
+    let fullscreenSpaces = SpacePlacement.fullscreenSpaces(from: displays)
+    var reading = SpaceReading(
+      layout: displays.isEmpty ? nil : SpaceLayout.read(from: displays),
+      displaysUnread: currentSpaces.isEmpty
     )
-    guard !fullscreenSpaces.isEmpty else {
-      return []
+    for windowID in windowIDs {
+      let windowSpaces = Self.spaces(of: windowID, connection: connection)
+      reading.spaces[windowID] = windowSpaces
+      if SpacePlacement.isOnOtherSpace(windowSpaces: windowSpaces, currentSpaces: currentSpaces) {
+        reading.onOtherSpace.insert(windowID)
+      }
+      if SpacePlacement.isFullscreen(windowSpaces: windowSpaces, fullscreenSpaces: fullscreenSpaces) {
+        reading.fullscreen.insert(windowID)
+      }
     }
-    return Set(windowIDs.filter { windowID in
-      SpacePlacement.isFullscreen(
-        windowSpaces: Self.spaces(of: windowID, connection: connection),
-        fullscreenSpaces: fullscreenSpaces
-      )
-    })
+    return reading
   }
 
   // MARK: Private

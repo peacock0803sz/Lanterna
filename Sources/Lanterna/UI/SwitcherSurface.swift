@@ -49,6 +49,10 @@ protocol SwitcherSurface {
   /// panel — not its size, not its position, and writing no line.
   func showSelection(_ id: WindowItem.Identifier?)
 
+  /// Shows the band over a list narrowed to one application, or takes it
+  /// down for nil, resizing with the top edge kept. Writes no line.
+  func showScope(_ band: ScopeBand?)
+
   /// Shows a small failure note under the list, growing the panel by the
   /// note's height with the top edge kept; `clearNotice` gives that height
   /// back. The note says the operation could not be done; the why belongs

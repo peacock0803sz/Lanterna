@@ -60,6 +60,13 @@ struct SwitcherView: View {
   /// The text and icon scale step, handed down from the panel.
   var textScale = TextScaleLevel.standard
 
+  /// The band over a list narrowed to one application. Nil draws nothing
+  /// and takes no height.
+  var scopeBand: ScopeBand?
+
+  /// How the rows are grouped, read beside the modes.
+  var grouping = GroupingPolicy()
+
   var body: some View {
     // The query row stacks over the list while filtering is on, so the first
     // rows keep their order while the panel grows down from its top edge.
@@ -91,28 +98,22 @@ struct SwitcherView: View {
         Divider()
           .padding(.horizontal, 12)
       }
+      if let scopeBand {
+        scopeBandRow(scopeBand)
+      }
       ScrollViewReader { proxy in
         List {
-          ForEach(ordinaryRows) { window in
-            row(window)
+          if layout.blocks.isEmpty {
+            emptyLine
           }
-          if !subgroupRows.isEmpty {
-            ForEach(subgroupRows, id: \.0) { subgroup, rows in
-              Text(heading(for: subgroup).uppercased())
-                .font(.system(size: scaled(11), weight: .semibold))
-                .tracking(0.3)
-                .foregroundStyle(.tertiary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: PanelMetrics.rowHeight(for: textScale))
-                // A List row adds its vertical insets to the frame, so any
-                // here would draw the heading taller than the one row the
-                // panel height counts for it.
-                .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-              ForEach(rows) { window in
-                row(window, isInSubgroup: true)
-              }
+          ForEach(layout.blocks, id: \.key) { block in
+            switch block {
+            case .groupHeading(let heading, let order):
+              groupHeading(heading, isFirst: order == firstGroupOrder)
+            case .subgroupHeading(let subgroup, let group):
+              subgroupHeading(subgroup, nested: group != nil)
+            case .row(let window, let isInSubgroup):
+              row(window, isInSubgroup: isInSubgroup)
             }
           }
         }
@@ -172,41 +173,143 @@ struct SwitcherView: View {
     subgroups: [(DisplaySubgroup, [WindowItem])]
   ) -> String {
     let count = ordinary.count + subgroups.reduce(0) { $0 + $1.1.count }
-    return count == 1 ? "1 window" : "\(count) windows"
+    return wording(count: count)
+  }
+
+  /// The query row count wording for one layout: its window rows, and not
+  /// its headings.
+  static func countWording(_ layout: PanelLayout) -> String {
+    wording(count: layout.windowCount)
   }
 
   // MARK: Private
 
   /// The query row count wording for the rows on screen.
   private var countWording: String {
-    Self.countWording(ordinary: ordinaryRows, subgroups: subgroupRows)
+    Self.countWording(layout)
   }
 
-  /// The ordinary rows, drawing first and in the order they arrived.
-  private var ordinaryRows: [WindowItem] {
-    sections.ordinary
-  }
-
-  /// The non-empty subgroups below the ordinary rows, in drawing order.
-  private var subgroupRows: [(DisplaySubgroup, [WindowItem])] {
-    sections.subgroups
-  }
-
-  /// The list split for drawing. The rows arrive in the order the filter
-  /// hands the choice (`DisplayModes.displayOrdered`), and splitting keeps
-  /// each row's place within its section, so the rows draw in the order
-  /// the arrows step through them. Never re-ranks here: the rows arrive
-  /// pre-ordered from the filter, and ranking twice would drop the
-  /// remembered row from its section front.
-  private var sections: (ordinary: [WindowItem], subgroups: [(DisplaySubgroup, [WindowItem])]) {
-    DisplayModes.sections(
-      of: windows,
+  /// The list as it draws. The rows arrive in the order the filter hands
+  /// the choice, and laying them out keeps each row's place within its
+  /// section, so the rows draw in the order the arrows step through them.
+  /// Never re-ranks here: the rows arrive pre-ordered from the filter, and
+  /// ranking twice would drop the remembered row from its section front.
+  private var layout: PanelLayout {
+    PanelLayout.make(
+      rows: windows,
       modes: modes,
       query: query,
       exclusions: exclusionRules,
       fuzzy: fuzzyMatchEnabled,
-      ordering: .mru
+      ordering: .mru,
+      grouping: grouping
     )
+  }
+
+  /// The group drawn first, which draws no rule above its heading.
+  private var firstGroupOrder: Int? {
+    for block in layout.blocks {
+      if case .groupHeading(_, let order) = block {
+        return order
+      }
+    }
+    return nil
+  }
+
+  /// The one line drawn in place of rows when nothing is left to show:
+  /// a query matching nothing, an active application with no row, or
+  /// every row hidden by the display modes or excluded with no query.
+  private var emptyLine: some View {
+    Text("No windows")
+      .font(.system(size: scaled(13)))
+      .foregroundStyle(.tertiary)
+      .frame(maxWidth: .infinity, alignment: .center)
+      .frame(height: PanelMetrics.rowHeight(for: textScale))
+      .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
+      .listRowSeparator(.hidden)
+      .listRowBackground(Color.clear)
+  }
+
+  private static func wording(count: Int) -> String {
+    count == 1 ? "1 window" : "\(count) windows"
+  }
+
+  /// The heading over one group: its number when it has one, its title,
+  /// and what tells it apart, at one row's height with a rule above every
+  /// group but the first.
+  private func groupHeading(_ heading: PanelLayout.GroupHeading, isFirst: Bool) -> some View {
+    HStack(spacing: 8) {
+      if let number = heading.number {
+        Text("\(number)")
+          .font(.system(size: scaled(10), weight: .medium, design: .monospaced))
+          .foregroundStyle(.secondary)
+          .frame(width: scaled(18), height: scaled(18))
+          .background(RoundedRectangle(cornerRadius: 5).fill(.quaternary))
+      }
+      Text(heading.title)
+        .font(.system(size: scaled(12), weight: .semibold))
+        .foregroundStyle(.primary)
+        .lineLimit(1)
+        .truncationMode(.tail)
+      if let detail = heading.detail {
+        Text(detail)
+          .font(.system(size: scaled(11)))
+          .foregroundStyle(.tertiary)
+          .lineLimit(1)
+      }
+      Spacer(minLength: 0)
+    }
+    .frame(height: PanelMetrics.rowHeight(for: textScale))
+    .overlay(alignment: .top) {
+      if !isFirst {
+        Divider()
+      }
+    }
+    .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
+    .listRowSeparator(.hidden)
+    .listRowBackground(Color.clear)
+  }
+
+  /// The band saying the list holds one application's rows, and which key
+  /// brings every application back.
+  private func scopeBandRow(_ band: ScopeBand) -> some View {
+    VStack(spacing: 0) {
+      HStack(spacing: 8) {
+        Label("\(band.appName) only", systemImage: "macwindow")
+          .font(.system(size: scaled(12), weight: .medium))
+          .foregroundStyle(.secondary)
+          .padding(.horizontal, 8)
+          .padding(.vertical, 3)
+          .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary))
+        Spacer(minLength: 0)
+        if let key = band.toggleKey {
+          Text("\(key)  All apps")
+            .font(.system(size: scaled(11), design: .monospaced))
+            .foregroundStyle(.tertiary)
+        }
+      }
+      .padding(.horizontal, 12)
+      .frame(maxHeight: .infinity)
+      Divider()
+        .padding(.horizontal, 12)
+    }
+    .frame(height: PanelMetrics.scopeBandHeight(for: textScale))
+  }
+
+  /// The heading over one subgroup: one row's height and no more.
+  private func subgroupHeading(_ subgroup: DisplaySubgroup, nested: Bool) -> some View {
+    Text(heading(for: subgroup).uppercased())
+      .font(.system(size: scaled(11), weight: .semibold))
+      .tracking(0.3)
+      .foregroundStyle(.tertiary)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .frame(height: PanelMetrics.rowHeight(for: textScale))
+      // A List row adds its vertical insets to the frame, so any here
+      // would draw the heading taller than the one row the panel height
+      // counts for it.
+      .listRowInsets(EdgeInsets(top: 0, leading: nested ? 40 : 12, bottom: 0, trailing: 12))
+      .listRowSeparator(.hidden)
+      .listRowBackground(Color.clear)
   }
 
   /// One scaled point size: the base size times the step, in whole points.
@@ -225,6 +328,8 @@ struct SwitcherView: View {
       "Minimized"
     case .fullscreen:
       "Fullscreen"
+    case .windowlessApp:
+      "Apps Without Windows"
     }
   }
 

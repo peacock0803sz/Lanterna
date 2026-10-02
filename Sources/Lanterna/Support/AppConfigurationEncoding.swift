@@ -53,6 +53,7 @@ extension AppConfiguration {
     entries.append(contentsOf: textScaleEntries(config))
     entries.append(contentsOf: updateCheckEntries(config))
     entries.append(encodedInt(key: "version", value: config.version))
+    entries.append(contentsOf: listingEntries(config))
     // Every line opens with two spaces and its quoted key, so sorting
     // the lines sorts the keys. Helpers may append in any order.
     return Data(("{\n" + entries.sorted().joined(separator: ",\n") + "\n}\n").utf8)
@@ -70,6 +71,42 @@ extension AppConfiguration {
       withIntermediateDirectories: true
     )
     try encode(config).write(to: url, options: .atomic)
+  }
+
+  /// One `"key": "value"` line, indented two spaces.
+  static func encodedString(key: String, value: String) -> String {
+    "  \"\(key)\": \"\(value)\""
+  }
+
+  /// Escapes free text for the canonical form. Control characters,
+  /// quotes and backslashes are the only ones JSON refuses raw.
+  static func escaped(_ text: String) -> String {
+    var out = ""
+    out.reserveCapacity(text.count)
+    for scalar in text.unicodeScalars {
+      switch scalar.value {
+      case 0x22:
+        out += "\\\""
+      case 0x5C:
+        out += "\\\\"
+      case 0x0A:
+        out += "\\n"
+      case 0x0D:
+        out += "\\r"
+      case 0x09:
+        out += "\\t"
+      case 0x00 ... 0x1F:
+        out += String(format: "\\u%04x", scalar.value)
+      default:
+        out.unicodeScalars.append(scalar)
+      }
+    }
+    return out
+  }
+
+  /// One `"key": 1` line, indented two spaces.
+  static func encodedInt(key: String, value: Int) -> String {
+    "  \"\(key)\": \(value)"
   }
 
   // MARK: Private
@@ -124,11 +161,6 @@ extension AppConfiguration {
     return entries
   }
 
-  /// One `"key": "value"` line, indented two spaces.
-  private static func encodedString(key: String, value: String) -> String {
-    "  \"\(key)\": \"\(value)\""
-  }
-
   /// The exclusion list lines. Entries keep their order; absent means
   /// no line, so a configuration without exclusions encodes unchanged.
   private static func encodedExclusions(key: String, value: [ExclusionEntry]) -> String {
@@ -136,32 +168,6 @@ extension AppConfiguration {
       "    { \"app\": \"\(escaped(entry.app))\", \"titlePattern\": \"\(escaped(entry.titlePattern))\" }"
     }
     return "  \"\(key)\": [\n" + rows.joined(separator: ",\n") + "\n  ]"
-  }
-
-  /// Escapes free text for the canonical form. Control characters,
-  /// quotes and backslashes are the only ones JSON refuses raw.
-  private static func escaped(_ text: String) -> String {
-    var out = ""
-    out.reserveCapacity(text.count)
-    for scalar in text.unicodeScalars {
-      switch scalar.value {
-      case 0x22:
-        out += "\\\""
-      case 0x5C:
-        out += "\\\\"
-      case 0x0A:
-        out += "\\n"
-      case 0x0D:
-        out += "\\r"
-      case 0x09:
-        out += "\\t"
-      case 0x00 ... 0x1F:
-        out += String(format: "\\u%04x", scalar.value)
-      default:
-        out.unicodeScalars.append(scalar)
-      }
-    }
-    return out
   }
 
   /// The text-scale line, skipping absence like every other absent key.
@@ -172,11 +178,6 @@ extension AppConfiguration {
 
   /// One `"key": 1.12` line, indented two spaces.
   private static func encodedDouble(key: String, value: Double) -> String {
-    "  \"\(key)\": \(value)"
-  }
-
-  /// One `"key": 1` line, indented two spaces.
-  private static func encodedInt(key: String, value: Int) -> String {
     "  \"\(key)\": \(value)"
   }
 

@@ -23,6 +23,8 @@ struct SettingsValues: Equatable, Sendable {
     fuzzyMatchEnabled: true,
     resultOrder: .mru,
     textScale: .standard,
+    windowScope: .allApps,
+    grouping: GroupingPolicy(),
     keyBindings: .defaults,
     keyBindingSection: nil,
     loadedKeyBindings: .defaults
@@ -54,6 +56,12 @@ struct SettingsValues: Equatable, Sendable {
   /// The panel text and icon scale step. Absent in the file means
   /// the standard step, the base, unscaled sizes.
   var textScale: TextScaleLevel
+  /// Which applications' rows each appearance starts on. Absent in the
+  /// file means every application.
+  var windowScope: WindowScope
+  /// How the list groups its rows. Absent in the file means one list,
+  /// with every parked section at the end.
+  var grouping: GroupingPolicy
   /// The resolved key bindings. Never partial: absent in the file
   /// means all defaults.
   var keyBindings: KeyBindingTable
@@ -80,6 +88,15 @@ struct SettingsValues: Equatable, Sendable {
       fuzzyMatchEnabled: config.fuzzyMatchEnabled ?? true,
       resultOrder: SearchOrdering.effective(from: config),
       textScale: TextScaleLevel.effective(from: config),
+      windowScope: config.windowScope ?? .allApps,
+      grouping: GroupingPolicy(
+        mode: config.grouping ?? .none,
+        placements: config.subgroupPlacements,
+        groupCount: config.groupCount ?? 1,
+        headingStyle: config.groupHeadingStyle ?? .number,
+        names: config.groupNames,
+        assignments: config.groupAssignments
+      ),
       keyBindings: config.keyBindings,
       keyBindingSection: config.keyBindingSection,
       loadedKeyBindings: config.keyBindings
@@ -103,6 +120,7 @@ struct SettingsValues: Equatable, Sendable {
     config.hiddenAppMode = displayModes.hiddenApp
     config.minimizedMode = displayModes.minimized
     config.fullscreenMode = displayModes.fullscreen
+    config.windowlessAppMode = displayModes.windowlessApp
     config.romajiScope = romajiScope
     config.launchAtLogin = launchAtLogin
     config.updateCheckEnabled = updateCheckEnabled
@@ -127,6 +145,21 @@ struct SettingsValues: Equatable, Sendable {
     if textScale != .standard {
       config.textScale = textScale.factor
     }
+    if windowScope != defaults.windowScope {
+      config.windowScope = windowScope
+    }
+    if grouping.mode != .none {
+      config.grouping = grouping.mode
+    }
+    config.subgroupPlacements = grouping.placements.filter { $0.value != .endOfList }
+    if grouping.groupCount != 1 {
+      config.groupCount = grouping.groupCount
+    }
+    if grouping.headingStyle != .number {
+      config.groupHeadingStyle = grouping.headingStyle
+    }
+    config.groupNames = grouping.names.filter { !$0.value.isEmpty }
+    config.groupAssignments = Self.savedAssignments(grouping.assignments)
     config.keyBindings = keyBindings
     if keyBindings == loadedKeyBindings {
       config.keyBindingSection = keyBindingSection
@@ -137,6 +170,18 @@ struct SettingsValues: Equatable, Sendable {
   }
 
   // MARK: Private
+
+  /// The assignments for saving: rows with a bundle identifier, trimmed,
+  /// the first of each identifier ignoring case, in the order shown. A
+  /// row the editor shows as already assigned is left out here.
+  private static func savedAssignments(_ assignments: [GroupAssignment]) -> [GroupAssignment] {
+    var seen = Set<String>()
+    return assignments.compactMap { entry in
+      let trimmed = GroupAssignment.trimmed(entry.bundleID)
+      guard !trimmed.isEmpty, seen.insert(GroupAssignment.matchKey(trimmed)).inserted else { return nil }
+      return GroupAssignment(bundleID: trimmed, group: entry.group)
+    }
+  }
 
   /// The customized section for saving: actions differing from their
   /// defaults, as the file spells them. Empty actions and an empty

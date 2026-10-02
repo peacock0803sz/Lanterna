@@ -1,7 +1,7 @@
 /// The recent-use evidence a show line carries, or nothing when the caller
 /// has none to give.
 ///
-/// The first row drawn and where the newest surviving record came from. Both
+/// The first row in recent use and where the newest surviving record came from. Both
 /// ride the line that already exists: the show line is the only place the
 /// order of an appearance is ever written down, and a second line for it
 /// would break the alternating count of shown and hidden lines. The presenter
@@ -11,8 +11,10 @@
 /// A file of its own because the measurements file it would have joined is
 /// already long enough that adding to it would put it over the file limit.
 struct MRUSummary: Equatable, Sendable {
-  /// The first row drawn, or nothing when the list is empty. An unrecorded
-  /// but non-empty list still names its actual first row: the row is drawn
+  /// The first shown row in ranked order, or nothing when the list is
+  /// empty. Ranked rather than drawn, since a grouped list can draw
+  /// another group ahead of the window in front. An unrecorded but
+  /// non-empty list still names its actual first row: the row is shown
   /// whether or not any use was ever recorded.
   let firstID: WindowItem.Identifier?
   /// Where the newest surviving record came from, judged after the sweep.
@@ -34,6 +36,6 @@ struct MRUSummary: Equatable, Sendable {
     guard let firstID else {
       return "mru first none via none"
     }
-    return "mru first (window \(firstID.windowID)) via \(sourceWord)"
+    return "mru first (\(firstID.logWord)) via \(sourceWord)"
   }
 }

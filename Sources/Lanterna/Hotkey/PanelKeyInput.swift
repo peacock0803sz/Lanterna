@@ -94,6 +94,9 @@ enum PanelKeyAction: Equatable, Sendable {
   /// operation key held with Command is an operation even where its
   /// letter would type, while any other Command letter still narrows.
   case windowOperation(WindowOperation)
+  /// Switches this showing between every application's windows and the
+  /// active application's alone.
+  case toggleScope
   /// A letter or a confirmed string: narrows the list on screen.
   case filterText(String)
   /// Backspace: shortens the query by one character.
@@ -383,6 +386,7 @@ enum PanelKeyInput {
       (.previous, .selectPrevious),
       (.commit, .commit(commitKey(for: keystroke))),
       (.cancel, .cancel(cancelKey(for: keystroke))),
+      (.toggleScope, .toggleScope),
       (.clearQuery, .clearQuery),
       (.deleteBackward, .filterBackspace),
     ]
@@ -439,6 +443,7 @@ extension PanelKeyAction {
     case .commit,
          .cancel,
          .windowOperation,
+         .toggleScope,
          .absorb:
       .absorb
     }

@@ -23,7 +23,7 @@ struct PanelMetricsTests {
   @Test @MainActor
   func aHeadingCountsAsARowWhenAnyRowIsParked() {
     let windows = SampleWindows.make(count: 3)
-    #expect(PanelMetrics.drawnRowCount([]) == 0)
+    #expect(PanelMetrics.drawnRowCount([]) == 1)
     #expect(PanelMetrics.drawnRowCount(windows) == 3)
     #expect(PanelMetrics.drawnRowCount([windows[0], windows[1].settingMinimized(true)]) == 3)
     #expect(PanelMetrics.drawnRowCount(windows.map { $0.settingHidden(true) }) == 4)

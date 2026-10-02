@@ -3,27 +3,30 @@ import Darwin
 
 // MARK: - MRUKey
 
-/// Remembers the order windows were used in, so the panel can draw the most
+/// Remembers the order rows were used in, so the panel can draw the most
 /// recently used first.
 ///
 /// The only state this feature adds, and it never leaves the process: no
 /// persistence, no settings, nothing crossing a launch. What moves the order
-/// forward is exactly two things — a commit naming a row, and an activation
-/// from outside the panel — and both arrive through `record(_:ownerProcessIdentifier:origin:)`,
-/// which is the one entry the tests inject through.
+/// forward is a commit naming a row, window or application, and an
+/// activation from outside the panel. A use of a row arrives through
+/// `record(_:ownerProcessIdentifier:origin:)`; an outside activation also
+/// arrives through `recordApplicationUse(_:)`, which orders the row of an
+/// application with no window even when no window of it can be read.
 ///
-/// Identity is the window id together with its owner, because the id alone
-/// does not survive reuse: a window id handed out again under another process
-/// must not merge with the dead record. The window-server id stays the word
-/// the diagnostics line prints; the pair is only ever the dictionary key.
+/// Identity is the row's identifier together with its owner, because the
+/// identifier alone does not survive reuse: a window id handed out again
+/// under another process must not merge with the dead record. The
+/// identifier's `logWord` is what the diagnostics line prints; the pair is
+/// only ever the dictionary key.
 struct MRUKey: Hashable, Sendable {
-  let windowID: CGWindowID
+  let id: WindowItem.Identifier
   let ownerProcessIdentifier: pid_t
 }
 
 // MARK: - MRUTracker
 
-/// The one remembered use of one window.
+/// The remembered uses of rows, one per window or windowless application.
 ///
 /// A sequence number and not a clock: only older-versus-newer is ever asked,
 /// and a counter needs no clock to inject and no same-instant tie to break.
@@ -40,7 +43,8 @@ final class MRUTracker {
 
   // MARK: Internal
 
-  /// One remembered use, in a shape the tests can hold.
+  /// The one remembered use of one row, a window or an application with
+  /// no window, in a shape the tests can hold.
   struct UsageRecord: Equatable, Sendable {
     let id: WindowItem.Identifier
     let ownerProcessIdentifier: pid_t
@@ -108,7 +112,7 @@ final class MRUTracker {
     ownerProcessIdentifier: pid_t,
     origin: RecordOrigin
   ) {
-    let key = MRUKey(windowID: id.windowID, ownerProcessIdentifier: ownerProcessIdentifier)
+    let key = MRUKey(id: id, ownerProcessIdentifier: ownerProcessIdentifier)
     records[key] = UsageRecord(
       id: id,
       ownerProcessIdentifier: ownerProcessIdentifier,
@@ -116,6 +120,7 @@ final class MRUTracker {
       origin: origin,
       recordedAt: now()
     )
+    applicationSequences[ownerProcessIdentifier] = nextSequence
     nextSequence += 1
     if origin == .commit {
       lastCommit = (ownerProcessIdentifier, nil)
@@ -197,12 +202,11 @@ final class MRUTracker {
     var recorded = [(item: WindowItem, sequence: UInt64)]()
     var unrecorded = [WindowItem]()
     for item in items {
-      let key = MRUKey(
-        windowID: item.id.windowID,
-        ownerProcessIdentifier: item.ownerProcessIdentifier
-      )
+      let key = MRUKey(id: item.id, ownerProcessIdentifier: item.ownerProcessIdentifier)
       if let record = records[key] {
         recorded.append((item, record.sequence))
+      } else if item.isWindowless, let sequence = applicationSequences[item.ownerProcessIdentifier] {
+        recorded.append((item, sequence))
       } else {
         unrecorded.append(item)
       }
@@ -211,9 +215,23 @@ final class MRUTracker {
     return recorded.map(\.item) + unrecorded
   }
 
+  /// Writes down that an application was brought forward, whether or not
+  /// a window of it could be read. Orders only the row standing for the
+  /// application when it has no window.
+  func recordApplicationUse(_ ownerProcessIdentifier: pid_t) {
+    applicationSequences[ownerProcessIdentifier] = nextSequence
+    nextSequence += 1
+  }
+
   // MARK: Private
 
   private var records = [MRUKey: UsageRecord]()
+  /// When each application was last brought forward, numbered from the
+  /// same counter as the records so the two compare. Read only for rows
+  /// standing for an application with no window, and kept apart from the
+  /// records so an outside activation of an application with no readable
+  /// window never becomes a record of its own.
+  private var applicationSequences = [pid_t: UInt64]()
   private var nextSequence: UInt64 = 0
   /// What the last swept appearance knew. A record newer than this
   /// predates no snapshot it was swept against: the look finished before
@@ -244,13 +262,13 @@ final class MRUTracker {
     var live = Set<MRUKey>()
     live.reserveCapacity(items.count)
     for item in items {
-      live.insert(
-        MRUKey(
-          windowID: item.id.windowID,
-          ownerProcessIdentifier: item.ownerProcessIdentifier
-        )
-      )
+      live.insert(MRUKey(id: item.id, ownerProcessIdentifier: item.ownerProcessIdentifier))
     }
+    // An application's own use outlives its windows, so it stays while
+    // the application has any row at all: closing the last window turns
+    // it into a row that should still sort by that use.
+    let owners = Set(items.map(\.ownerProcessIdentifier))
+    applicationSequences = applicationSequences.filter { owners.contains($0.key) || skippedOwners.contains($0.key) }
     records = records.filter { entry in
       live.contains(entry.key)
         || skippedOwners.contains(entry.key.ownerProcessIdentifier)

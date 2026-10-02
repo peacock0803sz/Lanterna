@@ -31,7 +31,7 @@ struct PanelPresenterCommitTests {
     #expect(
       fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
         == "committed \(second.appName) — \(second.displayTitle) "
-        + "(window \(second.id.windowID)) 4.8 ms after Command was released"
+        + "(\(second.id.logWord)) 4.8 ms after Command was released"
     )
   }
 
@@ -72,7 +72,7 @@ struct PanelPresenterCommitTests {
     #expect(
       fixture.log.lines.first(where: { $0.hasPrefix("committed ") })
         == "committed \(second.appName) — \(second.displayTitle) "
-        + "(window \(second.id.windowID)) 9.6 ms after Command was released"
+        + "(\(second.id.logWord)) 9.6 ms after Command was released"
     )
   }
 

@@ -28,6 +28,7 @@ enum AppConfiguration {
     "hiddenAppMode",
     "minimizedMode",
     "fullscreenMode",
+    "windowlessAppMode",
     "appearanceMode",
     "romajiScope",
     "launchAtLogin",
@@ -41,6 +42,17 @@ enum AppConfiguration {
     "resultOrder",
     "keybindings",
     "textScale",
+    "windowScope",
+    "grouping",
+    "otherSpacePlacement",
+    "hiddenAppPlacement",
+    "minimizedPlacement",
+    "fullscreenPlacement",
+    "windowlessAppPlacement",
+    "groupCount",
+    "groupHeadingStyle",
+    "groupNames",
+    "groupAssignments",
   ]
 
   /// The scaffold written when no file exists (FR-012).
@@ -68,6 +80,7 @@ struct ValidConfiguration: Equatable, Sendable {
     hiddenAppMode: DisplayMode? = nil,
     minimizedMode: DisplayMode? = nil,
     fullscreenMode: DisplayMode? = nil,
+    windowlessAppMode: DisplayMode? = nil,
     appearanceMode: AppearanceMode? = nil,
     romajiScope: RomajiScope? = nil,
     launchAtLogin: Bool? = nil,
@@ -79,6 +92,13 @@ struct ValidConfiguration: Equatable, Sendable {
     fuzzyMatchEnabled: Bool? = nil,
     resultOrder: String? = nil,
     textScale: Double? = nil,
+    windowScope: WindowScope? = nil,
+    grouping: GroupingMode? = nil,
+    subgroupPlacements: [DisplaySubgroup: SubgroupPlacement] = [:],
+    groupCount: Int? = nil,
+    groupHeadingStyle: GroupHeadingStyle? = nil,
+    groupNames: [Int: String] = [:],
+    groupAssignments: [GroupAssignment] = [],
     keyBindings: KeyBindingTable = .defaults,
     keyBindingSection: [KeyBindingAction: [RawKeyBinding]]? = nil
   ) {
@@ -89,6 +109,7 @@ struct ValidConfiguration: Equatable, Sendable {
     self.hiddenAppMode = hiddenAppMode
     self.minimizedMode = minimizedMode
     self.fullscreenMode = fullscreenMode
+    self.windowlessAppMode = windowlessAppMode
     self.appearanceMode = appearanceMode
     self.romajiScope = romajiScope
     self.launchAtLogin = launchAtLogin
@@ -100,6 +121,13 @@ struct ValidConfiguration: Equatable, Sendable {
     self.fuzzyMatchEnabled = fuzzyMatchEnabled
     self.resultOrder = resultOrder
     self.textScale = textScale
+    self.windowScope = windowScope
+    self.grouping = grouping
+    self.subgroupPlacements = subgroupPlacements
+    self.groupCount = groupCount
+    self.groupHeadingStyle = groupHeadingStyle
+    self.groupNames = groupNames
+    self.groupAssignments = groupAssignments
     self.keyBindings = keyBindings
     self.keyBindingSection = keyBindingSection
   }
@@ -113,6 +141,7 @@ struct ValidConfiguration: Equatable, Sendable {
   var hiddenAppMode: DisplayMode?
   var minimizedMode: DisplayMode?
   var fullscreenMode: DisplayMode?
+  var windowlessAppMode: DisplayMode?
   var appearanceMode: AppearanceMode?
   var romajiScope: RomajiScope?
   var launchAtLogin: Bool?
@@ -136,6 +165,23 @@ struct ValidConfiguration: Equatable, Sendable {
   /// means 1.0 (the current size). Only the five steps count; anything
   /// else falls back with a note instead of invalidating the file.
   var textScale: Double?
+  /// Which applications' rows each appearance starts on. Nil means
+  /// absent, which means every application.
+  var windowScope: WindowScope?
+  /// How the list groups its rows. Nil means absent, which means one list.
+  var grouping: GroupingMode?
+  /// Where each kind's parked section goes once grouped, for the kinds
+  /// the file names. A kind left out goes to the end of the list.
+  var subgroupPlacements: [DisplaySubgroup: SubgroupPlacement]
+  /// How many manual groups there are. Nil means absent, which means 1.
+  var groupCount: Int?
+  /// What manual group headings say. Nil means absent, which means the number.
+  var groupHeadingStyle: GroupHeadingStyle?
+  /// The names given to manual groups. Empty means absent.
+  var groupNames: [Int: String]
+  /// The applications assigned to manual groups, in file order with the
+  /// unreadable and repeated entries left out. Empty means absent.
+  var groupAssignments: [GroupAssignment]
   /// The resolved key bindings. Never nil: absent means all defaults.
   var keyBindings: KeyBindingTable
   /// The customized section as spelled, kept so saving writes back what
@@ -191,6 +237,8 @@ struct DecodedConfiguration: Equatable, Sendable {
   /// Retired keys the file still held, read past without a look at their
   /// values, for one diagnostics line each.
   var deprecatedKeys = [String]()
+  /// One entry per group assignment left out, for the diagnostics lines.
+  var groupAssignmentIssues = [GroupAssignmentIssue]()
 }
 
 // MARK: - ConfigLoadOutcome
@@ -272,6 +320,8 @@ extension AppConfiguration {
     ) {
     case .success(let config):
       return resolvedKeyBindings(dict, data: data, config: config, assumed: assumed)
+        .flatMap { withGroupAssignments(dict, decoded: $0) }
+
     case .failure(let error):
       return .failure(error)
     }
@@ -347,7 +397,7 @@ extension AppConfiguration {
     return .success((version, false))
   }
 
-  /// Reads the four display-mode keys into the configuration.
+  /// Reads the display-mode keys into the configuration.
   private static func checkedDisplayModes(
     _ dict: [String: Any],
     into config: inout ValidConfiguration
@@ -357,6 +407,7 @@ extension AppConfiguration {
       ("hiddenAppMode", \.hiddenAppMode),
       ("minimizedMode", \.minimizedMode),
       ("fullscreenMode", \.fullscreenMode),
+      ("windowlessAppMode", \.windowlessAppMode),
     ]
     for (key, path) in keys {
       switch checkedOptionalMode(dict, key: key) {
@@ -413,8 +464,10 @@ extension AppConfiguration {
       return .failure(error)
     }
     // Chained without another switch: this function already stands at
-    // the complexity limit, and the helper reports its own failures.
-    return checkedSearchSettings(dict, into: &config).map { _ in config }
+    // the complexity limit, and the helpers report their own failures.
+    return checkedSearchSettings(dict, into: &config)
+      .flatMap { checkedListing(dict, into: &config) }
+      .map { _ in config }
   }
 
 }

@@ -1,5 +1,6 @@
 import AppKit
 @testable import Lanterna
+import PrivateAPIs
 
 // MARK: - FakeReader
 
@@ -24,6 +25,10 @@ struct FakeReader: ApplicationWindowReading {
 struct FakeSpaceLocator: SpaceLocating {
   var onOtherSpace = Set<CGWindowID>()
   var fullscreen = Set<CGWindowID>()
+  /// The Spaces each window is on, and the displays' Spaces, for the
+  /// passes that group by Space.
+  var spaces = [CGWindowID: [CGSSpaceID]]()
+  var layout: SpaceLayout?
 
   func windowsOnOtherSpaces(among windowIDs: [CGWindowID]) -> Set<CGWindowID> {
     onOtherSpace.intersection(windowIDs)
@@ -31,6 +36,15 @@ struct FakeSpaceLocator: SpaceLocating {
 
   func fullscreenWindows(among windowIDs: [CGWindowID]) -> Set<CGWindowID> {
     fullscreen.intersection(windowIDs)
+  }
+
+  func reading(among windowIDs: [CGWindowID]) -> SpaceReading {
+    SpaceReading(
+      onOtherSpace: windowsOnOtherSpaces(among: windowIDs),
+      fullscreen: fullscreenWindows(among: windowIDs),
+      spaces: spaces.filter { windowIDs.contains($0.key) },
+      layout: layout
+    )
   }
 }
 

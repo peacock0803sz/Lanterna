@@ -79,6 +79,15 @@
         "separateAtBottom"
       ]
     },
+    "windowlessAppMode": {
+      "description": "Running applications with no open window, each listed as a row of its\nown. Absent means \"hide\".",
+      "type": "string",
+      "enum": [
+        "show",
+        "hide",
+        "separateAtBottom"
+      ]
+    },
     "sampleCount": {
       "description": "Fixture entries to show instead of live windows.\nAbsent means live windows. Must be zero or more when present.",
       "type": "integer",
@@ -333,6 +342,34 @@
             "additionalProperties": false
           }
         },
+        "toggleScope": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyCode": {
+                "type": "integer"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "cmd",
+                    "ctrl",
+                    "opt",
+                    "shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "keyCode",
+              "modifiers"
+            ],
+            "additionalProperties": false
+          }
+        },
         "deleteBackward": {
           "type": "array",
           "items": {
@@ -507,6 +544,110 @@
     "textScale": {
       "description": "The panel text and icon scale as a multiplier: one of the five steps.\nAbsent means 1.0 (the current size). The value allowlist lives in\nSwift, like the upper bound of `shortcutMemoryLength`.",
       "type": "number"
+    },
+    "windowScope": {
+      "description": "Every application's windows, or only those of the application in\nfront when the panel opens. Absent means \"allApps\".",
+      "type": "string",
+      "enum": [
+        "allApps",
+        "frontApp"
+      ]
+    },
+    "grouping": {
+      "description": "One list, one group per Space with the shown Spaces first, or groups\nmade by assigning applications. Absent means \"none\".",
+      "type": "string",
+      "enum": [
+        "none",
+        "bySpace",
+        "manual"
+      ]
+    },
+    "otherSpacePlacement": {
+      "description": "Where the windows-on-other-spaces section goes when grouped. Absent means \"endOfList\".\nIgnored when grouping by Space, which puts those windows in their own Space's group.",
+      "type": "string",
+      "enum": [
+        "endOfList",
+        "withinGroup"
+      ]
+    },
+    "hiddenAppPlacement": {
+      "description": "Where the hidden-apps section goes when grouped. Absent means \"endOfList\".",
+      "type": "string",
+      "enum": [
+        "endOfList",
+        "withinGroup"
+      ]
+    },
+    "minimizedPlacement": {
+      "description": "Where the minimized section goes when grouped. Absent means \"endOfList\".",
+      "type": "string",
+      "enum": [
+        "endOfList",
+        "withinGroup"
+      ]
+    },
+    "fullscreenPlacement": {
+      "description": "Where the fullscreen section goes when grouped. Absent means \"endOfList\".",
+      "type": "string",
+      "enum": [
+        "endOfList",
+        "withinGroup"
+      ]
+    },
+    "windowlessAppPlacement": {
+      "description": "Where the apps-without-windows section goes when grouped. Absent means \"endOfList\".\nGrouping by Space always puts it after the last group, since those apps are on no Space.",
+      "type": "string",
+      "enum": [
+        "endOfList",
+        "withinGroup"
+      ]
+    },
+    "groupCount": {
+      "description": "How many manual groups there are, 1 to 9. Absent means 1.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9
+    },
+    "groupHeadingStyle": {
+      "description": "The group number, the name given to the group, or the names of the\napps in it. Absent means \"number\".",
+      "type": "string",
+      "enum": [
+        "number",
+        "name",
+        "appNames"
+      ]
+    },
+    "groupNames": {
+      "description": "The names given to manual groups, keyed \"1\" to \"9\". Names for groups\npast the count are kept. Absent means no names.",
+      "type": "object",
+      "patternProperties": {
+        "^[1-9]$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "groupAssignments": {
+      "description": "Applications assigned to manual groups. Entries that are invalid on\ntheir own, or name an application an earlier entry named, are ignored\none by one. Absent means every application joins the first group.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "bundleID": {
+            "type": "string"
+          },
+          "group": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9
+          }
+        },
+        "required": [
+          "bundleID",
+          "group"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false

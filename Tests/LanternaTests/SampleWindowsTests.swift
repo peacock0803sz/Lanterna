@@ -60,8 +60,8 @@ struct SampleWindowsTests {
   @Test
   func fixtureIDsSitInTheReservedRange() {
     let base = SampleWindows.fixtureWindowIDBase
-    #expect(windows.allSatisfy { $0.id.windowID >= base })
-    #expect(SampleWindows.make(count: 30).allSatisfy { $0.id.windowID >= base })
+    #expect(windows.allSatisfy { ($0.id.windowID ?? 0) >= base })
+    #expect(SampleWindows.make(count: 30).allSatisfy { ($0.id.windowID ?? 0) >= base })
   }
 
   @Test

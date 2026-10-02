@@ -133,6 +133,9 @@ func recordExternalActivation(
   guard tracker.shouldRecordExternal(for: processIdentifier) else {
     return
   }
+  // Before the window read: an application with no window is exactly the
+  // one whose read finds nothing, and its use still orders its row.
+  tracker.recordApplicationUse(processIdentifier)
   guard let windowID = reading.focusedWindowID(of: processIdentifier) else {
     return
   }
