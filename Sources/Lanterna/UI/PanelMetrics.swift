@@ -32,7 +32,8 @@ enum PanelMetrics {
     query: String = "",
     exclusions: [ExclusionRule] = [],
     fuzzy: Bool = false,
-    ordering: SearchOrdering = .mru
+    ordering: SearchOrdering = .mru,
+    grouping: GroupingPolicy = GroupingPolicy()
   ) -> Int {
     PanelLayout.make(
       rows: windows,
@@ -40,7 +41,8 @@ enum PanelMetrics {
       query: query,
       exclusions: exclusions,
       fuzzy: fuzzy,
-      ordering: ordering
+      ordering: ordering,
+      grouping: grouping
     ).drawnRowCount
   }
 

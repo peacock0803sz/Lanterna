@@ -67,6 +67,10 @@ final class PanelFilter {
   /// How the band names the key that switches the scope back.
   var scopeToggleKey: String?
 
+  /// How the rows are grouped. Read at launch from the config file and
+  /// whenever the settings change, like the modes.
+  var grouping = GroupingPolicy()
+
   /// Whether a query is narrowing the list right now.
   var isFiltering: Bool {
     !state.query.isEmpty
@@ -252,7 +256,8 @@ final class PanelFilter {
       fuzzy: searchSettings.fuzzyMatchEnabled,
       ordering: searchSettings.ordering,
       memory: rememberedID,
-      owner: scope.narrowedOwner
+      owner: scope.narrowedOwner,
+      grouping: grouping
     ).rows
   }
 

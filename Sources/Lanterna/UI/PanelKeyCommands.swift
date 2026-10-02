@@ -87,6 +87,12 @@ final class PanelKeyCommands {
     filter.scope.configured = scope
   }
 
+  /// Hands a changed grouping to the live filter, so the next list it
+  /// lays out groups the new way.
+  func updateGrouping(_ grouping: GroupingPolicy) {
+    filter.grouping = grouping
+  }
+
   /// Hands changed rules to the live filter, so a settings change
   /// reaches the rows without waiting for the next launch.
   func updateExclusions(_ rules: [ExclusionRule]) {

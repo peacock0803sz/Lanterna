@@ -57,7 +57,7 @@ struct PanelLayoutTests {
     let modes = DisplayModes(otherSpace: .show, hiddenApp: .hide, minimized: .hide, fullscreen: .show)
     let layout = PanelLayout.make(rows: rows, modes: modes, query: "notes")
     #expect(layout.rowIDs == [rows[4].id])
-    guard case .subgroupHeading(.minimized, nested: false) = layout.blocks.first else {
+    guard case .subgroupHeading(.minimized, group: nil) = layout.blocks.first else {
       Issue.record("expected the minimized heading first, got \(layout.blocks.map(\.key))")
       return
     }
@@ -127,7 +127,7 @@ struct PanelLayoutTests {
     #expect(!PanelLayout.make(rows: all, modes: modes, query: "").rowIDs.contains(music.id))
     let searched = PanelLayout.make(rows: all, modes: modes, query: "music")
     #expect(searched.rowIDs == [music.id])
-    guard case .subgroupHeading(.windowlessApp, nested: false) = searched.blocks.first else {
+    guard case .subgroupHeading(.windowlessApp, group: nil) = searched.blocks.first else {
       Issue.record("expected the windowless heading, got \(searched.blocks.map(\.key))")
       return
     }

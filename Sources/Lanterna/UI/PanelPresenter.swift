@@ -179,6 +179,11 @@ final class PanelPresenter {
     didSet { keyCommands.updateWindowScope(windowScope) }
   }
 
+  /// How the rows are grouped, handed to the key commands like the modes.
+  var grouping = GroupingPolicy() {
+    didSet { keyCommands.updateGrouping(grouping) }
+  }
+
   /// The resolved key bindings, handed to the key commands. A change
   /// lands on the live panel at once, like the exclusion rules.
   var keyBindings = KeyBindingTable.defaults {

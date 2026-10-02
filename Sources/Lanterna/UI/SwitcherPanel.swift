@@ -141,6 +141,10 @@ final class SwitcherPanel: NSPanel {
   /// Kept here so every swap of the list draws it and sizes for it.
   var scopeBand: ScopeBand?
 
+  /// How the rows are grouped. A change lands with the next swap of the
+  /// list, like the modes.
+  var grouping = GroupingPolicy()
+
   /// Whether the panel is currently on screen.
   var isPresented: Bool {
     isVisible

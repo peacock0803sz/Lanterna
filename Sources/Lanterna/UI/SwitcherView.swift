@@ -64,6 +64,9 @@ struct SwitcherView: View {
   /// and takes no height.
   var scopeBand: ScopeBand?
 
+  /// How the rows are grouped, read beside the modes.
+  var grouping = GroupingPolicy()
+
   var body: some View {
     // The query row stacks over the list while filtering is on, so the first
     // rows keep their order while the panel grows down from its top edge.
@@ -105,8 +108,10 @@ struct SwitcherView: View {
           }
           ForEach(layout.blocks, id: \.key) { block in
             switch block {
-            case .subgroupHeading(let subgroup, let nested):
-              subgroupHeading(subgroup, nested: nested)
+            case .groupHeading(let heading, let order):
+              groupHeading(heading, isFirst: order == firstGroupOrder)
+            case .subgroupHeading(let subgroup, let group):
+              subgroupHeading(subgroup, nested: group != nil)
             case .row(let window, let isInSubgroup):
               row(window, isInSubgroup: isInSubgroup)
             }
@@ -196,8 +201,19 @@ struct SwitcherView: View {
       query: query,
       exclusions: exclusionRules,
       fuzzy: fuzzyMatchEnabled,
-      ordering: .mru
+      ordering: .mru,
+      grouping: grouping
     )
+  }
+
+  /// The group drawn first, which draws no rule above its heading.
+  private var firstGroupOrder: Int? {
+    for block in layout.blocks {
+      if case .groupHeading(_, let order) = block {
+        return order
+      }
+    }
+    return nil
   }
 
   /// The one line drawn in place of rows when nothing is left to show:
@@ -215,6 +231,42 @@ struct SwitcherView: View {
 
   private static func wording(count: Int) -> String {
     count == 1 ? "1 window" : "\(count) windows"
+  }
+
+  /// The heading over one group: its number when it has one, its title,
+  /// and what tells it apart, at one row's height with a rule above every
+  /// group but the first.
+  private func groupHeading(_ heading: PanelLayout.GroupHeading, isFirst: Bool) -> some View {
+    HStack(spacing: 8) {
+      if let number = heading.number {
+        Text("\(number)")
+          .font(.system(size: scaled(10), weight: .medium, design: .monospaced))
+          .foregroundStyle(.secondary)
+          .frame(width: scaled(18), height: scaled(18))
+          .background(RoundedRectangle(cornerRadius: 5).fill(.quaternary))
+      }
+      Text(heading.title)
+        .font(.system(size: scaled(12), weight: .semibold))
+        .foregroundStyle(.primary)
+        .lineLimit(1)
+        .truncationMode(.tail)
+      if let detail = heading.detail {
+        Text(detail)
+          .font(.system(size: scaled(11)))
+          .foregroundStyle(.tertiary)
+          .lineLimit(1)
+      }
+      Spacer(minLength: 0)
+    }
+    .frame(height: PanelMetrics.rowHeight(for: textScale))
+    .overlay(alignment: .top) {
+      if !isFirst {
+        Divider()
+      }
+    }
+    .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
+    .listRowSeparator(.hidden)
+    .listRowBackground(Color.clear)
   }
 
   /// The band saying the list holds one application's rows, and which key

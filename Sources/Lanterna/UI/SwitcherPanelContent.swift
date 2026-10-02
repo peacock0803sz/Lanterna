@@ -26,7 +26,8 @@ extension SwitcherPanel {
       exclusionRules: exclusionRules,
       fuzzyMatchEnabled: searchSettings.fuzzyMatchEnabled,
       textScale: appearanceScale,
-      scopeBand: scopeBand
+      scopeBand: scopeBand,
+      grouping: grouping
     )
   }
 
@@ -45,7 +46,8 @@ extension SwitcherPanel {
         modes: displayModes,
         query: view.query,
         exclusions: exclusionRules,
-        fuzzy: searchSettings.fuzzyMatchEnabled
+        fuzzy: searchSettings.fuzzyMatchEnabled,
+        grouping: grouping
       ),
       query: view.query,
       filterActive: view.filterActive,
@@ -92,7 +94,8 @@ extension SwitcherPanel {
         modes: displayModes,
         query: query,
         exclusions: exclusionRules,
-        fuzzy: searchSettings.fuzzyMatchEnabled
+        fuzzy: searchSettings.fuzzyMatchEnabled,
+        grouping: grouping
       ),
       query: query,
       filterActive: filterActive,
@@ -136,7 +139,8 @@ extension SwitcherPanel {
         modes: displayModes,
         query: query,
         exclusions: exclusionRules,
-        fuzzy: searchSettings.fuzzyMatchEnabled
+        fuzzy: searchSettings.fuzzyMatchEnabled,
+        grouping: grouping
       ),
       query: query,
       filterActive: filterActive,
