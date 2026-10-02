@@ -102,8 +102,9 @@ struct WindowEnumerator {
   // MARK: Private
 
   /// What the worker side of a pass hands back: one read per application,
-  /// in input order, and the windows found to be on another Space or only
-  /// on fullscreen Spaces.
+  /// in input order, and the whole Space reading — which windows are on
+  /// another Space or only on fullscreen Spaces, the Spaces each window
+  /// is on, and the displays' layout.
   private struct Gathered: Sendable {
     let results: [Result<ApplicationRead, ReadFailure>]
     let spaces: SpaceReading

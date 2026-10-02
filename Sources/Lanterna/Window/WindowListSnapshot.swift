@@ -59,7 +59,7 @@ struct WindowListSnapshot {
   /// than this: a snapshot that predates a use could not have observed it.
   let gatheredAt: ContinuousClock.Instant
   /// Whether the pass found no Space any display is showing, so grouping
-  /// by Space drew one list. Said on the summary line.
+  /// by Space would have nothing to go on. Said on the summary line.
   let spacesUnread: Bool
 
   // When this pass finished assembling. The sweep spares records newer

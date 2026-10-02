@@ -3,19 +3,22 @@ import Darwin
 
 // MARK: - MRUKey
 
-/// Remembers the order windows were used in, so the panel can draw the most
+/// Remembers the order rows were used in, so the panel can draw the most
 /// recently used first.
 ///
 /// The only state this feature adds, and it never leaves the process: no
 /// persistence, no settings, nothing crossing a launch. What moves the order
-/// forward is exactly two things — a commit naming a row, and an activation
-/// from outside the panel — and both arrive through `record(_:ownerProcessIdentifier:origin:)`,
-/// which is the one entry the tests inject through.
+/// forward is a commit naming a row, window or application, and an
+/// activation from outside the panel. A use of a row arrives through
+/// `record(_:ownerProcessIdentifier:origin:)`; an outside activation also
+/// arrives through `recordApplicationUse(_:)`, which orders the row of an
+/// application with no window even when no window of it can be read.
 ///
-/// Identity is the window id together with its owner, because the id alone
-/// does not survive reuse: a window id handed out again under another process
-/// must not merge with the dead record. The window-server id stays the word
-/// the diagnostics line prints; the pair is only ever the dictionary key.
+/// Identity is the row's identifier together with its owner, because the
+/// identifier alone does not survive reuse: a window id handed out again
+/// under another process must not merge with the dead record. The
+/// identifier's `logWord` is what the diagnostics line prints; the pair is
+/// only ever the dictionary key.
 struct MRUKey: Hashable, Sendable {
   let id: WindowItem.Identifier
   let ownerProcessIdentifier: pid_t
@@ -23,7 +26,7 @@ struct MRUKey: Hashable, Sendable {
 
 // MARK: - MRUTracker
 
-/// The one remembered use of one window.
+/// The remembered uses of rows, one per window or windowless application.
 ///
 /// A sequence number and not a clock: only older-versus-newer is ever asked,
 /// and a counter needs no clock to inject and no same-instant tie to break.
@@ -40,7 +43,8 @@ final class MRUTracker {
 
   // MARK: Internal
 
-  /// One remembered use, in a shape the tests can hold.
+  /// The one remembered use of one row, a window or an application with
+  /// no window, in a shape the tests can hold.
   struct UsageRecord: Equatable, Sendable {
     let id: WindowItem.Identifier
     let ownerProcessIdentifier: pid_t
@@ -225,7 +229,8 @@ final class MRUTracker {
   /// When each application was last brought forward, numbered from the
   /// same counter as the records so the two compare. Read only for rows
   /// standing for an application with no window, and kept apart from the
-  /// records so the show line's source still speaks of windows alone.
+  /// records so an outside activation of an application with no readable
+  /// window never becomes a record of its own.
   private var applicationSequences = [pid_t: UInt64]()
   private var nextSequence: UInt64 = 0
   /// What the last swept appearance knew. A record newer than this
