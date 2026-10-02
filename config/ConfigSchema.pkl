@@ -144,6 +144,7 @@ open class KeyBindings {
   previous: Listing<KeyBinding>? = null
   commit: Listing<KeyBinding>? = null
   cancel: Listing<KeyBinding>? = null
+  toggleScope: Listing<KeyBinding>? = null
   deleteBackward: Listing<KeyBinding>? = null
   clearQuery: Listing<KeyBinding>? = null
   closeWindow: Listing<KeyBinding>? = null

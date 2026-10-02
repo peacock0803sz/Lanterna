@@ -60,6 +60,10 @@ struct SwitcherView: View {
   /// The text and icon scale step, handed down from the panel.
   var textScale = TextScaleLevel.standard
 
+  /// The band over a list narrowed to one application. Nil draws nothing
+  /// and takes no height.
+  var scopeBand: ScopeBand?
+
   var body: some View {
     // The query row stacks over the list while filtering is on, so the first
     // rows keep their order while the panel grows down from its top edge.
@@ -90,6 +94,9 @@ struct SwitcherView: View {
         .padding(.bottom, 10)
         Divider()
           .padding(.horizontal, 12)
+      }
+      if let scopeBand {
+        scopeBandRow(scopeBand)
       }
       ScrollViewReader { proxy in
         List {
@@ -192,6 +199,32 @@ struct SwitcherView: View {
 
   private static func wording(count: Int) -> String {
     count == 1 ? "1 window" : "\(count) windows"
+  }
+
+  /// The band saying the list holds one application's rows, and which key
+  /// brings every application back.
+  private func scopeBandRow(_ band: ScopeBand) -> some View {
+    VStack(spacing: 0) {
+      HStack(spacing: 8) {
+        Label("\(band.appName) only", systemImage: "macwindow")
+          .font(.system(size: scaled(12), weight: .medium))
+          .foregroundStyle(.secondary)
+          .padding(.horizontal, 8)
+          .padding(.vertical, 3)
+          .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary))
+        Spacer(minLength: 0)
+        if let key = band.toggleKey {
+          Text("\(key)  All apps")
+            .font(.system(size: scaled(11), design: .monospaced))
+            .foregroundStyle(.tertiary)
+        }
+      }
+      .padding(.horizontal, 12)
+      .frame(maxHeight: .infinity)
+      Divider()
+        .padding(.horizontal, 12)
+    }
+    .frame(height: PanelMetrics.scopeBandHeight(for: textScale))
   }
 
   /// The heading over one subgroup: one row's height and no more.

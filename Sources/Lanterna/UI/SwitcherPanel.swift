@@ -137,6 +137,10 @@ final class SwitcherPanel: NSPanel {
   /// when showing was capped to stay within the height limit.
   var noticeGrowth: CGFloat = 0
 
+  /// The band over a list narrowed to one application, if one shows.
+  /// Kept here so every swap of the list draws it and sizes for it.
+  var scopeBand: ScopeBand?
+
   /// Whether the panel is currently on screen.
   var isPresented: Bool {
     isVisible

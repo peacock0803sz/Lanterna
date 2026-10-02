@@ -67,6 +67,9 @@ final class FakeSurface: SwitcherSurface {
   /// the panel has to be held to.
   var takeKeysSucceeds = true
 
+  /// Every band asked for, in order; nil asked for no band.
+  private(set) var scopeBands = [ScopeBand?]()
+
   /// Run inside `dismiss()`, before it returns.
   ///
   /// Lets a test make the panel's disappearance cost something it can see.
@@ -94,6 +97,12 @@ final class FakeSurface: SwitcherSurface {
   func showSelection(_ id: WindowItem.Identifier?) {
     shownSelections.append(id)
     calls.append(.showSelection(id))
+  }
+
+  /// Kept out of `calls`: every appearance asks for the band, and the
+  /// orderings the call log pins down are about the list and the keys.
+  func showScope(_ band: ScopeBand?) {
+    scopeBands.append(band)
   }
 
   func updateList(

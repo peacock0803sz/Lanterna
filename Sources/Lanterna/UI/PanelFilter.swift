@@ -1,3 +1,4 @@
+import Darwin
 import Logging
 
 // MARK: - ChoiceAnchor
@@ -59,9 +60,25 @@ final class PanelFilter {
   /// rows and these decide which leave before anything else sees them.
   var exclusionRules = [ExclusionRule]()
 
+  /// Which applications' rows this appearance lists, and whose they are
+  /// when narrowed. The configured scope is set from the settings.
+  var scope = ScopeState()
+
+  /// How the band names the key that switches the scope back.
+  var scopeToggleKey: String?
+
   /// Whether a query is narrowing the list right now.
   var isFiltering: Bool {
     !state.query.isEmpty
+  }
+
+  /// The band over a list narrowed to one application, or nil while every
+  /// application is listed. Named after a row of that application when
+  /// one is listed, and plainly otherwise.
+  var scopeBand: ScopeBand? {
+    guard let owner = scope.narrowedOwner else { return nil }
+    let name = fullWindows.first { $0.ownerProcessIdentifier == owner }?.appName
+    return ScopeBand(appName: name ?? "Active app", toggleKey: scopeToggleKey)
   }
 
   /// The rows on screen: the whole list narrowed by the query and the
@@ -76,9 +93,10 @@ final class PanelFilter {
   /// Filtering answers keystrokes only when the appearance asked for it.
   /// Draws nothing: the caller opens the choice and the panel on
   /// `shownWindows`, so the modes narrow the list before either sees it.
-  func begin(fullWindows: [WindowItem], filtering: Bool = false) {
+  func begin(fullWindows: [WindowItem], filtering: Bool = false, activeApplication: pid_t? = nil) {
     self.fullWindows = fullWindows
     state = FilterState()
+    scope.begin(target: activeApplication)
     let shown = shownWindows
     state.previousMatchedIDs = Set(shown.map(\.id))
     lastSummary = FilterLogSummary(query: "", matchedCount: shown.count, totalCount: fullWindows.count)
@@ -152,6 +170,18 @@ final class PanelFilter {
     lastSummary
   }
 
+  /// Switches this appearance between every application's rows and the
+  /// active application's alone, keeping the query. The choice stays on
+  /// its row when the row is still listed, and goes to the first row
+  /// otherwise, the way narrowing moves it.
+  func toggleScope() {
+    scope.toggle()
+    surface.showScope(scopeBand)
+    apply()
+    let word = scope.current.rawValue
+    writeLine(LogLine(.info, .panel, "scope \(word)", context: ["scope": .string(word)]))
+  }
+
   /// Narrows one keystroke further. Answers nothing while inactive.
   func append(_ text: String) {
     guard isActive else { return }
@@ -220,7 +250,8 @@ final class PanelFilter {
       exclusions: exclusionRules,
       fuzzy: searchSettings.fuzzyMatchEnabled,
       ordering: searchSettings.ordering,
-      memory: rememberedID
+      memory: rememberedID,
+      owner: scope.narrowedOwner
     ).rows
   }
 

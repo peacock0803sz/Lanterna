@@ -64,10 +64,12 @@ struct PanelLayout {
 
   /// The list for these rows under this query.
   ///
-  /// Exclusions run first, then matching, then the display modes place
-  /// each row, then each section is ranked on its own. The remembered row
-  /// moves to the front of whichever section it landed in, so parking and
-  /// hiding stand for it as for any other row.
+  /// The scope keeps one owner's rows when one is named and exclusions
+  /// drop theirs, both before matching, so a row either one leaves out
+  /// never comes back through a query. Then the display modes place each row,
+  /// then each section is ranked on its own. The remembered row moves to
+  /// the front of whichever section it landed in, so parking and hiding
+  /// stand for it as for any other row.
   static func make(
     rows: [WindowItem],
     modes: DisplayModes,
@@ -75,10 +77,12 @@ struct PanelLayout {
     exclusions: [ExclusionRule] = [],
     fuzzy: Bool = false,
     ordering: SearchOrdering = .mru,
-    memory: WindowItem.Identifier? = nil
+    memory: WindowItem.Identifier? = nil,
+    owner: pid_t? = nil
   ) -> PanelLayout {
+    let scoped = owner.map { owner in rows.filter { $0.ownerProcessIdentifier == owner } } ?? rows
     var (ordinary, subgroups) = DisplayModes.sections(
-      of: rows,
+      of: scoped,
       modes: modes,
       query: query,
       exclusions: exclusions,

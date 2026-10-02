@@ -75,6 +75,15 @@ struct KeyBindingTableTests {
     #expect(table[.cancel].count == 2)
     #expect(table[.show] == [key(kVK_Tab, .command)])
     #expect(table[.closeWindow] == [key(kVK_ANSI_W, .command)])
+    #expect(table[.toggleScope] == [key(kVK_ANSI_Slash, .command)])
+  }
+
+  /// The scope key is held to a modifier, the way the window operations
+  /// are: a bare key there would never reach the query.
+  @Test
+  func theScopeKeyNeedsAModifier() {
+    #expect(KeyBindingAction.toggleScope.mode == .guarded)
+    #expect(KeyBindingTable.defaults[.toggleScope].first?.displayName == "Cmd+/")
   }
 
   @Test

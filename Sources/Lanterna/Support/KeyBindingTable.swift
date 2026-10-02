@@ -29,6 +29,7 @@ enum KeyBindingAction: String, CaseIterable, Equatable, Sendable {
   case previous
   case commit
   case cancel
+  case toggleScope
   case deleteBackward
   case clearQuery
   case closeWindow
@@ -47,7 +48,8 @@ enum KeyBindingAction: String, CaseIterable, Equatable, Sendable {
     case .closeWindow,
          .quitApplication,
          .hideApplication,
-         .minimizeWindow:
+         .minimizeWindow,
+         .toggleScope:
       .guarded
     default:
       .bare
@@ -322,6 +324,9 @@ struct KeyBindingTable: Equatable, Sendable {
         ResolvedKey(keyCode: UInt16(kVK_Escape), modifiers: []),
         ResolvedKey(keyCode: UInt16(kVK_ANSI_Period), modifiers: .command),
       ],
+      // A symbol and not a letter: letters typed with Command still held
+      // from the switcher go to the query.
+      .toggleScope: [ResolvedKey(keyCode: UInt16(kVK_ANSI_Slash), modifiers: .command)],
       .deleteBackward: [ResolvedKey(keyCode: UInt16(kVK_Delete), modifiers: [])],
       .clearQuery: [ResolvedKey(keyCode: UInt16(kVK_Escape), modifiers: [])],
       .closeWindow: [ResolvedKey(keyCode: UInt16(kVK_ANSI_W), modifiers: .command)],

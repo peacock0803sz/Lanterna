@@ -25,8 +25,38 @@ extension SwitcherPanel {
       modes: displayModes,
       exclusionRules: exclusionRules,
       fuzzyMatchEnabled: searchSettings.fuzzyMatchEnabled,
-      textScale: appearanceScale
+      textScale: appearanceScale,
+      scopeBand: scopeBand
     )
+  }
+
+  /// Shows the band over a list narrowed to one application, or takes it
+  /// down, resizing to the list with the top edge staying where it was.
+  /// Asked before an appearance goes up too, so the first frame is sized
+  /// for the band.
+  func showScope(_ band: ScopeBand?) {
+    guard band != scopeBand else { return }
+    scopeBand = band
+    hostingView.rootView.scopeBand = band
+    let view = hostingView.rootView
+    let size = PanelMetrics.panelSize(
+      rowCount: PanelMetrics.drawnRowCount(
+        view.windows,
+        modes: displayModes,
+        query: view.query,
+        exclusions: exclusionRules,
+        fuzzy: searchSettings.fuzzyMatchEnabled
+      ),
+      query: view.query,
+      filterActive: view.filterActive,
+      notice: notice != nil,
+      scopeBand: band != nil,
+      for: appearanceScale
+    )
+    var frame = frame
+    frame.origin.y -= size.height - frame.height
+    frame.size.height = size.height
+    setFrame(frame, display: true)
   }
 
   /// Replaces the list and resizes to it, leaving the panel where it was:
@@ -67,6 +97,7 @@ extension SwitcherPanel {
       query: query,
       filterActive: filterActive,
       notice: false,
+      scopeBand: scopeBand != nil,
       for: appearanceScale
     )
     setContentSize(NSSize(width: size.width, height: size.height))
@@ -110,6 +141,7 @@ extension SwitcherPanel {
       query: query,
       filterActive: filterActive,
       notice: false,
+      scopeBand: scopeBand != nil,
       for: appearanceScale
     )
     var frame = frame

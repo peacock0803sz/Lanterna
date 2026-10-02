@@ -86,6 +86,26 @@ struct PanelLayoutTests {
     #expect(parked.rowIDs.first != rows[4].id)
   }
 
+  /// Naming an owner keeps that owner's rows alone, before matching: a
+  /// query never brings another owner's row back.
+  @Test
+  func anOwnerKeepsOnlyItsRows() {
+    let other = WindowItem(
+      id: WindowItem.Identifier(windowID: 9),
+      ownerProcessIdentifier: 3,
+      appName: "Front",
+      bundleIdentifier: nil,
+      windowTitle: "Front page",
+      kind: .standard,
+      isMinimized: false,
+      icon: NSImage(size: NSSize(width: 1, height: 1))
+    )
+    let layout = PanelLayout.make(rows: rows + [other], modes: .defaults, query: "front", owner: 3)
+    #expect(layout.rowIDs == [other.id])
+    let none = PanelLayout.make(rows: rows, modes: .defaults, query: "", owner: 3)
+    #expect(none.rows.isEmpty)
+  }
+
   /// Window rows are counted and headings are not.
   @Test
   func theWindowCountLeavesHeadingsOut() {

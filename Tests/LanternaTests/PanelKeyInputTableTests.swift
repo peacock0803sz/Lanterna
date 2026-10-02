@@ -103,6 +103,28 @@ struct PanelKeyInputTableTests {
     #expect(PanelKeyInput.action(for: tablePress(kVK_Tab), table: table) == .selectNext)
   }
 
+  /// Command held from the switcher keeps typing letters, and the scope
+  /// key, a symbol, still switches the scope.
+  @Test
+  func theDefaultScopeKeyLeavesLettersToTheQuery() {
+    let table = KeyBindingTable.defaults
+    #expect(
+      PanelKeyInput.action(for: tablePress(kVK_ANSI_Slash, .command, characters: "/"), table: table)
+        == .toggleScope
+    )
+    #expect(
+      PanelKeyInput.action(for: tablePress(kVK_ANSI_A, .command, characters: "a"), table: table)
+        == .filterText("a")
+    )
+  }
+
+  /// A held key switches the scope once, not back and forth.
+  @Test
+  func theScopeKeyDoesNotRepeat() {
+    let press = tablePress(kVK_ANSI_Slash, .command, repeating: true, characters: "/")
+    #expect(PanelKeyInput.action(for: press, table: KeyBindingTable.defaults) == .absorb)
+  }
+
   @Test
   func customCommitDoesNotRepeat() {
     let table = tableWith(.commit, resolved(96))
