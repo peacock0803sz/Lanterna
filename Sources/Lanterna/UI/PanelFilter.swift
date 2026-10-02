@@ -208,48 +208,20 @@ final class PanelFilter {
     return shortcutMemory.lookup(query: state.query)
   }
 
-  /// Moves the remembered row to the front of its own section, leaving
-  /// every other row where the ranking put it. Parking and hiding stand:
-  /// a remembered row never leaves its section for another one.
-  private func memoryFirstInSections(
-    ordinary: [WindowItem],
-    subgroups: [(DisplaySubgroup, [WindowItem])],
-    remembered: WindowItem.Identifier
-  ) -> [WindowItem] {
-    var ordinary = ordinary
-    var subgroups = subgroups
-    if let index = ordinary.firstIndex(where: { $0.id == remembered }) {
-      let row = ordinary.remove(at: index)
-      ordinary.insert(row, at: 0)
-      return ordinary + subgroups.flatMap(\.1)
-    }
-    for section in subgroups.indices {
-      if let index = subgroups[section].1.firstIndex(where: { $0.id == remembered }) {
-        let row = subgroups[section].1.remove(at: index)
-        subgroups[section].1.insert(row, at: 0)
-        break
-      }
-    }
-    return ordinary + subgroups.flatMap(\.1)
-  }
-
-  /// modes keep a row out and place it the same way whether the panel
-  /// opened, a keystroke arrived, or a list was swapped in. Sections are
-  /// split first and the remembered row moves within its own section, so
-  /// the choice and the drawing read one order in both orderings.
+  /// The rows one list shows, in drawing order. Read through the layout,
+  /// so the modes keep a row out and place it the same way whether the
+  /// panel opened, a keystroke arrived, or a list was swapped in, and the
+  /// choice and the drawing read one order in both orderings.
   private func shown(in windows: [WindowItem]) -> [WindowItem] {
-    let (ordinary, subgroups) = DisplayModes.sections(
-      of: windows,
+    PanelLayout.make(
+      rows: windows,
       modes: displayModes,
       query: state.query,
       exclusions: exclusionRules,
       fuzzy: searchSettings.fuzzyMatchEnabled,
-      ordering: searchSettings.ordering
-    )
-    guard let remembered = rememberedID else {
-      return ordinary + subgroups.flatMap(\.1)
-    }
-    return memoryFirstInSections(ordinary: ordinary, subgroups: subgroups, remembered: remembered)
+      ordering: searchSettings.ordering,
+      memory: rememberedID
+    ).rows
   }
 
   /// Narrows the rows, puts the remembered row first in its section,

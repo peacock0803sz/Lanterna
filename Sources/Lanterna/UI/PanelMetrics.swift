@@ -31,16 +31,14 @@ enum PanelMetrics {
     fuzzy: Bool = false,
     ordering: SearchOrdering = .mru
   ) -> Int {
-    let (ordinary, subgroups) = DisplayModes.sections(
-      of: windows,
+    PanelLayout.make(
+      rows: windows,
       modes: modes,
       query: query,
       exclusions: exclusions,
       fuzzy: fuzzy,
       ordering: ordering
-    )
-    let subgroupRows = subgroups.reduce(0) { $0 + $1.1.count }
-    return ordinary.count + subgroupRows + subgroups.count
+    ).drawnRowCount
   }
 
   /// Height for a given number of rows. The panel grows with its content until

@@ -93,26 +93,12 @@ struct SwitcherView: View {
       }
       ScrollViewReader { proxy in
         List {
-          ForEach(ordinaryRows) { window in
-            row(window)
-          }
-          if !subgroupRows.isEmpty {
-            ForEach(subgroupRows, id: \.0) { subgroup, rows in
-              Text(heading(for: subgroup).uppercased())
-                .font(.system(size: scaled(11), weight: .semibold))
-                .tracking(0.3)
-                .foregroundStyle(.tertiary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: PanelMetrics.rowHeight(for: textScale))
-                // A List row adds its vertical insets to the frame, so any
-                // here would draw the heading taller than the one row the
-                // panel height counts for it.
-                .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-              ForEach(rows) { window in
-                row(window, isInSubgroup: true)
-              }
+          ForEach(layout.blocks, id: \.key) { block in
+            switch block {
+            case .subgroupHeading(let subgroup, let nested):
+              subgroupHeading(subgroup, nested: nested)
+            case .row(let window, let isInSubgroup):
+              row(window, isInSubgroup: isInSubgroup)
             }
           }
         }
@@ -172,41 +158,56 @@ struct SwitcherView: View {
     subgroups: [(DisplaySubgroup, [WindowItem])]
   ) -> String {
     let count = ordinary.count + subgroups.reduce(0) { $0 + $1.1.count }
-    return count == 1 ? "1 window" : "\(count) windows"
+    return wording(count: count)
+  }
+
+  /// The query row count wording for one layout: its window rows, and not
+  /// its headings.
+  static func countWording(_ layout: PanelLayout) -> String {
+    wording(count: layout.windowCount)
   }
 
   // MARK: Private
 
   /// The query row count wording for the rows on screen.
   private var countWording: String {
-    Self.countWording(ordinary: ordinaryRows, subgroups: subgroupRows)
+    Self.countWording(layout)
   }
 
-  /// The ordinary rows, drawing first and in the order they arrived.
-  private var ordinaryRows: [WindowItem] {
-    sections.ordinary
-  }
-
-  /// The non-empty subgroups below the ordinary rows, in drawing order.
-  private var subgroupRows: [(DisplaySubgroup, [WindowItem])] {
-    sections.subgroups
-  }
-
-  /// The list split for drawing. The rows arrive in the order the filter
-  /// hands the choice (`DisplayModes.displayOrdered`), and splitting keeps
-  /// each row's place within its section, so the rows draw in the order
-  /// the arrows step through them. Never re-ranks here: the rows arrive
-  /// pre-ordered from the filter, and ranking twice would drop the
-  /// remembered row from its section front.
-  private var sections: (ordinary: [WindowItem], subgroups: [(DisplaySubgroup, [WindowItem])]) {
-    DisplayModes.sections(
-      of: windows,
+  /// The list as it draws. The rows arrive in the order the filter hands
+  /// the choice, and laying them out keeps each row's place within its
+  /// section, so the rows draw in the order the arrows step through them.
+  /// Never re-ranks here: the rows arrive pre-ordered from the filter, and
+  /// ranking twice would drop the remembered row from its section front.
+  private var layout: PanelLayout {
+    PanelLayout.make(
+      rows: windows,
       modes: modes,
       query: query,
       exclusions: exclusionRules,
       fuzzy: fuzzyMatchEnabled,
       ordering: .mru
     )
+  }
+
+  private static func wording(count: Int) -> String {
+    count == 1 ? "1 window" : "\(count) windows"
+  }
+
+  /// The heading over one subgroup: one row's height and no more.
+  private func subgroupHeading(_ subgroup: DisplaySubgroup, nested: Bool) -> some View {
+    Text(heading(for: subgroup).uppercased())
+      .font(.system(size: scaled(11), weight: .semibold))
+      .tracking(0.3)
+      .foregroundStyle(.tertiary)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .frame(height: PanelMetrics.rowHeight(for: textScale))
+      // A List row adds its vertical insets to the frame, so any here
+      // would draw the heading taller than the one row the panel height
+      // counts for it.
+      .listRowInsets(EdgeInsets(top: 0, leading: nested ? 40 : 12, bottom: 0, trailing: 12))
+      .listRowSeparator(.hidden)
+      .listRowBackground(Color.clear)
   }
 
   /// One scaled point size: the base size times the step, in whole points.
