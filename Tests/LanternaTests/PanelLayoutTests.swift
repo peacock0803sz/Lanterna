@@ -106,6 +106,40 @@ struct PanelLayoutTests {
     #expect(none.rows.isEmpty)
   }
 
+  /// An application with no window stays out by default, comes back
+  /// under its heading for a query naming it, mixes in when shown, and
+  /// parks last when separated. Being hidden does not move it.
+  @Test
+  func anApplicationRowFollowsItsOwnMode() {
+    let music = WindowItem(
+      id: .application(7),
+      ownerProcessIdentifier: 7,
+      appName: "Music",
+      bundleIdentifier: nil,
+      windowTitle: "",
+      kind: .standard,
+      isMinimized: false,
+      isHidden: true,
+      icon: NSImage(size: NSSize(width: 1, height: 1))
+    )
+    let all = rows + [music]
+    var modes = DisplayModes.defaults
+    #expect(!PanelLayout.make(rows: all, modes: modes, query: "").rowIDs.contains(music.id))
+    let searched = PanelLayout.make(rows: all, modes: modes, query: "music")
+    #expect(searched.rowIDs == [music.id])
+    guard case .subgroupHeading(.windowlessApp, nested: false) = searched.blocks.first else {
+      Issue.record("expected the windowless heading, got \(searched.blocks.map(\.key))")
+      return
+    }
+    modes.windowlessApp = .show
+    let shown = PanelLayout.make(rows: all, modes: modes, query: "")
+    let ordinary = DisplayModes.sections(of: all, modes: modes, query: "").ordinary
+    #expect(ordinary.contains { $0.id == music.id })
+    #expect(shown.windowCount == shown.rows.count - 1)
+    modes.windowlessApp = .separateAtBottom
+    #expect(PanelLayout.make(rows: all, modes: modes, query: "").rowIDs.last == music.id)
+  }
+
   /// Window rows are counted and headings are not.
   @Test
   func theWindowCountLeavesHeadingsOut() {

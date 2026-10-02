@@ -275,6 +275,8 @@ struct SwitcherView: View {
       "Minimized"
     case .fullscreen:
       "Fullscreen"
+    case .windowlessApp:
+      "Apps Without Windows"
     }
   }
 

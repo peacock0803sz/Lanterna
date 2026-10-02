@@ -47,14 +47,24 @@ struct WindowRow: View {
         .resizable()
         .frame(width: scaled(22), height: scaled(22))
 
-      highlighted(
-        window.displayTitle,
-        normal: AnyShapeStyle(.primary),
-        selected: AnyShapeStyle(.white)
-      )
-      .font(.system(size: scaled(14)))
-      .lineLimit(1)
-      .truncationMode(.tail)
+      if window.isWindowless {
+        // Matching reads the name column for this row, so the title
+        // column only says there is no window to name.
+        Text("No open windows")
+          .font(.system(size: scaled(14)))
+          .italic()
+          .foregroundStyle(isSelected ? AnyShapeStyle(.white.opacity(0.85)) : AnyShapeStyle(.tertiary))
+          .lineLimit(1)
+      } else {
+        highlighted(
+          window.displayTitle,
+          normal: AnyShapeStyle(.primary),
+          selected: AnyShapeStyle(.white)
+        )
+        .font(.system(size: scaled(14)))
+        .lineLimit(1)
+        .truncationMode(.tail)
+      }
 
       Spacer(minLength: 0)
     }

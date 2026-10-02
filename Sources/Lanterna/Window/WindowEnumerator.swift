@@ -178,6 +178,7 @@ struct WindowEnumerator {
     startedAt: ContinuousClock.Instant
   ) -> WindowListSnapshot {
     var items = [WindowItem]()
+    var windowless = [WindowItem]()
     var skipped = [WindowListSnapshot.SkippedApplication]()
     var droppedWithoutID = 0
     for (application, result) in zip(ordered, gathered.results) {
@@ -193,6 +194,13 @@ struct WindowEnumerator {
 
       case .success(let read):
         droppedWithoutID += read.droppedWithoutID
+        // Read and found empty, which is not the same as unread: only an
+        // answer of no windows at all makes the application a row. A
+        // window dropped for want of an id is still a window.
+        if read.records.isEmpty, read.droppedWithoutID == 0 {
+          windowless.append(row(standingFor: application))
+          continue
+        }
         items.append(
           contentsOf: read.records
             .sorted { $0.windowID < $1.windowID }
@@ -208,13 +216,32 @@ struct WindowEnumerator {
       }
     }
 
+    // After every window, by name: recency moves the ones it knows, and
+    // the rest stay last in an order a reader can predict.
+    windowless.sort { $0.appName.localizedStandardCompare($1.appName) == .orderedAscending }
     return WindowListSnapshot(
-      items: items,
+      items: items + windowless,
       applicationCount: ordered.count,
       gatheringDuration: ContinuousClock.now - startedAt,
       skipped: skipped,
       droppedWithoutID: droppedWithoutID,
       gatheredAt: startedAt
+    )
+  }
+
+  /// The row for an application with no window: its name and icon, and
+  /// no title.
+  private func row(standingFor application: RunningApplicationInfo) -> WindowItem {
+    WindowItem(
+      id: .application(application.processIdentifier),
+      ownerProcessIdentifier: application.processIdentifier,
+      appName: application.name,
+      bundleIdentifier: application.bundleIdentifier,
+      windowTitle: "",
+      kind: .standard,
+      isMinimized: false,
+      isHidden: application.isHidden,
+      icon: application.icon
     )
   }
 
