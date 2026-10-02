@@ -60,6 +60,42 @@ struct GroupingConfigTests {
     #expect(text.contains("\"windowlessAppMode\": \"hide\""))
   }
 
+  /// Grouping and the placements read when present, stay out of the file
+  /// at their defaults, and anything outside their words invalidates it.
+  @Test
+  func groupingAndPlacementsRoundTrip() throws {
+    let absent = try #require(decode("{\"version\": 1}").successValue)
+    #expect(SettingsValues.effective(from: absent.config).grouping == GroupingPolicy())
+    let text = "{\"version\": 1, \"grouping\": \"bySpace\", \"minimizedPlacement\": \"withinGroup\", "
+      + "\"windowlessAppPlacement\": \"endOfList\"}"
+    let present = try #require(decode(text).successValue)
+    let grouping = SettingsValues.effective(from: present.config).grouping
+    #expect(grouping.mode == .bySpace)
+    #expect(grouping.placement(of: .minimized) == .withinGroup)
+    #expect(grouping.placement(of: .hiddenApp) == .endOfList)
+    var values = SettingsValues.defaults
+    let unchanged = values.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(unchanged.grouping == nil)
+    #expect(unchanged.subgroupPlacements.isEmpty)
+    values.grouping = grouping
+    let saved = values.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    let written = try #require(String(bytes: AppConfiguration.encode(saved), encoding: .utf8))
+    #expect(written.contains("\"grouping\": \"bySpace\""))
+    #expect(written.contains("\"minimizedPlacement\": \"withinGroup\""))
+    #expect(!written.contains("windowlessAppPlacement"))
+    #expect(AppConfiguration.decode(AppConfiguration.encode(saved)).successValue?.config == saved)
+  }
+
+  @Test(arguments: [
+    ("grouping", "\"bySpaces\""),
+    ("grouping", "true"),
+    ("hiddenAppPlacement", "\"inside\""),
+    ("fullscreenPlacement", "1"),
+  ])
+  func anUnknownGroupingWordInvalidatesTheFile(key: String, value: String) {
+    #expect(decode("{\"version\": 1, \"\(key)\": \(value)}").failureValue == .invalidValue(key: key))
+  }
+
   // MARK: Private
 
   private func decode(_ text: String) -> Result<DecodedConfiguration, ConfigDecodeError> {

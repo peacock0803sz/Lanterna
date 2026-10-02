@@ -173,3 +173,34 @@ typealias WindowScope = "allApps"|"frontApp"
 /// front when the panel opens. Absent means "allApps".
 @Allowed { values { "allApps" "frontApp" } }
 windowScope: WindowScope? = null
+
+/// How the switcher list groups its rows.
+typealias GroupingMode = "none"|"bySpace"|"manual"
+
+/// One list, one group per Space with the shown Spaces first, or groups
+/// made by assigning applications. Absent means "none".
+@Allowed { values { "none" "bySpace" "manual" } }
+grouping: GroupingMode? = null
+
+/// Where one kind's parked section goes once the list is grouped.
+typealias SubgroupPlacement = "endOfList"|"withinGroup"
+
+/// Where the windows-on-other-spaces section goes when grouped. Absent means "endOfList".
+@Allowed { values { "endOfList" "withinGroup" } }
+otherSpacePlacement: SubgroupPlacement? = null
+
+/// Where the hidden-apps section goes when grouped. Absent means "endOfList".
+@Allowed { values { "endOfList" "withinGroup" } }
+hiddenAppPlacement: SubgroupPlacement? = null
+
+/// Where the minimized section goes when grouped. Absent means "endOfList".
+@Allowed { values { "endOfList" "withinGroup" } }
+minimizedPlacement: SubgroupPlacement? = null
+
+/// Where the fullscreen section goes when grouped. Absent means "endOfList".
+@Allowed { values { "endOfList" "withinGroup" } }
+fullscreenPlacement: SubgroupPlacement? = null
+
+/// Where the apps-without-windows section goes when grouped. Absent means "endOfList".
+@Allowed { values { "endOfList" "withinGroup" } }
+windowlessAppPlacement: SubgroupPlacement? = null

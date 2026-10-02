@@ -552,6 +552,55 @@
         "allApps",
         "frontApp"
       ]
+    },
+    "grouping": {
+      "description": "One list, one group per Space with the shown Spaces first, or groups\nmade by assigning applications. Absent means \"none\".",
+      "type": "string",
+      "enum": [
+        "none",
+        "bySpace",
+        "manual"
+      ]
+    },
+    "otherSpacePlacement": {
+      "description": "Where the windows-on-other-spaces section goes when grouped. Absent means \"endOfList\".",
+      "type": "string",
+      "enum": [
+        "endOfList",
+        "withinGroup"
+      ]
+    },
+    "hiddenAppPlacement": {
+      "description": "Where the hidden-apps section goes when grouped. Absent means \"endOfList\".",
+      "type": "string",
+      "enum": [
+        "endOfList",
+        "withinGroup"
+      ]
+    },
+    "minimizedPlacement": {
+      "description": "Where the minimized section goes when grouped. Absent means \"endOfList\".",
+      "type": "string",
+      "enum": [
+        "endOfList",
+        "withinGroup"
+      ]
+    },
+    "fullscreenPlacement": {
+      "description": "Where the fullscreen section goes when grouped. Absent means \"endOfList\".",
+      "type": "string",
+      "enum": [
+        "endOfList",
+        "withinGroup"
+      ]
+    },
+    "windowlessAppPlacement": {
+      "description": "Where the apps-without-windows section goes when grouped. Absent means \"endOfList\".",
+      "type": "string",
+      "enum": [
+        "endOfList",
+        "withinGroup"
+      ]
     }
   },
   "additionalProperties": false

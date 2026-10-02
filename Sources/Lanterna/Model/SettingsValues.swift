@@ -24,6 +24,7 @@ struct SettingsValues: Equatable, Sendable {
     resultOrder: .mru,
     textScale: .standard,
     windowScope: .allApps,
+    grouping: GroupingPolicy(),
     keyBindings: .defaults,
     keyBindingSection: nil,
     loadedKeyBindings: .defaults
@@ -58,6 +59,9 @@ struct SettingsValues: Equatable, Sendable {
   /// Which applications' rows each appearance starts on. Absent in the
   /// file means every application.
   var windowScope: WindowScope
+  /// How the list groups its rows. Absent in the file means one list,
+  /// with every parked section at the end.
+  var grouping: GroupingPolicy
   /// The resolved key bindings. Never partial: absent in the file
   /// means all defaults.
   var keyBindings: KeyBindingTable
@@ -85,6 +89,7 @@ struct SettingsValues: Equatable, Sendable {
       resultOrder: SearchOrdering.effective(from: config),
       textScale: TextScaleLevel.effective(from: config),
       windowScope: config.windowScope ?? .allApps,
+      grouping: GroupingPolicy(mode: config.grouping ?? .none, placements: config.subgroupPlacements),
       keyBindings: config.keyBindings,
       keyBindingSection: config.keyBindingSection,
       loadedKeyBindings: config.keyBindings
@@ -136,6 +141,10 @@ struct SettingsValues: Equatable, Sendable {
     if windowScope != defaults.windowScope {
       config.windowScope = windowScope
     }
+    if grouping.mode != .none {
+      config.grouping = grouping.mode
+    }
+    config.subgroupPlacements = grouping.placements.filter { $0.value != .endOfList }
     config.keyBindings = keyBindings
     if keyBindings == loadedKeyBindings {
       config.keyBindingSection = keyBindingSection

@@ -43,6 +43,12 @@ enum AppConfiguration {
     "keybindings",
     "textScale",
     "windowScope",
+    "grouping",
+    "otherSpacePlacement",
+    "hiddenAppPlacement",
+    "minimizedPlacement",
+    "fullscreenPlacement",
+    "windowlessAppPlacement",
   ]
 
   /// The scaffold written when no file exists (FR-012).
@@ -83,6 +89,8 @@ struct ValidConfiguration: Equatable, Sendable {
     resultOrder: String? = nil,
     textScale: Double? = nil,
     windowScope: WindowScope? = nil,
+    grouping: GroupingMode? = nil,
+    subgroupPlacements: [DisplaySubgroup: SubgroupPlacement] = [:],
     keyBindings: KeyBindingTable = .defaults,
     keyBindingSection: [KeyBindingAction: [RawKeyBinding]]? = nil
   ) {
@@ -106,6 +114,8 @@ struct ValidConfiguration: Equatable, Sendable {
     self.resultOrder = resultOrder
     self.textScale = textScale
     self.windowScope = windowScope
+    self.grouping = grouping
+    self.subgroupPlacements = subgroupPlacements
     self.keyBindings = keyBindings
     self.keyBindingSection = keyBindingSection
   }
@@ -146,6 +156,11 @@ struct ValidConfiguration: Equatable, Sendable {
   /// Which applications' rows each appearance starts on. Nil means
   /// absent, which means every application.
   var windowScope: WindowScope?
+  /// How the list groups its rows. Nil means absent, which means one list.
+  var grouping: GroupingMode?
+  /// Where each kind's parked section goes once grouped, for the kinds
+  /// the file names. A kind left out goes to the end of the list.
+  var subgroupPlacements: [DisplaySubgroup: SubgroupPlacement]
   /// The resolved key bindings. Never nil: absent means all defaults.
   var keyBindings: KeyBindingTable
   /// The customized section as spelled, kept so saving writes back what

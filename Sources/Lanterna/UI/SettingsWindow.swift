@@ -8,6 +8,7 @@ enum SettingsTab: CaseIterable {
   case general
   case appearance
   case filter
+  case groups
   case keyboard
 
   // MARK: Internal
@@ -17,6 +18,7 @@ enum SettingsTab: CaseIterable {
     case .general: "General"
     case .appearance: "Appearance"
     case .filter: "Filter"
+    case .groups: "Groups"
     case .keyboard: "Keyboard"
     }
   }
@@ -26,6 +28,7 @@ enum SettingsTab: CaseIterable {
     case .general: "gearshape"
     case .appearance: "paintbrush"
     case .filter: "line.3.horizontal.decrease.circle"
+    case .groups: "square.3.layers.3d"
     case .keyboard: "keyboard"
     }
   }
@@ -103,13 +106,19 @@ final class SettingsWindow: NSWindow {
     )))
     filterHost.preferredContentSize = NSSize(width: Self.contentWidth, height: contentHeight)
     filterHost.sizingOptions = []
+    let groupsHost = NSHostingController(rootView: AnyView(SettingsTabRoot(
+      model: model,
+      content: { SettingsGroupsView(values: $0) }
+    )))
+    groupsHost.preferredContentSize = NSSize(width: Self.contentWidth, height: contentHeight)
+    groupsHost.sizingOptions = []
     let keyboardHost = NSHostingController(rootView: AnyView(SettingsTabRoot(
       model: model,
       content: { SettingsKeyboardView(values: $0) }
     )))
     keyboardHost.preferredContentSize = NSSize(width: Self.contentWidth, height: contentHeight)
     keyboardHost.sizingOptions = []
-    let hosts: [NSHostingController<AnyView>] = [generalHost, appearanceHost, filterHost, keyboardHost]
+    let hosts: [NSHostingController<AnyView>] = [generalHost, appearanceHost, filterHost, groupsHost, keyboardHost]
     for (tab, host) in zip(SettingsTab.allCases, hosts) {
       let item = NSTabViewItem(viewController: host)
       item.label = tab.title

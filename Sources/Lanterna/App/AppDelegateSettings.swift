@@ -125,6 +125,8 @@ extension AppDelegate {
       switcher: OwnWindowSwitcher(wrapped: LiveWindowSwitcher())
     )
     presenter.windowScope = currentValues.windowScope
+    presenter.grouping = currentValues.grouping
+    panel.grouping = currentValues.grouping
     return (panel, presenter)
   }
 
@@ -161,6 +163,8 @@ extension AppDelegate {
     presenter?.displayModes = values.displayModes
     presenter?.searchSettings = searchSettings
     presenter?.windowScope = values.windowScope
+    presenter?.grouping = values.grouping
+    panel?.grouping = values.grouping
     // Recompile exclusions only when the entries changed, so unrelated
     // tweaks leave the panel and presenter rules alone.
     if exclusionsChanged {

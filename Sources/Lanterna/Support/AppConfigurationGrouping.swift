@@ -3,7 +3,17 @@ import Foundation
 /// The keys deciding which rows the switcher lists and how it groups them,
 /// read together so the assembly in `AppConfiguration` gains one call.
 extension AppConfiguration {
-  /// Reads the scope key into the configuration.
+
+  /// The placement key for each kind of parked section, in drawing order.
+  static let placementKeys: [(String, DisplaySubgroup)] = [
+    ("otherSpacePlacement", .otherSpace),
+    ("hiddenAppPlacement", .hiddenApp),
+    ("minimizedPlacement", .minimized),
+    ("fullscreenPlacement", .fullscreen),
+    ("windowlessAppPlacement", .windowlessApp),
+  ]
+
+  /// Reads the scope, grouping and placement keys into the configuration.
   static func checkedListing(
     _ dict: [String: Any],
     into config: inout ValidConfiguration
@@ -13,6 +23,20 @@ extension AppConfiguration {
       config.windowScope = found
     case .failure(let error):
       return .failure(error)
+    }
+    switch checkedOptionalWord(dict, key: "grouping", as: GroupingMode.self) {
+    case .success(let found):
+      config.grouping = found
+    case .failure(let error):
+      return .failure(error)
+    }
+    for (key, subgroup) in placementKeys {
+      switch checkedOptionalWord(dict, key: key, as: SubgroupPlacement.self) {
+      case .success(let found):
+        config.subgroupPlacements[subgroup] = found
+      case .failure(let error):
+        return .failure(error)
+      }
     }
     return .success(())
   }
@@ -26,6 +50,14 @@ extension AppConfiguration {
     }
     if let windowlessAppMode = config.windowlessAppMode {
       entries.append(encodedString(key: "windowlessAppMode", value: windowlessAppMode.rawValue))
+    }
+    if let grouping = config.grouping {
+      entries.append(encodedString(key: "grouping", value: grouping.rawValue))
+    }
+    for (key, subgroup) in placementKeys {
+      if let placement = config.subgroupPlacements[subgroup] {
+        entries.append(encodedString(key: key, value: placement.rawValue))
+      }
     }
     return entries
   }
@@ -43,4 +75,5 @@ extension AppConfiguration {
     }
     return .success(word)
   }
+
 }
