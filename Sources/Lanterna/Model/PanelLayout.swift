@@ -111,10 +111,10 @@ struct PanelLayout {
     if let memory {
       moveToFront(memory, ordinary: &ordinary, subgroups: &subgroups)
     }
-    guard grouping.mode == .bySpace else {
+    guard grouping.mode != .none else {
       return PanelLayout(blocks: flat(ordinary: ordinary, subgroups: subgroups))
     }
-    let grouper = Grouper(rows: ordinary + subgroups.flatMap(\.1))
+    let grouper = Grouper(rows: ordinary + subgroups.flatMap(\.1), policy: grouping)
     let placed = SectionPlacement(grouping: grouping, subgroups: subgroups)
     let groups = grouper.orders(of: ordinary + placed.within.flatMap(\.1))
     guard groups.count > 1 else {
@@ -150,11 +150,25 @@ struct PanelLayout {
 
     // MARK: Lifecycle
 
-    init(rows: [WindowItem]) {
+    init(rows: [WindowItem], policy: GroupingPolicy) {
+      self.policy = policy
       var headings = [Int: GroupHeading]()
-      for row in rows {
-        if let group = row.spaceGroup, headings[group.order] == nil {
-          headings[group.order] = GroupHeading(number: nil, title: group.title, detail: group.detail)
+      if policy.mode == .manual {
+        var names = [Int: [String]]()
+        for row in rows {
+          let group = policy.group(forBundleID: row.bundleIdentifier)
+          if names[group, default: []].contains(row.appName) == false {
+            names[group, default: []].append(row.appName)
+          }
+        }
+        for (group, appNames) in names {
+          headings[group] = Self.manualHeading(group, policy: policy, appNames: appNames)
+        }
+      } else {
+        for row in rows {
+          if let group = row.spaceGroup, headings[group.order] == nil {
+            headings[group.order] = GroupHeading(number: nil, title: group.title, detail: group.detail)
+          }
         }
       }
       self.headings = headings
@@ -166,7 +180,10 @@ struct PanelLayout {
     // MARK: Internal
 
     func order(of row: WindowItem) -> Int {
-      row.spaceGroup?.order ?? fallback
+      if policy.mode == .manual {
+        return policy.group(forBundleID: row.bundleIdentifier)
+      }
+      return row.spaceGroup?.order ?? fallback
     }
 
     /// The groups these rows fill, in drawing order.
@@ -180,8 +197,22 @@ struct PanelLayout {
 
     // MARK: Private
 
+    private let policy: GroupingPolicy
     private let headings: [Int: GroupHeading]
     private let fallback: Int
+
+    /// A manual group's heading in the chosen style. The number style
+    /// says the number once, in the title; the others draw it beside.
+    private static func manualHeading(_ group: Int, policy: GroupingPolicy, appNames: [String]) -> GroupHeading {
+      switch policy.headingStyle {
+      case .number:
+        GroupHeading(number: nil, title: "Group \(group)", detail: nil)
+      case .name:
+        GroupHeading(number: group, title: policy.name(of: group) ?? "Group \(group)", detail: nil)
+      case .appNames:
+        GroupHeading(number: group, title: appNames.joined(separator: ", "), detail: nil)
+      }
+    }
 
   }
 
