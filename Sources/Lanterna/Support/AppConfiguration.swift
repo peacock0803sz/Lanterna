@@ -49,6 +49,10 @@ enum AppConfiguration {
     "minimizedPlacement",
     "fullscreenPlacement",
     "windowlessAppPlacement",
+    "groupCount",
+    "groupHeadingStyle",
+    "groupNames",
+    "groupAssignments",
   ]
 
   /// The scaffold written when no file exists (FR-012).
@@ -91,6 +95,10 @@ struct ValidConfiguration: Equatable, Sendable {
     windowScope: WindowScope? = nil,
     grouping: GroupingMode? = nil,
     subgroupPlacements: [DisplaySubgroup: SubgroupPlacement] = [:],
+    groupCount: Int? = nil,
+    groupHeadingStyle: GroupHeadingStyle? = nil,
+    groupNames: [Int: String] = [:],
+    groupAssignments: [GroupAssignment] = [],
     keyBindings: KeyBindingTable = .defaults,
     keyBindingSection: [KeyBindingAction: [RawKeyBinding]]? = nil
   ) {
@@ -116,6 +124,10 @@ struct ValidConfiguration: Equatable, Sendable {
     self.windowScope = windowScope
     self.grouping = grouping
     self.subgroupPlacements = subgroupPlacements
+    self.groupCount = groupCount
+    self.groupHeadingStyle = groupHeadingStyle
+    self.groupNames = groupNames
+    self.groupAssignments = groupAssignments
     self.keyBindings = keyBindings
     self.keyBindingSection = keyBindingSection
   }
@@ -161,6 +173,15 @@ struct ValidConfiguration: Equatable, Sendable {
   /// Where each kind's parked section goes once grouped, for the kinds
   /// the file names. A kind left out goes to the end of the list.
   var subgroupPlacements: [DisplaySubgroup: SubgroupPlacement]
+  /// How many manual groups there are. Nil means absent, which means 1.
+  var groupCount: Int?
+  /// What manual group headings say. Nil means absent, which means the number.
+  var groupHeadingStyle: GroupHeadingStyle?
+  /// The names given to manual groups. Empty means absent.
+  var groupNames: [Int: String]
+  /// The applications assigned to manual groups, in file order with the
+  /// unreadable and repeated entries left out. Empty means absent.
+  var groupAssignments: [GroupAssignment]
   /// The resolved key bindings. Never nil: absent means all defaults.
   var keyBindings: KeyBindingTable
   /// The customized section as spelled, kept so saving writes back what
@@ -216,6 +237,8 @@ struct DecodedConfiguration: Equatable, Sendable {
   /// Retired keys the file still held, read past without a look at their
   /// values, for one diagnostics line each.
   var deprecatedKeys = [String]()
+  /// One entry per group assignment left out, for the diagnostics lines.
+  var groupAssignmentIssues = [GroupAssignmentIssue]()
 }
 
 // MARK: - ConfigLoadOutcome
@@ -297,6 +320,8 @@ extension AppConfiguration {
     ) {
     case .success(let config):
       return resolvedKeyBindings(dict, data: data, config: config, assumed: assumed)
+        .flatMap { withGroupAssignments(dict, decoded: $0) }
+
     case .failure(let error):
       return .failure(error)
     }

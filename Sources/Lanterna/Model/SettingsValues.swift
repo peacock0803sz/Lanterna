@@ -89,7 +89,14 @@ struct SettingsValues: Equatable, Sendable {
       resultOrder: SearchOrdering.effective(from: config),
       textScale: TextScaleLevel.effective(from: config),
       windowScope: config.windowScope ?? .allApps,
-      grouping: GroupingPolicy(mode: config.grouping ?? .none, placements: config.subgroupPlacements),
+      grouping: GroupingPolicy(
+        mode: config.grouping ?? .none,
+        placements: config.subgroupPlacements,
+        groupCount: config.groupCount ?? 1,
+        headingStyle: config.groupHeadingStyle ?? .number,
+        names: config.groupNames,
+        assignments: config.groupAssignments
+      ),
       keyBindings: config.keyBindings,
       keyBindingSection: config.keyBindingSection,
       loadedKeyBindings: config.keyBindings
@@ -145,6 +152,14 @@ struct SettingsValues: Equatable, Sendable {
       config.grouping = grouping.mode
     }
     config.subgroupPlacements = grouping.placements.filter { $0.value != .endOfList }
+    if grouping.groupCount != 1 {
+      config.groupCount = grouping.groupCount
+    }
+    if grouping.headingStyle != .number {
+      config.groupHeadingStyle = grouping.headingStyle
+    }
+    config.groupNames = grouping.names.filter { !$0.value.isEmpty }
+    config.groupAssignments = Self.savedAssignments(grouping.assignments)
     config.keyBindings = keyBindings
     if keyBindings == loadedKeyBindings {
       config.keyBindingSection = keyBindingSection
@@ -155,6 +170,17 @@ struct SettingsValues: Equatable, Sendable {
   }
 
   // MARK: Private
+
+  /// The assignments for saving: rows with a bundle identifier, the first
+  /// of each identifier ignoring case, in the order shown. A row the
+  /// editor shows as already assigned is left out here.
+  private static func savedAssignments(_ assignments: [GroupAssignment]) -> [GroupAssignment] {
+    var seen = Set<String>()
+    return assignments.filter { entry in
+      let trimmed = entry.bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+      return !trimmed.isEmpty && seen.insert(trimmed.lowercased()).inserted
+    }
+  }
 
   /// The customized section for saving: actions differing from their
   /// defaults, as the file spells them. Empty actions and an empty

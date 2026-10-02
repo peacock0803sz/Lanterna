@@ -14,6 +14,11 @@ open class Minimum extends Annotation {
   value: Int
 }
 
+/// Upper bound annotation for integer keys, read the same way.
+open class Maximum extends Annotation {
+  value: Int
+}
+
 /// Schema generation. Stays 1 for this revision.
 version: Int = 1
 
@@ -204,3 +209,33 @@ fullscreenPlacement: SubgroupPlacement? = null
 /// Where the apps-without-windows section goes when grouped. Absent means "endOfList".
 @Allowed { values { "endOfList" "withinGroup" } }
 windowlessAppPlacement: SubgroupPlacement? = null
+
+/// How many manual groups there are, 1 to 9. Absent means 1.
+@Minimum { value = 1 }
+@Maximum { value = 9 }
+groupCount: Int? = null
+
+/// What a manual group heading says.
+typealias GroupHeadingStyle = "number"|"name"|"appNames"
+
+/// The group number, the name given to the group, or the names of the
+/// apps in it. Absent means "number".
+@Allowed { values { "number" "name" "appNames" } }
+groupHeadingStyle: GroupHeadingStyle? = null
+
+/// The names given to manual groups, keyed "1" to "9". Names for groups
+/// past the count are kept. Absent means no names.
+groupNames: Mapping<String, String>? = null
+
+/// One application assigned to one manual group.
+open class GroupAssignment {
+  /// The application's bundle identifier, compared without case.
+  bundleID: String
+  /// The group number, 1 to 9.
+  group: Int
+}
+
+/// Applications assigned to manual groups. Entries that are invalid on
+/// their own, or name an application an earlier entry named, are ignored
+/// one by one. Absent means every application joins the first group.
+groupAssignments: Listing<GroupAssignment>? = null

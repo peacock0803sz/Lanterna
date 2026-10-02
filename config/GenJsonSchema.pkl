@@ -10,6 +10,9 @@ local props = reflect.Module(schema).moduleClass.properties
 local function minimumOf(prop: reflect.Property): Int? =
   prop.annotations.filter((it) -> it is schema.Minimum).firstOrNull?.value
 
+local function maximumOf(prop: reflect.Property): Int? =
+  prop.annotations.filter((it) -> it is schema.Maximum).firstOrNull?.value
+
 local function allowedOf(prop: reflect.Property): Listing<String>? =
   prop.annotations.filter((it) -> it is schema.Allowed).firstOrNull?.values
 
@@ -26,15 +29,17 @@ local function isBoolean(prop: reflect.Property): Boolean =
     prop.type is reflect.DeclaredType
       && (prop.type as reflect.DeclaredType).referent.name == "Boolean"
 
-/// Whether the property is the exclusion list (a nullable listing).
+/// Whether the property is the exclusion list.
 ///
-/// Matched by shape rather than by name, so a rename still renders.
-local function isExclusions(prop: reflect.Property): Boolean =
-  if (prop.type is reflect.NullableType)
-    let (inner = (prop.type as reflect.NullableType).member)
-    inner is reflect.DeclaredType
-      && (inner as reflect.DeclaredType).referent.name == "Listing"
-  else false
+/// Matched by name: more than one key now holds a listing, and each
+/// renders its own item shape.
+local function isExclusions(prop: reflect.Property): Boolean = prop.name == "exclusions"
+
+/// Whether the property is the group assignment list.
+local function isGroupAssignments(prop: reflect.Property): Boolean = prop.name == "groupAssignments"
+
+/// Whether the property is the group name table.
+local function isGroupNames(prop: reflect.Property): Boolean = prop.name == "groupNames"
 
 /// Whether the property is the keybindings section (a nullable class).
 ///
@@ -141,6 +146,37 @@ local function fragment(prop: reflect.Property): Dynamic =
         ["additionalProperties"] = false
       }
     }
+  else if (isGroupAssignments(prop))
+    new {
+      ["type"] = "array"
+      description = prop.docComment
+      ["items"] = new {
+        ["type"] = "object"
+        ["properties"] = new {
+          ["bundleID"] = new {
+            ["type"] = "string"
+          }
+          ["group"] = new {
+            ["type"] = "integer"
+            ["minimum"] = 1
+            ["maximum"] = 9
+          }
+        }
+        ["required"] = new Listing<String> { "bundleID"; "group" }
+        ["additionalProperties"] = false
+      }
+    }
+  else if (isGroupNames(prop))
+    new {
+      ["type"] = "object"
+      description = prop.docComment
+      ["patternProperties"] = new {
+        ["^[1-9]$"] = new {
+          ["type"] = "string"
+        }
+      }
+      ["additionalProperties"] = false
+    }
   else if (isKeyBindings(prop))
     keyBindingsFragment(prop)
   else if (isNumber(prop))
@@ -153,11 +189,18 @@ local function fragment(prop: reflect.Property): Dynamic =
       ["type"] = "integer"
       description = prop.docComment
     }
+  else if (maximumOf(prop) == null)
+    new {
+      ["type"] = "integer"
+      description = prop.docComment
+      ["minimum"] = minimumOf(prop)
+    }
   else
     new {
       ["type"] = "integer"
       description = prop.docComment
       ["minimum"] = minimumOf(prop)
+      ["maximum"] = maximumOf(prop)
     }
 
 `$schema` = "https://json-schema.org/draft/2020-12/schema"

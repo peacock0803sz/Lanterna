@@ -601,6 +601,53 @@
         "endOfList",
         "withinGroup"
       ]
+    },
+    "groupCount": {
+      "description": "How many manual groups there are, 1 to 9. Absent means 1.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9
+    },
+    "groupHeadingStyle": {
+      "description": "The group number, the name given to the group, or the names of the\napps in it. Absent means \"number\".",
+      "type": "string",
+      "enum": [
+        "number",
+        "name",
+        "appNames"
+      ]
+    },
+    "groupNames": {
+      "description": "The names given to manual groups, keyed \"1\" to \"9\". Names for groups\npast the count are kept. Absent means no names.",
+      "type": "object",
+      "patternProperties": {
+        "^[1-9]$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "groupAssignments": {
+      "description": "Applications assigned to manual groups. Entries that are invalid on\ntheir own, or name an application an earlier entry named, are ignored\none by one. Absent means every application joins the first group.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "bundleID": {
+            "type": "string"
+          },
+          "group": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9
+          }
+        },
+        "required": [
+          "bundleID",
+          "group"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false

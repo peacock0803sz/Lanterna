@@ -96,6 +96,82 @@ struct GroupingConfigTests {
     #expect(decode("{\"version\": 1, \"\(key)\": \(value)}").failureValue == .invalidValue(key: key))
   }
 
+  /// The manual group keys read and write back, keeping names and
+  /// assignments past the count, and leaving defaults out of the file.
+  @Test
+  func manualGroupsRoundTrip() throws {
+    let text = "{\"version\": 1, \"grouping\": \"manual\", \"groupCount\": 2, \"groupHeadingStyle\": \"name\", "
+      + "\"groupNames\": {\"1\": \"Work\", \"3\": \"Later\"}, "
+      + "\"groupAssignments\": [{\"bundleID\": \"com.apple.Safari\", \"group\": 1}, {\"bundleID\": \"x.y\", \"group\": 3}]}"
+    let decoded = try #require(decode(text).successValue)
+    let grouping = SettingsValues.effective(from: decoded.config).grouping
+    #expect(grouping.groupCount == 2)
+    #expect(grouping.headingStyle == .name)
+    #expect(grouping.names == [1: "Work", 3: "Later"])
+    #expect(grouping.assignments == [
+      GroupAssignment(bundleID: "com.apple.Safari", group: 1),
+      GroupAssignment(bundleID: "x.y", group: 3),
+    ])
+    #expect(grouping.group(forBundleID: "x.y") == 1)
+    var values = SettingsValues.defaults
+    values.grouping = grouping
+    let saved = values.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(AppConfiguration.decode(AppConfiguration.encode(saved)).successValue?.config == saved)
+    let written = try #require(String(bytes: AppConfiguration.encode(saved), encoding: .utf8))
+    #expect(written.contains("\"3\": \"Later\""))
+    #expect(written.contains("\"bundleID\": \"x.y\", \"group\": 3"))
+    let plain = SettingsValues.defaults.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    let plainText = try #require(String(bytes: AppConfiguration.encode(plain), encoding: .utf8))
+    #expect(!plainText.contains("group"))
+  }
+
+  /// A bad count, style or name refuses the file, like any other bad value.
+  @Test(arguments: [
+    ("groupCount", "0"),
+    ("groupCount", "10"),
+    ("groupHeadingStyle", "\"title\""),
+    ("groupNames", "{\"0\": \"Zero\"}"),
+    ("groupNames", "{\"01\": \"Padded\"}"),
+    ("groupNames", "{\"1\": 1}"),
+    ("groupNames", "[\"Work\"]"),
+    ("groupAssignments", "{\"bundleID\": \"a\"}"),
+  ])
+  func aBadManualKeyInvalidatesTheFile(key: String, value: String) {
+    #expect(decode("{\"version\": 1, \"\(key)\": \(value)}").failureValue == .invalidValue(key: key))
+  }
+
+  /// One bad or repeated assignment costs only itself, and says why.
+  @Test
+  func badAssignmentsAreLeftOutOneByOne() throws {
+    let text = "{\"version\": 1, \"groupAssignments\": ["
+      + "{\"bundleID\": \"com.apple.mail\", \"group\": 2}, "
+      + "{\"bundleID\": \"\", \"group\": 1}, "
+      + "{\"bundleID\": \"COM.APPLE.MAIL\", \"group\": 1}, "
+      + "{\"bundleID\": \"far\", \"group\": 12}, "
+      + "\"oops\"]}"
+    let decoded = try #require(decode(text).successValue)
+    #expect(decoded.config.groupAssignments == [GroupAssignment(bundleID: "com.apple.mail", group: 2)])
+    #expect(decoded.groupAssignmentIssues.map(\.diagnosticsLine) == [
+      "group assignment skipped (unreadable entry): groupAssignments[1]",
+      "group assignment skipped (duplicate bundleID COM.APPLE.MAIL): groupAssignments[2]",
+      "group assignment skipped (group out of range 12): groupAssignments[3]",
+      "group assignment skipped (unreadable entry): groupAssignments[4]",
+    ])
+  }
+
+  /// Saving drops blank rows and a row repeating an earlier application.
+  @Test
+  func savingKeepsTheFirstOfEachApplication() {
+    var values = SettingsValues.defaults
+    values.grouping.assignments = [
+      GroupAssignment(bundleID: "com.apple.mail", group: 2),
+      GroupAssignment(bundleID: " ", group: 1),
+      GroupAssignment(bundleID: "Com.Apple.Mail", group: 1),
+    ]
+    let saved = values.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(saved.groupAssignments == [GroupAssignment(bundleID: "com.apple.mail", group: 2)])
+  }
+
   // MARK: Private
 
   private func decode(_ text: String) -> Result<DecodedConfiguration, ConfigDecodeError> {

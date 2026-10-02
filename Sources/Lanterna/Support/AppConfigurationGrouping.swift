@@ -38,7 +38,7 @@ extension AppConfiguration {
         return .failure(error)
       }
     }
-    return .success(())
+    return checkedManualGroups(dict, into: &config)
   }
 
   /// The lines for the keys read above, in any order: the encoder sorts
@@ -59,7 +59,7 @@ extension AppConfiguration {
         entries.append(encodedString(key: key, value: placement.rawValue))
       }
     }
-    return entries
+    return entries + manualGroupEntries(config)
   }
 
   /// Reads one optional key holding one word of a fixed set. Anything
