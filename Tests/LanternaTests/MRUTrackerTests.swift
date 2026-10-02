@@ -295,6 +295,52 @@ struct MRUExternalSeamTests {
     #expect(tracker.newestSource == .external)
   }
 
+  /// An application brought forward with no window to read still orders
+  /// its own row, on the same counter as the windows, without becoming a
+  /// window use the show line would report.
+  @Test
+  func anApplicationWithNoWindowSortsByItsActivation() {
+    let tracker = MRUTracker()
+    let window = row(windowID: 1, owner: 200)
+    let music = WindowItem(
+      id: .application(300),
+      ownerProcessIdentifier: 300,
+      appName: "Music",
+      bundleIdentifier: nil,
+      windowTitle: "",
+      kind: .standard,
+      isMinimized: false,
+      icon: NSImage(size: NSSize(width: 1, height: 1))
+    )
+    tracker.record(window.id, ownerProcessIdentifier: 200, origin: .external)
+    recordExternalActivation(of: 300, excluding: 101, reading: FakeFocusedReader(windowID: nil), into: tracker)
+    #expect(tracker.ordered([window, music]).map(\.id) == [music.id, window.id])
+    #expect(tracker.newestSource == .external)
+    tracker.record(window.id, ownerProcessIdentifier: 200, origin: .commit)
+    #expect(tracker.ordered([window, music]).map(\.id) == [window.id, music.id])
+  }
+
+  /// A window use counts as its application's use too, so the row the
+  /// application becomes once its windows close keeps that place.
+  @Test
+  func aWindowUseOrdersItsApplicationRow() {
+    let tracker = MRUTracker()
+    let other = row(windowID: 1, owner: 200)
+    let closedLater = WindowItem(
+      id: .application(300),
+      ownerProcessIdentifier: 300,
+      appName: "Mail",
+      bundleIdentifier: nil,
+      windowTitle: "",
+      kind: .standard,
+      isMinimized: false,
+      icon: NSImage(size: NSSize(width: 1, height: 1))
+    )
+    tracker.record(other.id, ownerProcessIdentifier: 200, origin: .external)
+    tracker.record(WindowItem.Identifier(windowID: 9), ownerProcessIdentifier: 300, origin: .commit)
+    #expect(tracker.ordered([other, closedLater]).map(\.id) == [closedLater.id, other.id])
+  }
+
   @Test
   func failedReadRecordsNothing() {
     let tracker = MRUTracker()

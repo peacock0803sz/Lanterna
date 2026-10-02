@@ -116,6 +116,7 @@ final class MRUTracker {
       origin: origin,
       recordedAt: now()
     )
+    applicationSequences[ownerProcessIdentifier] = nextSequence
     nextSequence += 1
     if origin == .commit {
       lastCommit = (ownerProcessIdentifier, nil)
@@ -200,6 +201,8 @@ final class MRUTracker {
       let key = MRUKey(id: item.id, ownerProcessIdentifier: item.ownerProcessIdentifier)
       if let record = records[key] {
         recorded.append((item, record.sequence))
+      } else if item.isWindowless, let sequence = applicationSequences[item.ownerProcessIdentifier] {
+        recorded.append((item, sequence))
       } else {
         unrecorded.append(item)
       }
@@ -208,9 +211,22 @@ final class MRUTracker {
     return recorded.map(\.item) + unrecorded
   }
 
+  /// Writes down that an application was brought forward, whether or not
+  /// a window of it could be read. Orders only the row standing for the
+  /// application when it has no window.
+  func recordApplicationUse(_ ownerProcessIdentifier: pid_t) {
+    applicationSequences[ownerProcessIdentifier] = nextSequence
+    nextSequence += 1
+  }
+
   // MARK: Private
 
   private var records = [MRUKey: UsageRecord]()
+  /// When each application was last brought forward, numbered from the
+  /// same counter as the records so the two compare. Read only for rows
+  /// standing for an application with no window, and kept apart from the
+  /// records so the show line's source still speaks of windows alone.
+  private var applicationSequences = [pid_t: UInt64]()
   private var nextSequence: UInt64 = 0
   /// What the last swept appearance knew. A record newer than this
   /// predates no snapshot it was swept against: the look finished before
@@ -243,6 +259,11 @@ final class MRUTracker {
     for item in items {
       live.insert(MRUKey(id: item.id, ownerProcessIdentifier: item.ownerProcessIdentifier))
     }
+    // An application's own use outlives its windows, so it stays while
+    // the application has any row at all: closing the last window turns
+    // it into a row that should still sort by that use.
+    let owners = Set(items.map(\.ownerProcessIdentifier))
+    applicationSequences = applicationSequences.filter { owners.contains($0.key) || skippedOwners.contains($0.key) }
     records = records.filter { entry in
       live.contains(entry.key)
         || skippedOwners.contains(entry.key.ownerProcessIdentifier)
