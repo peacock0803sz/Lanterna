@@ -118,6 +118,25 @@ struct SwitcherPanelTests {
     )
   }
 
+  /// A grouped list draws a heading over each group, and the height makes
+  /// room for every heading as it does for every row.
+  @Test
+  func groupHeadingsTakeHeight() throws {
+    let panel = panel(rowCount: 5)
+    var grouping = GroupingPolicy()
+    grouping.mode = .manual
+    grouping.groupCount = 2
+    let windows = SampleWindows.make(count: 3)
+    let moved = try #require(windows[2].bundleIdentifier)
+    #expect(windows[0].bundleIdentifier != moved)
+    grouping.assignments = [GroupAssignment(bundleID: moved, group: 2)]
+    panel.grouping = grouping
+    panel.update(windows: windows)
+    #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 5))
+    panel.updateList(windows: windows, selecting: nil, query: "", filterActive: false)
+    #expect(panel.contentRect(forFrameRect: panel.frame).height == PanelMetrics.height(rowCount: 5))
+  }
+
   /// A query typed in one appearance is gone when the next one opens:
   /// the view draws every row it is handed, and the height counts them
   /// all. The chrome follows what the appearance says, not the last one.

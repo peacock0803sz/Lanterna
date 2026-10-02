@@ -125,6 +125,9 @@ struct WindowEnumeratorTests {
       ]
     )
     #expect(result.droppedWithoutID == 5)
+    // An application whose windows were all dropped still has windows,
+    // so it is not listed as an application without one.
+    #expect(result.items.allSatisfy { !$0.isWindowless })
   }
 
   @Test

@@ -87,6 +87,33 @@ struct GroupingConfigTests {
     #expect(AppConfiguration.decode(AppConfiguration.encode(saved)).successValue?.config == saved)
   }
 
+  /// Every kind's placement, the other-Space one included, writes its own
+  /// key and reads back as written.
+  @Test
+  func everyPlacementRoundTripsWithinGroup() throws {
+    var values = SettingsValues.defaults
+    values.grouping.mode = .manual
+    for subgroup in DisplaySubgroup.drawingOrder {
+      values.grouping.placements[subgroup] = .withinGroup
+    }
+    let saved = values.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    let written = try #require(String(bytes: AppConfiguration.encode(saved), encoding: .utf8))
+    for key in [
+      "otherSpacePlacement",
+      "hiddenAppPlacement",
+      "minimizedPlacement",
+      "fullscreenPlacement",
+      "windowlessAppPlacement",
+    ] {
+      #expect(written.contains("\"\(key)\": \"withinGroup\""))
+    }
+    let decoded = try #require(AppConfiguration.decode(AppConfiguration.encode(saved)).successValue)
+    let grouping = SettingsValues.effective(from: decoded.config).grouping
+    for subgroup in DisplaySubgroup.drawingOrder {
+      #expect(grouping.placement(of: subgroup) == .withinGroup)
+    }
+  }
+
   @Test(arguments: [
     ("grouping", "\"bySpaces\""),
     ("grouping", "true"),
