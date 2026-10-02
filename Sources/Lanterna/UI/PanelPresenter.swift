@@ -173,6 +173,12 @@ final class PanelPresenter {
     didSet { pushSearchSettings() }
   }
 
+  /// Which applications' rows each appearance starts on, handed to the
+  /// key commands. A panel that is up keeps its own until it closes.
+  var windowScope = WindowScope.allApps {
+    didSet { keyCommands.updateWindowScope(windowScope) }
+  }
+
   /// The resolved key bindings, handed to the key commands. A change
   /// lands on the live panel at once, like the exclusion rules.
   var keyBindings = KeyBindingTable.defaults {

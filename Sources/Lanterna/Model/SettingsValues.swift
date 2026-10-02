@@ -23,6 +23,7 @@ struct SettingsValues: Equatable, Sendable {
     fuzzyMatchEnabled: true,
     resultOrder: .mru,
     textScale: .standard,
+    windowScope: .allApps,
     keyBindings: .defaults,
     keyBindingSection: nil,
     loadedKeyBindings: .defaults
@@ -54,6 +55,9 @@ struct SettingsValues: Equatable, Sendable {
   /// The panel text and icon scale step. Absent in the file means
   /// the standard step, the base, unscaled sizes.
   var textScale: TextScaleLevel
+  /// Which applications' rows each appearance starts on. Absent in the
+  /// file means every application.
+  var windowScope: WindowScope
   /// The resolved key bindings. Never partial: absent in the file
   /// means all defaults.
   var keyBindings: KeyBindingTable
@@ -80,6 +84,7 @@ struct SettingsValues: Equatable, Sendable {
       fuzzyMatchEnabled: config.fuzzyMatchEnabled ?? true,
       resultOrder: SearchOrdering.effective(from: config),
       textScale: TextScaleLevel.effective(from: config),
+      windowScope: config.windowScope ?? .allApps,
       keyBindings: config.keyBindings,
       keyBindingSection: config.keyBindingSection,
       loadedKeyBindings: config.keyBindings
@@ -126,6 +131,9 @@ struct SettingsValues: Equatable, Sendable {
     // Standard stays absent, so the scaffold keeps reading as standard.
     if textScale != .standard {
       config.textScale = textScale.factor
+    }
+    if windowScope != defaults.windowScope {
+      config.windowScope = windowScope
     }
     config.keyBindings = keyBindings
     if keyBindings == loadedKeyBindings {

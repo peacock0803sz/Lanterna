@@ -41,6 +41,7 @@ enum AppConfiguration {
     "resultOrder",
     "keybindings",
     "textScale",
+    "windowScope",
   ]
 
   /// The scaffold written when no file exists (FR-012).
@@ -79,6 +80,7 @@ struct ValidConfiguration: Equatable, Sendable {
     fuzzyMatchEnabled: Bool? = nil,
     resultOrder: String? = nil,
     textScale: Double? = nil,
+    windowScope: WindowScope? = nil,
     keyBindings: KeyBindingTable = .defaults,
     keyBindingSection: [KeyBindingAction: [RawKeyBinding]]? = nil
   ) {
@@ -100,6 +102,7 @@ struct ValidConfiguration: Equatable, Sendable {
     self.fuzzyMatchEnabled = fuzzyMatchEnabled
     self.resultOrder = resultOrder
     self.textScale = textScale
+    self.windowScope = windowScope
     self.keyBindings = keyBindings
     self.keyBindingSection = keyBindingSection
   }
@@ -136,6 +139,9 @@ struct ValidConfiguration: Equatable, Sendable {
   /// means 1.0 (the current size). Only the five steps count; anything
   /// else falls back with a note instead of invalidating the file.
   var textScale: Double?
+  /// Which applications' rows each appearance starts on. Nil means
+  /// absent, which means every application.
+  var windowScope: WindowScope?
   /// The resolved key bindings. Never nil: absent means all defaults.
   var keyBindings: KeyBindingTable
   /// The customized section as spelled, kept so saving writes back what
@@ -413,8 +419,10 @@ extension AppConfiguration {
       return .failure(error)
     }
     // Chained without another switch: this function already stands at
-    // the complexity limit, and the helper reports its own failures.
-    return checkedSearchSettings(dict, into: &config).map { _ in config }
+    // the complexity limit, and the helpers report their own failures.
+    return checkedSearchSettings(dict, into: &config)
+      .flatMap { checkedListing(dict, into: &config) }
+      .map { _ in config }
   }
 
 }

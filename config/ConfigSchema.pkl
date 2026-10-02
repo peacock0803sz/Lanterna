@@ -160,3 +160,11 @@ keybindings: KeyBindings? = null
 /// Absent means 1.0 (the current size). The value allowlist lives in
 /// Swift, like the upper bound of `shortcutMemoryLength`.
 textScale: Number? = null
+
+/// Which applications' windows each showing starts on.
+typealias WindowScope = "allApps"|"frontApp"
+
+/// Every application's windows, or only those of the application in
+/// front when the panel opens. Absent means "allApps".
+@Allowed { values { "allApps" "frontApp" } }
+windowScope: WindowScope? = null

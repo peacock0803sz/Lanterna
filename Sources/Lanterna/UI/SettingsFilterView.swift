@@ -18,6 +18,17 @@ struct SettingsFilterView: View {
   var body: some View {
     Form {
       Section("Window types") {
+        Picker(selection: $values.windowScope) {
+          Text("All apps").tag(WindowScope.allApps)
+          Text("Active app").tag(WindowScope.frontApp)
+        } label: {
+          SettingsFormLabel(
+            title: "Show windows of",
+            caption: "List every app's windows, or only the active app's when the panel opens. "
+              + "The panel key switches it for one showing."
+          )
+        }
+        .pickerStyle(.menu)
         Picker(selection: $values.displayModes.otherSpace) {
           Text("Show").tag(DisplayMode.show)
           Text("Hide").tag(DisplayMode.hide)
