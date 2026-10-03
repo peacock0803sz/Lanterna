@@ -65,6 +65,13 @@ protocol SwitcherSurface: AnyObject {
   /// down for nil, resizing with the top edge kept. Writes no line.
   func showScope(_ band: ScopeBand?)
 
+  /// Shows row numbers over the list in the given order, or takes them
+  /// down for an empty list. Redraws with nothing else changed about
+  /// the panel — not its size, not its position — and writes no line.
+  /// The order travels with the call, so the numbers and the choice,
+  /// which names rows off the same order, can never disagree.
+  func showNumberedRows(_ ids: [WindowItem.Identifier])
+
   /// Shows a small failure note under the list, growing the panel by the
   /// note's height with the top edge kept; `clearNotice` gives that height
   /// back. The note says the operation could not be done; the why belongs

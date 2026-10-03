@@ -31,6 +31,7 @@ extension SwitcherPanel {
       hoverSelect: hoverSelect,
       scrollSelect: scrollSelect,
       hoverAnchor: hoverAnchor,
+      numberedIDs: numberedIDs,
       onHoverRow: onHoverRow,
       onClickRow: onClickRow
     )
