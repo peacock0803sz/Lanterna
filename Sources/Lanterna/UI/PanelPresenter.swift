@@ -24,6 +24,10 @@ final class PanelPresenter {
     },
     commandWatchInterval: Duration = UnreportedReleaseWatch.defaultInterval,
     keyStatusWatchInterval: Duration = KeyStatusWatch.defaultInterval,
+    showDelayMs: Double? = nil,
+    showDelaySleep: @escaping @MainActor (Duration) async -> Void = { duration in
+      try? await Task.sleep(for: duration)
+    },
     switcher: any WindowSwitching = LiveWindowSwitcher(),
     tracker: MRUTracker = MRUTracker()
   ) {
@@ -41,6 +45,8 @@ final class PanelPresenter {
     self.commandIsHeld = commandIsHeld
     self.commandWatchInterval = commandWatchInterval
     self.keyStatusWatchInterval = keyStatusWatchInterval
+    self.showDelayMs = showDelayMs
+    self.showDelaySleep = showDelaySleep
     self.switcher = switcher
     self.tracker = tracker
   }
@@ -66,7 +72,14 @@ final class PanelPresenter {
   lazy var pendingPress = PendingPressHold(
     listWhenGathered: { [store] in await store.listWhenGathered() },
     show: { [weak self] items, combination, deliveryDelay, startedAt in
-      self?.show(
+      guard let self else { return }
+      // A press the delay is holding owns every arrival while it
+      // waits: the list joins the wait instead of opening a panel.
+      if pendingShow.isWaiting {
+        pendingShow.listArrived(items, gatheredOnDemand: true)
+        return
+      }
+      show(
         items,
         for: combination,
         deliveryDelay: deliveryDelay,
@@ -76,10 +89,30 @@ final class PanelPresenter {
     }
   )
 
+  /// A press the show delay is holding off the screen.
+  ///
+  /// `lazy` for the reason the hold above is: what it waits out and
+  /// what it does when the waiting is over are both this object's.
+  /// The release and activation handling beside the presenter call it off.
+  lazy var pendingShow = PendingShowHold(
+    sleep: showDelaySleep,
+    fire: { [weak self] waiting in
+      self?.showFromDelay(waiting)
+    }
+  )
+
   /// How long the key-status watch waits between looks (`KeyStatusWatch`'s
   /// number, injected so a test need not wait a real one out), handed on
   /// to the way out, which is built beside the presenter.
   let keyStatusWatchInterval: Duration
+
+  /// The show delay in milliseconds. Nil or zero means off. Read at
+  /// every press, so a change lands on the next one.
+  var showDelayMs: Double?
+
+  /// How the delay wait passes its time. Injected so a test need not
+  /// wait a real one out.
+  let showDelaySleep: @MainActor (Duration) async -> Void
 
   /// What commits take. Through to the way out, which owns the list the
   /// target is read off and is built beside the presenter.
@@ -254,7 +287,15 @@ final class PanelPresenter {
     // A press is already waiting for the first list and is the one that
     // will put the panel up. The panel is not up yet, so without this a
     // second press would take the same path again and two would arrive.
-    guard !pendingPress.isWaiting else { return }
+    // A press the delay is holding is the exception: further presses
+    // join its wait instead of being turned away.
+    if pendingPress.isWaiting, pendingShowHoldIsOff {
+      return
+    }
+    if let delay = showDelay {
+      holdForDelay(combination, deliveryDelay: deliveryDelay, startedAt: startedAt, delay: delay)
+      return
+    }
     guard let held = store.snapshot else {
       pendingPress.begin(combination, deliveryDelay: deliveryDelay, startedAt: startedAt)
       return
@@ -283,6 +324,23 @@ final class PanelPresenter {
   /// turned to. Letting the slot go is what stops it.
   func handleCommandRelease() {
     let startedAt = now()
+    if pendingShow.isWaiting {
+      guard let waiting = pendingShow.take() else { return }
+      pendingPress.callOff()
+      guard let items = waiting.items else {
+        wayOut.recordPressCalledOff(since: startedAt)
+        return
+      }
+      // A filtering opener asks for typing, not for taking: letting go
+      // answers with silence rather than a commit or a line.
+      guard waiting.presses.first != .filter else { return }
+      commitWithoutShowing(
+        items,
+        presses: waiting.presses,
+        startedAt: startedAt
+      )
+      return
+    }
     if pendingPress.isWaiting {
       pendingPress.callOff()
       wayOut.recordPressCalledOff(since: startedAt)
@@ -317,6 +375,103 @@ final class PanelPresenter {
   /// How long the watch waits between looks (`UnreportedReleaseWatch`'s
   /// number, injected so a test need not wait a real one out).
   private let commandWatchInterval: Duration
+
+  /// The wait one press is owed, or nothing when the delay is off.
+  ///
+  /// Read at every press rather than settled at launch, the way the
+  /// other per-press answers are: a change lands on the next press.
+  private var showDelay: Duration? {
+    guard let showDelayMs, showDelayMs > 0 else { return nil }
+    return .milliseconds(max(1, Int(showDelayMs.rounded())))
+  }
+
+  /// Whether the delay holds no press back: the ordinary path.
+  private var pendingShowHoldIsOff: Bool {
+    showDelay == nil
+  }
+
+  /// Holds a press off the screen until its wait runs out.
+  ///
+  /// With a list at hand the items join the wait at once; without one
+  /// the first list joins it when it arrives, through the hold above.
+  private func holdForDelay(
+    _ combination: HotkeyCombination,
+    deliveryDelay: Duration?,
+    startedAt: ContinuousClock.Instant,
+    delay: Duration
+  ) {
+    if store.snapshot == nil, !pendingPress.isWaiting {
+      pendingPress.begin(combination, deliveryDelay: deliveryDelay, startedAt: startedAt)
+    }
+    pendingShow.begin(combination, deliveryDelay: deliveryDelay, startedAt: startedAt, delay: delay)
+    if let held = store.snapshot {
+      pendingShow.listArrived(held.items, gatheredOnDemand: false)
+    }
+  }
+
+  /// Puts the panel up for a press that waited out its delay.
+  private func showFromDelay(_ waiting: PendingShowHold.PendingShow) {
+    guard let items = waiting.items else { return }
+    show(
+      items,
+      for: waiting.presses.first ?? .forward,
+      deliveryDelay: waiting.deliveryDelay,
+      startedAt: waiting.startedAt,
+      gatheredOnDemand: waiting.gatheredOnDemand,
+      replay: Array(waiting.presses.dropFirst())
+    )
+  }
+
+  /// Commits a row chosen without any panel: the delay waited out its
+  /// press, and letting go found the list ready.
+  ///
+  /// The ordering and the walking are the showing's own; only the
+  /// appearing is missing.
+  private func commitWithoutShowing(
+    _ items: [WindowItem],
+    presses: [HotkeyCombination],
+    startedAt: ContinuousClock.Instant
+  ) {
+    let ordered = arrangeDelayedChoice(items, presses: presses)
+    wayOut.commitSilently(
+      ordered,
+      naming: selection.chosenID,
+      since: startedAt,
+      filter: keyCommands.filterSummary()
+    )
+  }
+
+  /// Orders the rows and walks the waiting presses over them: the part
+  /// of appearing the silent commit shares with showing.
+  private func arrangeDelayedChoice(
+    _ items: [WindowItem],
+    presses: [HotkeyCombination]
+  ) -> [WindowItem] {
+    tracker.noteSnapshotObserved(store.snapshot?.gatheredAt ?? now())
+    let ordered = tracker.ordered(items, skipping: store.snapshot?.skippedOwners ?? [])
+    keyCommands.beginFiltering(fullWindows: ordered, filtering: presses.first == .filter)
+    let layout = keyCommands.shownLayout
+    selection.beginSecond(layout.rowIDs, ranking: layout.rankedRows.map(\.id))
+    replayDelayedPresses(Array(presses.dropFirst()))
+    return ordered
+  }
+
+  /// Walks waiting presses past the first over the fresh choice.
+  ///
+  /// Shared by showing and by the silent commit, so both replay the
+  /// same presses the same way.
+  private func replayDelayedPresses(_ presses: [HotkeyCombination]) {
+    for press in presses {
+      switch press {
+      case .forward:
+        selection.moveToNext()
+      case .reverse:
+        selection.moveToPrevious()
+      case .filter:
+        keyCommands.activateFiltering()
+      }
+    }
+  }
 
   /// A press arriving while the panel is already up. Either it moves the
   /// selection or it closes the panel, decided by two questions and the
@@ -370,7 +525,8 @@ final class PanelPresenter {
     for combination: HotkeyCombination,
     deliveryDelay: Duration?,
     startedAt: ContinuousClock.Instant,
-    gatheredOnDemand: Bool
+    gatheredOnDemand: Bool,
+    replay: [HotkeyCombination] = []
   ) {
     // The orderings below are load-bearing, and the statements they
     // hold apart are named one pair at a time.
@@ -396,6 +552,9 @@ final class PanelPresenter {
     let layout = keyCommands.shownLayout
     let shown = layout.rows
     selection.beginSecond(layout.rowIDs, ranking: layout.rankedRows.map(\.id))
+    // Presses the delay held past the first one walk here, after the
+    // choice exists to walk and before the panel reads it off.
+    replayDelayedPresses(replay)
     operations.begin(windows: ordered)
     surface.present(windows: shown, selecting: selection.chosenID, filterActive: keyCommands.isFilteringActive)
     let becameKey = surface.takeKeys()

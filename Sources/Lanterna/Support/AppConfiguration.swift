@@ -44,6 +44,7 @@ enum AppConfiguration {
     "textScale",
     "displayTarget",
     "panelWidth",
+    "showDelayMs",
     "windowScope",
     "grouping",
     "otherSpacePlacement",
@@ -96,6 +97,7 @@ struct ValidConfiguration: Equatable, Sendable {
     textScale: Double? = nil,
     displayTarget: DisplayTarget? = nil,
     panelWidth: Double? = nil,
+    showDelayMs: Double? = nil,
     windowScope: WindowScope? = nil,
     grouping: GroupingMode? = nil,
     subgroupPlacements: [DisplaySubgroup: SubgroupPlacement] = [:],
@@ -127,6 +129,7 @@ struct ValidConfiguration: Equatable, Sendable {
     self.textScale = textScale
     self.displayTarget = displayTarget
     self.panelWidth = panelWidth
+    self.showDelayMs = showDelayMs
     self.windowScope = windowScope
     self.grouping = grouping
     self.subgroupPlacements = subgroupPlacements
@@ -179,6 +182,11 @@ struct ValidConfiguration: Equatable, Sendable {
   /// count; anything else falls back with a note instead of
   /// invalidating the file.
   var panelWidth: Double?
+  /// The panel show delay in milliseconds. Nil means absent, which
+  /// means off. Zero reads as absent; past the maximum clamps to it
+  /// with a note, and anything else unreadable falls back to the
+  /// default with a note instead of invalidating the file.
+  var showDelayMs: Double?
   /// Which applications' rows each appearance starts on. Nil means
   /// absent, which means every application.
   var windowScope: WindowScope?
@@ -251,6 +259,9 @@ struct DecodedConfiguration: Equatable, Sendable {
   /// The fallback note when the panel width was present but invalid.
   /// Nil means absent or valid, which means nothing to report.
   var panelWidthIssue: String?
+  /// The fallback note when the show delay was present but invalid.
+  /// Nil means absent or valid, which means nothing to report.
+  var showDelayIssue: String?
   /// Retired keys the file still held, read past without a look at their
   /// values, for one diagnostics line each.
   var deprecatedKeys = [String]()
@@ -363,7 +374,8 @@ extension AppConfiguration {
       keyBindings: file.keyBindings,
       textScale: TextScaleLevel.effective(from: file),
       displayTarget: DisplayTarget.effective(from: file),
-      panelWidth: PanelWidth.effective(from: file)
+      panelWidth: PanelWidth.effective(from: file),
+      showDelayMs: ShowDelay.effective(file.showDelayMs).value
     )
   }
 

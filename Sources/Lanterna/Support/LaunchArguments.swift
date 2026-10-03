@@ -40,6 +40,9 @@ enum LaunchArguments {
     var displayTarget = DisplayTarget.primary
     /// The panel width step. No flag sets it; the file covers it.
     var panelWidth = PanelWidth.standard
+    /// The panel show delay in milliseconds. Nil means off. No flag
+    /// sets it; the file covers it.
+    var showDelayMs: Double?
     /// Retired flags the command line still gave, read past, for one
     /// diagnostics line each.
     var retiredFlags = [String]()

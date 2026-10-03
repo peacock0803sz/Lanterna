@@ -89,6 +89,14 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
         context: ["path": .string(url.path), "issue": .string("\(panelWidthIssue)")]
       ))
     }
+    if let showDelayIssue = decoded.showDelayIssue {
+      Diagnostics.writeLine(LogLine(
+        .warning,
+        .config,
+        "\(showDelayIssue): \(url.path)",
+        context: ["path": .string(url.path), "issue": .string("\(showDelayIssue)")]
+      ))
+    }
     for issue in decoded.groupAssignmentIssues {
       Diagnostics.writeLine(LogLine(
         .warning,

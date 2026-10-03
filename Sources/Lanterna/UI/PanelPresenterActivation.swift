@@ -28,6 +28,19 @@ extension PanelPresenter {
   /// the hard way.
   func handleActivation(of processIdentifier: pid_t) {
     guard processIdentifier != ownProcessIdentifier else { return }
+    if pendingShow.isWaiting {
+      // The wait owned the list wait beside it too: its arrival would
+      // otherwise open a panel for a press already answered.
+      pendingShow.callOff()
+      pendingPress.callOff()
+      writeLine(LogLine(
+        .info,
+        .panel,
+        "called off the press waiting out its delay; "
+          + "the frontmost application changed"
+      ))
+      return
+    }
     if pendingPress.isWaiting {
       // Nothing is on screen to take down. What has to stop is the
       // panel still on its way, which would otherwise appear over

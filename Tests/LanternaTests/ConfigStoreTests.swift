@@ -80,6 +80,17 @@ struct ConfigStoreTests {
     )
   }
 
+  /// The show delay comes from the file, a spelled count winning and
+  /// an absent one meaning off, whatever the command line says.
+  @Test
+  func showDelayComesFromTheFile() throws {
+    var file = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    let cli = try LaunchArguments.parse(["Lanterna", "--sample-count", "5"])
+    #expect(AppConfiguration.effectiveOptions(file: file, cli: cli).showDelayMs == nil)
+    file.showDelayMs = 250
+    #expect(AppConfiguration.effectiveOptions(file: file, cli: cli).showDelayMs == 250)
+  }
+
   @Test
   func appearanceModeComesFromTheFile() throws {
     let file = ValidConfiguration(

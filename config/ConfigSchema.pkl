@@ -176,6 +176,12 @@ textScale: Number? = null
 /// unchanged). The value allowlist lives in Swift, like `textScale`.
 panelWidth: Number? = null
 
+/// The panel show delay in milliseconds before the panel appears.
+/// Absent or zero means off. Past 1000 clamps to it with a note, and
+/// anything else unreadable falls back to 150 with a note. The bounds
+/// live in Swift, like `panelWidth`.
+showDelayMs: Number? = null
+
 /// Which applications' windows each showing starts on.
 typealias WindowScope = "allApps"|"frontApp"
 

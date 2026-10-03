@@ -138,6 +138,7 @@ extension AppDelegate {
       searchSettings: options.searchSettings,
       keyBindings: options.keyBindings,
       closesOnCommandRelease: { [weak self] in self?.monitor?.isMonitoring ?? false },
+      showDelayMs: options.showDelayMs,
       switcher: OwnWindowSwitcher(wrapped: LiveWindowSwitcher())
     )
     presenter.windowScope = currentValues.windowScope
@@ -181,6 +182,7 @@ extension AppDelegate {
     presenter?.searchSettings = searchSettings
     presenter?.windowScope = values.windowScope
     presenter?.grouping = values.grouping
+    presenter?.showDelayMs = values.showDelayMs
     panel?.grouping = values.grouping
     if let panel, let composite = presenter?.surface as? MirroredPanelSurface {
       composite.displayTarget = values.displayTarget
