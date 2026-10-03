@@ -382,7 +382,7 @@ final class PanelPresenter {
   /// other per-press answers are: a change lands on the next press.
   private var showDelay: Duration? {
     guard let showDelayMs, showDelayMs > 0 else { return nil }
-    return .milliseconds(Int(showDelayMs))
+    return .milliseconds(max(1, Int(showDelayMs.rounded())))
   }
 
   /// Whether the delay holds no press back: the ordinary path.
