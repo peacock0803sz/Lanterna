@@ -331,7 +331,7 @@ final class PanelPresenter {
         commitWithoutShowing(
           items,
           presses: waiting.presses,
-          startedAt: waiting.startedAt
+          startedAt: startedAt
         )
       } else {
         wayOut.recordPressCalledOff(since: startedAt)
@@ -400,7 +400,7 @@ final class PanelPresenter {
     if store.snapshot == nil, !pendingPress.isWaiting {
       pendingPress.begin(combination, deliveryDelay: deliveryDelay, startedAt: startedAt)
     }
-    pendingShow.begin(combination, startedAt: startedAt, delay: delay)
+    pendingShow.begin(combination, deliveryDelay: deliveryDelay, startedAt: startedAt, delay: delay)
     if let held = store.snapshot {
       pendingShow.listArrived(held.items, gatheredOnDemand: false)
     }
@@ -412,7 +412,7 @@ final class PanelPresenter {
     show(
       items,
       for: waiting.presses.first ?? .forward,
-      deliveryDelay: nil,
+      deliveryDelay: waiting.deliveryDelay,
       startedAt: waiting.startedAt,
       gatheredOnDemand: waiting.gatheredOnDemand,
       replay: Array(waiting.presses.dropFirst())

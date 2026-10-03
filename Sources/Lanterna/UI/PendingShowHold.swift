@@ -25,10 +25,12 @@ final class PendingShowHold {
   // MARK: Internal
 
   /// A press the delay is holding: the presses in arrival order, the
-  /// instant the first of them arrived, and the list once it arrives.
+  /// instant the first of them arrived, the delivery delay the first
+  /// press carried, and the list once it arrives.
   struct PendingShow {
     var presses: [HotkeyCombination]
     var startedAt: ContinuousClock.Instant
+    var deliveryDelay: Duration?
     var items: [WindowItem]?
     /// Whether the wait has run out. Firing needs this and a list.
     var delayElapsed = false
@@ -47,10 +49,11 @@ final class PendingShowHold {
   ///
   /// Either way the wait starts over: a burst of presses opens one panel
   /// when the burst ends rather than one per press. The measured start
-  /// stays where the first press put it, so hurrying does not shorten
-  /// the figure by restarting it.
+  /// and the delivery delay stay where the first press put them, so
+  /// hurrying shortens neither the wait nor the figure by restarting it.
   func begin(
     _ combination: HotkeyCombination,
+    deliveryDelay: Duration?,
     startedAt: ContinuousClock.Instant,
     delay: Duration
   ) {
@@ -58,6 +61,7 @@ final class PendingShowHold {
       pending = PendingShow(
         presses: [combination],
         startedAt: startedAt,
+        deliveryDelay: deliveryDelay,
         items: nil
       )
     } else {
