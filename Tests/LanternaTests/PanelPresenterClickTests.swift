@@ -52,4 +52,21 @@ struct PanelPresenterClickTests {
     #expect(fixture.switcher.targets.last?.id == fixture.windows[4].id)
   }
 
+  @Test
+  func aClickOnAGoneRowLeavesThePanelUp() {
+    let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+    let opening = fixture.presenter.selection.chosenID
+    let gone = WindowItem.Identifier(windowID: 999_999_999)
+    #expect(!fixture.windows.map(\.id).contains(gone))
+    fixture.surface.onClickRow?(gone)
+
+    #expect(fixture.surface.dismissCount == 0)
+    #expect(fixture.surface.isPresented)
+    #expect(fixture.switcher.targets.isEmpty)
+    #expect(fixture.presenter.selection.chosenID == opening)
+    #expect(!fixture.log.lines.contains(where: { $0.hasPrefix("committed ") }))
+  }
+
 }

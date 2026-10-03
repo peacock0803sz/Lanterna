@@ -235,6 +235,9 @@ final class PanelKeyCommands {
   /// what this process does about the click and nothing before it.
   func commitClickedRow(_ id: WindowItem.Identifier?) {
     guard surface.isPresented else { return }
+    if let id, !filter.shownWindows.contains(where: { $0.id == id }) {
+      return
+    }
     let startedAt = now()
     // Read before the commit: taking the panel down throws the
     // list away. Recorded after the commit returns, so the write
