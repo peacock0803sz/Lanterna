@@ -45,6 +45,8 @@ enum AppConfiguration {
     "displayTarget",
     "panelWidth",
     "showDelayMs",
+    "hoverSelect",
+    "scrollSelect",
     "windowScope",
     "grouping",
     "otherSpacePlacement",
@@ -98,6 +100,8 @@ struct ValidConfiguration: Equatable, Sendable {
     displayTarget: DisplayTarget? = nil,
     panelWidth: Double? = nil,
     showDelayMs: Double? = nil,
+    hoverSelect: Bool? = nil,
+    scrollSelect: Bool? = nil,
     windowScope: WindowScope? = nil,
     grouping: GroupingMode? = nil,
     subgroupPlacements: [DisplaySubgroup: SubgroupPlacement] = [:],
@@ -130,6 +134,8 @@ struct ValidConfiguration: Equatable, Sendable {
     self.displayTarget = displayTarget
     self.panelWidth = panelWidth
     self.showDelayMs = showDelayMs
+    self.hoverSelect = hoverSelect
+    self.scrollSelect = scrollSelect
     self.windowScope = windowScope
     self.grouping = grouping
     self.subgroupPlacements = subgroupPlacements
@@ -187,6 +193,12 @@ struct ValidConfiguration: Equatable, Sendable {
   /// with a note, and anything else unreadable falls back to the
   /// default with a note instead of invalidating the file.
   var showDelayMs: Double?
+  /// Whether hovering a row moves the selection. Nil means absent,
+  /// which means off.
+  var hoverSelect: Bool?
+  /// Whether scrolling moves the selection. Nil means absent,
+  /// which means off.
+  var scrollSelect: Bool?
   /// Which applications' rows each appearance starts on. Nil means
   /// absent, which means every application.
   var windowScope: WindowScope?
@@ -375,7 +387,9 @@ extension AppConfiguration {
       textScale: TextScaleLevel.effective(from: file),
       displayTarget: DisplayTarget.effective(from: file),
       panelWidth: PanelWidth.effective(from: file),
-      showDelayMs: ShowDelay.effective(file.showDelayMs).value
+      showDelayMs: ShowDelay.effective(file.showDelayMs).value,
+      hoverSelect: file.hoverSelect ?? false,
+      scrollSelect: file.scrollSelect ?? false
     )
   }
 

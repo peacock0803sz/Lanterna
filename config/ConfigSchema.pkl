@@ -111,6 +111,12 @@ saveLogsToDisk: Boolean? = null
 /// Whether Lanterna checks for newer releases. Absent means off.
 updateCheckEnabled: Boolean? = null
 
+/// Whether hovering a row moves the selection. Absent means off.
+hoverSelect: Boolean? = null
+
+/// Whether scrolling moves the selection. Absent means off.
+scrollSelect: Boolean? = null
+
 /// Which releases the check covers: full releases only, or prereleases too.
 typealias UpdateChannel = "stable"|"beta"
 
