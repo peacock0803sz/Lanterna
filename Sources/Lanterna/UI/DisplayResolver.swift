@@ -24,13 +24,13 @@ struct DisplayResolver: Sendable {
       NSWorkspace.shared.frontmostApplication?.processIdentifier
     },
     ownPID: @escaping @Sendable () -> pid_t = { ProcessInfo.processInfo.processIdentifier },
-    focusedPosition: @escaping @Sendable (pid_t) -> CGPoint? = DisplayResolver.axFocusedPosition(of:),
+    focusedFrame: @escaping @Sendable (pid_t) -> CGRect? = DisplayResolver.axFocusedFrame(of:),
     screens: @escaping @Sendable () -> [DisplayInfo] = DisplayResolver.currentScreens
   ) {
     self.cursor = cursor
     self.frontmostPID = frontmostPID
     self.ownPID = ownPID
-    self.focusedPosition = focusedPosition
+    self.focusedFrame = focusedFrame
     self.screens = screens
   }
 
@@ -47,6 +47,24 @@ struct DisplayResolver: Sendable {
     return all.map { screen in
       DisplayInfo(frame: screen.frame, isPrimary: screen == all.first)
     }
+  }
+
+  /// The centre of a window frame read over the accessibility API, in
+  /// the Cocoa base coordinate space the screen frames use.
+  ///
+  /// Accessibility frames put the origin at the top-left corner of the
+  /// menu-bar display with y growing downwards, while Cocoa puts it at
+  /// that display's bottom-left corner with y growing upwards. The flip
+  /// therefore pivots on the menu-bar display's top edge. Nothing comes
+  /// back when no screen is known to pivot on.
+  static func cocoaCentre(
+    ofAccessibilityFrame frame: CGRect,
+    over screens: [DisplayInfo]
+  ) -> CGPoint? {
+    guard let primary = screens.first(where: \.isPrimary) ?? screens.first else {
+      return nil
+    }
+    return CGPoint(x: frame.midX, y: primary.frame.maxY - frame.midY)
   }
 
   /// Picks the display for one appearance over the current screens.
@@ -78,7 +96,8 @@ struct DisplayResolver: Sendable {
       // The panel itself never counts as the front window, so this
       // read treats the running application as no placed point.
       let own = ownPID()
-      let point = frontmostPID().flatMap { $0 == own ? nil : focusedPosition($0) }
+      let frame = frontmostPID().flatMap { $0 == own ? nil : focusedFrame($0) }
+      let point = frame.flatMap { Self.cocoaCentre(ofAccessibilityFrame: $0, over: screens) }
       return (
         DisplayTarget.resolve(target, cursor: nil, focusedWindow: point, screens: screens),
         unplaced(point, in: screens)
@@ -98,16 +117,17 @@ struct DisplayResolver: Sendable {
   private let cursor: @Sendable () -> CGPoint?
   private let frontmostPID: @Sendable () -> pid_t?
   private let ownPID: @Sendable () -> pid_t
-  private let focusedPosition: @Sendable (pid_t) -> CGPoint?
+  private let focusedFrame: @Sendable (pid_t) -> CGRect?
 
-  /// The focused window's position over the accessibility API, or
-  /// nothing when the read fails. Each call makes and drops its own
-  /// elements, so nothing is shared between calls. The read sets a 1.0s
-  /// messaging timeout on the application element and then again on the
-  /// focused element, matching the activation record, so a hung frontmost
-  /// application costs about two seconds in the worst case and the caller
-  /// falls back to the menu-bar display with a diagnostics line.
-  private static func axFocusedPosition(of processIdentifier: pid_t) -> CGPoint? {
+  /// The focused window's frame over the accessibility API, in that
+  /// API's own top-left coordinate space, or nothing when the read
+  /// fails. Each call makes and drops its own elements, so nothing is
+  /// shared between calls. The read asks the application for its
+  /// focused window and then asks that window for its position and its
+  /// size; every one of those messages carries a 1.0s messaging timeout
+  /// and can wait it out, after which the caller falls back to the
+  /// menu-bar display with a diagnostics line.
+  private static func axFocusedFrame(of processIdentifier: pid_t) -> CGRect? {
     let application = AXUIElementCreateApplication(processIdentifier)
     guard AXUIElementSetMessagingTimeout(application, 1.0) == .success else {
       return nil
@@ -128,27 +148,36 @@ struct DisplayResolver: Sendable {
     guard AXUIElementSetMessagingTimeout(element, 1.0) == .success else {
       return nil
     }
-    var position: CFTypeRef?
+    var origin = CGPoint.zero
+    guard axValue(of: element, attribute: kAXPositionAttribute, type: .cgPoint, into: &origin) else {
+      return nil
+    }
+    var size = CGSize.zero
+    guard axValue(of: element, attribute: kAXSizeAttribute, type: .cgSize, into: &size) else {
+      return nil
+    }
+    return CGRect(origin: origin, size: size)
+  }
+
+  /// Copies one accessibility attribute holding a geometry value into
+  /// `result`, answering false when the read fails or the value has
+  /// another type.
+  private static func axValue(
+    of element: AXUIElement,
+    attribute: String,
+    type: AXValueType,
+    into result: inout some BitwiseCopyable
+  ) -> Bool {
+    var raw: CFTypeRef?
     guard
-      AXUIElementCopyAttributeValue(
-        element,
-        kAXPositionAttribute as CFString,
-        &position
-      ) == .success,
-      let position,
-      CFGetTypeID(position) == AXValueGetTypeID()
+      AXUIElementCopyAttributeValue(element, attribute as CFString, &raw) == .success,
+      let raw,
+      CFGetTypeID(raw) == AXValueGetTypeID()
     else {
-      return nil
+      return false
     }
-    let value = unsafeDowncast(position, to: AXValue.self)
-    guard AXValueGetType(value) == .cgPoint else {
-      return nil
-    }
-    var point = CGPoint.zero
-    guard AXValueGetValue(value, .cgPoint, &point) else {
-      return nil
-    }
-    return point
+    let value = unsafeDowncast(raw, to: AXValue.self)
+    return AXValueGetType(value) == type && AXValueGetValue(value, type, &result)
   }
 
   /// True when the point is missing or held by no screen.

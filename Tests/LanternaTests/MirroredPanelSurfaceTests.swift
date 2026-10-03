@@ -137,7 +137,7 @@ struct MirroredPanelSurfaceTests {
     return DisplayResolver(
       cursor: { cursor },
       frontmostPID: { nil },
-      focusedPosition: { _ in nil },
+      focusedFrame: { _ in nil },
       screens: { infos }
     )
   }

@@ -30,8 +30,11 @@ enum DisplayTarget: String, Sendable {
 
   /// Picks the display for one appearance from plain values, so the
   /// choice reads as a value test with no window server involved. The
-  /// points and frames share the Cocoa base coordinate space, which is
-  /// what both the cursor position and the screen frames use.
+  /// points and frames share the Cocoa base coordinate space: the cursor
+  /// position and the screen frames arrive in it, and the focused
+  /// window's point must already be converted from the accessibility
+  /// space, as `DisplayResolver.cocoaCentre(ofAccessibilityFrame:over:)`
+  /// does.
   static func resolve(
     _ target: DisplayTarget,
     cursor: CGPoint?,
