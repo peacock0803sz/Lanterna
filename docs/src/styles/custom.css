@@ -110,8 +110,15 @@
   }
 }
 
+/* On phones the notice wraps its message onto two lines under the label. */
 :root:has(.ln-notice) {
-  --ln-notice-height: 44px;
+  --ln-notice-height: 117px;
+}
+
+@media (min-width: 50rem) {
+  :root:has(.ln-notice) {
+    --ln-notice-height: 44px;
+  }
 }
 
 @media (min-width: 72rem) {

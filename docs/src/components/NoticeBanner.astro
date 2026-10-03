@@ -86,14 +86,26 @@ const notice =
     text-decoration: underline;
   }
 
-  /* On phones the bar keeps one line: the label and the link only. */
+  /* On phones the label, the message, and the link stack, at a fixed height the header can count on. */
   @media (max-width: 49.99rem) {
     .notice {
-      justify-content: space-between;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      padding-block: 12px 14px;
+    }
+
+    .label {
+      font-size: 10px;
     }
 
     .message {
-      display: none;
+      flex: none;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-height: 1.6;
+      white-space: normal;
     }
   }
 </style>
