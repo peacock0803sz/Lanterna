@@ -51,6 +51,7 @@ extension AppConfiguration {
     }
     entries.append(contentsOf: searchSettingEntries(config))
     entries.append(contentsOf: textScaleEntries(config))
+    entries.append(contentsOf: displayEntries(config))
     entries.append(contentsOf: updateCheckEntries(config))
     entries.append(encodedInt(key: "version", value: config.version))
     entries.append(contentsOf: listingEntries(config))
@@ -106,6 +107,11 @@ extension AppConfiguration {
 
   /// One `"key": 1` line, indented two spaces.
   static func encodedInt(key: String, value: Int) -> String {
+    "  \"\(key)\": \(value)"
+  }
+
+  /// One `"key": 1.12` line, indented two spaces.
+  static func encodedDouble(key: String, value: Double) -> String {
     "  \"\(key)\": \(value)"
   }
 
@@ -174,11 +180,6 @@ extension AppConfiguration {
   private static func textScaleEntries(_ config: ValidConfiguration) -> [String] {
     guard let textScale = config.textScale else { return [] }
     return [encodedDouble(key: "textScale", value: textScale)]
-  }
-
-  /// One `"key": 1.12` line, indented two spaces.
-  private static func encodedDouble(key: String, value: Double) -> String {
-    "  \"\(key)\": \(value)"
   }
 
   /// One `"key": true` line, indented two spaces.

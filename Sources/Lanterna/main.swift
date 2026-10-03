@@ -81,6 +81,14 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
         context: ["path": .string(url.path), "issue": .string("\(textScaleIssue)")]
       ))
     }
+    if let panelWidthIssue = decoded.panelWidthIssue {
+      Diagnostics.writeLine(LogLine(
+        .warning,
+        .config,
+        "\(panelWidthIssue): \(url.path)",
+        context: ["path": .string(url.path), "issue": .string("\(panelWidthIssue)")]
+      ))
+    }
     for issue in decoded.groupAssignmentIssues {
       Diagnostics.writeLine(LogLine(
         .warning,

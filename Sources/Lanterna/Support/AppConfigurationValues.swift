@@ -344,11 +344,14 @@ extension AppConfiguration {
       config.keyBindingSection = section.isEmpty ? nil : section
       let (textScale, textScaleIssue) = checkedOptionalTextScale(dict)
       config.textScale = textScale
+      let (panelWidth, panelWidthIssue) = checkedOptionalPanelWidth(dict)
+      config.panelWidth = panelWidth
       return .success(DecodedConfiguration(
         config: config,
         assumedVersion: assumed,
         keyBindingIssues: decodeIssues + resolveIssues,
         textScaleIssue: textScaleIssue,
+        panelWidthIssue: panelWidthIssue,
         deprecatedKeys: deprecatedKeys.filter { dict[$0] != nil }
       ))
 
