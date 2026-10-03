@@ -36,6 +36,9 @@ enum KeyBindingAction: String, CaseIterable, Equatable, Sendable {
   case quitApplication
   case hideApplication
   case minimizeWindow
+  case numberJump
+  case moveRowUp
+  case moveRowDown
 
   // MARK: Internal
 
@@ -49,7 +52,10 @@ enum KeyBindingAction: String, CaseIterable, Equatable, Sendable {
          .quitApplication,
          .hideApplication,
          .minimizeWindow,
-         .toggleScope:
+         .toggleScope,
+         .numberJump,
+         .moveRowUp,
+         .moveRowDown:
       .guarded
     default:
       .bare
@@ -209,6 +215,26 @@ struct ResolvedKey: Equatable, Hashable, Sendable {
       "8"
     case kVK_ANSI_0:
       "0"
+    case kVK_ANSI_Keypad1:
+      "Keypad 1"
+    case kVK_ANSI_Keypad2:
+      "Keypad 2"
+    case kVK_ANSI_Keypad3:
+      "Keypad 3"
+    case kVK_ANSI_Keypad4:
+      "Keypad 4"
+    case kVK_ANSI_Keypad5:
+      "Keypad 5"
+    case kVK_ANSI_Keypad6:
+      "Keypad 6"
+    case kVK_ANSI_Keypad7:
+      "Keypad 7"
+    case kVK_ANSI_Keypad8:
+      "Keypad 8"
+    case kVK_ANSI_Keypad9:
+      "Keypad 9"
+    case kVK_ANSI_Keypad0:
+      "Keypad 0"
     case kVK_ANSI_RightBracket:
       "]"
     case kVK_ANSI_O:
@@ -306,6 +332,31 @@ struct KeyBindingTable: Equatable, Sendable {
 
   // MARK: Internal
 
+  /// The key codes answering as decimal digits: the main row first,
+  /// then the keypad. Shared with the digit-value map in PanelKeyInput.
+  static let numberDigitKeyCodes: [Int] = [
+    kVK_ANSI_1,
+    kVK_ANSI_2,
+    kVK_ANSI_3,
+    kVK_ANSI_4,
+    kVK_ANSI_5,
+    kVK_ANSI_6,
+    kVK_ANSI_7,
+    kVK_ANSI_8,
+    kVK_ANSI_9,
+    kVK_ANSI_0,
+    kVK_ANSI_Keypad1,
+    kVK_ANSI_Keypad2,
+    kVK_ANSI_Keypad3,
+    kVK_ANSI_Keypad4,
+    kVK_ANSI_Keypad5,
+    kVK_ANSI_Keypad6,
+    kVK_ANSI_Keypad7,
+    kVK_ANSI_Keypad8,
+    kVK_ANSI_Keypad9,
+    kVK_ANSI_Keypad0,
+  ]
+
   /// The long-standing behaviour, key for key.
   static var defaults: KeyBindingTable {
     KeyBindingTable(keys: [
@@ -333,6 +384,17 @@ struct KeyBindingTable: Equatable, Sendable {
       .quitApplication: [ResolvedKey(keyCode: UInt16(kVK_ANSI_Q), modifiers: .command)],
       .hideApplication: [ResolvedKey(keyCode: UInt16(kVK_ANSI_H), modifiers: .command)],
       .minimizeWindow: [ResolvedKey(keyCode: UInt16(kVK_ANSI_M), modifiers: .command)],
+      // Every decimal digit on both the main row and the keypad, each
+      // with Command and with Option: the number jump answers them all.
+      .numberJump: Self.defaultNumberJumpKeys,
+      .moveRowUp: [
+        ResolvedKey(keyCode: UInt16(kVK_UpArrow), modifiers: [.command, .shift]),
+        ResolvedKey(keyCode: UInt16(kVK_UpArrow), modifiers: [.option, .shift]),
+      ],
+      .moveRowDown: [
+        ResolvedKey(keyCode: UInt16(kVK_DownArrow), modifiers: [.command, .shift]),
+        ResolvedKey(keyCode: UInt16(kVK_DownArrow), modifiers: [.option, .shift]),
+      ],
     ])
   }
 
@@ -412,6 +474,15 @@ struct KeyBindingTable: Equatable, Sendable {
   }
 
   // MARK: Private
+
+  private static var defaultNumberJumpKeys: [ResolvedKey] {
+    numberDigitKeyCodes.flatMap { code in
+      [
+        ResolvedKey(keyCode: UInt16(code), modifiers: .command),
+        ResolvedKey(keyCode: UInt16(code), modifiers: .option),
+      ]
+    }
+  }
 
   /// Whether the press would narrow the list rather than drive.
   ///

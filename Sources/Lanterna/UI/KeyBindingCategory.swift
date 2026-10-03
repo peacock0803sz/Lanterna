@@ -34,7 +34,7 @@ enum KeyBindingCategory: CaseIterable, Equatable, Hashable, Sendable {
   var actions: [KeyBindingAction] {
     switch self {
     case .switcher: [.show, .showReverse, .showFilter]
-    case .navigation: [.next, .previous, .commit, .cancel, .toggleScope]
+    case .navigation: [.next, .previous, .commit, .cancel, .toggleScope, .numberJump, .moveRowUp, .moveRowDown]
     case .query: [.deleteBackward, .clearQuery]
     case .windowActions: [.closeWindow, .quitApplication, .hideApplication, .minimizeWindow]
     }
@@ -51,6 +51,9 @@ enum KeyBindingCategory: CaseIterable, Equatable, Hashable, Sendable {
     case .commit: "Commit"
     case .cancel: "Cancel"
     case .toggleScope: "Toggle active app only"
+    case .numberJump: "Jump to row number"
+    case .moveRowUp: "Move row up"
+    case .moveRowDown: "Move row down"
     case .deleteBackward: "Delete backward"
     case .clearQuery: "Clear query"
     case .closeWindow: "Close window"
