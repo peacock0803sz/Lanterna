@@ -1,0 +1,107 @@
+---
+title: Features
+description: What Lanterna can do, in the form of a list of lights.
+---
+
+import LightEntry from "../../../components/LightEntry.astro";
+
+## Switcher
+
+<LightEntry no="D1.1" name="List view" keys={["⌘", "Tab"]}>
+  Lists app icons and window titles. It takes no thumbnails, so it opens at once
+  and uses almost no memory.
+</LightEntry>
+
+<LightEntry no="D1.2" name="Window-level switching" keys={["⇧", "⌘", "Tab"]}>
+  Lists one window per row in most-recently-used order. Other windows of the
+  same app, and Chrome or Vivaldi PWAs, get their own rows.
+</LightEntry>
+
+<LightEntry no="D1.3" name="Shortcut hints" keys={["fi"]}>
+  Shows the filter characters at the left of each row.
+</LightEntry>
+
+<LightEntry
+  no="D1.4"
+  name="Grouped minimized and hidden rows"
+  setting="Settings › Filter"
+>
+  Keeps minimized windows and hidden apps below the list. They can also be mixed
+  in or hidden.
+</LightEntry>
+
+<LightEntry no="D1.5" name="Fullscreen handling" setting="Settings › Filter">
+  Fullscreen windows on their own Space can also be mixed in, hidden, or kept
+  below.
+</LightEntry>
+
+## Search
+
+<LightEntry no="D2.1" name="Type to filter" keys={["A–Z"]}>
+  Typing in the switcher narrows the list.
+</LightEntry>
+
+<LightEntry no="D2.2" name="Open ready to filter" keys={["⌘", "Space"]}>
+  Opens the switcher already waiting for input.
+</LightEntry>
+
+<LightEntry no="D2.3" name="Romaji search" setting="Settings › Filter">
+  Matches kana and kanji readings from romaji.
+</LightEntry>
+
+<LightEntry no="D2.4" name="Fuzzy search" setting="Settings › Filter">
+  Matches when the characters appear in order, even when they are not next to
+  each other.
+</LightEntry>
+
+<LightEntry no="D2.5" name="Sort order" setting="Settings › Filter">
+  Sorts by most recently used, or by best match.
+</LightEntry>
+
+<LightEntry no="D2.6" name="Shortcut memory" setting="Settings › Filter">
+  Remembers the chosen window per typed characters. It remembers 5 characters by
+  default, and 0 turns it off.
+</LightEntry>
+
+## Appearance
+
+<LightEntry no="D3.1" name="Appearance" setting="Settings › Appearance">
+  Follows the system, or stays on light or dark.
+</LightEntry>
+
+<LightEntry no="D3.2" name="Text size" setting="Settings › Appearance">
+  Changes the text size of the switcher.
+</LightEntry>
+
+<LightEntry no="D3.3" name="Liquid Glass">
+  Matches the Liquid Glass look of macOS Tahoe.
+</LightEntry>
+
+## Keyboard
+
+<LightEntry no="D4.1" name="Keybindings" setting="Settings › Keyboard">
+  Changes the keys for show, reverse, filter, next, previous, commit, and
+  cancel. More than one key can be assigned to one action.
+</LightEntry>
+
+## General
+
+<LightEntry no="D5.1" name="Launch at login" setting="Settings › General">
+  Starts automatically when you log in to the Mac.
+</LightEntry>
+
+<LightEntry no="D5.2" name="Check for updates" setting="Settings › General">
+  Checks for new releases. Stable follows releases only, Beta includes
+  prereleases.
+</LightEntry>
+
+<LightEntry no="D5.3" name="Minimal permissions">
+  Needs only Accessibility and Input Monitoring. No Screen Recording means no
+  weekly re-confirmation dialog.
+</LightEntry>
+
+<LightEntry no="D5.4" name="Menu bar app">
+  Lives in the menu bar with no Dock icon.
+</LightEntry>
+
+See [Usage](./usage/) for the full steps.

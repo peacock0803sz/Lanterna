@@ -1,0 +1,94 @@
+---
+title: 機能一覧
+description: Lanternaでできることを、灯台表の形式でまとめています。
+---
+
+import LightEntry from "../../../components/LightEntry.astro";
+
+## 切り替え画面
+
+<LightEntry no="D1.1" name="リスト表示" keys={["⌘", "Tab"]}>
+  アプリのアイコンとウィンドウのタイトルを一覧にします。サムネイルを撮らないので、すぐに開き、メモリもほとんど使いません。
+</LightEntry>
+
+<LightEntry no="D1.2" name="ウィンドウ単位の切り替え" keys={["⇧", "⌘", "Tab"]}>
+  最近使った順に、ウィンドウを1つずつ並べます。同じアプリの別ウィンドウや、Chrome・VivaldiのPWAも別の行になります。
+</LightEntry>
+
+<LightEntry no="D1.3" name="ショートカットヒント" keys={["fi"]}>
+  行の左端に、絞り込みで使う文字を表示します。
+</LightEntry>
+
+<LightEntry no="D1.4" name="最小化・非表示のまとめ" setting="Settings › Filter">
+  最小化したウィンドウや非表示のアプリを、一覧の下にまとめます。混ぜて表示する、出さない、も選べます。
+</LightEntry>
+
+<LightEntry no="D1.5" name="フルスクリーンの扱い" setting="Settings › Filter">
+  自分のSpaceを使うフルスクリーンのウィンドウも、同じく混ぜる・出さない・下にまとめるから選べます。
+</LightEntry>
+
+## 検索
+
+<LightEntry no="D2.1" name="入力で絞り込み" keys={["A–Z"]}>
+  切り替え画面で文字を入力すると、一覧を絞り込みます。
+</LightEntry>
+
+<LightEntry no="D2.2" name="絞り込みから開く" keys={["⌘", "Space"]}>
+  最初から入力待ちの状態で、切り替え画面を開きます。
+</LightEntry>
+
+<LightEntry no="D2.3" name="ローマ字検索" setting="Settings › Filter">
+  ローマ字で、かなの読みや漢字の読みに一致させます。
+</LightEntry>
+
+<LightEntry no="D2.4" name="あいまい検索" setting="Settings › Filter">
+  文字が順番どおりに含まれていれば、続いていなくても一致します。
+</LightEntry>
+
+<LightEntry no="D2.5" name="並び順" setting="Settings › Filter">
+  最近使った順か、よく一致した順かを選べます。
+</LightEntry>
+
+<LightEntry no="D2.6" name="ショートカット記憶" setting="Settings › Filter">
+  入力した文字ごとに、選んだウィンドウを覚えます。覚える文字数は既定で5、0にするとオフです。
+</LightEntry>
+
+## 表示
+
+<LightEntry no="D3.1" name="外観" setting="Settings › Appearance">
+  システムに合わせるか、ライトかダークに固定できます。
+</LightEntry>
+
+<LightEntry no="D3.2" name="文字サイズ" setting="Settings › Appearance">
+  切り替え画面の文字の大きさを変えられます。
+</LightEntry>
+
+<LightEntry no="D3.3" name="Liquid Glass">
+  macOS TahoeのLiquid Glassに合わせた見た目です。
+</LightEntry>
+
+## キーボード
+
+<LightEntry no="D4.1" name="キー割り当て" setting="Settings › Keyboard">
+  表示・逆方向・絞り込み・次・前・決定・キャンセルのキーを変えられます。1つの操作に複数のキーを割り当てることもできます。
+</LightEntry>
+
+## 一般
+
+<LightEntry no="D5.1" name="ログイン時に起動" setting="Settings › General">
+  Macにログインしたときに自動で起動します。
+</LightEntry>
+
+<LightEntry no="D5.2" name="アップデートの確認" setting="Settings › General">
+  新しいリリースを確認します。正式版だけのStableと、プレリリースも含むBetaから選べます。
+</LightEntry>
+
+<LightEntry no="D5.3" name="最小限の権限">
+  必要なのはアクセシビリティと入力監視だけです。画面収録の許可は要らないので、毎週の再確認ダイアログも出ません。
+</LightEntry>
+
+<LightEntry no="D5.4" name="メニューバー常駐">
+  Dockにアイコンを出さず、メニューバーに常駐します。
+</LightEntry>
+
+詳しい操作は[使い方](./usage/)を参照してください。
