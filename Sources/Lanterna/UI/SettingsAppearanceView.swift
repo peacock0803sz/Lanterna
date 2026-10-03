@@ -44,6 +44,36 @@ struct SettingsAppearanceView: View {
           )
         }
       }
+      Section("Panel") {
+        Picker(selection: $values.displayTarget) {
+          Text("Primary display").tag(DisplayTarget.primary)
+          Text("Display with cursor").tag(DisplayTarget.cursor)
+          Text("Display with focused window").tag(DisplayTarget.frontWindow)
+          Text("All displays").tag(DisplayTarget.all)
+        } label: {
+          SettingsFormLabel(
+            title: "Show Panel on",
+            caption: "Which display the panel opens on."
+          )
+        }
+        .pickerStyle(.menu)
+        LabeledContent {
+          Slider(value: panelWidthIndex, in: 0 ... 4, step: 1) {
+            Text("Panel Width")
+          } minimumValueLabel: {
+            Text("Narrow")
+          } maximumValueLabel: {
+            Text("Wide")
+          }
+          .labelsHidden()
+          .tint(.accentColor)
+        } label: {
+          SettingsFormLabel(
+            title: "Panel Width",
+            caption: "\(Int((values.panelWidth.factor * 100).rounded()))% of the standard width."
+          )
+        }
+      }
       Section("Preview") {
         preview
       }
@@ -78,6 +108,15 @@ struct SettingsAppearanceView: View {
     .accessibilityElement(children: .combine)
     .accessibilityLabel("Preview")
     .appliedAppearance(values.appearanceMode)
+  }
+
+  /// The width slider position spelling the step, the same way the
+  /// text size slider spells its step.
+  private var panelWidthIndex: Binding<Double> {
+    Binding(
+      get: { Double(values.panelWidth.rawValue) },
+      set: { values.panelWidth = PanelWidth(rawValue: Int($0.rounded())) ?? .standard }
+    )
   }
 
   /// The slider position spelling the step: the slider works in
