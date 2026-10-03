@@ -1,7 +1,8 @@
 import Foundation
 
-/// The keys deciding where the panel opens and how wide it is, read
-/// together so the assembly in `AppConfiguration` gains one call.
+/// The keys deciding where the panel opens and how wide it is: their
+/// readers and their encoded lines, kept beside each other so the
+/// decoding and encoding of one key change together.
 extension AppConfiguration {
 
   /// Reads the display-target key into the configuration. The target word

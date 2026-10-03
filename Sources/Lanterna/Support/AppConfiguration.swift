@@ -175,8 +175,9 @@ struct ValidConfiguration: Equatable, Sendable {
   /// the menu-bar display.
   var displayTarget: DisplayTarget?
   /// The panel width multiplier. Nil means absent, which means 1.0
-  /// (the current width). Only the five steps count; anything else
-  /// falls back with a note instead of invalidating the file.
+  /// (the text-scaled width unchanged). Only the `PanelWidth` steps
+  /// count; anything else falls back with a note instead of
+  /// invalidating the file.
   var panelWidth: Double?
   /// Which applications' rows each appearance starts on. Nil means
   /// absent, which means every application.

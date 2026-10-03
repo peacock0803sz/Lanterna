@@ -61,8 +61,9 @@ enum PanelMetrics {
     scale.scaledRowHeight
   }
 
-  /// The panel width one step draws at one width step, in whole points.
-  /// The standard step draws the current width.
+  /// The panel width a text step draws at a width step, in whole
+  /// points. The standard width step draws the text-scaled width
+  /// unchanged.
   static func width(for scale: TextScaleLevel, step: PanelWidth) -> CGFloat {
     step.applied(to: scale.scaledWidth)
   }
@@ -74,8 +75,8 @@ enum PanelMetrics {
 
   /// Fits a content width into a visible width, keeping the margin.
   /// A fitting width passes through; only an overflow is cut.
-  /// Never drops below zero, so a very narrow display still yields
-  /// a usable width.
+  /// Never drops below zero, so a display narrower than the margin
+  /// yields zero rather than a negative width.
   static func fittedWidth(_ width: CGFloat, in visibleWidth: CGFloat) -> CGFloat {
     min(width, max(visibleWidth - screenMargin, 0))
   }

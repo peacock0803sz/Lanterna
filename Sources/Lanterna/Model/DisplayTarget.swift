@@ -8,7 +8,7 @@ import Foundation
 /// Mirrors the config file values (`"primary"`, `"cursor"`,
 /// `"frontWindow"`, `"all"`). An absent key means `primary`: unless the
 /// file says otherwise, the panel opens centred on the display that
-/// carries the menu bar, exactly as before.
+/// carries the menu bar.
 enum DisplayTarget: String, Sendable {
   /// The display that carries the menu bar.
   case primary

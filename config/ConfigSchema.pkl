@@ -172,8 +172,8 @@ keybindings: KeyBindings? = null
 textScale: Number? = null
 
 /// The panel width as a multiplier over the text-scaled width: one of
-/// the five steps. Absent means 1.0 (the current width). The value
-/// allowlist lives in Swift, like `textScale`.
+/// the allowed steps. Absent means 1.0 (the text-scaled width
+/// unchanged). The value allowlist lives in Swift, like `textScale`.
 panelWidth: Number? = null
 
 /// Which applications' windows each showing starts on.
