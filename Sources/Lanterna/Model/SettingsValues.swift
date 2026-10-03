@@ -29,6 +29,7 @@ struct SettingsValues: Equatable, Sendable {
     numberJump: false,
     numberReorder: false,
     numberScope: .windows,
+    hintsMode: .prefix,
     rowOrder: .none,
     panelWidth: .standard,
     showDelayMs: nil,
@@ -83,6 +84,9 @@ struct SettingsValues: Equatable, Sendable {
   /// Which rows row numbers cover. Absent in the file means window
   /// rows alone.
   var numberScope: NumberScope
+  /// How the left edge of each row reads. Absent in the file means
+  /// prefix hints.
+  var hintsMode: HintsMode
   /// The hand-arranged row orders shadowing the drawn order. Absent
   /// in the file means no overrides.
   var rowOrder: ManualRowOrder
@@ -129,6 +133,7 @@ struct SettingsValues: Equatable, Sendable {
       numberJump: config.numberJump ?? false,
       numberReorder: config.numberReorder ?? false,
       numberScope: NumberScope.effective(from: config),
+      hintsMode: HintsMode.effective(from: config),
       rowOrder: ManualRowOrder(entries: config.rowOrder),
       panelWidth: PanelWidth.effective(from: config),
       showDelayMs: ShowDelay.effective(config.showDelayMs).value,
@@ -209,6 +214,9 @@ struct SettingsValues: Equatable, Sendable {
     }
     if numberScope != defaults.numberScope {
       config.numberScope = numberScope
+    }
+    if hintsMode != defaults.hintsMode {
+      config.hintsMode = hintsMode
     }
     // Absent stays absent, so clearing the order removes the key.
     if rowOrder != .none {

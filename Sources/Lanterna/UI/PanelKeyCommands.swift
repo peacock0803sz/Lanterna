@@ -135,6 +135,7 @@ final class PanelKeyCommands {
   /// Hands the numbering scope to the live panel, the same way.
   func updateNumberScope(_ scope: NumberScope) {
     numberScope = scope
+    filter.numberScope = scope
   }
 
   /// Hands a changed row order to the live panel, the same way.

@@ -138,6 +138,15 @@
         "allRows"
       ]
     },
+    "hintsMode": {
+      "description": "How the left edge of each row reads. Absent means \"prefix\".",
+      "type": "string",
+      "enum": [
+        "prefix",
+        "numbers",
+        "neither"
+      ]
+    },
     "rowOrder": {
       "description": "Hand-arranged row orders by manual group. Entries that are invalid on\ntheir own are ignored one by one. Absent means no overrides.",
       "type": "integer"

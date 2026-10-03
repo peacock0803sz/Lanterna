@@ -119,6 +119,7 @@ extension AppDelegate {
     panel.panelWidth = options.panelWidth
     panel.hoverSelect = options.hoverSelect
     panel.scrollSelect = options.scrollSelect
+    panel.hintsMode = currentValues.hintsMode
     let composite = MirroredPanelSurface(panels: [panel])
     composite.displayTarget = options.displayTarget
     composite.makeMirror = {
@@ -183,6 +184,7 @@ extension AppDelegate {
     panel?.panelWidth = values.panelWidth
     panel?.hoverSelect = values.hoverSelect
     panel?.scrollSelect = values.scrollSelect
+    panel?.hintsMode = values.hintsMode
     let searchSettings = SearchSettings(
       fuzzyMatchEnabled: values.fuzzyMatchEnabled,
       shortcutMemoryLength: values.shortcutMemoryLength,

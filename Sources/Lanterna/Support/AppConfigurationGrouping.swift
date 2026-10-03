@@ -30,6 +30,12 @@ extension AppConfiguration {
     case .failure(let error):
       return .failure(error)
     }
+    switch checkedOptionalWord(dict, key: "hintsMode", as: HintsMode.self) {
+    case .success(let found):
+      config.hintsMode = found
+    case .failure(let error):
+      return .failure(error)
+    }
     switch checkedOptionalWord(dict, key: "grouping", as: GroupingMode.self) {
     case .success(let found):
       config.grouping = found
@@ -56,6 +62,9 @@ extension AppConfiguration {
     }
     if let windowlessAppMode = config.windowlessAppMode {
       entries.append(encodedString(key: "windowlessAppMode", value: windowlessAppMode.rawValue))
+    }
+    if let hintsMode = config.hintsMode {
+      entries.append(encodedString(key: "hintsMode", value: hintsMode.rawValue))
     }
     if let grouping = config.grouping {
       entries.append(encodedString(key: "grouping", value: grouping.rawValue))

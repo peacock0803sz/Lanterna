@@ -85,6 +85,11 @@ struct SwitcherView: View {
   /// together and never disagree about which row is which.
   var numberedIDs = [WindowItem.Identifier]()
 
+  /// How the left edge of each row reads. Handed down from the panel,
+  /// which freezes it for the appearance, so swaps during the
+  /// appearance never pick up a change made while the panel is up.
+  var hintsMode = HintsMode.prefix
+
   /// Where a row hover goes. Called only while the hover switch is on.
   var onHoverRow: ((WindowItem.Identifier) -> Void)?
 
@@ -372,10 +377,16 @@ struct SwitcherView: View {
   }
 
   private func row(_ window: WindowItem, isInSubgroup: Bool = false) -> some View {
-    WindowRow(
+    // Neither hides the frame, except while a temporary order names a
+    // row: the number then needs its frame to read in. The temporary
+    // order only ever arrives through `numberedIDs`, so a row with no
+    // number in this mode truly has nothing to show.
+    let number = number(for: window.id)
+    return WindowRow(
       window: window,
       isSelected: window.id == selectedID,
-      rowNumber: number(for: window.id),
+      rowNumber: number,
+      hidesHintFrame: hintsMode == .neither && number == nil,
       query: query,
       fuzzy: fuzzyMatchEnabled,
       textScale: textScale,

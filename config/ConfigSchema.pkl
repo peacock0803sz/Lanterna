@@ -132,6 +132,14 @@ typealias NumberScope = "windows"|"allRows"
 @Allowed { values { "windows" "allRows" } }
 numberScope: NumberScope? = null
 
+/// How the left edge of each row reads: prefix hints, row numbers,
+/// or no hint frame.
+typealias HintsMode = "prefix"|"numbers"|"neither"
+
+/// How the left edge of each row reads. Absent means "prefix".
+@Allowed { values { "prefix" "numbers" "neither" } }
+hintsMode: HintsMode? = null
+
 /// One group's hand-arranged row order.
 open class RowOrderEntry {
   /// The manual group number, 1 to 9.

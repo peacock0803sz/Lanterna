@@ -124,6 +124,17 @@ struct SettingsAppearanceView: View {
           )
         }
         .pickerStyle(.menu)
+        Picker(selection: $values.hintsMode) {
+          Text("Prefix hints").tag(HintsMode.prefix)
+          Text("Numbers").tag(HintsMode.numbers)
+          Text("Neither").tag(HintsMode.neither)
+        } label: {
+          SettingsFormLabel(
+            title: "Hints",
+            caption: "How the left edge of each row reads. Prefix hints by default."
+          )
+        }
+        .pickerStyle(.menu)
       }
       Section("Preview") {
         preview
@@ -152,7 +163,10 @@ struct SettingsAppearanceView: View {
           // Numbers show the way the panel draws them while a jump
           // modifier is held; the reorder switch moves rows by key and
           // has no still picture, so only this switch reaches the preview.
-          rowNumber: values.numberJump ? index + 1 : nil,
+          // The hint mode decides over it: numbers always name the
+          // sample rows, neither draws no frame at all.
+          rowNumber: previewRowNumber(index: index),
+          hidesHintFrame: values.hintsMode == .neither,
           query: "",
           textScale: values.textScale
         )
@@ -205,6 +219,20 @@ struct SettingsAppearanceView: View {
       get: { Double(values.textScale.rawValue) },
       set: { values.textScale = TextScaleLevel(rawValue: Int($0.rounded())) ?? .standard }
     )
+  }
+
+  /// The sample row number the preview draws: the jump switch names
+  /// rows only in passing, while the numbers mode names them always
+  /// and neither names none.
+  private func previewRowNumber(index: Int) -> Int? {
+    switch values.hintsMode {
+    case .prefix:
+      values.numberJump ? index + 1 : nil
+    case .numbers:
+      index + 1
+    case .neither:
+      nil
+    }
   }
 
 }

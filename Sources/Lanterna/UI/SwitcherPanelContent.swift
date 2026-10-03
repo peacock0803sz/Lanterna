@@ -32,6 +32,7 @@ extension SwitcherPanel {
       scrollSelect: scrollSelect,
       hoverAnchor: hoverAnchor,
       numberedIDs: numberedIDs,
+      hintsMode: appearanceHints,
       onHoverRow: onHoverRow,
       onClickRow: onClickRow
     )

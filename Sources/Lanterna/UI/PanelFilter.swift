@@ -75,6 +75,10 @@ final class PanelFilter {
   /// groups. Read beside the grouping above.
   var rowOrder = ManualRowOrder.none
 
+  /// Which rows numbers name. Mirrors the key commands' scope, so a
+  /// narrowed list renumbers the same rows a jump would name.
+  var numberScope = NumberScope.windows
+
   /// Whether a query is narrowing the list right now.
   var isFiltering: Bool {
     !state.query.isEmpty
@@ -297,6 +301,18 @@ final class PanelFilter {
     let chosen = state.resolveSelection(matched: layout.rankedRows.map(\.id), incoming: selection.chosenID)
     selection.retarget(to: matchedList, selecting: chosen)
     surface.updateList(windows: matched, selecting: selection.chosenID, query: state.query, filterActive: isActive)
+    // Twin of `PanelKeyCommands.numberedRows`: same scope rule, so a narrowed
+    // list renumbers the rows a jump would name.
+    if surface.appearanceHints == .numbers {
+      let numbered: [WindowItem] =
+        switch numberScope {
+        case .windows:
+          matched.filter { $0.id.windowID != nil }
+        case .allRows:
+          matched
+        }
+      surface.showNumberedRows(numbered.map(\.id))
+    }
     lastSummary = FilterLogSummary(
       query: state.query,
       matchedCount: matched.count,

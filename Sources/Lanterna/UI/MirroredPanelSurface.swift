@@ -90,6 +90,13 @@ final class MirroredPanelSurface: SwitcherSurface {
     return activePanels[0].isTakingKeys
   }
 
+  var appearanceHints: HintsMode {
+    if displayTarget == .all {
+      return activePanels[keyPanelIndex].appearanceHints
+    }
+    return activePanels[0].appearanceHints
+  }
+
   func present(windows: [WindowItem], selecting: WindowItem.Identifier?, filterActive: Bool = false) {
     refreshPool()
     refreshKeyPanel()
@@ -188,6 +195,7 @@ final class MirroredPanelSurface: SwitcherSurface {
       mirror.panelWidth = primary.panelWidth
       mirror.hoverSelect = primary.hoverSelect
       mirror.scrollSelect = primary.scrollSelect
+      mirror.hintsMode = primary.hintsMode
       mirror.onHoverRow = primary.onHoverRow
       mirror.onClickRow = primary.onClickRow
       mirror.onScrollStep = primary.onScrollStep

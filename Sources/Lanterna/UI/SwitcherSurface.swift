@@ -32,6 +32,13 @@ protocol SwitcherSurface: AnyObject {
   /// the previous one. The presenter sets it; nil listens to nothing.
   var onScrollStep: ((Int) -> Void)? { get set }
 
+  /// How the left edge of each row reads on screen now: the mode the
+  /// appearance opened with, frozen at `present`. Read back off the
+  /// panel rather than remembered beside it, the way `isPresented` is:
+  /// a change made while the panel is up lands with the next
+  /// appearance and must not leak into this one.
+  var appearanceHints: HintsMode { get }
+
   /// Puts the panel up showing this list, with this row drawn as chosen,
   /// on an empty query, with the filter chrome on exactly when the
   /// appearance opened filtering.

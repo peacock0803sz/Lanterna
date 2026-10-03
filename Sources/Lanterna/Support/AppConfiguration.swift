@@ -50,6 +50,7 @@ enum AppConfiguration {
     "numberJump",
     "numberReorder",
     "numberScope",
+    "hintsMode",
     "rowOrder",
     "windowScope",
     "grouping",
@@ -109,6 +110,7 @@ struct ValidConfiguration: Equatable, Sendable {
     numberJump: Bool? = nil,
     numberReorder: Bool? = nil,
     numberScope: NumberScope? = nil,
+    hintsMode: HintsMode? = nil,
     rowOrder: [RowOrderEntry] = [],
     windowScope: WindowScope? = nil,
     grouping: GroupingMode? = nil,
@@ -147,6 +149,7 @@ struct ValidConfiguration: Equatable, Sendable {
     self.numberJump = numberJump
     self.numberReorder = numberReorder
     self.numberScope = numberScope
+    self.hintsMode = hintsMode
     self.rowOrder = rowOrder
     self.windowScope = windowScope
     self.grouping = grouping
@@ -220,6 +223,9 @@ struct ValidConfiguration: Equatable, Sendable {
   /// Which rows row numbers cover. Nil means absent, which means
   /// window rows alone.
   var numberScope: NumberScope?
+  /// How the left edge of each row reads. Nil means absent, which
+  /// means prefix hints.
+  var hintsMode: HintsMode?
   /// Hand-arranged row orders by manual group. Empty means absent.
   var rowOrder: [RowOrderEntry]
   /// Which applications' rows each appearance starts on. Nil means
