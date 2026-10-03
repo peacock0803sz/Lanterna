@@ -83,6 +83,7 @@ final class PanelKeyCommands {
   /// is handed over before the panel goes up, so the panel sizes for it.
   func beginFiltering(fullWindows: [WindowItem], filtering: Bool = false) {
     filter.scopeToggleKey = keyBindings[.toggleScope].first?.displayName
+    numberInput.reset()
     filter.begin(fullWindows: fullWindows, filtering: filtering, activeApplication: frontmostProcessIdentifier())
     surface.showScope(filter.scopeBand)
   }
@@ -116,9 +117,50 @@ final class PanelKeyCommands {
     keyBindings = bindings
   }
 
+  /// Hands the number jump switch to the live panel, so a settings
+  /// change reaches the keys without waiting for the next launch.
+  func updateNumberJump(_ enabled: Bool) {
+    numberJumpEnabled = enabled
+  }
+
+  /// Hands the reorder switch to the live panel, the same way.
+  func updateReorder(_ enabled: Bool) {
+    reorderEnabled = enabled
+  }
+
+  /// Hands the numbering scope to the live panel, the same way.
+  func updateNumberScope(_ scope: NumberScope) {
+    numberScope = scope
+  }
+
+  /// Hands a changed row order to the live panel, the same way.
+  func updateRowOrder(_ order: ManualRowOrder) {
+    rowOrder = order
+  }
+
+  /// Forgets gathered digits without ending the appearance. A release
+  /// that commits nothing still ends the number being typed.
+  func resetNumberInput() {
+    numberInput.reset()
+  }
+
+  /// The rows numbers name, in order: the drawn rows narrowed to the
+  /// numbering scope. The same order the choice steps through, so a
+  /// number and the selection can never disagree about which row is
+  /// which.
+  func numberedRows() -> [WindowItem] {
+    switch numberScope {
+    case .windows:
+      shownLayout.rows.filter { $0.id.windowID != nil }
+    case .allRows:
+      shownLayout.rows
+    }
+  }
+
   /// Gives the appearance up; the next one starts empty either way.
   func endFiltering() {
     filter.reset()
+    numberInput.reset()
   }
 
   /// Swaps the rows on screen for a list an operation hands over — its
@@ -128,6 +170,7 @@ final class PanelKeyCommands {
   /// shown rows.
   func replacePresentedList(_ windows: [WindowItem], choosingWhere anchor: ChoiceAnchor) {
     filter.replace(fullWindows: windows, choosingWhere: anchor)
+    numberInput.reset()
     wayOut.replacePresented(windows)
   }
 
@@ -182,7 +225,18 @@ final class PanelKeyCommands {
     // A new press answers the old failure: the note goes before
     // anything the press means is done.
     surface.clearNotice()
-    switch PanelKeyInput.action(for: keystroke, table: keyBindings) {
+    let resolved = PanelKeyInput.action(
+      for: keystroke,
+      table: keyBindings,
+      numberJumpEnabled: numberJumpEnabled,
+      reorderEnabled: reorderEnabled
+    )
+    // Only consecutive digit presses gather into a number: anything
+    // else hands the pending digits back before it is answered.
+    if resolved != .numberDigit {
+      numberInput.reset()
+    }
+    switch resolved {
     case .selectNext:
       selection.moveToNext()
 
@@ -224,7 +278,14 @@ final class PanelKeyCommands {
       filter.removeLast()
 
     case .numberDigit:
-      break // Answered once the number input below holds digits.
+      guard numberJumpEnabled, let digit = PanelKeyInput.digitValue(for: keystroke.keyCode) else {
+        break
+      }
+      numberInput.append(digit)
+      guard let number = numberInput.number else { break }
+      let rows = numberedRows()
+      guard rows.indices.contains(number - 1) else { break }
+      selection.select(rows[number - 1].id)
 
     case .moveRowUp,
          .moveRowDown:
@@ -264,6 +325,19 @@ final class PanelKeyCommands {
   }
 
   // MARK: Private
+
+  /// Whether digits with a jump modifier name rows. Off reads as the
+  /// table holding no number row.
+  private var numberJumpEnabled = false
+  /// Whether reorder presses move rows. Off reads as the table
+  /// holding neither reorder row.
+  private var reorderEnabled = false
+  /// Which rows numbers name. Window rows alone unless told otherwise.
+  private var numberScope = NumberScope.windows
+  /// The hand-arranged row orders shadowing the drawn order.
+  private var rowOrder = ManualRowOrder.none
+  /// The digits gathered since the last reset.
+  private var numberInput = NumberInput()
 
   private let surface: any SwitcherSurface
   private let selection: PanelSelection
