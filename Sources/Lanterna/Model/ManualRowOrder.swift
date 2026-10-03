@@ -73,6 +73,32 @@ struct ManualRowOrder: Equatable, Sendable {
     groups[group]
   }
 
+  /// Returns this order with one group's arrangement replaced by the
+  /// given shown rows: the shown rows in their new places first, then
+  /// every stored key the shown rows did not name, in its stored place.
+  /// Rows out of sight keep their relative order, so narrowing the list
+  /// never scrambles what was arranged.
+  func setting(group: Int, arranging shown: [WindowItem]) -> ManualRowOrder {
+    let shownKeys = shown.map { Self.key(for: $0) }
+    let shownSet = Set(shownKeys)
+    let kept = (groups[group] ?? []).filter { !shownSet.contains($0) }
+    var updated = groups
+    updated[group] = shownKeys + kept
+    return ManualRowOrder(groups: updated)
+  }
+
+  /// The file entries for the stored groups, in group order. Groups
+  /// with nothing stored are left out, so an empty order writes nothing.
+  func entries() -> [RowOrderEntry] {
+    groups.sorted { $0.key < $1.key }.compactMap { group, keys in
+      guard !keys.isEmpty else { return nil }
+      return RowOrderEntry(
+        group: group,
+        keys: keys.map { "\($0.owner)\n\($0.title)" }
+      )
+    }
+  }
+
   /// Lays rows out with one group's override applied: the named rows
   /// first in the stored order, then every unnamed row where it stood.
   /// Names matching nothing are ignored.

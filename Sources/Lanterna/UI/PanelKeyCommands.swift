@@ -60,6 +60,10 @@ final class PanelKeyCommands {
     NSWorkspace.shared.frontmostApplication?.processIdentifier
   }
 
+  /// Where a rearranged row order goes. Set by the presenter; the save
+  /// reaches the file through it.
+  var onRowOrderChanged: (@Sendable @MainActor (ManualRowOrder) -> Void)?
+
   /// The rows on screen, which the choice and the panel open on.
   var shownWindows: [WindowItem] {
     filter.shownWindows
@@ -136,6 +140,7 @@ final class PanelKeyCommands {
   /// Hands a changed row order to the live panel, the same way.
   func updateRowOrder(_ order: ManualRowOrder) {
     rowOrder = order
+    filter.rowOrder = order
   }
 
   /// Forgets gathered digits without ending the appearance. A release
@@ -287,9 +292,11 @@ final class PanelKeyCommands {
       guard rows.indices.contains(number - 1) else { break }
       selection.select(rows[number - 1].id)
 
-    case .moveRowUp,
-         .moveRowDown:
-      break // Answered once grouped lists learn to reorder.
+    case .moveRowUp:
+      moveSelectedRow(by: -1)
+
+    case .moveRowDown:
+      moveSelectedRow(by: 1)
 
     case .absorb:
       break
@@ -347,6 +354,54 @@ final class PanelKeyCommands {
   /// Handed the row chosen as the key is pressed, so a choice moved
   /// before the operation gets its turn does not change its target.
   private let operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)?
+
+  /// Moves the chosen row one step inside its manual group, saving the
+  /// rearranged order through the handler above. Anything outside a
+  /// manual group, under a query, at an edge, or past a boundary is
+  /// left alone: the press then means nothing, the way an absorbed
+  /// press does.
+  private func moveSelectedRow(by delta: Int) {
+    guard
+      reorderEnabled,
+      filter.grouping.mode == .manual,
+      !filter.isFiltering,
+      let selected = selection.chosenID
+    else {
+      return
+    }
+    var groupNumbers = [Int]()
+    var segments = [[WindowItem]]()
+    for block in shownLayout.blocks {
+      switch block {
+      case .groupHeading(_, let order):
+        groupNumbers.append(order)
+        segments.append([])
+
+      case .subgroupHeading:
+        break
+
+      case .row(let window, _):
+        guard !segments.isEmpty else { return }
+        segments[segments.count - 1].append(window)
+      }
+    }
+    guard
+      let segmentIndex = segments.firstIndex(where: { segment in
+        segment.contains(where: { $0.id == selected })
+      }),
+      let rowIndex = segments[segmentIndex].firstIndex(where: { $0.id == selected })
+    else {
+      return
+    }
+    let target = rowIndex + delta
+    guard segments[segmentIndex].indices.contains(target) else { return }
+    var arranged = segments[segmentIndex]
+    arranged.swapAt(rowIndex, target)
+    let updated = rowOrder.setting(group: groupNumbers[segmentIndex], arranging: arranged)
+    updateRowOrder(updated)
+    filter.applyRowOrder(updated)
+    onRowOrderChanged?(updated)
+  }
 
   /// Decides a cancel press: a clear key clears the query first and
   /// only cancels on an empty one. The table cannot tell the two
