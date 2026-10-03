@@ -42,6 +42,8 @@ enum AppConfiguration {
     "resultOrder",
     "keybindings",
     "textScale",
+    "displayTarget",
+    "panelWidth",
     "windowScope",
     "grouping",
     "otherSpacePlacement",
@@ -92,6 +94,8 @@ struct ValidConfiguration: Equatable, Sendable {
     fuzzyMatchEnabled: Bool? = nil,
     resultOrder: String? = nil,
     textScale: Double? = nil,
+    displayTarget: DisplayTarget? = nil,
+    panelWidth: Double? = nil,
     windowScope: WindowScope? = nil,
     grouping: GroupingMode? = nil,
     subgroupPlacements: [DisplaySubgroup: SubgroupPlacement] = [:],
@@ -121,6 +125,8 @@ struct ValidConfiguration: Equatable, Sendable {
     self.fuzzyMatchEnabled = fuzzyMatchEnabled
     self.resultOrder = resultOrder
     self.textScale = textScale
+    self.displayTarget = displayTarget
+    self.panelWidth = panelWidth
     self.windowScope = windowScope
     self.grouping = grouping
     self.subgroupPlacements = subgroupPlacements
@@ -165,6 +171,14 @@ struct ValidConfiguration: Equatable, Sendable {
   /// means 1.0 (the current size). Only the five steps count; anything
   /// else falls back with a note instead of invalidating the file.
   var textScale: Double?
+  /// Which display the panel opens on. Nil means absent, which means
+  /// the menu-bar display.
+  var displayTarget: DisplayTarget?
+  /// The panel width multiplier. Nil means absent, which means 1.0
+  /// (the text-scaled width unchanged). Only the `PanelWidth` steps
+  /// count; anything else falls back with a note instead of
+  /// invalidating the file.
+  var panelWidth: Double?
   /// Which applications' rows each appearance starts on. Nil means
   /// absent, which means every application.
   var windowScope: WindowScope?
@@ -234,6 +248,9 @@ struct DecodedConfiguration: Equatable, Sendable {
   /// The fallback note when the text scale was present but invalid.
   /// Nil means absent or valid, which means nothing to report.
   var textScaleIssue: String?
+  /// The fallback note when the panel width was present but invalid.
+  /// Nil means absent or valid, which means nothing to report.
+  var panelWidthIssue: String?
   /// Retired keys the file still held, read past without a look at their
   /// values, for one diagnostics line each.
   var deprecatedKeys = [String]()
@@ -344,7 +361,9 @@ extension AppConfiguration {
       appearanceMode: AppearanceMode.effective(from: file),
       searchSettings: SearchSettings.effective(from: file),
       keyBindings: file.keyBindings,
-      textScale: TextScaleLevel.effective(from: file)
+      textScale: TextScaleLevel.effective(from: file),
+      displayTarget: DisplayTarget.effective(from: file),
+      panelWidth: PanelWidth.effective(from: file)
     )
   }
 
@@ -467,6 +486,7 @@ extension AppConfiguration {
     // the complexity limit, and the helpers report their own failures.
     return checkedSearchSettings(dict, into: &config)
       .flatMap { checkedListing(dict, into: &config) }
+      .flatMap { checkedDisplayTarget(dict, into: &config) }
       .map { _ in config }
   }
 

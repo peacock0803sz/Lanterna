@@ -14,6 +14,10 @@ enum PanelMetrics {
   /// Extra height for the band over a list narrowed to one application.
   static let scopeBandHeight: CGFloat = 32
 
+  /// The total margin kept clear on the sides, so a wide step on a
+  /// narrow display stays on screen. Mirrors the log window's margin.
+  static let screenMargin: CGFloat = 40
+
   /// Extra height for the filter chrome while filtering is on, whether the query
   /// reads anything or not. An estimate, because SwiftUI lays the query row
   /// out.
@@ -57,9 +61,24 @@ enum PanelMetrics {
     scale.scaledRowHeight
   }
 
+  /// The panel width a text step draws at a width step, in whole
+  /// points. The standard width step draws the text-scaled width
+  /// unchanged.
+  static func width(for scale: TextScaleLevel, step: PanelWidth) -> CGFloat {
+    step.applied(to: scale.scaledWidth)
+  }
+
   /// The panel width one step draws, in whole points.
   static func width(for scale: TextScaleLevel) -> CGFloat {
-    scale.scaledWidth
+    width(for: scale, step: .standard)
+  }
+
+  /// Fits a content width into a visible width, keeping the margin.
+  /// A fitting width passes through; only an overflow is cut.
+  /// Never drops below zero, so a display narrower than the margin
+  /// yields zero rather than a negative width.
+  static func fittedWidth(_ width: CGFloat, in visibleWidth: CGFloat) -> CGFloat {
+    min(width, max(visibleWidth - screenMargin, 0))
   }
 
   /// Height for a given number of rows at one step. The cap stays put
@@ -120,10 +139,11 @@ enum PanelMetrics {
     filterActive: Bool,
     notice: Bool,
     scopeBand: Bool = false,
-    for scale: TextScaleLevel
+    for scale: TextScaleLevel,
+    step: PanelWidth = .standard
   ) -> CGSize {
     CGSize(
-      width: width(for: scale),
+      width: width(for: scale, step: step),
       height: totalHeight(
         rowCount: rowCount,
         query: query,

@@ -53,7 +53,8 @@ extension SwitcherPanel {
       filterActive: view.filterActive,
       notice: notice != nil,
       scopeBand: band != nil,
-      for: appearanceScale
+      for: appearanceScale,
+      step: appearanceWidth
     )
     var frame = frame
     frame.origin.y -= size.height - frame.height
@@ -101,10 +102,11 @@ extension SwitcherPanel {
       filterActive: filterActive,
       notice: false,
       scopeBand: scopeBand != nil,
-      for: appearanceScale
+      for: appearanceScale,
+      step: appearanceWidth
     )
-    setContentSize(NSSize(width: size.width, height: size.height))
-    centerOnMainDisplay()
+    setContentSize(NSSize(width: fittedWidth(size.width), height: size.height))
+    stayOnResolvedScreen()
   }
 
   /// Swaps the rows for a narrowed set, and changes nothing else about
@@ -146,7 +148,8 @@ extension SwitcherPanel {
       filterActive: filterActive,
       notice: false,
       scopeBand: scopeBand != nil,
-      for: appearanceScale
+      for: appearanceScale,
+      step: appearanceWidth
     )
     var frame = frame
     frame.origin.y -= size.height - frame.height

@@ -114,8 +114,24 @@ extension AppDelegate {
       searchSettings: options.searchSettings,
       textScale: options.textScale
     )
+    panel.grouping = currentValues.grouping
+    panel.displayTarget = options.displayTarget
+    panel.panelWidth = options.panelWidth
+    let composite = MirroredPanelSurface(panels: [panel])
+    composite.displayTarget = options.displayTarget
+    composite.makeMirror = {
+      SwitcherPanel(
+        displayModes: options.displayModes,
+        exclusionRules: compiled.rules,
+        appearanceMode: options.appearanceMode,
+        searchSettings: options.searchSettings,
+        textScale: options.textScale
+      )
+    }
+    composite.refreshPool()
+    composite.syncMirrors(from: panel)
     let presenter = PanelPresenter(
-      surface: panel,
+      surface: composite,
       store: windowList,
       displayModes: options.displayModes,
       exclusionRules: compiled.rules,
@@ -126,7 +142,6 @@ extension AppDelegate {
     )
     presenter.windowScope = currentValues.windowScope
     presenter.grouping = currentValues.grouping
-    panel.grouping = currentValues.grouping
     return (panel, presenter)
   }
 
@@ -154,6 +169,8 @@ extension AppDelegate {
     panel?.displayModes = values.displayModes
     panel?.appearance = values.appearanceMode.nsAppearance
     panel?.textScale = values.textScale
+    panel?.displayTarget = values.displayTarget
+    panel?.panelWidth = values.panelWidth
     let searchSettings = SearchSettings(
       fuzzyMatchEnabled: values.fuzzyMatchEnabled,
       shortcutMemoryLength: values.shortcutMemoryLength,
@@ -165,6 +182,10 @@ extension AppDelegate {
     presenter?.windowScope = values.windowScope
     presenter?.grouping = values.grouping
     panel?.grouping = values.grouping
+    if let panel, let composite = presenter?.surface as? MirroredPanelSurface {
+      composite.displayTarget = values.displayTarget
+      composite.syncMirrors(from: panel)
+    }
     // Recompile exclusions only when the entries changed, so unrelated
     // tweaks leave the panel and presenter rules alone.
     if exclusionsChanged {

@@ -23,6 +23,8 @@ struct SettingsValues: Equatable, Sendable {
     fuzzyMatchEnabled: true,
     resultOrder: .mru,
     textScale: .standard,
+    displayTarget: .primary,
+    panelWidth: .standard,
     windowScope: .allApps,
     grouping: GroupingPolicy(),
     keyBindings: .defaults,
@@ -56,6 +58,12 @@ struct SettingsValues: Equatable, Sendable {
   /// The panel text and icon scale step. Absent in the file means
   /// the standard step, the base, unscaled sizes.
   var textScale: TextScaleLevel
+  /// Which display the panel opens on. Absent in the file means
+  /// the menu-bar display.
+  var displayTarget: DisplayTarget
+  /// The panel width step. Absent in the file means the standard
+  /// step, the current width.
+  var panelWidth: PanelWidth
   /// Which applications' rows each appearance starts on. Absent in the
   /// file means every application.
   var windowScope: WindowScope
@@ -88,6 +96,8 @@ struct SettingsValues: Equatable, Sendable {
       fuzzyMatchEnabled: config.fuzzyMatchEnabled ?? true,
       resultOrder: SearchOrdering.effective(from: config),
       textScale: TextScaleLevel.effective(from: config),
+      displayTarget: DisplayTarget.effective(from: config),
+      panelWidth: PanelWidth.effective(from: config),
       windowScope: config.windowScope ?? .allApps,
       grouping: GroupingPolicy(
         mode: config.grouping ?? .none,
@@ -144,6 +154,12 @@ struct SettingsValues: Equatable, Sendable {
     // Standard stays absent, so the scaffold keeps reading as standard.
     if textScale != .standard {
       config.textScale = textScale.factor
+    }
+    if displayTarget != defaults.displayTarget {
+      config.displayTarget = displayTarget
+    }
+    if panelWidth != .standard {
+      config.panelWidth = panelWidth.factor
     }
     if windowScope != defaults.windowScope {
       config.windowScope = windowScope

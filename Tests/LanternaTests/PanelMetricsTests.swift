@@ -171,6 +171,54 @@ extension PanelMetricsTests {
     #expect(PanelMetrics.filterChromeHeight(query: "x", filterActive: false) == 0)
   }
 
+  @Test
+  func standardWidthStepKeepsTheCurrentWidth() {
+    for level in TextScaleLevel.allCases {
+      #expect(
+        PanelMetrics.width(for: level, step: .standard) == PanelMetrics.width(for: level),
+        "for \(level)"
+      )
+    }
+  }
+
+  @Test
+  func widthEndsChangeOnlyTheWidth() {
+    for level in TextScaleLevel.allCases {
+      let narrow = PanelMetrics.width(for: level, step: .narrowMinus)
+      let wide = PanelMetrics.width(for: level, step: .widePlus)
+      let standard = PanelMetrics.width(for: level, step: .standard)
+      #expect(narrow < standard, "for \(level)")
+      #expect(wide > standard, "for \(level)")
+      #expect(
+        PanelMetrics.panelSize(
+          rowCount: 5,
+          query: "",
+          filterActive: false,
+          notice: false,
+          for: level,
+          step: .widePlus
+        ).height
+          == PanelMetrics.panelSize(
+            rowCount: 5,
+            query: "",
+            filterActive: false,
+            notice: false,
+            for: level,
+            step: .standard
+          ).height,
+        "for \(level)"
+      )
+    }
+  }
+
+  @Test
+  func fittingWidthKeepsTheMargin() {
+    #expect(PanelMetrics.screenMargin == 40)
+    #expect(PanelMetrics.fittedWidth(720, in: 1512) == 720)
+    #expect(PanelMetrics.fittedWidth(936, in: 900) == 860)
+    #expect(PanelMetrics.fittedWidth(720, in: 30) == 0)
+  }
+
   /// The padding and the cap stay put while the rows grow, so a large
   /// step scrolls sooner rather than outgrowing the screen.
   @Test
