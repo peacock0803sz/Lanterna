@@ -22,7 +22,7 @@ struct HoverSelectionModifier: ViewModifier {
     if enabled {
       content.onHover { hovering in
         guard hovering, let receive = onHoverRow else { return }
-        if let anchor, NSEvent.mouseLocation == anchor.point {
+        if let anchor, anchor.shouldIgnore(current: NSEvent.mouseLocation) {
           return
         }
         receive(id)
