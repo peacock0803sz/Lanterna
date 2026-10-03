@@ -120,6 +120,36 @@ final class PanelExit {
     }
   }
 
+  /// Commits a row chosen without any panel: the delay waited out its
+  /// press, and letting go found the list ready.
+  ///
+  /// The commit words its pair the way a release-driven one does; only
+  /// the appearing is missing, so no dismissal and no watch come with
+  /// it. Nothing was on screen, so nothing comes off it.
+  func commitSilently(
+    _ windows: [WindowItem],
+    naming id: WindowItem.Identifier?,
+    since startedAt: ContinuousClock.Instant,
+    filter filterSummary: FilterLogSummary? = nil
+  ) {
+    presentedWindows = windows
+    let target = row(for: id).map { Self.target(of: $0) }
+    // Read where the hiding call would be, so the figure spans the
+    // same work the showing commit's does, minus the hiding itself.
+    let elapsed = now() - startedAt
+    switch target {
+    case .some(let take):
+      recordCommit(take.id, take.ownerProcessIdentifier)
+      let outcome = switcher.switchTo(take)
+      noteSwitchReturned()
+      recordCommitPair(take, outcome, by: .commandRelease, elapsed: elapsed, filter: filterSummary)
+
+    case .none:
+      record(.nothingToCommit, by: .commandRelease, elapsed: elapsed, filter: filterSummary)
+    }
+    presentedWindows = []
+  }
+
   /// Writes down a press given up on before it ever became a panel, apart
   /// from a commit over an empty list, which had one and found nothing.
   func recordPressCalledOff(since startedAt: ContinuousClock.Instant) {
