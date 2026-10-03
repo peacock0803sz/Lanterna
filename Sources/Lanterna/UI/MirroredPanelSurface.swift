@@ -6,12 +6,12 @@ import Foundation
 /// Shows one appearance across the chosen panels, with the same rows,
 /// choice and query everywhere.
 ///
-/// The every-display choice shows on all panels at once; any other
-/// choice shows on the primary panel alone. Only the cursor display's
-/// panel takes keys; the rest mirror what it shows. Extra panels are made at startup for the connected
+/// The every-display choice shows on all panels at once, and only the
+/// cursor display's panel takes keys while the rest mirror what it
+/// shows; any other choice shows on the primary panel alone, which
+/// takes the keys. Extra panels are made at startup for the connected
 /// displays and kept across appearances; only a display-count change
-/// grows or shrinks the pool, so appearing costs nothing it did not
-/// already cost.
+/// grows or shrinks the pool, so an appearance builds no window.
 @MainActor
 final class MirroredPanelSurface: SwitcherSurface {
 

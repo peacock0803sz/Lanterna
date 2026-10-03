@@ -131,8 +131,8 @@ final class SwitcherPanel: NSPanel {
   /// Reads live display sources. Replaced in tests.
   var displayResolver = DisplayResolver()
 
-  /// Where diagnostics lines go. Wired on the launch path; tests
-  /// replace it with a recorder.
+  /// Where diagnostics lines go. By default they go to `Diagnostics`
+  /// when a logger is set up; tests replace it with a recorder.
   var writeLine: @MainActor (LogLine) -> Void = { line in
     guard Diagnostics.logger != nil else { return }
     Diagnostics.writeLine(line)
@@ -351,12 +351,11 @@ final class SwitcherPanel: NSPanel {
     )
   }
 
-  /// `NSScreen.screens.first` is the display that carries the menu bar,
-  /// which is the one the panel belonged on before display rules;
-  /// `NSScreen.main` would instead follow the key window and so could be
-  /// any display.
+  /// Centres on the display that carries the menu bar, the fallback
+  /// when no resolved display is on hand.
   ///
-  /// Run on every update, because a resize leaves the panel off centre.
+  /// `NSScreen.screens.first` is that display; `NSScreen.main` would
+  /// instead follow the key window and so could be any display.
   func centerOnMainDisplay() {
     guard let screen = NSScreen.screens.first else {
       center()
@@ -408,7 +407,9 @@ final class SwitcherPanel: NSPanel {
   /// Cleared once a resolution lands without falling back.
   private var lastFallbackTarget: DisplayTarget?
 
-  /// answer for this appearance. A fallback to the menu-bar display
+  /// Resolves the target over the current screens into the index the
+  /// caller remembers for this appearance, or nil when no screen is
+  /// known. A fallback to the menu-bar display
   /// leaves a line saying so, once per target until a resolution lands
   /// without falling back.
   private func resolveFreshIndex() -> Int? {
@@ -433,8 +434,9 @@ final class SwitcherPanel: NSPanel {
     case .single(let index):
       return infos.indices.contains(index) ? index : nil
     case .all:
-      // One panel cannot cover every display; the composite owns that.
-      // Until it arrives, sit with the cursor.
+      // One panel cannot cover every display; the composite covers them
+      // by holding each panel to a display. A panel left to itself sits
+      // with the cursor.
       if
         case .single(let index) = displayResolver.resolve(.cursor, over: infos),
         infos.indices.contains(index)
@@ -445,8 +447,8 @@ final class SwitcherPanel: NSPanel {
     }
   }
 
-  /// The second half of the stay above, split out so the recursion
-  /// reads as one retry rather than a loop.
+  /// Centres on the screen just resolved, or on the menu-bar display
+  /// when the fresh answer names no connected screen either.
   private func stayOnResolvedScreenAfterResolving(screens: [NSScreen]) {
     if let index = resolvedScreenIndex, screens.indices.contains(index) {
       center(in: screens[index])
