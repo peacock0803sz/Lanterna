@@ -545,12 +545,26 @@
       "description": "The panel text and icon scale as a multiplier: one of the five steps.\nAbsent means 1.0 (the current size). The value allowlist lives in\nSwift, like the upper bound of `shortcutMemoryLength`.",
       "type": "number"
     },
+    "panelWidth": {
+      "description": "The panel width as a multiplier over the text-scaled width: one of\nthe five steps. Absent means 1.0 (the current width). The value\nallowlist lives in Swift, like `textScale`.",
+      "type": "number"
+    },
     "windowScope": {
       "description": "Every application's windows, or only those of the application in\nfront when the panel opens. Absent means \"allApps\".",
       "type": "string",
       "enum": [
         "allApps",
         "frontApp"
+      ]
+    },
+    "displayTarget": {
+      "description": "The menu-bar display, the cursor's display, the focused window's\ndisplay, or every display. Absent means \"primary\".",
+      "type": "string",
+      "enum": [
+        "primary",
+        "cursor",
+        "frontWindow",
+        "all"
       ]
     },
     "grouping": {

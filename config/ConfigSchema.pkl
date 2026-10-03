@@ -171,6 +171,11 @@ keybindings: KeyBindings? = null
 /// Swift, like the upper bound of `shortcutMemoryLength`.
 textScale: Number? = null
 
+/// The panel width as a multiplier over the text-scaled width: one of
+/// the five steps. Absent means 1.0 (the current width). The value
+/// allowlist lives in Swift, like `textScale`.
+panelWidth: Number? = null
+
 /// Which applications' windows each showing starts on.
 typealias WindowScope = "allApps"|"frontApp"
 
@@ -178,6 +183,16 @@ typealias WindowScope = "allApps"|"frontApp"
 /// front when the panel opens. Absent means "allApps".
 @Allowed { values { "allApps" "frontApp" } }
 windowScope: WindowScope? = null
+
+/// Which display the panel opens on: the menu-bar display, the one
+/// under the cursor, the one holding the focused window, or every
+/// display at once. Absent means "primary".
+typealias DisplayTarget = "primary"|"cursor"|"frontWindow"|"all"
+
+/// The menu-bar display, the cursor's display, the focused window's
+/// display, or every display. Absent means "primary".
+@Allowed { values { "primary" "cursor" "frontWindow" "all" } }
+displayTarget: DisplayTarget? = null
 
 /// How the switcher list groups its rows.
 typealias GroupingMode = "none"|"bySpace"|"manual"
