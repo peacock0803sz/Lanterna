@@ -79,8 +79,8 @@ struct SettingsAppearanceView: View {
             Stepper(
               "Show delay",
               value: delayMs,
-              in: 0 ... 1000,
-              step: 50
+              in: 0 ... ShowDelay.maximumMilliseconds,
+              step: ShowDelay.settingsStep
             )
             .labelsHidden()
           }
