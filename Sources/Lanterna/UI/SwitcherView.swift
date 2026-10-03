@@ -80,6 +80,11 @@ struct SwitcherView: View {
   /// leaves the opening choice alone.
   var hoverAnchor: HoverAnchor?
 
+  /// The row order numbers draw in, empty when none show. Carried from
+  /// the panel on every swap, so a narrowed list and the numbers move
+  /// together and never disagree about which row is which.
+  var numberedIDs = [WindowItem.Identifier]()
+
   /// Where a row hover goes. Called only while the hover switch is on.
   var onHoverRow: ((WindowItem.Identifier) -> Void)?
 
@@ -259,6 +264,14 @@ struct SwitcherView: View {
     count == 1 ? "1 window" : "\(count) windows"
   }
 
+  /// The 1-based number one row draws, or nothing when numbers are
+  /// down. Positions read off the carried order, so the numbers name
+  /// the same rows the choice steps through.
+  private func number(for id: WindowItem.Identifier) -> Int? {
+    guard let index = numberedIDs.firstIndex(of: id) else { return nil }
+    return index + 1
+  }
+
   /// The heading over one group: its number when it has one, its title,
   /// and what tells it apart, at one row's height with a rule above every
   /// group but the first.
@@ -362,6 +375,7 @@ struct SwitcherView: View {
     WindowRow(
       window: window,
       isSelected: window.id == selectedID,
+      rowNumber: number(for: window.id),
       query: query,
       fuzzy: fuzzyMatchEnabled,
       textScale: textScale,
