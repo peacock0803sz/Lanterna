@@ -276,6 +276,39 @@ struct SwitcherPanelTests {
     panel.dismiss()
   }
 
+  @Test
+  func aWideStepSetsTheContentWidth() throws {
+    let screen = try #require(NSScreen.screens.first)
+    let panel = panel()
+    panel.panelWidth = .widePlus
+    panel.present(windows: SampleWindows.make(count: 3), selecting: nil)
+    let expected = PanelMetrics.fittedWidth(
+      PanelMetrics.width(for: .standard, step: .widePlus),
+      in: screen.visibleFrame.width
+    )
+    #expect(panel.contentRect(forFrameRect: panel.frame).width == expected)
+    panel.dismiss()
+  }
+
+  /// The width step is frozen at `present`, so changing it while the
+  /// panel is up waits for the next appearance.
+  @Test
+  func aStepChangedWhileUpKeepsTheWidthThroughNarrowing() throws {
+    let screen = try #require(NSScreen.screens.first)
+    let panel = panel()
+    panel.panelWidth = .widePlus
+    let rows = SampleWindows.make(count: 3)
+    panel.present(windows: rows, selecting: nil)
+    panel.panelWidth = .narrowMinus
+    panel.updateList(windows: [rows[0]], selecting: rows[0].id, query: "a", filterActive: true)
+    let expected = PanelMetrics.fittedWidth(
+      PanelMetrics.width(for: .standard, step: .widePlus),
+      in: screen.visibleFrame.width
+    )
+    #expect(panel.contentRect(forFrameRect: panel.frame).width == expected)
+    panel.dismiss()
+  }
+
   // MARK: Private
 
   private func panel(rowCount: Int = 3) -> SwitcherPanel {
