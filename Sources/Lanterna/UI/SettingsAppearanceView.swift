@@ -102,6 +102,28 @@ struct SettingsAppearanceView: View {
             caption: "Move the selection by scrolling. The view follows the selection."
           )
         }
+        Toggle(isOn: $values.numberJump) {
+          SettingsFormLabel(
+            title: "Number jump",
+            caption: "Jump to a row by its number while holding Command or Option. Off by default."
+          )
+        }
+        Toggle(isOn: $values.numberReorder) {
+          SettingsFormLabel(
+            title: "Reorder rows",
+            caption: "Move the selected row with Shift and arrow keys in grouped lists. Off by default."
+          )
+        }
+        Picker(selection: $values.numberScope) {
+          Text("Windows only").tag(NumberScope.windows)
+          Text("All rows").tag(NumberScope.allRows)
+        } label: {
+          SettingsFormLabel(
+            title: "Row numbers",
+            caption: "Which rows row numbers cover."
+          )
+        }
+        .pickerStyle(.menu)
       }
       Section("Preview") {
         preview
@@ -113,6 +135,11 @@ struct SettingsAppearanceView: View {
 
   // MARK: Private
 
+  /// The preview draws at half the panel width: the full width never
+  /// fits the settings window, and what the width switch needs to show
+  /// is how one step compares to the next rather than full-size rows.
+  private static let previewWidthRatio: CGFloat = 0.5
+
   /// The sample rows wearing the panel row look, following the chosen scale
   /// and look, ignoring clicks and reading as one preview element.
   private var preview: some View {
@@ -122,11 +149,17 @@ struct SettingsAppearanceView: View {
         WindowRow(
           window: window,
           isSelected: index == 1,
+          // Numbers show the way the panel draws them while a jump
+          // modifier is held; the reorder switch moves rows by key and
+          // has no still picture, so only this switch reaches the preview.
+          rowNumber: values.numberJump ? index + 1 : nil,
           query: "",
           textScale: values.textScale
         )
       }
     }
+    .frame(width: PanelMetrics.width(for: values.textScale, step: values.panelWidth) * Self.previewWidthRatio)
+    .frame(maxWidth: .infinity, alignment: .center)
     .padding(.vertical, 6)
     .adaptiveGlass(cornerRadius: 16)
     .background {

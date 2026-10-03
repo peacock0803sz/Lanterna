@@ -1,3 +1,4 @@
+import CoreGraphics
 import Darwin
 @testable import Lanterna
 import Logging
@@ -139,6 +140,7 @@ struct Fixture {
     step: Duration = .microseconds(4800),
     closesOnCommandRelease: Bool = false,
     commandIsHeld: Bool = true,
+    heldModifiers: CGEventFlags = .maskCommand,
     commandWatchInterval: Duration = .milliseconds(1),
     keyStatusWatchInterval: Duration = .milliseconds(1),
     switcher: FakeWindowSwitcher = FakeWindowSwitcher()
@@ -150,6 +152,7 @@ struct Fixture {
       step: step,
       closesOnCommandRelease: closesOnCommandRelease,
       commandIsHeld: commandIsHeld,
+      heldModifiers: heldModifiers,
       commandWatchInterval: commandWatchInterval,
       keyStatusWatchInterval: keyStatusWatchInterval,
       switcher: switcher
@@ -162,6 +165,7 @@ struct Fixture {
     step: Duration = .microseconds(4800),
     closesOnCommandRelease: Bool = false,
     commandIsHeld: Bool = true,
+    heldModifiers: CGEventFlags = .maskCommand,
     commandWatchInterval: Duration = .milliseconds(1),
     keyStatusWatchInterval: Duration = .milliseconds(1),
     switcher: FakeWindowSwitcher = FakeWindowSwitcher()
@@ -182,6 +186,7 @@ struct Fixture {
       writeLine: log.write,
       closesOnCommandRelease: { [monitorLiveness] in monitorLiveness.isRunning },
       commandIsHeld: { [commandHold] in commandHold.read() },
+      modifierFlags: { heldModifiers },
       // A real fiftieth of a second per look would be paid over again by
       // every test that waits for one. The store's loop tests shorten
       // their interval for the same reason.

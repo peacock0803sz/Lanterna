@@ -117,6 +117,33 @@ hoverSelect: Boolean? = null
 /// Whether scrolling moves the selection. Absent means off.
 scrollSelect: Boolean? = null
 
+/// Whether holding Command or Option and pressing a row number jumps to
+/// that row. Absent means off.
+numberJump: Boolean? = null
+
+/// Whether moving the selected row by key works in grouped lists.
+/// Absent means off.
+numberReorder: Boolean? = null
+
+/// Which rows row numbers cover: only window rows, or every row.
+typealias NumberScope = "windows"|"allRows"
+
+/// The rows row numbers cover. Absent means "windows".
+@Allowed { values { "windows" "allRows" } }
+numberScope: NumberScope? = null
+
+/// One group's hand-arranged row order.
+open class RowOrderEntry {
+  /// The manual group number, 1 to 9.
+  group: Int
+  /// Row keys in order: bundle identifier, then the window title.
+  keys: Listing<String>
+}
+
+/// Hand-arranged row orders by manual group. Entries that are invalid on
+/// their own are ignored one by one. Absent means no overrides.
+rowOrder: Listing<RowOrderEntry>? = null
+
 /// Which releases the check covers: full releases only, or prereleases too.
 typealias UpdateChannel = "stable"|"beta"
 

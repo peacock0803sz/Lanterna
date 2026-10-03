@@ -1,3 +1,4 @@
+import CoreGraphics
 @testable import Lanterna
 
 /// Stands in for the system tap. A real one needs a login session and a
@@ -59,11 +60,15 @@ final class FakeEventTap: EventTapControlling {
 
   func start(
     onCommandRelease: @escaping @MainActor () -> Void,
+    onOptionRelease: @escaping @MainActor () -> Void,
+    onFlagsChanged: @escaping @MainActor (CGEventFlags) -> Void,
     onDisabledBySystem: @escaping @MainActor () -> Void
   ) -> Bool {
     startCount += 1
     guard startSucceeds else { return false }
     self.onCommandRelease = onCommandRelease
+    self.onOptionRelease = onOptionRelease
+    self.onFlagsChanged = onFlagsChanged
     self.onDisabledBySystem = onDisabledBySystem
     // A start after an `invalidate()` produces a fresh tap, as the real
     // one does: nothing there refuses a second start, and the rule that
@@ -158,6 +163,8 @@ final class FakeEventTap: EventTapControlling {
     hasTap = false
     isSwitchedOn = false
     onCommandRelease = nil
+    onOptionRelease = nil
+    onFlagsChanged = nil
     onDisabledBySystem = nil
   }
 
@@ -166,6 +173,16 @@ final class FakeEventTap: EventTapControlling {
   /// truthful answer in both cases.
   func reportCommandRelease() {
     onCommandRelease?()
+  }
+
+  /// Option being let go, reported the same way.
+  func reportOptionRelease() {
+    onOptionRelease?()
+  }
+
+  /// Modifier flags changing, reported the same way.
+  func reportFlagsChanged(_ flags: CGEventFlags) {
+    onFlagsChanged?(flags)
   }
 
   /// The system announcing that it has switched the tap off. Leaves
@@ -192,6 +209,8 @@ final class FakeEventTap: EventTapControlling {
   private var isSwitchedOn = false
 
   private var onCommandRelease: (@MainActor () -> Void)?
+  private var onOptionRelease: (@MainActor () -> Void)?
+  private var onFlagsChanged: (@MainActor (CGEventFlags) -> Void)?
   private var onDisabledBySystem: (@MainActor () -> Void)?
   private var asked: CheckedContinuation<Void, Never>?
   private var awaitedCount = 0

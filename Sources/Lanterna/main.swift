@@ -105,6 +105,14 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
         context: ["path": .string(url.path), "issue": .string(issue.diagnosticsLine)]
       ))
     }
+    for issue in decoded.rowOrderIssues {
+      Diagnostics.writeLine(LogLine(
+        .warning,
+        .config,
+        "\(issue.diagnosticsLine): \(url.path)",
+        context: ["path": .string(url.path), "issue": .string(issue.diagnosticsLine)]
+      ))
+    }
     for key in decoded.deprecatedKeys {
       Diagnostics.writeLine(LogLine(
         .warning,

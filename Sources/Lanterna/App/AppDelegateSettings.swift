@@ -147,6 +147,11 @@ extension AppDelegate {
     presenter.grouping = currentValues.grouping
     presenter.hoverSelect = options.hoverSelect
     presenter.scrollSelect = options.scrollSelect
+    presenter.numberJump = options.numberJump
+    presenter.numberReorder = options.numberReorder
+    presenter.numberScope = currentValues.numberScope
+    presenter.rowOrder = currentValues.rowOrder
+    presenter.onRowOrderChanged = { [weak self] order in self?.saveRowOrder(order) }
     return (panel, presenter)
   }
 
@@ -190,6 +195,10 @@ extension AppDelegate {
     presenter?.grouping = values.grouping
     presenter?.hoverSelect = values.hoverSelect
     presenter?.scrollSelect = values.scrollSelect
+    presenter?.numberJump = values.numberJump
+    presenter?.numberReorder = values.numberReorder
+    presenter?.numberScope = values.numberScope
+    presenter?.rowOrder = values.rowOrder
     presenter?.showDelayMs = values.showDelayMs
     panel?.grouping = values.grouping
     if let panel, let composite = presenter?.surface as? MirroredPanelSurface {
@@ -325,6 +334,15 @@ extension AppDelegate {
     restored.keyBindingSection = previous.keyBindingSection
     restored.loadedKeyBindings = previous.loadedKeyBindings
     return restored
+  }
+
+  /// Saves a rearranged row order from the live panel. The move is
+  /// already on screen; the file catches up, and the next launch
+  /// heals whatever drift is left. An unchanged order saves nothing.
+  private func saveRowOrder(_ order: ManualRowOrder) {
+    guard order != currentValues.rowOrder else { return }
+    currentValues.rowOrder = order
+    _ = saveSettings(currentValues, replacingInvalidFile: false)
   }
 
   /// Writes the current values to the file, keeping the debug keys

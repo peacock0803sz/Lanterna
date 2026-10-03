@@ -1,3 +1,4 @@
+import CoreGraphics
 import Logging
 
 /// Owns the modifier tap: starts it once, says what that achieved, keeps it
@@ -24,12 +25,16 @@ final class ModifierKeyMonitor {
     tap: any EventTapControlling = SystemEventTap(),
     healthCheckInterval: Duration = defaultHealthCheckInterval,
     onCommandRelease: @escaping @MainActor () -> Void,
+    onOptionRelease: @escaping @MainActor () -> Void = { },
+    onFlagsChanged: @escaping @MainActor (CGEventFlags) -> Void = { _ in },
     now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
     writeLine: @escaping @MainActor (LogLine) -> Void = { Diagnostics.writeLine($0) }
   ) {
     self.tap = tap
     self.healthCheckInterval = healthCheckInterval
     self.onCommandRelease = onCommandRelease
+    self.onOptionRelease = onOptionRelease
+    self.onFlagsChanged = onFlagsChanged
     self.now = now
     self.writeLine = writeLine
     // Through the injected clock rather than from the system's, so that a
@@ -164,6 +169,8 @@ final class ModifierKeyMonitor {
     }
     let started = tap.start(
       onCommandRelease: onCommandRelease,
+      onOptionRelease: onOptionRelease,
+      onFlagsChanged: onFlagsChanged,
       // Weakly held. The tap keeps this closure and this object keeps
       // the tap, so a strong `self` here would close that ring and
       // neither end would ever be let go.
@@ -306,6 +313,8 @@ final class ModifierKeyMonitor {
   private let tap: any EventTapControlling
   private let healthCheckInterval: Duration
   private let onCommandRelease: @MainActor () -> Void
+  private let onOptionRelease: @MainActor () -> Void
+  private let onFlagsChanged: @MainActor (CGEventFlags) -> Void
   private let now: @MainActor () -> ContinuousClock.Instant
   private let writeLine: @MainActor (LogLine) -> Void
 

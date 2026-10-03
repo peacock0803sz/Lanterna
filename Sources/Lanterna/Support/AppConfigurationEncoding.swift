@@ -53,6 +53,7 @@ extension AppConfiguration {
     entries.append(contentsOf: textScaleEntries(config))
     entries.append(contentsOf: displayEntries(config))
     entries.append(contentsOf: pointerSelectEntries(config))
+    entries.append(contentsOf: numberSelectEntries(config))
     entries.append(contentsOf: updateCheckEntries(config))
     entries.append(encodedInt(key: "version", value: config.version))
     entries.append(contentsOf: listingEntries(config))
@@ -126,6 +127,30 @@ extension AppConfiguration {
     }
     if config.scrollSelect == true {
       entries.append(encodedBool(key: "scrollSelect", value: true))
+    }
+    return entries
+  }
+
+  /// The number-switch lines, in canonical order, skipping absent
+  /// values. Only an enabled switch or a non-default scope is ever
+  /// written: off stays absent so the default reaches saved files.
+  static func numberSelectEntries(_ config: ValidConfiguration) -> [String] {
+    var entries = [String]()
+    if config.numberJump == true {
+      entries.append(encodedBool(key: "numberJump", value: true))
+    }
+    if config.numberReorder == true {
+      entries.append(encodedBool(key: "numberReorder", value: true))
+    }
+    if let numberScope = config.numberScope {
+      entries.append(encodedString(key: "numberScope", value: numberScope.rawValue))
+    }
+    if !config.rowOrder.isEmpty {
+      let rows = config.rowOrder.map { entry in
+        let keys = entry.keys.map { "\"\(escaped($0))\"" }.joined(separator: ", ")
+        return "    { \"group\": \(entry.group), \"keys\": [\(keys)] }"
+      }
+      entries.append("  \"rowOrder\": [\n" + rows.joined(separator: ",\n") + "\n  ]")
     }
     return entries
   }

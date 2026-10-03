@@ -101,6 +101,15 @@ enum PanelKeyAction: Equatable, Sendable {
   case toggleScope
   /// A letter or a confirmed string: narrows the list on screen.
   case filterText(String)
+  /// A decimal digit pressed with a jump modifier: feeds the pending
+  /// row number. The digit's value is read off separately by key code,
+  /// so a remapped key no table names still carries a value.
+  case numberDigit
+  /// Moves the chosen row within its group. Read before filtering the
+  /// way operations are: the press means moving even where arrows
+  /// would step.
+  case moveRowUp
+  case moveRowDown
   /// Backspace: shortens the query by one character.
   case filterBackspace
   /// Clears the query, leaving the panel up.
@@ -312,9 +321,67 @@ enum PanelKeyInput {
   /// for the defaults key for key, and a customized table only moves
   /// the rows. The repeat rule stays outside, as before.
   static func action(for keystroke: PanelKeystroke, table: KeyBindingTable) -> PanelKeyAction {
-    let action = meaning(of: keystroke, table: table)
+    action(for: keystroke, table: table, numberJumpEnabled: false, reorderEnabled: false)
+  }
+
+  /// What the panel should do about this press with the number
+  /// switches in force. Off reads as the table holding neither the
+  /// number row nor the reorder rows, so an unchanged file keeps the
+  /// long-standing meanings key for key.
+  static func action(
+    for keystroke: PanelKeystroke,
+    table: KeyBindingTable,
+    numberJumpEnabled: Bool = false,
+    reorderEnabled: Bool = false
+  ) -> PanelKeyAction {
+    let action = meaning(
+      of: keystroke,
+      table: table,
+      numberJumpEnabled: numberJumpEnabled,
+      reorderEnabled: reorderEnabled
+    )
     guard keystroke.isARepeat else { return action }
     return action.whenTheKeyboardIsRepeating
+  }
+
+  /// The decimal value of a digit key by physical position, on the
+  /// main row and on the keypad alike. Nothing else answers: letters,
+  /// arrows and the commit keys name no digit.
+  static func digitValue(for keyCode: UInt16) -> Int? {
+    switch Int(keyCode) {
+    case kVK_ANSI_1,
+         kVK_ANSI_Keypad1:
+      1
+    case kVK_ANSI_2,
+         kVK_ANSI_Keypad2:
+      2
+    case kVK_ANSI_3,
+         kVK_ANSI_Keypad3:
+      3
+    case kVK_ANSI_4,
+         kVK_ANSI_Keypad4:
+      4
+    case kVK_ANSI_5,
+         kVK_ANSI_Keypad5:
+      5
+    case kVK_ANSI_6,
+         kVK_ANSI_Keypad6:
+      6
+    case kVK_ANSI_7,
+         kVK_ANSI_Keypad7:
+      7
+    case kVK_ANSI_8,
+         kVK_ANSI_Keypad8:
+      8
+    case kVK_ANSI_9,
+         kVK_ANSI_Keypad9:
+      9
+    case kVK_ANSI_0,
+         kVK_ANSI_Keypad0:
+      0
+    default:
+      nil
+    }
   }
 
   /// Which commit key arrived, for the line that says so.
@@ -355,11 +422,23 @@ enum PanelKeyInput {
   /// press. Operations read before filtering, as before: an operation
   /// key held with Command is an operation even where its letter
   /// would type.
-  private static func meaning(of keystroke: PanelKeystroke, table: KeyBindingTable) -> PanelKeyAction {
+  private static func meaning(
+    of keystroke: PanelKeystroke,
+    table: KeyBindingTable,
+    numberJumpEnabled: Bool = false,
+    reorderEnabled: Bool = false
+  ) -> PanelKeyAction {
     if Int(keystroke.keyCode) == kVK_Tab, !holdsTab(table) {
       return .absorb
     }
-    if let winner = mostSpecificMatch(for: keystroke, table: table) {
+    if
+      let winner = mostSpecificMatch(
+        for: keystroke,
+        table: table,
+        numberJumpEnabled: numberJumpEnabled,
+        reorderEnabled: reorderEnabled
+      )
+    {
       return winner
     }
     // Going by key code and not by the character is what keeps the
@@ -378,10 +457,18 @@ enum PanelKeyInput {
   /// as next, Shift+Cmd+W meant as one operation reading as another.
   private static func mostSpecificMatch(
     for keystroke: PanelKeystroke,
-    table: KeyBindingTable
+    table: KeyBindingTable,
+    numberJumpEnabled: Bool = false,
+    reorderEnabled: Bool = false
   ) -> PanelKeyAction? {
     var ordered: [(KeyBindingAction, PanelKeyAction)] = WindowOperation.allCases.map {
       ($0.binding, .windowOperation($0))
+    }
+    if numberJumpEnabled {
+      ordered.append((.numberJump, .numberDigit))
+    }
+    if reorderEnabled {
+      ordered.append(contentsOf: [(.moveRowUp, .moveRowUp), (.moveRowDown, .moveRowDown)])
     }
     ordered += [
       (.next, .selectNext),
@@ -446,6 +533,9 @@ extension PanelKeyAction {
          .cancel,
          .windowOperation,
          .toggleScope,
+         .numberDigit,
+         .moveRowUp,
+         .moveRowDown,
          .absorb:
       .absorb
     }

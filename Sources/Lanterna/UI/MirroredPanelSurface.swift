@@ -118,6 +118,12 @@ final class MirroredPanelSurface: SwitcherSurface {
     }
   }
 
+  func showNumberedRows(_ ids: [WindowItem.Identifier]) {
+    for panel in activePanels {
+      panel.showNumberedRows(ids)
+    }
+  }
+
   func showNotice(_ text: String) {
     for panel in activePanels {
       panel.showNotice(text)

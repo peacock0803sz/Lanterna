@@ -98,26 +98,20 @@ final class PanelExit {
     since startedAt: ContinuousClock.Instant,
     filter filterSummary: FilterLogSummary? = nil
   ) {
-    guard surface.isPresented else { return }
-    guard commitIsStillOpen else { return }
-    commitIsStillOpen = false
-    let target = row(for: id).map { Self.target(of: $0) }
-    dismissPanel()
-    // Read before switching, so the figure spans the call that hides
-    // the panel and none of what follows it.
-    let elapsed = now() - startedAt
-    switch target {
-    case .some(let take):
-      // The take happens before either line: the pair is written
-      // together, with nothing between the two.
-      recordCommit(take.id, take.ownerProcessIdentifier)
-      let outcome = switcher.switchTo(take)
-      noteSwitchReturned()
-      recordCommitPair(take, outcome, by: .commandRelease, elapsed: elapsed, filter: filterSummary)
+    commitOnRelease(naming: id, since: startedAt, filter: filterSummary, trigger: .commandRelease)
+  }
 
-    case .none:
-      record(.nothingToCommit, by: .commandRelease, elapsed: elapsed, filter: filterSummary)
-    }
+  /// Commits on Option having been let go over a panel that is up.
+  ///
+  /// The same close as a Command release, worded for the key that
+  /// actually came up: sharing the body keeps the two releases from
+  /// growing apart.
+  func commitOnOptionRelease(
+    naming id: WindowItem.Identifier?,
+    since startedAt: ContinuousClock.Instant,
+    filter filterSummary: FilterLogSummary? = nil
+  ) {
+    commitOnRelease(naming: id, since: startedAt, filter: filterSummary, trigger: .optionRelease)
   }
 
   /// Commits a row chosen without any panel: the delay waited out its
@@ -371,6 +365,35 @@ final class PanelExit {
       appName: row.appName,
       displayTitle: row.displayTitle
     )
+  }
+
+  /// The shared release close, worded by the trigger it answers.
+  private func commitOnRelease(
+    naming id: WindowItem.Identifier?,
+    since startedAt: ContinuousClock.Instant,
+    filter filterSummary: FilterLogSummary?,
+    trigger: PanelExitMeasurement.Trigger
+  ) {
+    guard surface.isPresented else { return }
+    guard commitIsStillOpen else { return }
+    commitIsStillOpen = false
+    let target = row(for: id).map { Self.target(of: $0) }
+    dismissPanel()
+    // Read before switching, so the figure spans the call that hides
+    // the panel and none of what follows it.
+    let elapsed = now() - startedAt
+    switch target {
+    case .some(let take):
+      // The take happens before either line: the pair is written
+      // together, with nothing between the two.
+      recordCommit(take.id, take.ownerProcessIdentifier)
+      let outcome = switcher.switchTo(take)
+      noteSwitchReturned()
+      recordCommitPair(take, outcome, by: trigger, elapsed: elapsed, filter: filterSummary)
+
+    case .none:
+      record(.nothingToCommit, by: trigger, elapsed: elapsed, filter: filterSummary)
+    }
   }
 
   /// Names a row of the list on screen, or nothing when the identity names

@@ -71,6 +71,10 @@ final class PanelFilter {
   /// whenever the settings change, like the modes.
   var grouping = GroupingPolicy()
 
+  /// The hand-arranged row orders shadowing the drawn order in manual
+  /// groups. Read beside the grouping above.
+  var rowOrder = ManualRowOrder.none
+
   /// Whether a query is narrowing the list right now.
   var isFiltering: Bool {
     !state.query.isEmpty
@@ -131,6 +135,14 @@ final class PanelFilter {
   /// are recomputed against the new rows. A row a query hid while it
   /// was chosen is not chosen again merely because the new list brings
   /// it back: that happens with shortening, not with a swap.
+  /// Takes a rearranged row order and lays the list out again, keeping
+  /// the choice on its row by identity. The panel redraws off the same
+  /// swap as any other relayout.
+  func applyRowOrder(_ order: ManualRowOrder) {
+    rowOrder = order
+    replace(fullWindows: fullWindows)
+  }
+
   func replace(fullWindows: [WindowItem]) {
     self.fullWindows = fullWindows
     state.takeSwappedIn(matched: shownWindows.map(\.id))
@@ -267,7 +279,8 @@ final class PanelFilter {
       ordering: searchSettings.ordering,
       memory: rememberedID,
       owner: scope.narrowedOwner,
-      grouping: grouping
+      grouping: grouping,
+      rowOrder: rowOrder
     )
   }
 

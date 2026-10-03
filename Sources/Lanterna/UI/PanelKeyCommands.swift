@@ -60,6 +60,10 @@ final class PanelKeyCommands {
     NSWorkspace.shared.frontmostApplication?.processIdentifier
   }
 
+  /// Where a rearranged row order goes. Set by the presenter; the save
+  /// reaches the file through it.
+  var onRowOrderChanged: (@Sendable @MainActor (ManualRowOrder) -> Void)?
+
   /// The rows on screen, which the choice and the panel open on.
   var shownWindows: [WindowItem] {
     filter.shownWindows
@@ -83,6 +87,7 @@ final class PanelKeyCommands {
   /// is handed over before the panel goes up, so the panel sizes for it.
   func beginFiltering(fullWindows: [WindowItem], filtering: Bool = false) {
     filter.scopeToggleKey = keyBindings[.toggleScope].first?.displayName
+    numberInput.reset()
     filter.begin(fullWindows: fullWindows, filtering: filtering, activeApplication: frontmostProcessIdentifier())
     surface.showScope(filter.scopeBand)
   }
@@ -116,9 +121,51 @@ final class PanelKeyCommands {
     keyBindings = bindings
   }
 
+  /// Hands the number jump switch to the live panel, so a settings
+  /// change reaches the keys without waiting for the next launch.
+  func updateNumberJump(_ enabled: Bool) {
+    numberJumpEnabled = enabled
+  }
+
+  /// Hands the reorder switch to the live panel, the same way.
+  func updateReorder(_ enabled: Bool) {
+    reorderEnabled = enabled
+  }
+
+  /// Hands the numbering scope to the live panel, the same way.
+  func updateNumberScope(_ scope: NumberScope) {
+    numberScope = scope
+  }
+
+  /// Hands a changed row order to the live panel, the same way.
+  func updateRowOrder(_ order: ManualRowOrder) {
+    rowOrder = order
+    filter.rowOrder = order
+  }
+
+  /// Forgets gathered digits without ending the appearance. A release
+  /// that commits nothing still ends the number being typed.
+  func resetNumberInput() {
+    numberInput.reset()
+  }
+
+  /// The rows numbers name, in order: the drawn rows narrowed to the
+  /// numbering scope. The same order the choice steps through, so a
+  /// number and the selection can never disagree about which row is
+  /// which.
+  func numberedRows() -> [WindowItem] {
+    switch numberScope {
+    case .windows:
+      shownLayout.rows.filter { $0.id.windowID != nil }
+    case .allRows:
+      shownLayout.rows
+    }
+  }
+
   /// Gives the appearance up; the next one starts empty either way.
   func endFiltering() {
     filter.reset()
+    numberInput.reset()
   }
 
   /// Swaps the rows on screen for a list an operation hands over — its
@@ -128,6 +175,7 @@ final class PanelKeyCommands {
   /// shown rows.
   func replacePresentedList(_ windows: [WindowItem], choosingWhere anchor: ChoiceAnchor) {
     filter.replace(fullWindows: windows, choosingWhere: anchor)
+    numberInput.reset()
     wayOut.replacePresented(windows)
   }
 
@@ -182,7 +230,18 @@ final class PanelKeyCommands {
     // A new press answers the old failure: the note goes before
     // anything the press means is done.
     surface.clearNotice()
-    switch PanelKeyInput.action(for: keystroke, table: keyBindings) {
+    let resolved = PanelKeyInput.action(
+      for: keystroke,
+      table: keyBindings,
+      numberJumpEnabled: numberJumpEnabled,
+      reorderEnabled: reorderEnabled
+    )
+    // Only consecutive digit presses gather into a number: anything
+    // else hands the pending digits back before it is answered.
+    if resolved != .numberDigit {
+      numberInput.reset()
+    }
+    switch resolved {
     case .selectNext:
       selection.moveToNext()
 
@@ -223,6 +282,22 @@ final class PanelKeyCommands {
     case .filterBackspace:
       filter.removeLast()
 
+    case .numberDigit:
+      guard numberJumpEnabled, let digit = PanelKeyInput.digitValue(for: keystroke.keyCode) else {
+        break
+      }
+      numberInput.append(digit)
+      guard let number = numberInput.number else { break }
+      let rows = numberedRows()
+      guard rows.indices.contains(number - 1) else { break }
+      selection.select(rows[number - 1].id)
+
+    case .moveRowUp:
+      moveSelectedRow(by: -1)
+
+    case .moveRowDown:
+      moveSelectedRow(by: 1)
+
     case .absorb:
       break
     }
@@ -258,6 +333,19 @@ final class PanelKeyCommands {
 
   // MARK: Private
 
+  /// Whether digits with a jump modifier name rows. Off reads as the
+  /// table holding no number row.
+  private var numberJumpEnabled = false
+  /// Whether reorder presses move rows. Off reads as the table
+  /// holding neither reorder row.
+  private var reorderEnabled = false
+  /// Which rows numbers name. Window rows alone unless told otherwise.
+  private var numberScope = NumberScope.windows
+  /// The hand-arranged row orders shadowing the drawn order.
+  private var rowOrder = ManualRowOrder.none
+  /// The digits gathered since the last reset.
+  private var numberInput = NumberInput()
+
   private let surface: any SwitcherSurface
   private let selection: PanelSelection
   private let wayOut: PanelExit
@@ -266,6 +354,54 @@ final class PanelKeyCommands {
   /// Handed the row chosen as the key is pressed, so a choice moved
   /// before the operation gets its turn does not change its target.
   private let operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)?
+
+  /// Moves the chosen row one step inside its manual group, saving the
+  /// rearranged order through the handler above. Anything outside a
+  /// manual group, under a query, at an edge, or past a boundary is
+  /// left alone: the press then means nothing, the way an absorbed
+  /// press does.
+  private func moveSelectedRow(by delta: Int) {
+    guard
+      reorderEnabled,
+      filter.grouping.mode == .manual,
+      !filter.isFiltering,
+      let selected = selection.chosenID
+    else {
+      return
+    }
+    var groupNumbers = [Int]()
+    var segments = [[WindowItem]]()
+    for block in shownLayout.blocks {
+      switch block {
+      case .groupHeading(_, let order):
+        groupNumbers.append(order)
+        segments.append([])
+
+      case .subgroupHeading:
+        break
+
+      case .row(let window, _):
+        guard !segments.isEmpty else { return }
+        segments[segments.count - 1].append(window)
+      }
+    }
+    guard
+      let segmentIndex = segments.firstIndex(where: { segment in
+        segment.contains(where: { $0.id == selected })
+      }),
+      let rowIndex = segments[segmentIndex].firstIndex(where: { $0.id == selected })
+    else {
+      return
+    }
+    let target = rowIndex + delta
+    guard segments[segmentIndex].indices.contains(target) else { return }
+    var arranged = segments[segmentIndex]
+    arranged.swapAt(rowIndex, target)
+    let updated = rowOrder.setting(group: groupNumbers[segmentIndex], arranging: arranged)
+    updateRowOrder(updated)
+    filter.applyRowOrder(updated)
+    onRowOrderChanged?(updated)
+  }
 
   /// Decides a cancel press: a clear key clears the query first and
   /// only cancels on an empty one. The table cannot tell the two

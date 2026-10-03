@@ -78,6 +78,9 @@ final class FakeSurface: SwitcherSurface {
   /// Every band asked for, in order; nil asked for no band.
   private(set) var scopeBands = [ScopeBand?]()
 
+  /// Every numbered order asked for, in order; empty asked for no numbers.
+  private(set) var numberedRowOrders = [[WindowItem.Identifier]]()
+
   /// Run inside `dismiss()`, before it returns.
   ///
   /// Lets a test make the panel's disappearance cost something it can see.
@@ -111,6 +114,11 @@ final class FakeSurface: SwitcherSurface {
   /// orderings the call log pins down are about the list and the keys.
   func showScope(_ band: ScopeBand?) {
     scopeBands.append(band)
+  }
+
+  /// Kept out of `calls` for the same reason as the band above.
+  func showNumberedRows(_ ids: [WindowItem.Identifier]) {
+    numberedRowOrders.append(ids)
   }
 
   func updateList(

@@ -51,6 +51,14 @@ enum LaunchArguments {
     /// the file covers it. The command line cannot set it;
     /// effectiveOptions uses the file value alone.
     var scrollSelect = false
+    /// Whether holding a modifier and pressing a row number jumps to
+    /// that row. No flag sets it; the file covers it. The command
+    /// line cannot set it; effectiveOptions uses the file value alone.
+    var numberJump = false
+    /// Whether moving the selected row by key works in grouped lists.
+    /// No flag sets it; the file covers it. The command line cannot
+    /// set it; effectiveOptions uses the file value alone.
+    var numberReorder = false
     /// Retired flags the command line still gave, read past, for one
     /// diagnostics line each.
     var retiredFlags = [String]()

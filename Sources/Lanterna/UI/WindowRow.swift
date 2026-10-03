@@ -11,6 +11,10 @@ struct WindowRow: View {
 
   let window: WindowItem
   let isSelected: Bool
+  /// The 1-based row number to draw, or nil to draw the hint wording
+  /// as before. Numbers replace the hint inside its frame, so showing
+  /// them resizes nothing.
+  var rowNumber: Int? = nil
   let query: String
   /// Whether subsequence queries match as well as substrings. Decides
   /// which ranges the highlight paints; judging is not done here.
@@ -23,7 +27,7 @@ struct WindowRow: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      Text(window.shortcutHint)
+      Text(numberText)
         .font(.system(size: scaled(11), design: .monospaced))
         .foregroundStyle(hintTextStyle)
         .frame(width: scaled(30), alignment: .center)
@@ -104,6 +108,15 @@ struct WindowRow: View {
   /// The hint wording, white on the chosen row and secondary elsewhere.
   private var hintTextStyle: AnyShapeStyle {
     isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary)
+  }
+
+  /// What the left frame says: the row number while numbers show,
+  /// the application hint otherwise.
+  private var numberText: String {
+    if let rowNumber {
+      return String(rowNumber)
+    }
+    return window.shortcutHint
   }
 
   @ViewBuilder

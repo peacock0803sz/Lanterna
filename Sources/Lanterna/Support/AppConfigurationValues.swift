@@ -45,6 +45,18 @@ extension AppConfiguration {
     case .failure(let error):
       return .failure(error)
     }
+    switch checkedOptionalBool(dict, key: "numberJump") {
+    case .success(let found):
+      config.numberJump = found
+    case .failure(let error):
+      return .failure(error)
+    }
+    switch checkedOptionalBool(dict, key: "numberReorder") {
+    case .success(let found):
+      config.numberReorder = found
+    case .failure(let error):
+      return .failure(error)
+    }
     switch checkedOptionalChannel(dict, key: "updateChannel") {
     case .success(let found):
       config.updateChannel = found

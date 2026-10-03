@@ -202,6 +202,10 @@ final class SwitcherPanel: NSPanel {
   /// Kept here so every swap of the list draws it and sizes for it.
   var scopeBand: ScopeBand?
 
+  /// The row order numbers draw in, empty when none show. Kept here so
+  /// every swap of the list carries the numbers the presenter named.
+  var numberedIDs = [WindowItem.Identifier]()
+
   /// How the rows are grouped. A change lands with the next swap of the
   /// list, like the modes.
   var grouping = GroupingPolicy()
@@ -317,6 +321,7 @@ final class SwitcherPanel: NSPanel {
     hostingView.rootView.filterActive = filterActive
     hoverAnchor = HoverAnchor(point: NSEvent.mouseLocation)
     scrollGathering = ScrollAccumulator()
+    numberedIDs = []
     update(windows: windows)
     hostingView.rootView.appearanceToken = appearances
     showSelection(selecting)
@@ -351,6 +356,16 @@ final class SwitcherPanel: NSPanel {
   /// a panel the eye has to find again on every keystroke.
   func showSelection(_ id: WindowItem.Identifier?) {
     hostingView.rootView.selectedID = id
+  }
+
+  /// Redraws numbering the rows in the given order, and changes nothing
+  /// else — not the size, not the position. One assignment like the
+  /// choice above: numbers replace the hint wording inside the same
+  /// frame, so no trip through `update(windows:)` is wanted here either.
+  func showNumberedRows(_ ids: [WindowItem.Identifier]) {
+    guard ids != numberedIDs else { return }
+    numberedIDs = ids
+    hostingView.rootView.numberedIDs = ids
   }
 
   func dismiss() {
