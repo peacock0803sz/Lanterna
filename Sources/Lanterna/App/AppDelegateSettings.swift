@@ -114,6 +114,9 @@ extension AppDelegate {
       searchSettings: options.searchSettings,
       textScale: options.textScale
     )
+    panel.grouping = currentValues.grouping
+    panel.displayTarget = options.displayTarget
+    panel.panelWidth = options.panelWidth
     let composite = MirroredPanelSurface(panels: [panel])
     composite.displayTarget = options.displayTarget
     composite.makeMirror = {
@@ -139,9 +142,6 @@ extension AppDelegate {
     )
     presenter.windowScope = currentValues.windowScope
     presenter.grouping = currentValues.grouping
-    panel.grouping = currentValues.grouping
-    panel.displayTarget = options.displayTarget
-    panel.panelWidth = options.panelWidth
     return (panel, presenter)
   }
 
