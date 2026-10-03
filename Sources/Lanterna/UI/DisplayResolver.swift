@@ -10,10 +10,11 @@ import Foundation
 ///
 /// The reads are injected so tests answer from fixed points while the
 /// running application reads the cursor, the frontmost application and
-/// its focused window. The focused-window read follows the same round
-/// trip as the activation record, with the same messaging timeout: a
-/// wedged application costs at most that long, once, and the panel
-/// falls back to the menu-bar display.
+/// its focused window. The focused-window read runs on the hotkey path
+/// before the panel shows, so its messages carry a shorter timeout than
+/// the activation record's; `messagingTimeout` says what a wedged
+/// application costs before the panel falls back to the menu-bar
+/// display.
 struct DisplayResolver: Sendable {
 
   // MARK: Lifecycle
@@ -35,6 +36,16 @@ struct DisplayResolver: Sendable {
   }
 
   // MARK: Internal
+
+  /// Client-side ceiling on each message the focused-window read sends.
+  ///
+  /// The read asks the application for its focused window and then asks
+  /// that window for its position and its size, stopping at the first
+  /// failure. An application that does not answer at all therefore
+  /// holds the panel back for one timeout; one that answers each
+  /// message just inside the ceiling holds it back for the ceiling once
+  /// per message.
+  static let messagingTimeout: Float = 0.2
 
   /// The connected displays, so callers map a resolved index back to
   /// the same screens the call resolved over.
@@ -122,14 +133,12 @@ struct DisplayResolver: Sendable {
   /// The focused window's frame over the accessibility API, in that
   /// API's own top-left coordinate space, or nothing when the read
   /// fails. Each call makes and drops its own elements, so nothing is
-  /// shared between calls. The read asks the application for its
-  /// focused window and then asks that window for its position and its
-  /// size; every one of those messages carries a 1.0s messaging timeout
-  /// and can wait it out, after which the caller falls back to the
-  /// menu-bar display with a diagnostics line.
+  /// shared between calls. Every message carries `messagingTimeout`,
+  /// and when the read fails the caller falls back to the menu-bar
+  /// display with a diagnostics line.
   private static func axFocusedFrame(of processIdentifier: pid_t) -> CGRect? {
     let application = AXUIElementCreateApplication(processIdentifier)
-    guard AXUIElementSetMessagingTimeout(application, 1.0) == .success else {
+    guard AXUIElementSetMessagingTimeout(application, messagingTimeout) == .success else {
       return nil
     }
     var focused: CFTypeRef?
@@ -145,7 +154,7 @@ struct DisplayResolver: Sendable {
       return nil
     }
     let element = unsafeDowncast(focused, to: AXUIElement.self)
-    guard AXUIElementSetMessagingTimeout(element, 1.0) == .success else {
+    guard AXUIElementSetMessagingTimeout(element, messagingTimeout) == .success else {
       return nil
     }
     var origin = CGPoint.zero
