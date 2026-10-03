@@ -485,7 +485,7 @@ extension AppConfiguration {
     // the complexity limit, and the helpers report their own failures.
     return checkedSearchSettings(dict, into: &config)
       .flatMap { checkedListing(dict, into: &config) }
-      .flatMap { checkedDisplay(dict, into: &config) }
+      .flatMap { checkedDisplayTarget(dict, into: &config) }
       .map { _ in config }
   }
 

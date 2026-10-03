@@ -4,13 +4,10 @@ import Foundation
 /// together so the assembly in `AppConfiguration` gains one call.
 extension AppConfiguration {
 
-  /// Reads the display keys into the configuration. The target word is
-  /// strict like the other words: anything else invalidates the whole
-  /// file. The width is lenient like the text scale: an unknown value
-  /// falls back with a note instead of invalidating the file. The note
-  /// itself is read beside the keybindings, where the text scale note
-  /// is read.
-  static func checkedDisplay(
+  /// Reads the display-target key into the configuration. The target word
+  /// is strict like the other words: anything else invalidates the whole
+  /// file.
+  static func checkedDisplayTarget(
     _ dict: [String: Any],
     into config: inout ValidConfiguration
   ) -> Result<Void, ConfigDecodeError> {
