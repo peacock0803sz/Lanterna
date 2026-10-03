@@ -114,8 +114,20 @@ extension AppDelegate {
       searchSettings: options.searchSettings,
       textScale: options.textScale
     )
+    let composite = MirroredPanelSurface(panels: [panel])
+    composite.makeMirror = {
+      SwitcherPanel(
+        displayModes: options.displayModes,
+        exclusionRules: compiled.rules,
+        appearanceMode: options.appearanceMode,
+        searchSettings: options.searchSettings,
+        textScale: options.textScale
+      )
+    }
+    composite.refreshPool()
+    composite.syncMirrors(from: panel)
     let presenter = PanelPresenter(
-      surface: panel,
+      surface: composite,
       store: windowList,
       displayModes: options.displayModes,
       exclusionRules: compiled.rules,
@@ -167,6 +179,9 @@ extension AppDelegate {
     presenter?.windowScope = values.windowScope
     presenter?.grouping = values.grouping
     panel?.grouping = values.grouping
+    if let panel, let composite = presenter?.surface as? MirroredPanelSurface {
+      composite.syncMirrors(from: panel)
+    }
     // Recompile exclusions only when the entries changed, so unrelated
     // tweaks leave the panel and presenter rules alone.
     if exclusionsChanged {

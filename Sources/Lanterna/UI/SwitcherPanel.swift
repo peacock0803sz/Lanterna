@@ -165,6 +165,11 @@ final class SwitcherPanel: NSPanel {
   /// list, like the modes.
   var grouping = GroupingPolicy()
 
+  /// Whether this panel places itself on content swaps and display
+  /// changes. Mirrors of the multi-display surface leave placement to
+  /// the composite, so they never fight it over the same frame.
+  var placesItself = true
+
   /// Whether the panel is currently on screen.
   var isPresented: Bool {
     isVisible
@@ -296,7 +301,7 @@ final class SwitcherPanel: NSPanel {
   /// A panel that is down needs nothing. The next appearance places it, and
   /// this runs whenever anyone plugs in a display.
   func screensChanged() {
-    guard isPresented else { return }
+    guard placesItself, isPresented else { return }
     resolvedScreenIndex = resolveFreshIndex()
     stayOnResolvedScreen()
   }
@@ -335,7 +340,9 @@ final class SwitcherPanel: NSPanel {
   /// Centres on the remembered screen, resolving fresh when nothing is
   /// remembered yet. A resize leaves the panel off centre, so every
   /// content swap comes back here instead of crossing displays.
+  /// Mirrors skip this: the composite places them.
   func stayOnResolvedScreen() {
+    guard placesItself else { return }
     let screens = NSScreen.screens
     if let index = resolvedScreenIndex, screens.indices.contains(index) {
       center(in: screens[index])

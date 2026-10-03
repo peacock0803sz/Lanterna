@@ -7,9 +7,10 @@ import Foundation
 /// choice and query everywhere.
 ///
 /// Only the cursor display's panel takes keys; the rest mirror what
-/// it shows. The pool behind the panels is sized elsewhere and handed
-/// in, so this type never creates a window: appearing on an unchanged
-/// pool costs nothing it did not already cost.
+/// it shows. Extra panels are made at startup for the connected
+/// displays and kept across appearances; only a display-count change
+/// grows or shrinks the pool, so appearing costs nothing it did not
+/// already cost.
 @MainActor
 final class MirroredPanelSurface: SwitcherSurface {
 
@@ -17,15 +18,11 @@ final class MirroredPanelSurface: SwitcherSurface {
 
   init(
     panels: [any SwitcherSurface],
-    keyResolver: DisplayResolver = DisplayResolver(),
-    place: (@MainActor ([any SwitcherSurface]) -> Void)? = nil,
-    ensurePool: (@MainActor () -> [any SwitcherSurface])? = nil
+    keyResolver: DisplayResolver = DisplayResolver()
   ) {
     precondition(!panels.isEmpty, "mirroring needs at least one panel")
     self.panels = panels
     self.keyResolver = keyResolver
-    self.place = place
-    self.ensurePool = ensurePool
     _ = NotificationCenter.default.addObserver(
       forName: NSApplication.didChangeScreenParametersNotification,
       object: nil,
@@ -47,6 +44,14 @@ final class MirroredPanelSurface: SwitcherSurface {
   /// tests.
   var keyResolver: DisplayResolver
 
+  /// Makes the mirrors the pool needs. Set by the application wiring;
+  /// without it the opening pool stands, which is the single-display
+  /// case.
+  var makeMirror: (@MainActor () -> SwitcherPanel)?
+
+  /// The mirrors behind the primary panel, in display order.
+  private(set) var mirrors = [SwitcherPanel]()
+
   var isPresented: Bool {
     panels.allSatisfy(\.isPresented)
   }
@@ -61,7 +66,7 @@ final class MirroredPanelSurface: SwitcherSurface {
     for panel in panels {
       panel.present(windows: windows, selecting: selecting, filterActive: filterActive)
     }
-    place?(panels)
+    placeOnScreens(panels)
   }
 
   func takeKeys() -> Bool {
@@ -109,21 +114,44 @@ final class MirroredPanelSurface: SwitcherSurface {
     }
   }
 
-  // MARK: Private
-
-  private var panels: [any SwitcherSurface]
-  private let place: (@MainActor ([any SwitcherSurface]) -> Void)?
-  private let ensurePool: (@MainActor () -> [any SwitcherSurface])?
-
-  /// Brings the pool to the connected displays. Without a pool keeper
-  /// the opening pool stands, which is the single-display case.
-  private func refreshPool() {
-    guard let grown = ensurePool?(), !grown.isEmpty else {
+  /// Brings the pool to the connected displays: one mirror per extra
+  /// display. A shrinking pool takes its panels down first.
+  func refreshPool() {
+    guard let makeMirror else {
       return
     }
+    let extra = max(NSScreen.screens.count - 1, 0)
+    while mirrors.count < extra {
+      let mirror = makeMirror()
+      mirror.placesItself = false
+      mirrors.append(mirror)
+    }
+    while mirrors.count > extra {
+      mirrors.removeLast().orderOut(nil)
+    }
+    var grown: [any SwitcherSurface] = [panels[0]]
+    grown.append(contentsOf: mirrors)
     panels = grown
     keyPanelIndex = min(keyPanelIndex, panels.count - 1)
   }
+
+  /// Copies the content-affecting state onto the mirrors, so every
+  /// panel sizes and filters alike. Placement stays with the caller:
+  /// mirrors never place themselves.
+  func syncMirrors(from primary: SwitcherPanel) {
+    for mirror in mirrors {
+      mirror.displayModes = primary.displayModes
+      mirror.exclusionRules = primary.exclusionRules
+      mirror.searchSettings = primary.searchSettings
+      mirror.textScale = primary.textScale
+      mirror.grouping = primary.grouping
+      mirror.appearance = primary.appearance
+    }
+  }
+
+  // MARK: Private
+
+  private var panels: [any SwitcherSurface]
 
   /// Points keys at the cursor display's panel, clamped to the pool.
   private func refreshKeyPanel() {
@@ -135,6 +163,18 @@ final class MirroredPanelSurface: SwitcherSurface {
     keyPanelIndex = panels.startIndex
   }
 
+  /// Centres each real panel on its display. Anything else in the pool
+  /// was already placed by its own present.
+  private func placeOnScreens(_ panels: [any SwitcherSurface]) {
+    let screens = NSScreen.screens
+    for (index, surface) in panels.enumerated() {
+      guard screens.indices.contains(index), let panel = surface as? SwitcherPanel else {
+        continue
+      }
+      panel.center(in: screens[index])
+    }
+  }
+
   /// Puts displayed panels back after the displays have been
   /// rearranged. A panel that is down needs nothing: the next
   /// appearance places it.
@@ -142,7 +182,7 @@ final class MirroredPanelSurface: SwitcherSurface {
     guard isPresented else { return }
     refreshPool()
     refreshKeyPanel()
-    place?(panels)
+    placeOnScreens(panels)
   }
 
 }
