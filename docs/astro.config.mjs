@@ -4,7 +4,12 @@ import starlight from "@astrojs/starlight";
 const fonts =
   "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Inter:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,500;1,400&family=Noto+Serif+JP:wght@500&display=swap";
 
+const docsBase = process.env.DOCS_BASE ?? "/";
+const docsRef = process.env.DOCS_REF ?? "main";
+const editRef = docsBase === "/" || docsRef === "main" ? "main" : docsRef;
+
 export default defineConfig({
+  base: docsBase,
   integrations: [
     starlight({
       title: "Lanterna",
@@ -54,7 +59,7 @@ export default defineConfig({
         },
       ],
       editLink: {
-        baseUrl: "https://github.com/peacock0803sz/Lanterna/edit/main/docs/",
+        baseUrl: `https://github.com/peacock0803sz/Lanterna/edit/${editRef}/docs/`,
       },
       components: {
         Footer: "./src/components/Footer.astro",
