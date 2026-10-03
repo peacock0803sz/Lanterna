@@ -154,6 +154,10 @@ final class MirroredPanelSurface: SwitcherSurface {
     var grown: [any SwitcherSurface] = [panels[0]]
     grown.append(contentsOf: mirrors)
     panels = grown
+    // Late mirrors start from startup values, so bring them up to the live settings.
+    if let primary = panels[0] as? SwitcherPanel {
+      syncMirrors(from: primary)
+    }
     keyPanelIndex = min(keyPanelIndex, panels.count - 1)
   }
 
