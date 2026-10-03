@@ -92,7 +92,9 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: docs
-          command: pages deploy dist --project-name lanterna-docs
+          # main is the Pages production branch. Without --branch, wrangler
+          # sends the checked-out branch, so stable pushes become previews.
+          command: pages deploy dist --project-name lanterna-docs --branch main
       - name: Purge Cloudflare cache for docs domain
         run: |
           curl -fsS -X POST \
