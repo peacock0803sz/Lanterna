@@ -191,15 +191,24 @@ final class MirroredPanelSurface: SwitcherSurface {
     keyPanelIndex = panels.startIndex
   }
 
-  /// Centres each real panel on its display. Anything else in the pool
-  /// was already placed by its own present.
+  /// Centres each real panel on its display and fits it inside that
+  /// display. Anything else in the pool was already placed by its own
+  /// present.
   private func placeOnScreens(_ panels: [any SwitcherSurface]) {
     let screens = NSScreen.screens
     for (index, surface) in panels.enumerated() {
       guard screens.indices.contains(index), let panel = surface as? SwitcherPanel else {
         continue
       }
-      panel.center(in: screens[index])
+      let screen = screens[index]
+      panel.center(in: screen)
+      let fitted = PanelMetrics.fittedWidth(panel.frame.width, in: screen.visibleFrame.width)
+      if fitted < panel.frame.width {
+        var frame = panel.frame
+        frame.size.width = fitted
+        panel.setFrame(frame, display: true)
+        panel.center(in: screen)
+      }
     }
   }
 
