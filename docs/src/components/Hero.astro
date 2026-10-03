@@ -5,6 +5,16 @@ import LucideIcon from "./LucideIcon.astro";
 
 const { data } = Astro.locals.starlightRoute.entry;
 const { title = data.title, tagline, image, actions = [] } = data.hero || {};
+
+// Hero action links from frontmatter (e.g. `/en/usage/`) are root-absolute,
+// which would leak versioned pages back to the stable root. Re-root them
+// under this build's base; external links pass through untouched.
+const heroBase = import.meta.env.BASE_URL;
+const heroPrefix = heroBase === "/" ? "" : heroBase.replace(/\/$/, "");
+const resolveHeroHref = (link: string) =>
+  link.startsWith("/") && !link.startsWith("//")
+    ? `${heroPrefix}${link}`
+    : link;
 ---
 
 <div class="hero">
@@ -21,12 +31,16 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
         <div class="actions">
           {actions.map(({ link, text, variant, attrs }) =>
             variant === "primary" ? (
-              <a href={link} class="action primary" {...attrs}>
+              <a href={resolveHeroHref(link)} class="action primary" {...attrs}>
                 <LucideIcon name="download" size={17} />
                 {text}
               </a>
             ) : (
-              <a href={link} class="action secondary" {...attrs}>
+              <a
+                href={resolveHeroHref(link)}
+                class="action secondary"
+                {...attrs}
+              >
                 {text}
                 <LucideIcon name="arrow-right" size={16} />
               </a>

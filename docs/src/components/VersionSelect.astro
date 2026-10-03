@@ -1,0 +1,86 @@
+---
+// Version selector rendered next to LanguageSelect in the header.
+// Version metadata comes from DOCS_VERSIONS_JSON, exported per version build
+// by scripts/build-versioned-docs.sh as a compact JSON string shaped
+// {"stable":"<tag>","versions":["<tag>",...,"main"]}. Without it (local dev)
+// the selector renders nothing.
+type VersionsFile = { stable?: unknown; versions?: unknown };
+
+const versionsRaw = import.meta.env.DOCS_VERSIONS_JSON ?? "";
+const docsRef = import.meta.env.DOCS_REF ?? "main";
+// `Astro.url.pathname` includes the configured `base` (e.g. `/v0.8.4/en/`),
+// so strip it before re-rooting the same page under another version.
+const base = import.meta.env.BASE_URL;
+const basePrefix = base === "/" ? "" : base.replace(/\/$/, "");
+
+let stable = "";
+let versions: string[] = [];
+try {
+  const parsed = JSON.parse(versionsRaw) as VersionsFile;
+  if (typeof parsed.stable === "string") stable = parsed.stable;
+  if (Array.isArray(parsed.versions))
+    versions = parsed.versions.filter(
+      (version): version is string => typeof version === "string",
+    );
+} catch {
+  // No version metadata: entries stay empty and nothing renders.
+}
+
+type Entry = { label: string; href: string; isCurrent: boolean };
+
+const suffix = Astro.url.pathname.slice(basePrefix.length) || "/";
+const entries: Entry[] = [
+  // The stable tag lives at the root, not under its own /<tag>/ prefix.
+  ...(stable === ""
+    ? []
+    : [{ ref: stable, label: `stable ${stable}`, prefix: "" }]),
+  ...versions
+    .filter((version) => version !== stable)
+    .map((version) => ({
+      ref: version,
+      label: version,
+      prefix: `/${version}`,
+    })),
+].map(({ label, prefix }) => ({
+  label,
+  href: `${prefix}${suffix}`,
+  // The /<stable-tag>/ snapshot build shares DOCS_REF with the stable root
+  // build, so fall back to a ref match when no base prefix matches.
+  isCurrent:
+    prefix === basePrefix ||
+    (prefix === "" && basePrefix === `/${docsRef}` && docsRef === stable),
+}));
+---
+
+{entries.length > 0 && (
+  <nav class="versions" aria-label="Version">
+    <select onchange="if(this.value)location.href=this.value">
+      {entries.map(({ label, href, isCurrent }) => (
+        <option value={href} selected={isCurrent ? true : undefined}>
+          {label}
+        </option>
+      ))}
+    </select>
+  </nav>
+)}
+
+<style>
+  .versions {
+    display: flex;
+    white-space: nowrap;
+  }
+
+  select {
+    font-family: var(--ln-font-mono);
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: var(--ln-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+  }
+
+  select:hover {
+    color: var(--ln-ink);
+  }
+</style>

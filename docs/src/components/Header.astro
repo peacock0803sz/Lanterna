@@ -3,6 +3,7 @@ import Search from "@astrojs/starlight/components/Search.astro";
 import { Image } from "astro:assets";
 import appIcon from "../assets/app-icon.png";
 import LanguageSelect from "./LanguageSelect.astro";
+import VersionSelect from "./VersionSelect.astro";
 import ThemeSelect from "./ThemeSelect.astro";
 
 const { siteTitle, siteTitleHref, sidebar } = Astro.locals.starlightRoute;
@@ -31,6 +32,7 @@ const sheets = sidebar
     <Search />
     <div class="tools-secondary">
       <LanguageSelect />
+      <VersionSelect />
       <ThemeSelect />
     </div>
   </div>
