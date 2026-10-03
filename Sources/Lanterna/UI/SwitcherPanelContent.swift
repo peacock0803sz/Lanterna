@@ -53,7 +53,8 @@ extension SwitcherPanel {
       filterActive: view.filterActive,
       notice: notice != nil,
       scopeBand: band != nil,
-      for: appearanceScale
+      for: appearanceScale,
+      step: appearanceWidth
     )
     var frame = frame
     frame.origin.y -= size.height - frame.height
@@ -101,9 +102,10 @@ extension SwitcherPanel {
       filterActive: filterActive,
       notice: false,
       scopeBand: scopeBand != nil,
-      for: appearanceScale
+      for: appearanceScale,
+      step: appearanceWidth
     )
-    setContentSize(NSSize(width: size.width, height: size.height))
+    setContentSize(NSSize(width: fittedWidth(size.width), height: size.height))
     stayOnResolvedScreen()
   }
 
@@ -146,7 +148,8 @@ extension SwitcherPanel {
       filterActive: filterActive,
       notice: false,
       scopeBand: scopeBand != nil,
-      for: appearanceScale
+      for: appearanceScale,
+      step: appearanceWidth
     )
     var frame = frame
     frame.origin.y -= size.height - frame.height

@@ -48,7 +48,8 @@ final class SwitcherPanel: NSPanel {
       query: content.query,
       filterActive: content.filterActive,
       notice: false,
-      for: textScale
+      for: textScale,
+      step: panelWidth
     )
     super.init(
       contentRect: NSRect(
@@ -146,6 +147,16 @@ final class SwitcherPanel: NSPanel {
   /// so narrowing or a notice mid-appearance cannot resize what is up.
   var appearanceScale = TextScaleLevel.standard
 
+  /// The width step, read at launch from the config file. A change
+  /// takes effect on the next appearance, never on the one already
+  /// up: resizing under an open panel would move the choice the eye
+  /// is following.
+  var panelWidth = PanelWidth.standard
+
+  /// The width step the appearance on screen opened with. Frozen at
+  /// `present` beside the text step, for the same reason.
+  var appearanceWidth = PanelWidth.standard
+
   /// The failure note on screen now, if any. Remembered here so the panel
   /// knows whether the note's height is in its frame, and clearing gives
   /// back exactly what showing took. A swapped list sizes the frame
@@ -239,6 +250,7 @@ final class SwitcherPanel: NSPanel {
     notice = nil
     noticeGrowth = 0
     appearanceScale = textScale
+    appearanceWidth = panelWidth
     resolvedScreenIndex = resolveFreshIndex()
     hostingView.rootView.query = ""
     hostingView.rootView.filterActive = filterActive
@@ -352,6 +364,20 @@ final class SwitcherPanel: NSPanel {
     stayOnResolvedScreenAfterResolving(screens: screens)
   }
 
+  /// Clamps a content width into the remembered screen, so a wide step
+  /// on a narrow display stays on screen. Without a remembered screen
+  /// the width passes through; the next placement resolves one.
+  func fittedWidth(_ width: CGFloat) -> CGFloat {
+    guard let index = resolvedScreenIndex else {
+      return width
+    }
+    let screens = NSScreen.screens
+    guard screens.indices.contains(index) else {
+      return width
+    }
+    return PanelMetrics.fittedWidth(width, in: screens[index].visibleFrame.width)
+  }
+
   // MARK: Private
 
   /// Counts the appearances, so the view can tell one from the next. The
@@ -361,7 +387,6 @@ final class SwitcherPanel: NSPanel {
   /// it.
   private var appearances = 0
 
-  /// Resolves the target over the current screens and remembers the
   /// answer for this appearance. A fallback to the menu-bar display
   /// leaves a line saying so.
   private func resolveFreshIndex() -> Int? {
