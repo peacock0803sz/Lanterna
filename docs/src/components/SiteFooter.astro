@@ -62,4 +62,13 @@ const { hasSidebar } = Astro.locals.starlightRoute;
   .credit {
     color: var(--ln-muted);
   }
+
+  @media (max-width: 49.99rem) {
+    .bar {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 20px;
+      padding-block: 28px 36px;
+    }
+  }
 </style>
