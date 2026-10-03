@@ -4,6 +4,7 @@ import { Image } from "astro:assets";
 import appIcon from "../assets/app-icon.png";
 import LanguageSelect from "./LanguageSelect.astro";
 import LucideIcon from "./LucideIcon.astro";
+import MobileMenu from "./MobileMenu.astro";
 import VersionSelect from "./VersionSelect.astro";
 import ThemeSelect from "./ThemeSelect.astro";
 
@@ -31,6 +32,9 @@ const { siteTitle, siteTitleHref } = Astro.locals.starlightRoute;
     </a>
     <LanguageSelect />
     <ThemeSelect />
+  </div>
+  <div class="menu print:hidden">
+    <MobileMenu />
   </div>
 </div>
 
@@ -82,14 +86,47 @@ const { siteTitle, siteTitleHref } = Astro.locals.starlightRoute;
     color: var(--ln-ink);
   }
 
-  /* On phones, sheet pages carry these in the menu instead; the menu button sits where they would be. */
+  /* On phones the edition and the tools move into the menu. */
   @media (max-width: 49.99rem) {
-    :global([data-has-sidebar]) .tools {
+    .header {
+      gap: 20px;
+    }
+
+    .site-title {
+      gap: 10px;
+      font-size: 21px;
+    }
+
+    .site-title :global(.logo) {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+    }
+
+    .brand :global(ln-edition-select),
+    .tools {
       display: none;
+    }
+
+    .search :global(site-search > button[data-open-modal]) {
+      color: var(--ln-ink);
+    }
+
+    .search :global(site-search > button[data-open-modal] > svg) {
+      width: 19px;
+      height: 19px;
+    }
+
+    .menu {
+      display: flex;
     }
   }
 
   @media (min-width: 50rem) {
+    .menu {
+      display: none;
+    }
+
     .header {
       display: grid;
       grid-template-columns: 1fr minmax(0, 21.25rem) 1fr;

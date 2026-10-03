@@ -1,0 +1,231 @@
+---
+// The phone menu: a toggle in the header bar and a sheet under it with the
+// edition, a search field, the list of sheets, and the site tools. It serves
+// every page, including the home page, which has no sidebar.
+import LanguageSelect from "./LanguageSelect.astro";
+import LucideIcon from "./LucideIcon.astro";
+import ThemeSelect from "./ThemeSelect.astro";
+import VersionSelect from "./VersionSelect.astro";
+
+const { sidebar } = Astro.locals.starlightRoute;
+const sheets = sidebar.filter((entry) => entry.type === "link");
+---
+
+<ln-mobile-menu>
+  <button
+    type="button"
+    class="toggle"
+    popovertarget="ln-mobile-menu"
+    aria-label={Astro.locals.t("menuButton.accessibleLabel")}
+  >
+    <LucideIcon name="menu" size={21} class="open-icon" />
+    <LucideIcon name="x" size={21} class="close-icon" />
+  </button>
+  <div class="sheet" id="ln-mobile-menu" popover>
+    <VersionSelect variant="panel" />
+    <button type="button" class="search-field">
+      <LucideIcon name="search" size={16} />
+      {Astro.locals.t("search.label")}
+    </button>
+    <nav
+      class="sheets"
+      aria-label={Astro.locals.t("sidebarNav.accessibleLabel")}
+    >
+      <p class="label">Sheets</p>
+      <ul>
+        {sheets.map((entry, index) => (
+          <li>
+            <a
+              href={entry.href}
+              aria-current={entry.isCurrent ? "page" : undefined}
+            >
+              <span class="key">{String.fromCharCode(65 + index)}</span>
+              {entry.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+    <div class="tools">
+      <a href="https://github.com/peacock0803sz/Lanterna" class="github">
+        <LucideIcon name="github" size={17} />
+        GitHub
+      </a>
+      <LanguageSelect />
+      <ThemeSelect />
+    </div>
+  </div>
+</ln-mobile-menu>
+
+<script>
+  class MobileMenu extends HTMLElement {
+    constructor() {
+      super();
+      const sheet = this.querySelector<HTMLElement>(".sheet");
+      const search = this.querySelector(".search-field");
+      if (!sheet || !search) return;
+      // The page behind the open sheet takes no focus.
+      sheet.addEventListener("toggle", (event) => {
+        const open = (event as ToggleEvent).newState === "open";
+        document
+          .querySelectorAll<HTMLElement>(".main-frame, .site-footer")
+          .forEach((el) => el.toggleAttribute("inert", open));
+      });
+      // The field hands off to the header's search dialog.
+      search.addEventListener("click", () => {
+        sheet.hidePopover();
+        document
+          .querySelector<HTMLButtonElement>("site-search [data-open-modal]")
+          ?.click();
+      });
+    }
+  }
+
+  customElements.define("ln-mobile-menu", MobileMenu);
+</script>
+
+<style>
+  .toggle {
+    display: flex;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ln-ink);
+    cursor: pointer;
+  }
+
+  .toggle:has(+ :popover-open) :global(.open-icon),
+  .toggle:not(:has(+ :popover-open)) :global(.close-icon) {
+    display: none;
+  }
+
+  .sheet {
+    /* Reset the user agent's popover box. */
+    margin: 0;
+    border: 0;
+    padding: 12px var(--sl-nav-pad-x) 28px;
+    color: inherit;
+
+    position: fixed;
+    inset: var(--ln-nav-bar-height) 0 0;
+    width: auto;
+    height: auto;
+    border-top: 1px solid var(--ln-hairline);
+    background-color: var(--ln-surface);
+    overflow-y: auto;
+  }
+
+  .sheet:popover-open {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .search-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 12px;
+    border: 1px solid var(--ln-hairline);
+    background-color: var(--ln-key);
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--ln-muted);
+    cursor: pointer;
+  }
+
+  .sheets {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .label {
+    margin: 0;
+    font-family: var(--ln-font-mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ln-muted);
+  }
+
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    margin: 0;
+  }
+
+  ul a {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 9px 0 9px 14px;
+    border-inline-start: 2px solid transparent;
+    font-size: 15px;
+    line-height: 22px;
+    color: var(--ln-secondary);
+    text-decoration: none;
+  }
+
+  .key {
+    font-family: var(--ln-font-mono);
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 2px;
+    color: var(--ln-muted);
+  }
+
+  ul a[aria-current="page"] {
+    border-inline-start-color: var(--ln-ink);
+    font-weight: 600;
+    color: var(--ln-ink);
+  }
+
+  ul a[aria-current="page"] .key {
+    color: var(--ln-ink);
+  }
+
+  .tools {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--ln-hairline);
+    color: var(--ln-secondary);
+  }
+
+  .github {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .tools :global(.locales) {
+    flex: 1;
+    color: inherit;
+  }
+
+  .tools :global(ln-theme-toggle button) {
+    color: inherit;
+  }
+
+  .tools :global(ln-theme-toggle svg) {
+    width: 18px;
+    height: 18px;
+  }
+
+  :global(body:has(#ln-mobile-menu:popover-open)) {
+    overflow: hidden;
+  }
+</style>

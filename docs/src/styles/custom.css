@@ -70,7 +70,7 @@
    * Layout: the header bar, the edition notice under it on non-stable
    * editions, plus the chart border on sheet pages.
    */
-  --ln-nav-bar-height: 4rem;
+  --ln-nav-bar-height: 3.375rem;
   --sl-nav-height: calc(
     var(--ln-nav-bar-height) + var(--ln-notice-height, 0px)
   );
@@ -84,18 +84,29 @@
   --sl-main-pad: 0;
 }
 
+:root[data-has-sidebar] {
+  --sl-nav-height: calc(
+    var(--ln-nav-bar-height) + var(--ln-notice-height, 0px) + 36px
+  );
+}
+
+/* Phones go without the table of contents; the sheet scrolls as one column. */
+@media (max-width: 49.99rem) {
+  :root {
+    --sl-mobile-toc-height: 0rem;
+  }
+
+  mobile-starlight-toc {
+    display: none;
+  }
+}
+
 @media (min-width: 50rem) {
   :root,
   :root[data-theme="light"] {
     --ln-nav-bar-height: 5.375rem;
     --sl-nav-pad-x: 2rem;
     --sl-content-pad-x: 2rem;
-  }
-
-  :root[data-has-sidebar] {
-    --sl-nav-height: calc(
-      var(--ln-nav-bar-height) + var(--ln-notice-height, 0px) + 36px
-    );
   }
 }
 
@@ -141,7 +152,13 @@ body {
 }
 
 [data-has-sidebar] .content-panel:first-child {
-  padding-top: 4rem;
+  padding-top: 28px;
+}
+
+@media (min-width: 50rem) {
+  [data-has-sidebar] .content-panel:first-child {
+    padding-top: 4rem;
+  }
 }
 
 .main-frame main {
@@ -602,21 +619,4 @@ site-search > button[data-open-modal] > kbd {
     font-family: var(--ln-font-mono);
     font-size: 11px;
   }
-}
-
-/*
- * Mobile menu button: flat, like the rest of the header, and centred on the
- * header bar alone rather than the bar plus the edition notice.
- */
-.sl-menu-button,
-:root[data-theme="light"] .sl-menu-button {
-  top: calc((var(--ln-nav-bar-height) - var(--sl-menu-button-size)) / 2);
-  box-shadow: none;
-  background: none;
-  color: var(--ln-ink);
-}
-
-.sl-menu-button:has(~ :popover-open),
-:root[data-theme="light"] .sl-menu-button:has(~ :popover-open) {
-  background-color: var(--ln-hairline);
 }
