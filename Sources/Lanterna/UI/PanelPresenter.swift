@@ -22,6 +22,9 @@ final class PanelPresenter {
     commandIsHeld: @escaping @MainActor () -> Bool = {
       CGEventSource.flagsState(.combinedSessionState).contains(.maskCommand)
     },
+    modifierFlags: @escaping @MainActor () -> CGEventFlags = {
+      CGEventSource.flagsState(.combinedSessionState)
+    },
     commandWatchInterval: Duration = UnreportedReleaseWatch.defaultInterval,
     keyStatusWatchInterval: Duration = KeyStatusWatch.defaultInterval,
     showDelayMs: Double? = nil,
@@ -43,6 +46,7 @@ final class PanelPresenter {
     self.writeLine = writeLine
     self.closesOnCommandRelease = closesOnCommandRelease
     self.commandIsHeld = commandIsHeld
+    self.modifierFlags = modifierFlags
     self.commandWatchInterval = commandWatchInterval
     self.keyStatusWatchInterval = keyStatusWatchInterval
     self.showDelayMs = showDelayMs
@@ -202,7 +206,10 @@ final class PanelPresenter {
   /// Whether digits with a jump modifier name rows. Read on every
   /// press, the same timing as above.
   var numberJump = false {
-    didSet { keyCommands.updateNumberJump(numberJump) }
+    didSet {
+      keyCommands.updateNumberJump(numberJump)
+      pushNumberedRows()
+    }
   }
 
   /// Whether reorder presses move rows. Same timing as above.
@@ -381,6 +388,15 @@ final class PanelPresenter {
     wayOut.commitOnCommandRelease(naming: selection.chosenID, since: startedAt, filter: keyCommands.filterSummary())
   }
 
+  /// Answers the tap's modifier report: remembers which modifiers
+  /// are held and redraws the numbers when a jump modifier moves.
+  /// The tap only reports changes, so an appearance seeds the state
+  /// from the live flags it opened under.
+  func modifierFlagsChanged(_ flags: CGEventFlags) {
+    lastModifierFlags = flags
+    pushNumberedRows()
+  }
+
   /// Acts on Option having been let go.
   ///
   /// Only a panel that is up answers: unlike Command, letting go of
@@ -415,6 +431,17 @@ final class PanelPresenter {
   /// this answer, and a decision that cannot be put either way from a test
   /// is a decision nothing checks.
   private let commandIsHeld: @MainActor () -> Bool
+
+  /// The modifiers held right now, read where they are used rather
+  /// than decided elsewhere: a test process holds no real keys, so
+  /// the live state would answer against every test there is. The
+  /// numbers seed at show time is the only reader.
+  private let modifierFlags: @MainActor () -> CGEventFlags
+
+  /// The modifiers held as of the last tap report. Seeded per
+  /// appearance from the held Command, because the tap only reports
+  /// changes and the opening press holds Command already.
+  private var lastModifierFlags: CGEventFlags = []
 
   /// How long the watch waits between looks (`UnreportedReleaseWatch`'s
   /// number, injected so a test need not wait a real one out).
@@ -574,6 +601,21 @@ final class PanelPresenter {
     }
   }
 
+  /// Pushes the numbered order to the surface, or takes the numbers
+  /// down when no jump modifier is held or the switch is off. Only a
+  /// panel that is up answers; a dismissed panel shows nothing either
+  /// way, and the next appearance seeds its own state.
+  private func pushNumberedRows() {
+    guard surface.isPresented else { return }
+    guard numberJump else {
+      surface.showNumberedRows([])
+      return
+    }
+    let held = lastModifierFlags.contains(.maskCommand)
+      || lastModifierFlags.contains(.maskAlternate)
+    surface.showNumberedRows(held ? keyCommands.numberedRows().map(\.id) : [])
+  }
+
   /// Hands the search settings to the live key commands.
   private func pushSearchSettings() {
     keyCommands.updateSearchSettings(searchSettings)
@@ -619,6 +661,11 @@ final class PanelPresenter {
     operations.begin(windows: ordered)
     wirePointerHandlers()
     surface.present(windows: shown, selecting: selection.chosenID, filterActive: keyCommands.isFilteringActive)
+    // The tap reports changes only, so the modifiers this press
+    // opened under would otherwise leave the numbers down until the
+    // next change.
+    lastModifierFlags = modifierFlags()
+    pushNumberedRows()
     let becameKey = surface.takeKeys()
     wayOut.nowShowing(ordered, startedAt: startedAt)
     let measurement = HotkeyMeasurement(
