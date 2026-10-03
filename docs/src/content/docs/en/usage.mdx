@@ -103,6 +103,8 @@ Panel Width in the same tab scales the panel from Narrow to Wide in five steps. 
 
 Show delay in the same tab waits before showing the panel, from 0 to 1000 milliseconds in steps of 50. At 0, shown as Off, the panel appears at once as before. With a wait set, letting go before it runs out switches without showing anything, and holding on opens the panel as usual. A new wait takes effect the next time the panel opens.
 
+Hover to select in the same tab moves the selection to the row under the pointer. Off by default; the choice follows the pointer once it is on. The panel never moves under a pointer that has not moved since it opened. Scroll to select moves the selection by scrolling instead of scrolling the view, and the view follows the selection. Off by default. Clicking a row picks it and switches to it with either switch off or on.
+
 ## Customizing keybindings
 
 Every keybinding below can be changed through the `keybindings` section of the config file or the Keyboard tab of Settings. Keys are physical positions, so they work the same under any input source.
