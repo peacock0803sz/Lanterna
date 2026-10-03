@@ -85,6 +85,11 @@ struct SwitcherView: View {
   /// together and never disagree about which row is which.
   var numberedIDs = [WindowItem.Identifier]()
 
+  /// How the left edge of each row reads. Handed down from the panel,
+  /// which freezes it for the appearance, so swaps during the
+  /// appearance never pick up a change made while the panel is up.
+  var hintsMode = HintsMode.prefix
+
   /// Where a row hover goes. Called only while the hover switch is on.
   var onHoverRow: ((WindowItem.Identifier) -> Void)?
 
