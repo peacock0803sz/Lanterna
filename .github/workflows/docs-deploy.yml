@@ -1,6 +1,6 @@
 on:
   push:
-    branches: [stable]
+    branches: [main, stable]
   workflow_run:
     workflows: ["release"]
     types: [completed]
@@ -29,8 +29,9 @@ jobs:
       - name: Decide whether to deploy
         id: decide
         run: |
-          # Direct pushes to stable (humans cannot push via GITHUB_TOKEN,
-          # so bot pushes are included) and manual dispatches always deploy.
+          # Direct pushes to main or stable and manual dispatches always
+          # deploy. Other branches never trigger this workflow, so
+          # unreviewed content cannot reach production.
           if [[ "${{ github.event_name }}" == "push" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "proceed=true" >> "$GITHUB_OUTPUT"
             echo "reason=${{ github.event_name }} always deploys" >> "$GITHUB_OUTPUT"
