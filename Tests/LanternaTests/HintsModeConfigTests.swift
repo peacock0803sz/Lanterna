@@ -50,6 +50,35 @@ struct HintsModeConfigTests {
     #expect(values.numberScope == .allRows)
   }
 
+  @Test
+  func defaultStaysAbsentOnSave() {
+    let config = SettingsValues.defaults.configuration(
+      version: 1,
+      sampleCount: nil,
+      stopMonitorEverySeconds: nil
+    )
+    #expect(config.hintsMode == nil)
+  }
+
+  @Test
+  func roundTripsNonDefaultValue() throws {
+    var values = SettingsValues.defaults
+    values.hintsMode = .numbers
+    let config = values.configuration(
+      version: 1,
+      sampleCount: nil,
+      stopMonitorEverySeconds: nil
+    )
+    #expect(config.hintsMode == .numbers)
+    let text = try #require(
+      String(bytes: AppConfiguration.encode(config), encoding: .utf8)
+    )
+    #expect(text.contains("\"hintsMode\": \"numbers\""))
+    let decoded = try #require(AppConfiguration.decode(Data(text.utf8)).successValue)
+    #expect(decoded.config == config)
+    #expect(SettingsValues.effective(from: decoded.config).hintsMode == .numbers)
+  }
+
   // MARK: Private
 
   private func decode(_ text: String) -> Result<DecodedConfiguration, ConfigDecodeError> {
