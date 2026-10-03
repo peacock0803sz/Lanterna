@@ -175,9 +175,13 @@ final class SwitcherPanel: NSPanel {
   /// Where a row click goes. Set by the presenter; the view always calls.
   var onClickRow: ((WindowItem.Identifier) -> Void)?
 
-  /// Where a scroll step goes. Set by the presenter; the view only
-  /// calls while the scroll switch is on.
+  /// Where a scroll step goes. Set by the presenter; the panel calls
+  /// while the scroll switch is on.
   var onScrollStep: ((Int) -> Void)?
+
+  /// Gathers wheel amounts into whole selection steps. Reset on every
+  /// appearance, so one appearance never spends another's remainder.
+  var scrollGathering = ScrollAccumulator()
 
   /// The width step the appearance on screen opened with. Frozen at
   /// `present` beside the text step, for the same reason.
@@ -255,6 +259,20 @@ final class SwitcherPanel: NSPanel {
     false
   }
 
+  override func scrollWheel(with event: NSEvent) {
+    guard scrollSelect else {
+      super.scrollWheel(with: event)
+      return
+    }
+    // Down goes to the next row: the event's sign already answers to
+    // the direction setting, so negating it once is the whole mapping.
+    let steps = scrollGathering.advance(by: -event.scrollingDeltaY)
+    let direction = steps > 0 ? 1 : -1
+    for _ in 0 ..< abs(steps) {
+      onScrollStep?(direction)
+    }
+  }
+
   /// Ordered front regardless rather than made key and ordered front.
   /// Apple says of the ordinary order-front that a window cannot be moved
   /// in front of the key window unless the two belong to the same
@@ -284,6 +302,7 @@ final class SwitcherPanel: NSPanel {
     hostingView.rootView.query = ""
     hostingView.rootView.filterActive = filterActive
     hoverAnchor = HoverAnchor(point: NSEvent.mouseLocation)
+    scrollGathering = ScrollAccumulator()
     update(windows: windows)
     hostingView.rootView.appearanceToken = appearances
     showSelection(selecting)

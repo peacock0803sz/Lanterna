@@ -65,6 +65,14 @@ struct SelectionCursor: Equatable, Sendable {
     move(by: -1)
   }
 
+  /// Steps one row toward the given direction without wrapping: the
+  /// ends stop. An empty list has no chosen row and so no step.
+  mutating func step(by direction: Int) {
+    guard let current = selectedID.flatMap(ids.firstIndex(of:)) else { return }
+    let stepped = min(max(current + (direction > 0 ? 1 : -1), 0), ids.count - 1)
+    selectedID = ids[stepped]
+  }
+
   // MARK: Private
 
   /// The rows on screen, in the order they are drawn.

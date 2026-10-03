@@ -411,11 +411,7 @@ final class PanelPresenter {
     }
     surface.onScrollStep = { [weak self] step in
       guard let self, scrollSelect else { return }
-      if step > 0 {
-        selection.moveToNext()
-      } else if step < 0 {
-        selection.moveToPrevious()
-      }
+      selection.step(by: step)
     }
   }
 

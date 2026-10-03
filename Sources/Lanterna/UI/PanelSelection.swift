@@ -84,6 +84,12 @@ final class PanelSelection {
     move { $0.moveToPrevious() }
   }
 
+  /// Steps one row toward the given direction without wrapping: the
+  /// ends stop, and the panel is told through the redraw entry.
+  func step(by direction: Int) {
+    move { $0.step(by: direction) }
+  }
+
   /// Puts the choice on the named row and tells the panel, the way
   /// a keystroke would. Rows that are gone are left alone: the choice
   /// stays where it is and the panel keeps drawing it.

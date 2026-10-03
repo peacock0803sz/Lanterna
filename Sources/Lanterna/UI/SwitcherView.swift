@@ -87,10 +87,6 @@ struct SwitcherView: View {
   /// commits to it whatever the switches say.
   var onClickRow: ((WindowItem.Identifier) -> Void)?
 
-  /// Where a scroll step goes. Called only while the scroll switch is
-  /// on, with +1 for the next row and -1 for the previous one.
-  var onScrollStep: ((Int) -> Void)?
-
   var body: some View {
     // The query row stacks over the list while filtering is on, so the first
     // rows keep their order while the panel grows down from its top edge.
@@ -144,6 +140,11 @@ struct SwitcherView: View {
         .listStyle(.plain)
         .environment(\.defaultMinListRowHeight, PanelMetrics.rowHeight(for: textScale))
         .scrollContentBackground(.hidden)
+        // While the scroll switch is on the list itself does not
+        // scroll: wheel amounts turn into selection steps on the panel,
+        // and the view follows the choice. Off scrolls the view only,
+        // as before.
+        .scrollDisabled(scrollSelect)
         // The list scrolls under the choice, but the bar itself stays out of
         // the panel, so the rows read the way the mock reads.
         .scrollIndicators(.never)
