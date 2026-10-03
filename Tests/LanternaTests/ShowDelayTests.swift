@@ -46,4 +46,12 @@ struct ShowDelayTests {
     )
   }
 
+  @Test
+  func positiveInfinityFallsBackWithANote() {
+    #expect(
+      ShowDelay.effective(Double.infinity)
+        == (150, "showDelayMs is not a valid value; using 150")
+    )
+  }
+
 }

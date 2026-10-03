@@ -7,7 +7,7 @@ import Foundation
 /// The configuration file spells a millisecond count; the settings
 /// stepper spells the same count. Both meet here, so validation and
 /// display share one table instead of two. Absent or zero means off.
-enum ShowDelay {
+enum ShowDelay: Sendable {
 
   // MARK: Internal
 
