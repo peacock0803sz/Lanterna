@@ -3,11 +3,12 @@ import Foundation
 
 // MARK: - MirroredPanelSurface
 
-/// Shows one appearance on every panel at once, with the same rows,
+/// Shows one appearance across the chosen panels, with the same rows,
 /// choice and query everywhere.
 ///
-/// Only the cursor display's panel takes keys; the rest mirror what
-/// it shows. Extra panels are made at startup for the connected
+/// The every-display choice shows on all panels at once; any other
+/// choice shows on the primary panel alone. Only the cursor display's
+/// panel takes keys; the rest mirror what it shows. Extra panels are made at startup for the connected
 /// displays and kept across appearances; only a display-count change
 /// grows or shrinks the pool, so appearing costs nothing it did not
 /// already cost.
@@ -40,6 +41,10 @@ final class MirroredPanelSurface: SwitcherSurface {
   /// on every appearance from the cursor display.
   private(set) var keyPanelIndex = 0
 
+  /// Which display rule the composite follows. Only the every-display
+  /// choice fans out; anything else shows the primary panel alone.
+  var displayTarget = DisplayTarget.primary
+
   /// Reads live display sources for the key panel choice. Replaced in
   /// tests.
   var keyResolver: DisplayResolver
@@ -52,47 +57,64 @@ final class MirroredPanelSurface: SwitcherSurface {
   /// The mirrors behind the primary panel, in display order.
   private(set) var mirrors = [SwitcherPanel]()
 
+  /// The panels one appearance touches: every panel for the
+  /// every-display choice, otherwise only the primary one.
+  var activePanels: [any SwitcherSurface] {
+    displayTarget == .all ? panels : [panels[0]]
+  }
+
   var isPresented: Bool {
-    panels.allSatisfy(\.isPresented)
+    activePanels.allSatisfy(\.isPresented)
   }
 
   var isTakingKeys: Bool {
-    panels[keyPanelIndex].isTakingKeys
+    if displayTarget == .all {
+      return activePanels[keyPanelIndex].isTakingKeys
+    }
+    return activePanels[0].isTakingKeys
   }
 
   func present(windows: [WindowItem], selecting: WindowItem.Identifier?, filterActive: Bool = false) {
     refreshPool()
     refreshKeyPanel()
-    for panel in panels {
+    if let primary = panels[0] as? SwitcherPanel {
+      primary.placesItself = displayTarget != .all
+    }
+    for panel in activePanels {
       panel.present(windows: windows, selecting: selecting, filterActive: filterActive)
     }
-    placeOnScreens(panels)
+    if displayTarget == .all {
+      placeOnScreens(activePanels)
+    }
   }
 
   func takeKeys() -> Bool {
-    panels[keyPanelIndex].takeKeys()
+    if displayTarget == .all {
+      return activePanels[keyPanelIndex].takeKeys()
+    }
+    return activePanels[0].takeKeys()
   }
 
   func showSelection(_ id: WindowItem.Identifier?) {
-    for panel in panels {
+    for panel in activePanels {
       panel.showSelection(id)
     }
   }
 
   func showScope(_ band: ScopeBand?) {
-    for panel in panels {
+    for panel in activePanels {
       panel.showScope(band)
     }
   }
 
   func showNotice(_ text: String) {
-    for panel in panels {
+    for panel in activePanels {
       panel.showNotice(text)
     }
   }
 
   func clearNotice() {
-    for panel in panels {
+    for panel in activePanels {
       panel.clearNotice()
     }
   }
@@ -103,13 +125,13 @@ final class MirroredPanelSurface: SwitcherSurface {
     query: String,
     filterActive: Bool
   ) {
-    for panel in panels {
+    for panel in activePanels {
       panel.updateList(windows: windows, selecting: selecting, query: query, filterActive: filterActive)
     }
   }
 
   func dismiss() {
-    for panel in panels {
+    for panel in activePanels {
       panel.dismiss()
     }
   }
@@ -155,7 +177,12 @@ final class MirroredPanelSurface: SwitcherSurface {
   private var panels: [any SwitcherSurface]
 
   /// Points keys at the cursor display's panel, clamped to the pool.
+  /// A single-panel choice always keys the primary panel.
   private func refreshKeyPanel() {
+    guard displayTarget == .all else {
+      keyPanelIndex = panels.startIndex
+      return
+    }
     let resolved = keyResolver.resolve(.cursor)
     if case .single(let index) = resolved, panels.indices.contains(index) {
       keyPanelIndex = index
@@ -183,7 +210,9 @@ final class MirroredPanelSurface: SwitcherSurface {
     guard isPresented else { return }
     refreshPool()
     refreshKeyPanel()
-    placeOnScreens(panels)
+    if displayTarget == .all {
+      placeOnScreens(activePanels)
+    }
   }
 
 }

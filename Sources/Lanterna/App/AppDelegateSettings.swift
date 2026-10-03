@@ -115,6 +115,7 @@ extension AppDelegate {
       textScale: options.textScale
     )
     let composite = MirroredPanelSurface(panels: [panel])
+    composite.displayTarget = options.displayTarget
     composite.makeMirror = {
       SwitcherPanel(
         displayModes: options.displayModes,
@@ -182,6 +183,7 @@ extension AppDelegate {
     presenter?.grouping = values.grouping
     panel?.grouping = values.grouping
     if let panel, let composite = presenter?.surface as? MirroredPanelSurface {
+      composite.displayTarget = values.displayTarget
       composite.syncMirrors(from: panel)
     }
     // Recompile exclusions only when the entries changed, so unrelated

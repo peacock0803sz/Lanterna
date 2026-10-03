@@ -16,6 +16,7 @@ struct MirroredPanelSurfaceTests {
       panels: [first, second],
       keyResolver: resolver(cursor: CGPoint(x: 100, y: 100))
     )
+    surface.displayTarget = .all
     let rows = windows()
     surface.present(windows: rows, selecting: rows[1].id, filterActive: true)
     for fake in [first, second] {
@@ -33,6 +34,7 @@ struct MirroredPanelSurfaceTests {
       panels: [first, second],
       keyResolver: resolver(cursor: CGPoint(x: 1600, y: 100))
     )
+    surface.displayTarget = .all
     surface.present(windows: windows(), selecting: nil)
     #expect(surface.takeKeys() == true)
     #expect(first.takeKeysCount == 0)
@@ -47,6 +49,7 @@ struct MirroredPanelSurfaceTests {
       panels: [first, second],
       keyResolver: resolver(cursor: nil)
     )
+    surface.displayTarget = .all
     let rows = windows()
     surface.present(windows: rows, selecting: nil)
     surface.showSelection(rows[2].id)
@@ -66,6 +69,7 @@ struct MirroredPanelSurfaceTests {
       panels: [first, second],
       keyResolver: resolver(cursor: nil)
     )
+    surface.displayTarget = .all
     surface.present(windows: windows(), selecting: nil)
     #expect(surface.isPresented == true)
     surface.dismiss()
@@ -88,6 +92,33 @@ struct MirroredPanelSurfaceTests {
     #expect(only.takeKeysCount == 1)
     surface.dismiss()
     #expect(only.dismissCount == 1)
+  }
+
+  @Test
+  func singleTargetShowsOnlyFirstPanel() {
+    let first = FakeSurface()
+    let second = FakeSurface()
+    let surface = MirroredPanelSurface(
+      panels: [first, second],
+      keyResolver: resolver(cursor: CGPoint(x: 1600, y: 100))
+    )
+    surface.displayTarget = .primary
+    let rows = windows()
+    surface.present(windows: rows, selecting: rows[1].id, filterActive: true)
+    #expect(first.presentedLists.last?.map(\.id) == rows.map(\.id))
+    #expect(first.presentedSelections.last == rows[1].id)
+    #expect(second.presentedLists.isEmpty)
+    #expect(surface.isPresented == true)
+    #expect(surface.takeKeys() == true)
+    #expect(first.takeKeysCount == 1)
+    #expect(second.takeKeysCount == 0)
+    surface.showSelection(rows[2].id)
+    #expect(first.shownSelections.last == rows[2].id)
+    #expect(second.shownSelections.isEmpty)
+    surface.dismiss()
+    #expect(first.dismissCount == 1)
+    #expect(second.dismissCount == 0)
+    #expect(surface.isPresented == false)
   }
 
   // MARK: Private
