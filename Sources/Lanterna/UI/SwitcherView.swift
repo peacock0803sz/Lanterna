@@ -67,6 +67,30 @@ struct SwitcherView: View {
   /// How the rows are grouped, read beside the modes.
   var grouping = GroupingPolicy()
 
+  /// Whether hovering a row moves the selection, handed down from
+  /// the panel. Off draws no tracking: the rows behave as before.
+  var hoverSelect = false
+
+  /// Whether scrolling moves the selection, handed down from the
+  /// panel. Off scrolls the view only, as before.
+  var scrollSelect = false
+
+  /// The pointer position this appearance opened with. Hovers arriving
+  /// where the pointer sat are dropped, so opening under the pointer
+  /// leaves the opening choice alone.
+  var hoverAnchor: HoverAnchor?
+
+  /// Where a row hover goes. Called only while the hover switch is on.
+  var onHoverRow: ((WindowItem.Identifier) -> Void)?
+
+  /// Where a row click goes. Always called: clicking picks the row and
+  /// commits to it whatever the switches say.
+  var onClickRow: ((WindowItem.Identifier) -> Void)?
+
+  /// Where a scroll step goes. Called only while the scroll switch is
+  /// on, with +1 for the next row and -1 for the previous one.
+  var onScrollStep: ((Int) -> Void)?
+
   var body: some View {
     // The query row stacks over the list while filtering is on, so the first
     // rows keep their order while the panel grows down from its top edge.
@@ -349,6 +373,18 @@ struct SwitcherView: View {
     .listRowSeparator(.hidden)
     .listRowBackground(Color.clear)
     .id(window.id)
+    // A click always picks the row and commits to it, whatever the
+    // switches say. Drags and right clicks never reach here: the
+    // gesture only answers a plain left click.
+    .onTapGesture {
+      onClickRow?(window.id)
+    }
+    .modifier(HoverSelectionModifier(
+      id: window.id,
+      enabled: hoverSelect,
+      anchor: hoverAnchor,
+      onHoverRow: onHoverRow
+    ))
   }
 
 }

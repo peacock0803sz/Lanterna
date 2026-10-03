@@ -162,6 +162,23 @@ final class SwitcherPanel: NSPanel {
   /// config file. Same timing as the hover switch above.
   var scrollSelect = false
 
+  /// The pointer position this appearance opened with. Taken when the
+  /// panel goes up — after the show delay fires, when one is set — so
+  /// the first hover, arriving without the pointer having moved,
+  /// leaves the opening choice alone. Thrown away with the appearance.
+  var hoverAnchor: HoverAnchor?
+
+  /// Where a row hover goes. Set by the presenter; the view only calls
+  /// while the hover switch is on.
+  var onHoverRow: ((WindowItem.Identifier) -> Void)?
+
+  /// Where a row click goes. Set by the presenter; the view always calls.
+  var onClickRow: ((WindowItem.Identifier) -> Void)?
+
+  /// Where a scroll step goes. Set by the presenter; the view only
+  /// calls while the scroll switch is on.
+  var onScrollStep: ((Int) -> Void)?
+
   /// The width step the appearance on screen opened with. Frozen at
   /// `present` beside the text step, for the same reason.
   var appearanceWidth = PanelWidth.standard
@@ -266,6 +283,7 @@ final class SwitcherPanel: NSPanel {
     resolvedScreenIndex = assignedScreenIndex ?? resolveFreshIndex()
     hostingView.rootView.query = ""
     hostingView.rootView.filterActive = filterActive
+    hoverAnchor = HoverAnchor(point: NSEvent.mouseLocation)
     update(windows: windows)
     hostingView.rootView.appearanceToken = appearances
     showSelection(selecting)
@@ -304,6 +322,7 @@ final class SwitcherPanel: NSPanel {
 
   func dismiss() {
     resolvedScreenIndex = nil
+    hoverAnchor = nil
     orderOut(nil)
   }
 
