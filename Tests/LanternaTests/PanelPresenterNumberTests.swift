@@ -147,6 +147,28 @@ struct PanelPresenterNumberTests {
   }
 
   @Test
+  func numbersModeShowsNumbersWithoutModifier() {
+    let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+    fixture.presenter.numberJump = true
+    fixture.surface.appearanceHints = .numbers
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+    #expect(fixture.surface.numberedRowOrders.last == fixture.windows.map(\.id))
+  }
+
+  @Test
+  func numbersModeKeepsNumbersUpAfterRelease() {
+    let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+    fixture.presenter.numberJump = true
+    fixture.surface.appearanceHints = .numbers
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.modifierFlagsChanged([.maskCommand])
+    fixture.presenter.modifierFlagsChanged([])
+
+    #expect(fixture.surface.numberedRowOrders.last == fixture.windows.map(\.id))
+  }
+
+  @Test
   func switchingTheJumpOffTakesNumbersDown() {
     let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
     fixture.presenter.numberJump = true
