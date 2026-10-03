@@ -144,6 +144,10 @@ struct SettingsAppearanceView: View {
         WindowRow(
           window: window,
           isSelected: index == 1,
+          // Numbers show the way the panel draws them while a jump
+          // modifier is held; the reorder switch moves rows by key and
+          // has no still picture, so only this switch reaches the preview.
+          rowNumber: values.numberJump ? index + 1 : nil,
           query: "",
           textScale: values.textScale
         )
