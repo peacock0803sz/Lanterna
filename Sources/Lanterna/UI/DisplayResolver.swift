@@ -102,7 +102,11 @@ struct DisplayResolver: Sendable {
 
   /// The focused window's position over the accessibility API, or
   /// nothing when the read fails. Each call makes and drops its own
-  /// elements, so nothing is shared between calls.
+  /// elements, so nothing is shared between calls. The read sets a 1.0s
+  /// messaging timeout on the application element and then again on the
+  /// focused element, matching the activation record, so a hung frontmost
+  /// application costs about two seconds in the worst case and the caller
+  /// falls back to the menu-bar display with a diagnostics line.
   private static func axFocusedPosition(of processIdentifier: pid_t) -> CGPoint? {
     let application = AXUIElementCreateApplication(processIdentifier)
     guard AXUIElementSetMessagingTimeout(application, 1.0) == .success else {
