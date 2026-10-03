@@ -117,7 +117,9 @@ struct MirroredPanelSurfaceTests {
     #expect(second.shownSelections.isEmpty)
     surface.dismiss()
     #expect(first.dismissCount == 1)
-    #expect(second.dismissCount == 0)
+    // Taking everything down reaches the never-shown panel too, which
+    // answers a dismissal it never opened with silence.
+    #expect(second.dismissCount == 1)
     #expect(surface.isPresented == false)
   }
 
