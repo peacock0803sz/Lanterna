@@ -6,16 +6,24 @@ const locales = [
   { code: "ja", label: "日本語" },
 ];
 
-const { locale: current } = Astro.locals.starlightRoute;
-const links = locales.map(({ code, label }) => ({
-  code,
-  label,
-  href: Astro.url.pathname.replace(
-    new RegExp(`^/${current}(?=/|$)`),
-    `/${code}`,
-  ),
-  isCurrent: code === current,
-}));
+const current = Astro.locals.starlightRoute.locale ?? "en";
+// `Astro.url.pathname` includes the configured `base` (e.g. `/v0.8.4/en/`),
+// so swap only the locale segment that follows the base prefix.
+const base = import.meta.env.BASE_URL;
+const prefix = base === "/" ? "" : base.replace(/\/$/, "");
+const links = locales.map(({ code, label }) => {
+  const suffix = Astro.url.pathname.slice(prefix.length);
+  const swapped =
+    suffix === `/${current}` || suffix.startsWith(`/${current}/`)
+      ? `/${code}${suffix.slice(current.length + 1)}`
+      : suffix;
+  return {
+    code,
+    label,
+    href: `${prefix}${swapped}`,
+    isCurrent: code === current,
+  };
+});
 ---
 
 <nav

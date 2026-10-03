@@ -1,0 +1,99 @@
+---
+// Notice under the header bar on editions other than stable: archived tags and
+// the main preview. Each links to the same page in the stable edition.
+import { getEditions } from "../lib/editions";
+import LucideIcon from "./LucideIcon.astro";
+
+const { current, stable } = getEditions(
+  Astro.url.pathname,
+  Astro.locals.devEdition,
+);
+
+const notice =
+  !current || !stable || current.group === "stable"
+    ? undefined
+    : current.group === "preview"
+      ? {
+          message: Astro.locals.t("notice.preview"),
+          link: Astro.locals.t("notice.previewLink", { stable: stable.number }),
+        }
+      : {
+          message: Astro.locals.t("notice.archived", {
+            edition: current.number,
+            stable: stable.number,
+          }),
+          link: Astro.locals.t("notice.archivedLink"),
+        };
+---
+
+{notice && stable && (
+  <aside class="notice ln-notice print:hidden">
+    <span class="label">NOTICE TO MARINERS</span>
+    <p class="message">{notice.message}</p>
+    <a href={stable.href}>
+      {notice.link}
+      <LucideIcon name="arrow-right" size={15} />
+    </a>
+  </aside>
+)}
+
+<style>
+  .notice {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    height: var(--ln-notice-height);
+    padding: 0 var(--sl-nav-pad-x);
+    border-inline-start: 3px solid var(--ln-accent);
+    background-color: color-mix(in srgb, var(--ln-accent) 10%, transparent);
+  }
+
+  .label,
+  a {
+    flex: none;
+    color: var(--ln-notice-ink);
+    white-space: nowrap;
+  }
+
+  .label {
+    font-family: var(--ln-font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+  }
+
+  .message {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    font-size: 14px;
+    color: var(--ln-body);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  a {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  /* On phones the bar keeps one line: the label and the link only. */
+  @media (max-width: 49.99rem) {
+    .notice {
+      justify-content: space-between;
+    }
+
+    .message {
+      display: none;
+    }
+  }
+</style>

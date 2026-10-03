@@ -1,8 +1,10 @@
 ---
 // Based on Starlight's PageFrame. Adds the chart border under the header on
-// sheet pages and a full-width site footer below the main frame.
+// sheet pages, the edition notice under the header bar, and a full-width site
+// footer below the main frame.
 import MobileMenuToggle from "@astrojs/starlight/components/MobileMenuToggle.astro";
 import ChartBorder from "./ChartBorder.astro";
+import NoticeBanner from "./NoticeBanner.astro";
 import SiteFooter from "./SiteFooter.astro";
 
 const { hasSidebar } = Astro.locals.starlightRoute;
@@ -13,6 +15,7 @@ const { hasSidebar } = Astro.locals.starlightRoute;
     <div class="header-bar">
       <slot name="header" />
     </div>
+    <NoticeBanner />
     {hasSidebar && <ChartBorder position="top" class="header-border" />}
   </header>
   {hasSidebar && (
@@ -85,6 +88,9 @@ const { hasSidebar } = Astro.locals.starlightRoute;
   }
 
   .header-bar {
+    /* Keeps the edition menu above the notice and the chart border. */
+    position: relative;
+    z-index: 1;
     height: var(--ln-nav-bar-height);
     padding: 0 var(--sl-nav-pad-x);
   }

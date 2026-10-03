@@ -16,6 +16,7 @@
   --ln-key: #162133;
   --ln-code: #070c15;
   --ln-night-dim: #0d15224d;
+  --ln-notice-ink: #ffa630;
 }
 
 :root[data-theme="light"] {
@@ -30,6 +31,7 @@
   --ln-key: #ffffff;
   --ln-code: #f3efe7;
   --ln-night-dim: transparent;
+  --ln-notice-ink: #a35a00;
 }
 
 :root,
@@ -64,9 +66,14 @@
   --sl-color-hairline-shade: transparent;
   --sl-color-backdrop-overlay: #0d1522a8;
 
-  /* Layout: the header bar, plus the chart border under it on sheet pages. */
+  /*
+   * Layout: the header bar, the edition notice under it on non-stable
+   * editions, plus the chart border on sheet pages.
+   */
   --ln-nav-bar-height: 4rem;
-  --sl-nav-height: var(--ln-nav-bar-height);
+  --sl-nav-height: calc(
+    var(--ln-nav-bar-height) + var(--ln-notice-height, 0px)
+  );
   --sl-nav-pad-x: 1.25rem;
   --sl-content-pad-x: 1.25rem;
   --sl-content-width: 45.75rem;
@@ -86,8 +93,14 @@
   }
 
   :root[data-has-sidebar] {
-    --sl-nav-height: calc(var(--ln-nav-bar-height) + 36px);
+    --sl-nav-height: calc(
+      var(--ln-nav-bar-height) + var(--ln-notice-height, 0px) + 36px
+    );
   }
+}
+
+:root:has(.ln-notice) {
+  --ln-notice-height: 44px;
 }
 
 @media (min-width: 72rem) {
@@ -557,15 +570,47 @@ site-search > button[data-open-modal] > kbd {
   color: inherit;
 }
 
+/* From tablet width up, the button reads as a search field. */
 @media (min-width: 50rem) {
-  site-search {
-    width: auto;
+  site-search > button[data-open-modal] {
+    width: 100%;
+    height: auto;
+    padding: 8px 10px 8px 12px;
+    border: 1px solid var(--ln-hairline);
+    border-radius: 0;
+    background-color: var(--ln-key);
+  }
+
+  site-search > button[data-open-modal]:hover {
+    border-color: var(--ln-muted);
+  }
+
+  site-search > button[data-open-modal] > svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  site-search > button[data-open-modal] > span {
+    flex: 1;
+    text-align: start;
+  }
+
+  site-search > button[data-open-modal] > kbd {
+    padding: 1px 6px;
+    border: 1px solid var(--ln-hairline);
+    border-radius: 0;
+    font-family: var(--ln-font-mono);
+    font-size: 11px;
   }
 }
 
-/* Mobile menu button: flat, like the rest of the header. */
+/*
+ * Mobile menu button: flat, like the rest of the header, and centred on the
+ * header bar alone rather than the bar plus the edition notice.
+ */
 .sl-menu-button,
 :root[data-theme="light"] .sl-menu-button {
+  top: calc((var(--ln-nav-bar-height) - var(--sl-menu-button-size)) / 2);
   box-shadow: none;
   background: none;
   color: var(--ln-ink);

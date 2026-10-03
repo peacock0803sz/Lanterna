@@ -1,0 +1,236 @@
+---
+// Edition selector next to the site title. Each built version is an edition of
+// the chart; the menu groups them as stable, preview (main), and archive.
+import { getEditions, type EditionGroup } from "../lib/editions";
+import LucideIcon from "./LucideIcon.astro";
+
+const { all, current } = getEditions(
+  Astro.url.pathname,
+  Astro.locals.devEdition,
+);
+
+const groups: { group: EditionGroup; label: string }[] = [
+  { group: "stable", label: "STABLE" },
+  { group: "preview", label: "PREVIEW" },
+  { group: "archive", label: "ARCHIVE" },
+];
+const sections = groups
+  .map(({ group, label }) => ({
+    label,
+    editions: all.filter((edition) => edition.group === group),
+  }))
+  .filter(({ editions }) => editions.length > 0);
+
+const meta = (group: EditionGroup, ref: string) =>
+  group === "stable"
+    ? `LATEST · ${ref}`
+    : group === "preview"
+      ? `${ref} · ${Astro.locals.t("editions.unreleased")}`
+      : ref;
+
+// The button names the exact release, since every patch tag is an edition.
+const triggerLabel =
+  current?.group === "preview"
+    ? current.number
+    : current?.ref.replace(/^v/, "");
+---
+
+{current && (
+  <ln-edition-select>
+    <nav
+      class="editions"
+      aria-label={Astro.locals.t("editions.accessibleLabel")}
+    >
+      <button
+        type="button"
+        class="trigger"
+        aria-expanded="false"
+        aria-controls="ln-edition-menu"
+      >
+        <span>ED. {triggerLabel}</span>
+        <LucideIcon name="chevron-down" size={12} class="chevron" />
+      </button>
+      <div class="menu" id="ln-edition-menu" hidden>
+        {sections.map(({ label, editions }) => (
+          <>
+            <p class="section">{label}</p>
+            <ul>
+              {editions.map(({ group, ref, number, href, isCurrent }) => (
+                <li>
+                  <a href={href} aria-current={isCurrent ? "page" : undefined}>
+                    <span class="check">
+                      {isCurrent && <LucideIcon name="check" size={14} />}
+                    </span>
+                    <span class="number">ED. {number}</span>
+                    <span class="meta">{meta(group, ref)}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </>
+        ))}
+        <a
+          class="releases"
+          href="https://github.com/peacock0803sz/Lanterna/releases"
+        >
+          {Astro.locals.t("editions.allReleases")}
+          <LucideIcon name="arrow-up-right" size={12} />
+        </a>
+      </div>
+    </nav>
+  </ln-edition-select>
+)}
+
+<script>
+  class EditionSelect extends HTMLElement {
+    constructor() {
+      super();
+      const button = this.querySelector("button");
+      const menu = this.querySelector<HTMLElement>(".menu");
+      if (!button || !menu) return;
+      const setOpen = (open: boolean) => {
+        button.setAttribute("aria-expanded", String(open));
+        menu.hidden = !open;
+      };
+      button.addEventListener("click", () => setOpen(menu.hidden));
+      this.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape" || menu.hidden) return;
+        setOpen(false);
+        button.focus();
+      });
+      this.addEventListener("focusout", (event) => {
+        if (!this.contains(event.relatedTarget as Node | null)) setOpen(false);
+      });
+      document.addEventListener("click", (event) => {
+        if (!this.contains(event.target as Node)) setOpen(false);
+      });
+    }
+  }
+
+  customElements.define("ln-edition-select", EditionSelect);
+</script>
+
+<style>
+  .editions {
+    position: relative;
+  }
+
+  .trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px 4px 10px;
+    border: 1px solid var(--ln-ink);
+    background: none;
+    font-family: var(--ln-font-mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: var(--ln-ink);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .trigger[aria-expanded="true"] :global(.chevron) {
+    transform: rotate(180deg);
+  }
+
+  .menu {
+    position: absolute;
+    inset-block-start: calc(100% + 12px);
+    inset-inline-start: 0;
+    width: 300px;
+    max-height: calc(100vh - var(--ln-nav-bar-height) - 1rem);
+    overflow-y: auto;
+    padding: 8px 0;
+    border: 1px solid var(--ln-ink);
+    background-color: var(--ln-surface);
+    box-shadow: 0 12px 32px #0000002e;
+  }
+
+  .menu[hidden] {
+    display: none;
+  }
+
+  .section {
+    margin: 0;
+    padding: 10px 14px 4px;
+    font-family: var(--ln-font-mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--ln-muted);
+  }
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    margin: 0;
+  }
+
+  li a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    font-family: var(--ln-font-mono);
+    text-decoration: none;
+  }
+
+  li a:hover,
+  li a:focus-visible {
+    background-color: var(--ln-hairline);
+  }
+
+  .check {
+    display: flex;
+    flex: none;
+    width: 14px;
+    color: var(--ln-ink);
+  }
+
+  .number {
+    flex: 1;
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: var(--ln-ink);
+  }
+
+  [aria-current] .number {
+    font-weight: 600;
+  }
+
+  .meta {
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--ln-muted);
+  }
+
+  .releases {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    padding: 10px 14px 6px;
+    border-top: 1px solid var(--ln-hairline);
+    font-size: 12px;
+    color: var(--ln-secondary);
+    text-decoration: none;
+  }
+
+  .releases:hover {
+    color: var(--ln-ink);
+  }
+
+  /* On phones the menu spans the viewport under the header bar. */
+  @media (max-width: 49.99rem) {
+    .menu {
+      position: fixed;
+      inset-block-start: var(--ln-nav-bar-height);
+      inset-inline: var(--sl-nav-pad-x);
+      width: auto;
+    }
+  }
+</style>

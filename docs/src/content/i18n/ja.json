@@ -1,4 +1,11 @@
 {
   "tableOfContents.onThisPage": "On this page",
-  "aside.note": "Note"
+  "aside.note": "Note",
+  "editions.accessibleLabel": "版",
+  "editions.unreleased": "未リリース",
+  "editions.allReleases": "すべてのリリース",
+  "notice.archived": "このページはLanterna {{edition}}の資料です。最新の安定版は{{stable}}です。",
+  "notice.archivedLink": "最新版で見る",
+  "notice.preview": "このページは開発中の版（main）の資料です。まだリリースされていない機能を含みます。",
+  "notice.previewLink": "安定版（{{stable}}）で見る"
 }

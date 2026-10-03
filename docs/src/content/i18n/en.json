@@ -1,0 +1,9 @@
+{
+  "editions.accessibleLabel": "Edition",
+  "editions.unreleased": "unreleased",
+  "editions.allReleases": "All releases",
+  "notice.archived": "This page documents Lanterna {{edition}}. The latest stable edition is {{stable}}.",
+  "notice.archivedLink": "View the latest",
+  "notice.preview": "This page documents the development edition (main). It includes features that are not released yet.",
+  "notice.previewLink": "View stable ({{stable}})"
+}
