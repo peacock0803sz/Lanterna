@@ -100,7 +100,8 @@ struct PanelLayout {
     ordering: SearchOrdering = .mru,
     memory: WindowItem.Identifier? = nil,
     owner: pid_t? = nil,
-    grouping: GroupingPolicy = GroupingPolicy()
+    grouping: GroupingPolicy = GroupingPolicy(),
+    rowOrder: ManualRowOrder = .none
   ) -> PanelLayout {
     let scoped = owner.map { owner in rows.filter { $0.ownerProcessIdentifier == owner } } ?? rows
     var (ordinary, subgroups) = DisplayModes.sections(
@@ -133,12 +134,27 @@ struct PanelLayout {
     var blocks = [Block]()
     for order in groups {
       blocks.append(.groupHeading(grouper.heading(of: order), order: order))
-      blocks += ordinary.filter { grouper.order(of: $0) == order }.map { Block.row($0, isInSubgroup: false) }
+      // A hand arrangement shadows the drawn order inside manual
+      // groups alone: other groupings keep no overrides, so reaching
+      // for one there would pin rows to groups that are gone by the
+      // next launch.
+      let members = ordinary.filter { grouper.order(of: $0) == order }
+      let arranged: [WindowItem] =
+        if grouping.mode == .manual, let keys = rowOrder.keys(forGroup: order) {
+          rowOrder.applying(keys: keys, to: members)
+        } else {
+          members
+        }
+      blocks += arranged.map { Block.row($0, isInSubgroup: false) }
       for (subgroup, members) in placed.within {
         let inGroup = members.filter { grouper.order(of: $0) == order }
         guard !inGroup.isEmpty else { continue }
         blocks.append(.subgroupHeading(subgroup, group: order))
-        blocks += inGroup.map { Block.row($0, isInSubgroup: true) }
+        if grouping.mode == .manual, let keys = rowOrder.keys(forGroup: order) {
+          blocks += rowOrder.applying(keys: keys, to: inGroup).map { Block.row($0, isInSubgroup: true) }
+        } else {
+          blocks += inGroup.map { Block.row($0, isInSubgroup: true) }
+        }
       }
     }
     for (subgroup, members) in placed.atEnd {
