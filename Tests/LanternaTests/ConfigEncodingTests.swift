@@ -35,6 +35,8 @@ struct ConfigEncodingTests {
     config.appearanceMode = .light
     config.romajiScope = .kanaOnly
     config.saveLogsToDisk = false
+    config.hoverSelect = true
+    config.scrollSelect = true
     let decoded = AppConfiguration.decode(AppConfiguration.encode(config))
     #expect(decoded.successValue?.config == config)
   }
