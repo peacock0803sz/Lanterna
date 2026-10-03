@@ -1,0 +1,97 @@
+---
+// A lighthouse-list entry on the Features sheet: a No. meta line, the
+// feature name, remarks, and an optional row of keycaps. Mirrors the mock's
+// Light rows: a vertical stack with 8px gaps, 22px of vertical padding, and
+// a hairline top rule (ink for the first entry of each list).
+interface Props {
+  no: string;
+  name: string;
+  setting?: string;
+  keys?: string[];
+}
+
+const { no, name, setting, keys } = Astro.props;
+---
+
+<div class="light not-content">
+  <p class="meta">
+    <span class="no">{no}</span>
+    {setting && <span class="setting">{setting}</span>}
+  </p>
+  <p class="name">{name}</p>
+  <div class="remarks">
+    <slot />
+  </div>
+  {keys && keys.length > 0 && (
+    <p class="keys">
+      {keys.map((key) => (
+        <kbd>{key}</kbd>
+      ))}
+    </p>
+  )}
+</div>
+
+<style>
+  .light {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 22px 0;
+    border-top: 1px solid var(--ln-ink);
+  }
+
+  .light + .light {
+    border-top-color: var(--ln-hairline);
+  }
+
+  .meta {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin: 0;
+  }
+
+  .no {
+    font-family: var(--ln-font-mono);
+    font-size: 12px;
+    color: var(--ln-secondary);
+  }
+
+  .setting {
+    font-family: var(--ln-font-mono);
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    color: var(--ln-muted);
+  }
+
+  .name {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ln-ink);
+  }
+
+  .remarks {
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--ln-body);
+  }
+
+  .remarks :global(p) {
+    margin: 0;
+  }
+
+  .keys {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding-top: 4px;
+  }
+
+  /* The site kbd style adds a start margin between neighbours; the flex
+     gap already handles spacing here. */
+  .keys kbd + kbd {
+    margin-inline-start: 0;
+  }
+</style>

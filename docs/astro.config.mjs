@@ -88,6 +88,11 @@ export default defineConfig({
         { slug: "index", label: "Home", translations: { ja: "ホーム" } },
         { slug: "guide", label: "Guide", translations: { ja: "ガイド" } },
         { slug: "usage", label: "Usage", translations: { ja: "使い方" } },
+        {
+          slug: "features",
+          label: "Features",
+          translations: { ja: "機能一覧" },
+        },
       ],
       social: [
         {
