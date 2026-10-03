@@ -152,7 +152,150 @@ struct PanelPresenterNumberTests {
     #expect(fixture.surface.numberedRowOrders.last == [])
   }
 
+  @Test
+  func reorderMovesTheRowDownInsideItsGroup() {
+    let fixture = groupedFixture()
+    pressMove(down: true, through: fixture)
+
+    #expect(fixture.surface.updatedLists.last?.map(\.id) == [
+      groupedRows[3].id,
+      groupedRows[1].id,
+      groupedRows[0].id,
+      groupedRows[2].id,
+    ])
+    #expect(fixture.presenter.selection.chosenID == groupedRows[1].id)
+  }
+
+  @Test
+  func reorderStopsAtTheGroupEdge() {
+    let fixture = groupedFixture()
+    pressMove(down: false, through: fixture)
+
+    #expect(fixture.surface.presentedLists.last?.map(\.id) == [
+      groupedRows[1].id,
+      groupedRows[3].id,
+      groupedRows[0].id,
+      groupedRows[2].id,
+    ])
+    #expect(fixture.presenter.selection.chosenID == groupedRows[1].id)
+  }
+
+  @Test
+  func reorderDoesNotCrossGroups() {
+    let fixture = groupedFixture()
+    _ = fixture.presenter.handleKeyStroke(pressKeyDown())
+    #expect(fixture.presenter.selection.chosenID == groupedRows[3].id)
+    pressMove(down: true, through: fixture)
+
+    #expect(fixture.surface.presentedLists.last?.map(\.id) == [
+      groupedRows[1].id,
+      groupedRows[3].id,
+      groupedRows[0].id,
+      groupedRows[2].id,
+    ])
+    #expect(fixture.presenter.selection.chosenID == groupedRows[3].id)
+  }
+
+  @Test
+  func flatListIgnoresReorder() {
+    let fixture = Fixture(entryCount: 4, closesOnCommandRelease: true)
+    fixture.presenter.numberReorder = true
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    let before: [WindowItem.Identifier]? = fixture.surface.updatedLists.last?.map(\.id)
+    pressMove(down: true, through: fixture)
+
+    #expect(fixture.surface.updatedLists.last?.map(\.id) == before)
+  }
+
+  @Test
+  func switchedOffReorderIgnoresMoves() {
+    let fixture = groupedFixture(reorder: false)
+    pressMove(down: true, through: fixture)
+
+    #expect(fixture.surface.presentedLists.last?.map(\.id) == [
+      groupedRows[1].id,
+      groupedRows[3].id,
+      groupedRows[0].id,
+      groupedRows[2].id,
+    ])
+  }
+
+  @Test
+  func narrowedListIgnoresReorder() {
+    let fixture = groupedFixture(combination: .filter)
+    _ = fixture.presenter.handleKeyStroke(PanelKeystroke(
+      keyCode: UInt16(kVK_ANSI_Z),
+      modifiers: [],
+      isARepeat: false,
+      characters: "z"
+    ))
+    let before: [WindowItem.Identifier]? = fixture.surface.updatedLists.last?.map(\.id)
+    let chosen = fixture.presenter.selection.chosenID
+    pressMove(down: true, through: fixture)
+
+    #expect(fixture.surface.updatedLists.last?.map(\.id) == before)
+    #expect(fixture.presenter.selection.chosenID == chosen)
+  }
+
+  @Test
+  func reorderReportsTheOrderForSaving() {
+    let fixture = groupedFixture()
+    var reported = [ManualRowOrder]()
+    fixture.presenter.onRowOrderChanged = { reported.append($0) }
+    pressMove(down: true, through: fixture)
+
+    #expect(reported.count == 1)
+    #expect(reported.first?.keys(forGroup: 1)?.map(\.title) == ["Window 4", "Window 2"])
+  }
+
   // MARK: Private
+
+  private var groupedRows: [WindowItem] {
+    [
+      groupedRow(1, bundle: "com.example.front"),
+      groupedRow(2, bundle: "com.example.previous"),
+      groupedRow(3, bundle: "com.example.front"),
+      groupedRow(4, bundle: "com.example.previous"),
+    ]
+  }
+
+  private func groupedFixture(reorder: Bool = true, combination: HotkeyCombination = .forward) -> Fixture {
+    let rows = groupedRows
+    let fixture = Fixture(store: WindowListStore(fixed: rows), windows: rows)
+    var policy = GroupingPolicy()
+    policy.mode = .manual
+    policy.groupCount = 2
+    policy.assignments = [GroupAssignment(bundleID: "com.example.front", group: 2)]
+    fixture.presenter.grouping = policy
+    fixture.presenter.numberReorder = reorder
+    fixture.presenter.handleHotkey(combination, deliveryDelay: nil)
+    return fixture
+  }
+
+  private func groupedRow(_ windowID: CGWindowID, bundle: String) -> WindowItem {
+    WindowItem(
+      id: WindowItem.Identifier(windowID: windowID),
+      ownerProcessIdentifier: pid_t(windowID),
+      appName: "App\(windowID)",
+      bundleIdentifier: bundle,
+      windowTitle: "Window \(windowID)",
+      kind: .standard,
+      isMinimized: false,
+      icon: NSImage(size: NSSize(width: 1, height: 1))
+    )
+  }
+
+  private func pressMove(down: Bool, through fixture: Fixture) {
+    _ = fixture.presenter.handleKeyStroke(PanelKeystroke(
+      keyCode: UInt16(down ? kVK_DownArrow : kVK_UpArrow),
+      modifiers: [.command, .shift],
+      isARepeat: false
+    ))
+  }
+
+  private func pressKeyDown() -> PanelKeystroke {
+    PanelKeystroke(keyCode: UInt16(kVK_DownArrow), modifiers: [], isARepeat: false)
+  }
 
   /// The key codes answering as digits on the main row, by value.
   private func keyCode(for digit: Int) -> UInt16 {
