@@ -102,6 +102,21 @@ struct PanelPresenterShowDelayTests {
     )
   }
 
+  /// A filtering opener released during the wait asks for typing, not
+  /// for taking: nothing is committed, shown, or written down.
+  @Test
+  func aFilteringPressReleasedDuringTheWaitCommitsNothing() async {
+    let fixture = waitingFixture()
+    fixture.presenter.handleHotkey(.filter, deliveryDelay: nil)
+    fixture.presenter.handleCommandRelease()
+    await settle()
+
+    #expect(fixture.surface.presentedLists.isEmpty)
+    #expect(fixture.surface.dismissCount == 0)
+    #expect(fixture.switcher.targets.isEmpty)
+    #expect(fixture.log.lines.isEmpty)
+  }
+
   /// Presses landing inside the wait move the choice along and start the
   /// wait over, so a burst opens one panel on the row it walked to.
   @Test

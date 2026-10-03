@@ -327,15 +327,18 @@ final class PanelPresenter {
     if pendingShow.isWaiting {
       guard let waiting = pendingShow.take() else { return }
       pendingPress.callOff()
-      if let items = waiting.items {
-        commitWithoutShowing(
-          items,
-          presses: waiting.presses,
-          startedAt: startedAt
-        )
-      } else {
+      guard let items = waiting.items else {
         wayOut.recordPressCalledOff(since: startedAt)
+        return
       }
+      // A filtering opener asks for typing, not for taking: letting go
+      // answers with silence rather than a commit or a line.
+      guard waiting.presses.first != .filter else { return }
+      commitWithoutShowing(
+        items,
+        presses: waiting.presses,
+        startedAt: startedAt
+      )
       return
     }
     if pendingPress.isWaiting {
@@ -423,15 +426,13 @@ final class PanelPresenter {
   /// press, and letting go found the list ready.
   ///
   /// The ordering and the walking are the showing's own; only the
-  /// appearing is missing. A filtering press still withholds the commit,
-  /// the way letting go over a filtering panel does.
+  /// appearing is missing.
   private func commitWithoutShowing(
     _ items: [WindowItem],
     presses: [HotkeyCombination],
     startedAt: ContinuousClock.Instant
   ) {
     let ordered = arrangeDelayedChoice(items, presses: presses)
-    guard !keyCommands.isFilteringActive else { return }
     wayOut.commitSilently(
       ordered,
       naming: selection.chosenID,
