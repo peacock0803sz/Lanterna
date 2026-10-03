@@ -121,6 +121,37 @@ struct PanelPresenterNumberTests {
     #expect(fixture.presenter.selection.chosenID == nil)
   }
 
+  @Test
+  func heldModifierShowsNumbersInDisplayOrder() {
+    let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+    fixture.presenter.numberJump = true
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.modifierFlagsChanged([.maskCommand])
+
+    #expect(fixture.surface.numberedRowOrders.last == fixture.windows.map(\.id))
+  }
+
+  @Test
+  func releasedModifierTakesNumbersDown() {
+    let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+    fixture.presenter.numberJump = true
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.modifierFlagsChanged([.maskCommand])
+    fixture.presenter.modifierFlagsChanged([])
+
+    #expect(fixture.surface.numberedRowOrders.last == [])
+  }
+
+  @Test
+  func switchingTheJumpOffTakesNumbersDown() {
+    let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+    fixture.presenter.numberJump = true
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.numberJump = false
+
+    #expect(fixture.surface.numberedRowOrders.last == [])
+  }
+
   // MARK: Private
 
   /// The key codes answering as digits on the main row, by value.
