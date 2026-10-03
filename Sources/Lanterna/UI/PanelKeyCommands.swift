@@ -223,6 +223,13 @@ final class PanelKeyCommands {
     case .filterBackspace:
       filter.removeLast()
 
+    case .numberDigit:
+      break // Answered once the number input below holds digits.
+
+    case .moveRowUp,
+         .moveRowDown:
+      break // Answered once grouped lists learn to reorder.
+
     case .absorb:
       break
     }

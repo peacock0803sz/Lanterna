@@ -97,7 +97,7 @@ struct KeyBindingTableTests {
     #expect(KeyBindingTable.defaults[.hideApplication].first?.displayName == "Cmd+H")
     #expect(KeyBindingTable.defaults[.minimizeWindow].first?.displayName == "Cmd+M")
     #expect(ResolvedKey(keyCode: UInt16(kVK_F5), modifiers: []).displayName == "key 96")
-    #expect(ResolvedKey(keyCode: UInt16(kVK_ANSI_Keypad1), modifiers: []).displayName == "key 83")
+    #expect(ResolvedKey(keyCode: UInt16(kVK_ANSI_Keypad1), modifiers: []).displayName == "Keypad 1")
   }
 
   @Test(arguments: ansiLabels)

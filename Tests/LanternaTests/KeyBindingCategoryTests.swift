@@ -24,6 +24,9 @@ struct KeyBindingCategoryTests {
       .commit,
       .cancel,
       .toggleScope,
+      .numberJump,
+      .moveRowUp,
+      .moveRowDown,
       .deleteBackward,
       .clearQuery,
       .closeWindow,
@@ -51,6 +54,9 @@ struct KeyBindingCategoryTests {
       "Quit application",
       "Hide application",
       "Minimize window",
+      "Jump to row number",
+      "Move row up",
+      "Move row down",
     ])
   }
 

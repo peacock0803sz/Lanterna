@@ -31,6 +31,8 @@ protocol EventTapControlling {
   /// enabled — and is the only thing the fallback is decided on.
   func start(
     onCommandRelease: @escaping @MainActor () -> Void,
+    onOptionRelease: @escaping @MainActor () -> Void,
+    onFlagsChanged: @escaping @MainActor (CGEventFlags) -> Void,
     onDisabledBySystem: @escaping @MainActor () -> Void
   ) -> Bool
 
@@ -60,6 +62,24 @@ protocol EventTapControlling {
 
   /// Takes the tap down for good.
   func invalidate()
+}
+
+// MARK: - EventTapControlling + Compatibility
+
+/// The two-callback start, for callers with no use for Option releases
+/// or flag reports. Forwards with both answers dropped.
+extension EventTapControlling {
+  func start(
+    onCommandRelease: @escaping @MainActor () -> Void,
+    onDisabledBySystem: @escaping @MainActor () -> Void
+  ) -> Bool {
+    start(
+      onCommandRelease: onCommandRelease,
+      onOptionRelease: { },
+      onFlagsChanged: { _ in },
+      onDisabledBySystem: onDisabledBySystem
+    )
+  }
 }
 
 // MARK: - SystemEventTap
@@ -129,8 +149,22 @@ final class SystemEventTap: EventTapControlling {
     previous.contains(.maskCommand) && !current.contains(.maskCommand)
   }
 
+  /// Whether this change is Option being let go, read the same way as
+  /// the Command edge above: the falling edge, not the state. Either
+  /// Option key holds `.maskAlternate` while down, so swapping hands
+  /// never produces this edge. The left and right Option keys are not
+  /// told apart, for the same reason the Command keys are not.
+  nonisolated static func shouldReportOptionRelease(
+    previous: CGEventFlags,
+    current: CGEventFlags
+  ) -> Bool {
+    previous.contains(.maskAlternate) && !current.contains(.maskAlternate)
+  }
+
   func start(
     onCommandRelease: @escaping @MainActor () -> Void,
+    onOptionRelease: @escaping @MainActor () -> Void,
+    onFlagsChanged: @escaping @MainActor (CGEventFlags) -> Void,
     onDisabledBySystem: @escaping @MainActor () -> Void
   ) -> Bool {
     guard
@@ -151,6 +185,8 @@ final class SystemEventTap: EventTapControlling {
 
     self.tap = tap
     self.onCommandRelease = onCommandRelease
+    self.onOptionRelease = onOptionRelease
+    self.onFlagsChanged = onFlagsChanged
     self.onDisabledBySystem = onDisabledBySystem
 
     guard let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0) else {
@@ -233,10 +269,15 @@ final class SystemEventTap: EventTapControlling {
       onDisabledBySystem?()
 
     case .flagsChanged:
-      let released = Self.shouldReportRelease(previous: previousFlags, current: flags)
+      let commandReleased = Self.shouldReportRelease(previous: previousFlags, current: flags)
+      let optionReleased = Self.shouldReportOptionRelease(previous: previousFlags, current: flags)
       previousFlags = flags
-      if released {
+      onFlagsChanged?(flags)
+      if commandReleased {
         onCommandRelease?()
+      }
+      if optionReleased {
+        onOptionRelease?()
       }
 
     default:
@@ -274,6 +315,8 @@ final class SystemEventTap: EventTapControlling {
   private var tap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
   private var onCommandRelease: (@MainActor () -> Void)?
+  private var onOptionRelease: (@MainActor () -> Void)?
+  private var onFlagsChanged: (@MainActor (CGEventFlags) -> Void)?
   private var onDisabledBySystem: (@MainActor () -> Void)?
 
   /// The modifier state as of the last change seen, which is the other half

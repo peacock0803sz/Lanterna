@@ -53,8 +53,8 @@ struct ManualRowOrderTests {
 
   /// Window rows named by title alone, all sharing one owner.
   private enum Fixture {
-    static func key(_ title: String) -> RowKey {
-      RowKey(owner: "com.example.app", title: title)
+    static func key(_ title: String) -> String {
+      "com.example.app\n\(title)"
     }
 
     static func rows(_ titles: [String]) -> [WindowItem] {
