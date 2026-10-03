@@ -15,6 +15,9 @@ struct WindowRow: View {
   /// as before. Numbers replace the hint inside its frame, so showing
   /// them resizes nothing.
   var rowNumber: Int? = nil
+  /// Whether the hint frame itself stays out of the row. The rest of
+  /// the row moves left into its room; the row height never changes.
+  var hidesHintFrame = false
   let query: String
   /// Whether subsequence queries match as well as substrings. Decides
   /// which ranges the highlight paints; judging is not done here.
@@ -27,15 +30,17 @@ struct WindowRow: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      Text(numberText)
-        .font(.system(size: scaled(11), design: .monospaced))
-        .foregroundStyle(hintTextStyle)
-        .frame(width: scaled(30), alignment: .center)
-        .background(hintBackground)
-        .overlay(
-          RoundedRectangle(cornerRadius: 5)
-            .stroke(hintBorder)
-        )
+      if !hidesHintFrame {
+        Text(numberText)
+          .font(.system(size: scaled(11), design: .monospaced))
+          .foregroundStyle(hintTextStyle)
+          .frame(width: scaled(30), alignment: .center)
+          .background(hintBackground)
+          .overlay(
+            RoundedRectangle(cornerRadius: 5)
+              .stroke(hintBorder)
+          )
+      }
 
       highlighted(
         window.appName,
