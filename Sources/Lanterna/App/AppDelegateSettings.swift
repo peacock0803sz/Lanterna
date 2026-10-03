@@ -145,6 +145,8 @@ extension AppDelegate {
     )
     presenter.windowScope = currentValues.windowScope
     presenter.grouping = currentValues.grouping
+    presenter.hoverSelect = options.hoverSelect
+    presenter.scrollSelect = options.scrollSelect
     return (panel, presenter)
   }
 
@@ -186,6 +188,8 @@ extension AppDelegate {
     presenter?.searchSettings = searchSettings
     presenter?.windowScope = values.windowScope
     presenter?.grouping = values.grouping
+    presenter?.hoverSelect = values.hoverSelect
+    presenter?.scrollSelect = values.scrollSelect
     presenter?.showDelayMs = values.showDelayMs
     panel?.grouping = values.grouping
     if let panel, let composite = presenter?.surface as? MirroredPanelSurface {

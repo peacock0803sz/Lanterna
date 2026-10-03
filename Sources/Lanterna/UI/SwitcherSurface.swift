@@ -14,11 +14,23 @@
 /// and a boundary that grows belongs somewhere its growth is not charged to
 /// a file that was already close to the length the linter allows.
 @MainActor
-protocol SwitcherSurface {
+protocol SwitcherSurface: AnyObject {
   var isPresented: Bool { get }
 
   /// Whether key presses are reaching the panel at this instant.
   var isTakingKeys: Bool { get }
+
+  /// Where a row hover goes. The presenter sets it; nil listens to
+  /// nothing. Only window rows ever call.
+  var onHoverRow: ((WindowItem.Identifier) -> Void)? { get set }
+
+  /// Where a row click goes. The presenter sets it; nil listens to
+  /// nothing. Only window rows ever call.
+  var onClickRow: ((WindowItem.Identifier) -> Void)? { get set }
+
+  /// Where a scroll step goes, with +1 for the next row and -1 for
+  /// the previous one. The presenter sets it; nil listens to nothing.
+  var onScrollStep: ((Int) -> Void)? { get set }
 
   /// Puts the panel up showing this list, with this row drawn as chosen,
   /// on an empty query, with the filter chrome on exactly when the

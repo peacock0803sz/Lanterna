@@ -50,6 +50,14 @@ final class FakeSurface: SwitcherSurface {
   private(set) var currentNotice: String?
   var isPresented = false
 
+  /// Where a row hover would go. Stored so the presenter can be
+  /// driven the way the panel drives it.
+  var onHoverRow: ((WindowItem.Identifier) -> Void)?
+  /// Where a row click would go. Same as above.
+  var onClickRow: ((WindowItem.Identifier) -> Void)?
+  /// Where a scroll step would go. Same as above.
+  var onScrollStep: ((Int) -> Void)?
+
   /// Whether presses are reaching the panel.
   ///
   /// Settable, because this is the one seam through which a test stages

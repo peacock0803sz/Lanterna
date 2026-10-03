@@ -229,6 +229,29 @@ final class PanelKeyCommands {
     return .absorbed
   }
 
+  /// Commits the clicked row the way a commit key would: the row is
+  /// chosen first, then the same way out and the same shortcut record
+  /// run. The span starts at the click, so the measured close covers
+  /// what this process does about the click and nothing before it.
+  func commitClickedRow(_ id: WindowItem.Identifier?) {
+    guard surface.isPresented else { return }
+    // Read before the commit: taking the panel down throws the
+    // list away. Recorded after the commit returns, so the write
+    // lands outside the measured close interval.
+    if let id {
+      selection.select(id)
+    }
+    let committedID = selection.chosenID
+    let committedQuery = filter.logSummary().query
+    wayOut.commit(
+      by: .click,
+      naming: committedID,
+      since: now(),
+      filter: filter.logSummary()
+    )
+    recordShortcut(query: committedQuery, id: committedID)
+  }
+
   // MARK: Private
 
   private let surface: any SwitcherSurface

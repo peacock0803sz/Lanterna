@@ -57,6 +57,22 @@ final class MirroredPanelSurface: SwitcherSurface {
   /// The mirrors behind the primary panel, in display order.
   private(set) var mirrors = [SwitcherPanel]()
 
+  /// Where a row hover goes. Stored here and fanned out to every
+  /// panel, so mirrors made later hear the same handler.
+  var onHoverRow: ((WindowItem.Identifier) -> Void)? {
+    didSet { fanOutPointerHandlers() }
+  }
+
+  /// Where a row click goes. Same storage as the hover handler above.
+  var onClickRow: ((WindowItem.Identifier) -> Void)? {
+    didSet { fanOutPointerHandlers() }
+  }
+
+  /// Where a scroll step goes. Same storage as the handlers above.
+  var onScrollStep: ((Int) -> Void)? {
+    didSet { fanOutPointerHandlers() }
+  }
+
   /// The panels one appearance touches: every panel for the
   /// every-display choice, otherwise only the primary one.
   var activePanels: [any SwitcherSurface] {
@@ -164,6 +180,11 @@ final class MirroredPanelSurface: SwitcherSurface {
       mirror.searchSettings = primary.searchSettings
       mirror.textScale = primary.textScale
       mirror.panelWidth = primary.panelWidth
+      mirror.hoverSelect = primary.hoverSelect
+      mirror.scrollSelect = primary.scrollSelect
+      mirror.onHoverRow = primary.onHoverRow
+      mirror.onClickRow = primary.onClickRow
+      mirror.onScrollStep = primary.onScrollStep
       mirror.grouping = primary.grouping
       mirror.appearance = primary.appearance
     }
@@ -172,6 +193,17 @@ final class MirroredPanelSurface: SwitcherSurface {
   // MARK: Private
 
   private var panels: [any SwitcherSurface]
+
+  /// Hands the stored pointer handlers to every panel in the pool.
+  /// Late mirrors start without them, so this runs on every set and
+  /// the sync below repeats it for mirrors made later.
+  private func fanOutPointerHandlers() {
+    for index in panels.indices {
+      panels[index].onHoverRow = onHoverRow
+      panels[index].onClickRow = onClickRow
+      panels[index].onScrollStep = onScrollStep
+    }
+  }
 
   /// Points keys at the cursor display's panel, clamped to the pool.
   /// A single-panel choice always keys the primary panel.

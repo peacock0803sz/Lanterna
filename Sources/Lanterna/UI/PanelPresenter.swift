@@ -191,6 +191,14 @@ final class PanelPresenter {
   /// presenter, so no two `lazy` properties name each other.
   lazy var operations = makeOperations()
 
+  /// Whether hovering a row moves the selection. Read on every hover:
+  /// a panel that is up keeps answering to the value from launch until
+  /// the change lands.
+  var hoverSelect = false
+
+  /// Whether scrolling moves the selection. Same timing as above.
+  var scrollSelect = false
+
   /// The compiled exclusion rules, handed to the key commands beside
   /// the modes, so the filter and the panel judge the same rows out.
   /// A change lands on the live filter at once: settings edits apply
@@ -390,6 +398,27 @@ final class PanelPresenter {
     showDelay == nil
   }
 
+  /// Hands the view's row gestures to the selection and the way out.
+  /// Set on every appearance, so a surface grown later hears the same
+  /// handlers through the sync below it.
+  private func wirePointerHandlers() {
+    surface.onHoverRow = { [weak self] id in
+      guard let self, hoverSelect else { return }
+      selection.select(id)
+    }
+    surface.onClickRow = { [weak self] id in
+      self?.keyCommands.commitClickedRow(id)
+    }
+    surface.onScrollStep = { [weak self] step in
+      guard let self, scrollSelect else { return }
+      if step > 0 {
+        selection.moveToNext()
+      } else if step < 0 {
+        selection.moveToPrevious()
+      }
+    }
+  }
+
   /// Holds a press off the screen until its wait runs out.
   ///
   /// With a list at hand the items join the wait at once; without one
@@ -556,6 +585,7 @@ final class PanelPresenter {
     // choice exists to walk and before the panel reads it off.
     replayDelayedPresses(replay)
     operations.begin(windows: ordered)
+    wirePointerHandlers()
     surface.present(windows: shown, selecting: selection.chosenID, filterActive: keyCommands.isFilteringActive)
     let becameKey = surface.takeKeys()
     wayOut.nowShowing(ordered, startedAt: startedAt)
