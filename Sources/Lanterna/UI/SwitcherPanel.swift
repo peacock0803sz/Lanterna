@@ -176,10 +176,13 @@ final class SwitcherPanel: NSPanel {
   /// list, like the modes.
   var grouping = GroupingPolicy()
 
-  /// Whether this panel places itself on content swaps and display
-  /// changes. Mirrors of the multi-display surface leave placement to
-  /// the composite, so they never fight it over the same frame.
-  var placesItself = true
+  /// The display the multi-display surface holds this panel to, as an
+  /// index into `NSScreen.screens`, or nil when the panel resolves its
+  /// own display from `displayTarget`. Set by the composite under the
+  /// every-display choice, where each panel, the primary one included,
+  /// sizes for and centres on its own display; display changes are then
+  /// left to the composite, which hands out the displays anew.
+  var assignedScreenIndex: Int?
 
   /// Whether the panel is currently on screen.
   var isPresented: Bool {
@@ -251,7 +254,7 @@ final class SwitcherPanel: NSPanel {
     noticeGrowth = 0
     appearanceScale = textScale
     appearanceWidth = panelWidth
-    resolvedScreenIndex = resolveFreshIndex()
+    resolvedScreenIndex = assignedScreenIndex ?? resolveFreshIndex()
     hostingView.rootView.query = ""
     hostingView.rootView.filterActive = filterActive
     update(windows: windows)
@@ -313,8 +316,21 @@ final class SwitcherPanel: NSPanel {
   /// A panel that is down needs nothing. The next appearance places it, and
   /// this runs whenever anyone plugs in a display.
   func screensChanged() {
-    guard placesItself, isPresented else { return }
+    guard assignedScreenIndex == nil, isPresented else { return }
     resolvedScreenIndex = resolveFreshIndex()
+    stayOnResolvedScreen()
+  }
+
+  /// Holds the panel to one display and puts it there now: the width is
+  /// fitted to that display again from the step the appearance opened
+  /// with, and the panel centres on it. The composite calls this after
+  /// the displays have been rearranged.
+  func place(onScreen index: Int) {
+    assignedScreenIndex = index
+    resolvedScreenIndex = index
+    let height = contentRect(forFrameRect: frame).height
+    let width = PanelMetrics.width(for: appearanceScale, step: appearanceWidth)
+    setContentSize(NSSize(width: fittedWidth(width), height: height))
     stayOnResolvedScreen()
   }
 
@@ -351,16 +367,16 @@ final class SwitcherPanel: NSPanel {
 
   /// Centres on the remembered screen, resolving fresh when nothing is
   /// remembered yet. A resize leaves the panel off centre, so every
-  /// content swap comes back here instead of crossing displays.
-  /// Mirrors skip this: the composite places them.
+  /// content swap comes back here instead of crossing displays. A panel
+  /// the composite holds to a display takes that display as the fresh
+  /// answer.
   func stayOnResolvedScreen() {
-    guard placesItself else { return }
     let screens = NSScreen.screens
     if let index = resolvedScreenIndex, screens.indices.contains(index) {
       center(in: screens[index])
       return
     }
-    resolvedScreenIndex = resolveFreshIndex()
+    resolvedScreenIndex = assignedScreenIndex ?? resolveFreshIndex()
     stayOnResolvedScreenAfterResolving(screens: screens)
   }
 

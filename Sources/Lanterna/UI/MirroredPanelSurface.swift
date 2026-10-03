@@ -77,14 +77,9 @@ final class MirroredPanelSurface: SwitcherSurface {
   func present(windows: [WindowItem], selecting: WindowItem.Identifier?, filterActive: Bool = false) {
     refreshPool()
     refreshKeyPanel()
-    if let primary = panels[0] as? SwitcherPanel {
-      primary.placesItself = displayTarget != .all
-    }
+    assignScreens()
     for panel in activePanels {
       panel.present(windows: windows, selecting: selecting, filterActive: filterActive)
-    }
-    if displayTarget == .all {
-      placeOnScreens(activePanels)
     }
   }
 
@@ -144,9 +139,7 @@ final class MirroredPanelSurface: SwitcherSurface {
     }
     let extra = max(NSScreen.screens.count - 1, 0)
     while mirrors.count < extra {
-      let mirror = makeMirror()
-      mirror.placesItself = false
-      mirrors.append(mirror)
+      mirrors.append(makeMirror())
     }
     while mirrors.count > extra {
       mirrors.removeLast().orderOut(nil)
@@ -162,8 +155,8 @@ final class MirroredPanelSurface: SwitcherSurface {
   }
 
   /// Copies the content-affecting state onto the mirrors, so every
-  /// panel sizes and filters alike. Placement stays with the caller:
-  /// mirrors never place themselves.
+  /// panel sizes and filters alike. Which display each panel sits on is
+  /// handed out on `present`, not copied.
   func syncMirrors(from primary: SwitcherPanel) {
     for mirror in mirrors {
       mirror.displayModes = primary.displayModes
@@ -195,36 +188,28 @@ final class MirroredPanelSurface: SwitcherSurface {
     keyPanelIndex = panels.startIndex
   }
 
-  /// Centres each real panel on its display and fits it inside that
-  /// display. Anything else in the pool was already placed by its own
-  /// present.
-  private func placeOnScreens(_ panels: [any SwitcherSurface]) {
-    let screens = NSScreen.screens
+  /// Hands each panel its display before an appearance. Under the
+  /// every-display choice the panel at each pool position takes the
+  /// display at the same position, so it sizes for and centres on that
+  /// display through its own content swaps; otherwise every panel
+  /// resolves its display from its own rule.
+  private func assignScreens() {
     for (index, surface) in panels.enumerated() {
-      guard screens.indices.contains(index), let panel = surface as? SwitcherPanel else {
-        continue
-      }
-      let screen = screens[index]
-      panel.center(in: screen)
-      let fitted = PanelMetrics.fittedWidth(panel.frame.width, in: screen.visibleFrame.width)
-      if fitted < panel.frame.width {
-        var frame = panel.frame
-        frame.size.width = fitted
-        panel.setFrame(frame, display: true)
-        panel.center(in: screen)
-      }
+      (surface as? SwitcherPanel)?.assignedScreenIndex = displayTarget == .all ? index : nil
     }
   }
 
   /// Puts displayed panels back after the displays have been
   /// rearranged. A panel that is down needs nothing: the next
-  /// appearance places it.
+  /// appearance places it. Outside the every-display choice the
+  /// primary panel follows the change itself.
   private func screensChanged() {
     guard isPresented else { return }
     refreshPool()
     refreshKeyPanel()
-    if displayTarget == .all {
-      placeOnScreens(activePanels)
+    guard displayTarget == .all else { return }
+    for (index, surface) in panels.enumerated() where surface.isPresented {
+      (surface as? SwitcherPanel)?.place(onScreen: index)
     }
   }
 
