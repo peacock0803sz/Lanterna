@@ -38,6 +38,8 @@ enum LaunchArguments {
     /// Which display the panel opens on. No flag sets it; the file
     /// covers it.
     var displayTarget = DisplayTarget.primary
+    /// The panel width step. No flag sets it; the file covers it.
+    var panelWidth = PanelWidth.standard
     /// Retired flags the command line still gave, read past, for one
     /// diagnostics line each.
     var retiredFlags = [String]()

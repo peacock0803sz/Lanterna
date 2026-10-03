@@ -144,6 +144,7 @@ final class MirroredPanelSurface: SwitcherSurface {
       mirror.exclusionRules = primary.exclusionRules
       mirror.searchSettings = primary.searchSettings
       mirror.textScale = primary.textScale
+      mirror.panelWidth = primary.panelWidth
       mirror.grouping = primary.grouping
       mirror.appearance = primary.appearance
     }

@@ -361,7 +361,8 @@ extension AppConfiguration {
       searchSettings: SearchSettings.effective(from: file),
       keyBindings: file.keyBindings,
       textScale: TextScaleLevel.effective(from: file),
-      displayTarget: DisplayTarget.effective(from: file)
+      displayTarget: DisplayTarget.effective(from: file),
+      panelWidth: PanelWidth.effective(from: file)
     )
   }
 

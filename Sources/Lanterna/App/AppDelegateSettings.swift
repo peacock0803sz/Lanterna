@@ -140,6 +140,7 @@ extension AppDelegate {
     presenter.grouping = currentValues.grouping
     panel.grouping = currentValues.grouping
     panel.displayTarget = options.displayTarget
+    panel.panelWidth = options.panelWidth
     return (panel, presenter)
   }
 
@@ -168,6 +169,7 @@ extension AppDelegate {
     panel?.appearance = values.appearanceMode.nsAppearance
     panel?.textScale = values.textScale
     panel?.displayTarget = values.displayTarget
+    panel?.panelWidth = values.panelWidth
     let searchSettings = SearchSettings(
       fuzzyMatchEnabled: values.fuzzyMatchEnabled,
       shortcutMemoryLength: values.shortcutMemoryLength,
