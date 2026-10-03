@@ -1,7 +1,7 @@
 ---
 // Based on Starlight's TwoColumnContent. On wide screens the table of contents
-// becomes a sticky column right after the article instead of a fixed pane at
-// the viewport edge, so the article and TOC keep the chart's fixed gutters.
+// becomes a sticky column at the right edge, inside the chart's gutter, instead
+// of a fixed pane, and the article widens to fill the space between.
 ---
 
 <div class="two-column">
@@ -43,10 +43,15 @@
       scrollbar-width: none;
     }
 
+    /* The article takes the width the TOC leaves, so the TOC sits at the right edge. */
     .main-pane {
       order: 1;
-      flex: 0 1 var(--sl-content-width);
+      flex: 1 1 var(--sl-content-width);
       min-width: 0;
+    }
+
+    :global([data-has-toc]) .main-pane :global(.sl-container) {
+      max-width: none;
     }
   }
 </style>
