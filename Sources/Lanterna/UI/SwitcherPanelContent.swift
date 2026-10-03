@@ -104,7 +104,7 @@ extension SwitcherPanel {
       for: appearanceScale
     )
     setContentSize(NSSize(width: size.width, height: size.height))
-    centerOnMainDisplay()
+    stayOnResolvedScreen()
   }
 
   /// Swaps the rows for a narrowed set, and changes nothing else about

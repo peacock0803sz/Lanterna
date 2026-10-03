@@ -122,6 +122,26 @@ final class SwitcherPanel: NSPanel {
   /// the eye is following.
   var textScale = TextScaleLevel.standard
 
+  /// Which display rule the panel follows, read at launch from the
+  /// config file. A change takes effect on the next appearance,
+  /// never on the one already up.
+  var displayTarget = DisplayTarget.primary
+
+  /// Reads live display sources. Replaced in tests.
+  var displayResolver = DisplayResolver()
+
+  /// Where diagnostics lines go. Wired on the launch path; tests
+  /// replace it with a recorder.
+  var writeLine: @MainActor (LogLine) -> Void = { line in
+    guard Diagnostics.logger != nil else { return }
+    Diagnostics.writeLine(line)
+  }
+
+  /// The screen this appearance sits on, as an index into the
+  /// resolver's screens. Remembered so resizes stay on it; a new
+  /// appearance resolves anew.
+  private(set) var resolvedScreenIndex: Int?
+
   /// The step the appearance on screen opened with. Frozen at `present`
   /// so narrowing or a notice mid-appearance cannot resize what is up.
   var appearanceScale = TextScaleLevel.standard
@@ -214,6 +234,7 @@ final class SwitcherPanel: NSPanel {
     notice = nil
     noticeGrowth = 0
     appearanceScale = textScale
+    resolvedScreenIndex = resolveFreshIndex()
     hostingView.rootView.query = ""
     hostingView.rootView.filterActive = filterActive
     update(windows: windows)
@@ -253,6 +274,7 @@ final class SwitcherPanel: NSPanel {
   }
 
   func dismiss() {
+    resolvedScreenIndex = nil
     orderOut(nil)
   }
 
@@ -275,7 +297,8 @@ final class SwitcherPanel: NSPanel {
   /// this runs whenever anyone plugs in a display.
   func screensChanged() {
     guard isPresented else { return }
-    centerOnMainDisplay()
+    resolvedScreenIndex = resolveFreshIndex()
+    stayOnResolvedScreen()
   }
 
   // `becomesKeyOnlyIfNeeded` is deliberately left alone. Its default is
@@ -284,22 +307,42 @@ final class SwitcherPanel: NSPanel {
   // It is not: the flag governs only whether clicking a panel makes it
   // key, and has no say over `makeKey()` at all.
 
-  /// `NSWindow.center()` centres on whichever screen the window already sits
-  /// on, so the display is picked explicitly. `NSScreen.screens.first` is the
-  /// display that carries the menu bar, which is the one the panel belongs
-  /// on; `NSScreen.main` would instead follow the key window and so could be
-  /// any display.
-  ///
-  /// Run on every update, because a resize leaves the panel off centre.
-  func centerOnMainDisplay() {
-    guard let area = NSScreen.screens.first?.visibleFrame else {
-      center()
-      return
-    }
+  /// Centres on one display's visible area. `NSWindow.center()` centres
+  /// on whichever screen the window already sits on, so the display is
+  /// picked explicitly.
+  func center(in screen: NSScreen) {
+    let area = screen.visibleFrame
     let size = frame.size
     setFrameOrigin(
       NSPoint(x: area.midX - size.width / 2, y: area.midY - size.height / 2)
     )
+  }
+
+  /// `NSScreen.screens.first` is the display that carries the menu bar,
+  /// which is the one the panel belonged on before display rules;
+  /// `NSScreen.main` would instead follow the key window and so could be
+  /// any display.
+  ///
+  /// Run on every update, because a resize leaves the panel off centre.
+  func centerOnMainDisplay() {
+    guard let screen = NSScreen.screens.first else {
+      center()
+      return
+    }
+    center(in: screen)
+  }
+
+  /// Centres on the remembered screen, resolving fresh when nothing is
+  /// remembered yet. A resize leaves the panel off centre, so every
+  /// content swap comes back here instead of crossing displays.
+  func stayOnResolvedScreen() {
+    let screens = NSScreen.screens
+    if let index = resolvedScreenIndex, screens.indices.contains(index) {
+      center(in: screens[index])
+      return
+    }
+    resolvedScreenIndex = resolveFreshIndex()
+    stayOnResolvedScreenAfterResolving(screens: screens)
   }
 
   // MARK: Private
@@ -310,5 +353,47 @@ final class SwitcherPanel: NSPanel {
   /// leave `.onChange(of:)` silent and the list where the last one left
   /// it.
   private var appearances = 0
+
+  /// Resolves the target over the current screens and remembers the
+  /// answer for this appearance. A fallback to the menu-bar display
+  /// leaves a line saying so.
+  private func resolveFreshIndex() -> Int? {
+    let infos = displayResolver.screens()
+    guard !infos.isEmpty else {
+      return nil
+    }
+    let (display, fellBack) = displayResolver.resolveWithFallback(displayTarget, over: infos)
+    if fellBack {
+      writeLine(LogLine(
+        .warning,
+        .panel,
+        "display target unresolved (\(displayTarget.rawValue)), showing on primary"
+      ))
+    }
+    switch display {
+    case .single(let index):
+      return infos.indices.contains(index) ? index : nil
+    case .all:
+      // One panel cannot cover every display; the composite owns that.
+      // Until it arrives, sit with the cursor.
+      if
+        case .single(let index) = displayResolver.resolve(.cursor, over: infos),
+        infos.indices.contains(index)
+      {
+        return index
+      }
+      return nil
+    }
+  }
+
+  /// The second half of the stay above, split out so the recursion
+  /// reads as one retry rather than a loop.
+  private func stayOnResolvedScreenAfterResolving(screens: [NSScreen]) {
+    if let index = resolvedScreenIndex, screens.indices.contains(index) {
+      center(in: screens[index])
+      return
+    }
+    centerOnMainDisplay()
+  }
 
 }

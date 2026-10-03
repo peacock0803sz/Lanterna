@@ -360,7 +360,8 @@ extension AppConfiguration {
       appearanceMode: AppearanceMode.effective(from: file),
       searchSettings: SearchSettings.effective(from: file),
       keyBindings: file.keyBindings,
-      textScale: TextScaleLevel.effective(from: file)
+      textScale: TextScaleLevel.effective(from: file),
+      displayTarget: DisplayTarget.effective(from: file)
     )
   }
 
