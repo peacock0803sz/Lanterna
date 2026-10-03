@@ -159,6 +159,7 @@ struct SettingsAppearanceView: View {
       }
     }
     .frame(width: PanelMetrics.width(for: values.textScale, step: values.panelWidth) * Self.previewWidthRatio)
+    .frame(maxWidth: .infinity, alignment: .center)
     .padding(.vertical, 6)
     .adaptiveGlass(cornerRadius: 16)
     .background {
