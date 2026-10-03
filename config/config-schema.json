@@ -122,6 +122,26 @@
       "description": "Whether scrolling moves the selection. Absent means off.",
       "type": "boolean"
     },
+    "numberJump": {
+      "description": "Whether holding Command or Option and pressing a row number jumps to\nthat row. Absent means off.",
+      "type": "boolean"
+    },
+    "numberReorder": {
+      "description": "Whether moving the selected row by key works in grouped lists.\nAbsent means off.",
+      "type": "boolean"
+    },
+    "numberScope": {
+      "description": "The rows row numbers cover. Absent means \"windows\".",
+      "type": "string",
+      "enum": [
+        "windows",
+        "allRows"
+      ]
+    },
+    "rowOrder": {
+      "description": "Hand-arranged row orders by manual group. Entries that are invalid on\ntheir own are ignored one by one. Absent means no overrides.",
+      "type": "integer"
+    },
     "updateChannel": {
       "description": "The releases the check covers. Absent means \"stable\".",
       "type": "string",
