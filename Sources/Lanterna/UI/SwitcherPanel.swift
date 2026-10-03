@@ -387,8 +387,14 @@ final class SwitcherPanel: NSPanel {
   /// it.
   private var appearances = 0
 
+  /// The target the last fallback warning was logged for, so repeated
+  /// appearances under the same unresolved target warn only once.
+  /// Cleared once a resolution lands without falling back.
+  private var lastFallbackTarget: DisplayTarget?
+
   /// answer for this appearance. A fallback to the menu-bar display
-  /// leaves a line saying so.
+  /// leaves a line saying so, once per target until a resolution lands
+  /// without falling back.
   private func resolveFreshIndex() -> Int? {
     let infos = displayResolver.screens()
     guard !infos.isEmpty else {
@@ -396,11 +402,16 @@ final class SwitcherPanel: NSPanel {
     }
     let (display, fellBack) = displayResolver.resolveWithFallback(displayTarget, over: infos)
     if fellBack {
-      writeLine(LogLine(
-        .warning,
-        .panel,
-        "display target unresolved (\(displayTarget.rawValue)), showing on primary"
-      ))
+      if lastFallbackTarget != displayTarget {
+        lastFallbackTarget = displayTarget
+        writeLine(LogLine(
+          .warning,
+          .panel,
+          "display target unresolved (\(displayTarget.rawValue)), showing on primary"
+        ))
+      }
+    } else {
+      lastFallbackTarget = nil
     }
     switch display {
     case .single(let index):
