@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 
@@ -42,6 +43,18 @@ if (process.argv.includes("dev") && process.env.DOCS_VERSIONS_JSON == null) {
 const fonts =
   "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Inter:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,500;1,400&family=Noto+Serif+JP:wght@500&display=swap";
 
+// True when a sidebar slug exists in the (possibly overlaid) content for
+// every locale. Starlight errors on a sidebar slug with no matching page.
+function hasSlug(slug) {
+  return ["en", "ja"].every((locale) =>
+    ["md", "mdx"].some((ext) =>
+      existsSync(
+        new URL(`./src/content/docs/${locale}/${slug}.${ext}`, import.meta.url),
+      ),
+    ),
+  );
+}
+
 const docsBase = process.env.DOCS_BASE ?? "/";
 const docsRef = process.env.DOCS_REF ?? "main";
 const editRef = docsBase === "/" || docsRef === "main" ? "main" : docsRef;
@@ -84,6 +97,9 @@ export default defineConfig({
         en: { label: "English" },
         ja: { label: "日本語" },
       },
+      // The versioned build overlays each ref's content onto this config, so a
+      // slug added after an old ref (e.g. stable) would break that version's
+      // build. Only list slugs present in the overlaid content.
       sidebar: [
         { slug: "index", label: "Home", translations: { ja: "ホーム" } },
         { slug: "guide", label: "Guide", translations: { ja: "ガイド" } },
@@ -93,7 +109,7 @@ export default defineConfig({
           label: "Features",
           translations: { ja: "機能一覧" },
         },
-      ],
+      ].filter((entry) => hasSlug(entry.slug)),
       social: [
         {
           icon: "github",
