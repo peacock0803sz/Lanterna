@@ -102,6 +102,28 @@ struct SettingsAppearanceView: View {
             caption: "Move the selection by scrolling. The view follows the selection."
           )
         }
+        Toggle(isOn: $values.numberJump) {
+          SettingsFormLabel(
+            title: "Number jump",
+            caption: "Jump to a row by its number while holding Command or Option. Off by default."
+          )
+        }
+        Toggle(isOn: $values.numberReorder) {
+          SettingsFormLabel(
+            title: "Reorder rows",
+            caption: "Move the selected row with Shift and arrow keys in grouped lists. Off by default."
+          )
+        }
+        Picker(selection: $values.numberScope) {
+          Text("Windows only").tag(NumberScope.windows)
+          Text("All rows").tag(NumberScope.allRows)
+        } label: {
+          SettingsFormLabel(
+            title: "Row numbers",
+            caption: "Which rows row numbers cover."
+          )
+        }
+        .pickerStyle(.menu)
       }
       Section("Preview") {
         preview
