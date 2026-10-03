@@ -117,6 +117,22 @@ struct DisplayConfigTests {
   }
 
   @Test
+  func decodedDisplayKeysReachSettingsAndLaunchOptions() throws {
+    let decoded = try #require(
+      decode("{\"version\": 1, \"displayTarget\": \"all\", \"panelWidth\": 1.3}").successValue
+    )
+    let values = SettingsValues.effective(from: decoded.config)
+    #expect(values.displayTarget == .all)
+    #expect(values.panelWidth == .widePlus)
+    let options = AppConfiguration.effectiveOptions(
+      file: decoded.config,
+      cli: LaunchArguments.Options()
+    )
+    #expect(options.displayTarget == .all)
+    #expect(options.panelWidth == .widePlus)
+  }
+
+  @Test
   func defaultValuesStayAbsentOnSave() {
     let config = SettingsValues.defaults.configuration(
       version: 1,
