@@ -31,12 +31,31 @@ struct SettingsWindowTests {
     #expect(SettingsValues.defaults.appearanceMode == .system)
     #expect(SettingsValues.defaults.displayModes == DisplayModes.defaults)
     #expect(SettingsValues.defaults.romajiScope == .kanaKanji)
+    #expect(SettingsValues.defaults.showDelayMs == nil)
   }
 
   @Test
   func romajiScopeDefaultsToKanji() {
     let config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
     #expect(SettingsValues.effective(from: config).romajiScope == .kanaKanji)
+  }
+
+  @Test
+  func showDelayFollowsPresentKey() {
+    var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(SettingsValues.effective(from: config).showDelayMs == nil)
+    config.showDelayMs = 250
+    #expect(SettingsValues.effective(from: config).showDelayMs == 250)
+    let saved = SettingsValues.effective(from: config)
+      .configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(saved.showDelayMs == 250)
+  }
+
+  @Test
+  func offDelayStaysOmittedOnSave() {
+    let saved = SettingsValues.defaults
+      .configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(saved.showDelayMs == nil)
   }
 
   @Test
