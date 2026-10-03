@@ -162,6 +162,17 @@ final class SwitcherPanel: NSPanel {
   /// config file. Same timing as the hover switch above.
   var scrollSelect = false
 
+  /// How the left edge of each row reads, read at launch from the
+  /// config file. A change takes effect on the next appearance,
+  /// never on the one already up.
+  var hintsMode = HintsMode.prefix
+
+  /// The hint mode the appearance on screen opened with. Frozen at
+  /// `present` beside the width step, for the same reason: swaps
+  /// during the appearance (narrowing, numbering) must not pick up
+  /// a change made while the panel is up.
+  var appearanceHints = HintsMode.prefix
+
   /// The pointer position this appearance opened with. Taken when the
   /// panel goes up — after the show delay fires, when one is set — so
   /// the first hover, arriving without the pointer having moved,
@@ -322,6 +333,7 @@ final class SwitcherPanel: NSPanel {
     hoverAnchor = HoverAnchor(point: NSEvent.mouseLocation)
     scrollGathering = ScrollAccumulator()
     numberedIDs = []
+    appearanceHints = hintsMode
     update(windows: windows)
     hostingView.rootView.appearanceToken = appearances
     showSelection(selecting)

@@ -208,6 +208,12 @@ final class PanelPresenter {
   /// owns the file; the key commands report through here.
   var onRowOrderChanged: ((ManualRowOrder) -> Void)?
 
+  /// How the left edge of each row reads. Stored only: a change
+  /// lands with the next appearance, never on a panel that is up.
+  /// The panel snapshots it on `present`, so no `didSet` trip
+  /// reaches the live list here.
+  var hintsMode = HintsMode.prefix
+
   /// Whether digits with a jump modifier name rows. Read on every
   /// press, the same timing as above.
   var numberJump = false {
