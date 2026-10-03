@@ -34,4 +34,18 @@ struct ScrollAccumulatorTests {
     #expect(gathered.advance(by: -0.6) == -1)
   }
 
+  @Test
+  func downSwipeIsPositiveWhicheverWayTheSystemPoints() {
+    // A downward swipe arrives with opposite signs under the two direction
+    // settings, so both must land on down (positive, the next row).
+    #expect(ScrollAccumulator.direction(deltaY: -1.0, inverted: true) == 1.0)
+    #expect(ScrollAccumulator.direction(deltaY: 1.0, inverted: false) == 1.0)
+  }
+
+  @Test
+  func upSwipeIsNegativeWhicheverWayTheSystemPoints() {
+    #expect(ScrollAccumulator.direction(deltaY: 1.0, inverted: true) == -1.0)
+    #expect(ScrollAccumulator.direction(deltaY: -1.0, inverted: false) == -1.0)
+  }
+
 }

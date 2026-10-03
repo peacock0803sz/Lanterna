@@ -264,9 +264,23 @@ final class SwitcherPanel: NSPanel {
       super.scrollWheel(with: event)
       return
     }
-    // Down goes to the next row: the event's sign already answers to
-    // the direction setting, so negating it once is the whole mapping.
-    let steps = scrollGathering.advance(by: -event.scrollingDeltaY)
+    // Coasting after the fingers lift carries no new intent, so it earns no steps.
+    // (`momentumPhase` is empty for a real wheel turn and set while coasting.)
+    guard event.momentumPhase.isEmpty else {
+      return
+    }
+    // Down goes to the next row. `scrollingDeltaY` alone cannot say which
+    // way is down: natural scrolling flips its sign, so the sign is read
+    // back through `isDirectionInvertedFromDevice` first.
+    let steps = scrollGathering.advance(
+      by: ScrollAccumulator.direction(
+        deltaY: event.scrollingDeltaY,
+        inverted: event.isDirectionInvertedFromDevice
+      )
+    )
+    guard steps != 0 else {
+      return
+    }
     let direction = steps > 0 ? 1 : -1
     for _ in 0 ..< abs(steps) {
       onScrollStep?(direction)
