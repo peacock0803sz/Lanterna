@@ -135,6 +135,11 @@ struct SettingsAppearanceView: View {
 
   // MARK: Private
 
+  /// The preview draws at half the panel width: the full width never
+  /// fits the settings window, and what the width switch needs to show
+  /// is how one step compares to the next rather than full-size rows.
+  private static let previewWidthRatio: CGFloat = 0.5
+
   /// The sample rows wearing the panel row look, following the chosen scale
   /// and look, ignoring clicks and reading as one preview element.
   private var preview: some View {
@@ -153,6 +158,7 @@ struct SettingsAppearanceView: View {
         )
       }
     }
+    .frame(width: PanelMetrics.width(for: values.textScale, step: values.panelWidth) * Self.previewWidthRatio)
     .padding(.vertical, 6)
     .adaptiveGlass(cornerRadius: 16)
     .background {
