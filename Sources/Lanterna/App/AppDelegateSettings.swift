@@ -119,6 +119,7 @@ extension AppDelegate {
     panel.panelWidth = options.panelWidth
     panel.hoverSelect = options.hoverSelect
     panel.scrollSelect = options.scrollSelect
+    panel.hintsMode = currentValues.hintsMode
     let composite = MirroredPanelSurface(panels: [panel])
     composite.displayTarget = options.displayTarget
     composite.makeMirror = {
@@ -150,6 +151,7 @@ extension AppDelegate {
     presenter.numberJump = options.numberJump
     presenter.numberReorder = options.numberReorder
     presenter.numberScope = currentValues.numberScope
+    presenter.hintsMode = currentValues.hintsMode
     presenter.rowOrder = currentValues.rowOrder
     presenter.onRowOrderChanged = { [weak self] order in self?.saveRowOrder(order) }
     return (panel, presenter)
@@ -183,6 +185,7 @@ extension AppDelegate {
     panel?.panelWidth = values.panelWidth
     panel?.hoverSelect = values.hoverSelect
     panel?.scrollSelect = values.scrollSelect
+    panel?.hintsMode = values.hintsMode
     let searchSettings = SearchSettings(
       fuzzyMatchEnabled: values.fuzzyMatchEnabled,
       shortcutMemoryLength: values.shortcutMemoryLength,
@@ -198,6 +201,7 @@ extension AppDelegate {
     presenter?.numberJump = values.numberJump
     presenter?.numberReorder = values.numberReorder
     presenter?.numberScope = values.numberScope
+    presenter?.hintsMode = values.hintsMode
     presenter?.rowOrder = values.rowOrder
     presenter?.showDelayMs = values.showDelayMs
     panel?.grouping = values.grouping
