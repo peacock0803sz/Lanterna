@@ -81,6 +81,10 @@ final class FakeSurface: SwitcherSurface {
   /// Every numbered order asked for, in order; empty asked for no numbers.
   private(set) var numberedRowOrders = [[WindowItem.Identifier]]()
 
+  /// The hint mode the appearance opened with. Settable, so a test can
+  /// stage the mode an appearance froze.
+  var appearanceHints = HintsMode.prefix
+
   /// Run inside `dismiss()`, before it returns.
   ///
   /// Lets a test make the panel's disappearance cost something it can see.

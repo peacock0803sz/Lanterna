@@ -90,6 +90,13 @@ final class MirroredPanelSurface: SwitcherSurface {
     return activePanels[0].isTakingKeys
   }
 
+  var appearanceHints: HintsMode {
+    if displayTarget == .all {
+      return activePanels[keyPanelIndex].appearanceHints
+    }
+    return activePanels[0].appearanceHints
+  }
+
   func present(windows: [WindowItem], selecting: WindowItem.Identifier?, filterActive: Bool = false) {
     refreshPool()
     refreshKeyPanel()

@@ -151,7 +151,6 @@ extension AppDelegate {
     presenter.numberJump = options.numberJump
     presenter.numberReorder = options.numberReorder
     presenter.numberScope = currentValues.numberScope
-    presenter.hintsMode = currentValues.hintsMode
     presenter.rowOrder = currentValues.rowOrder
     presenter.onRowOrderChanged = { [weak self] order in self?.saveRowOrder(order) }
     return (panel, presenter)
@@ -201,7 +200,6 @@ extension AppDelegate {
     presenter?.numberJump = values.numberJump
     presenter?.numberReorder = values.numberReorder
     presenter?.numberScope = values.numberScope
-    presenter?.hintsMode = values.hintsMode
     presenter?.rowOrder = values.rowOrder
     presenter?.showDelayMs = values.showDelayMs
     panel?.grouping = values.grouping
