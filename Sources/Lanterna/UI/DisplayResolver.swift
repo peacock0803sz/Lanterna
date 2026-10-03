@@ -23,11 +23,13 @@ struct DisplayResolver: Sendable {
     frontmostPID: @escaping @Sendable () -> pid_t? = {
       NSWorkspace.shared.frontmostApplication?.processIdentifier
     },
+    ownPID: @escaping @Sendable () -> pid_t = { ProcessInfo.processInfo.processIdentifier },
     focusedPosition: @escaping @Sendable (pid_t) -> CGPoint? = DisplayResolver.axFocusedPosition(of:),
     screens: @escaping @Sendable () -> [DisplayInfo] = DisplayResolver.currentScreens
   ) {
     self.cursor = cursor
     self.frontmostPID = frontmostPID
+    self.ownPID = ownPID
     self.focusedPosition = focusedPosition
     self.screens = screens
   }
@@ -73,7 +75,10 @@ struct DisplayResolver: Sendable {
       )
 
     case .frontWindow:
-      let point = frontmostPID().flatMap { focusedPosition($0) }
+      // The panel itself never counts as the front window, so this
+      // read treats the running application as no placed point.
+      let own = ownPID()
+      let point = frontmostPID().flatMap { $0 == own ? nil : focusedPosition($0) }
       return (
         DisplayTarget.resolve(target, cursor: nil, focusedWindow: point, screens: screens),
         unplaced(point, in: screens)
@@ -92,6 +97,7 @@ struct DisplayResolver: Sendable {
 
   private let cursor: @Sendable () -> CGPoint?
   private let frontmostPID: @Sendable () -> pid_t?
+  private let ownPID: @Sendable () -> pid_t
   private let focusedPosition: @Sendable (pid_t) -> CGPoint?
 
   /// The focused window's position over the accessibility API, or

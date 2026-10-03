@@ -40,6 +40,30 @@ struct DisplayResolverTests {
   }
 
   @Test
+  func ownFrontmostApplicationFallsBackToPrimary() {
+    let (resolved, fellBack) = resolver(
+      frontmostPID: 777,
+      focusedPosition: CGPoint(x: 1600, y: 100),
+      ownPID: 777
+    )
+    .resolveWithFallback(.frontWindow, over: screens)
+    #expect(resolved == .single(0))
+    #expect(fellBack)
+  }
+
+  @Test
+  func otherFrontmostApplicationResolvesWithoutFallback() {
+    let (resolved, fellBack) = resolver(
+      frontmostPID: 123,
+      focusedPosition: CGPoint(x: 1600, y: 100),
+      ownPID: 777
+    )
+    .resolveWithFallback(.frontWindow, over: screens)
+    #expect(resolved == .single(1))
+    #expect(!fellBack)
+  }
+
+  @Test
   func missingPointReportsFallback() {
     let (_, fellBack) = resolver().resolveWithFallback(.cursor, over: screens)
     #expect(fellBack)
@@ -80,11 +104,13 @@ struct DisplayResolverTests {
   private func resolver(
     cursor: CGPoint? = nil,
     frontmostPID: pid_t? = nil,
-    focusedPosition: CGPoint? = nil
+    focusedPosition: CGPoint? = nil,
+    ownPID: pid_t = -1
   ) -> DisplayResolver {
     DisplayResolver(
       cursor: { cursor },
       frontmostPID: { frontmostPID },
+      ownPID: { ownPID },
       focusedPosition: { _ in focusedPosition },
       screens: { [DisplayInfo]() }
     )
