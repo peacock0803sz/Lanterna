@@ -37,6 +37,10 @@ struct ConfigEncodingTests {
     config.saveLogsToDisk = false
     config.hoverSelect = true
     config.scrollSelect = true
+    config.numberJump = true
+    config.numberReorder = true
+    config.numberScope = .allRows
+    config.rowOrder = [RowOrderEntry(group: 1, keys: ["a\nb"])]
     let decoded = AppConfiguration.decode(AppConfiguration.encode(config))
     #expect(decoded.successValue?.config == config)
   }
@@ -53,6 +57,10 @@ struct ConfigEncodingTests {
     #expect(!text.contains("saveLogsToDisk"))
     #expect(!text.contains("hoverSelect"))
     #expect(!text.contains("scrollSelect"))
+    #expect(!text.contains("numberJump"))
+    #expect(!text.contains("numberReorder"))
+    #expect(!text.contains("numberScope"))
+    #expect(!text.contains("rowOrder"))
   }
 
   /// A file still holding the retired level key saves without it.

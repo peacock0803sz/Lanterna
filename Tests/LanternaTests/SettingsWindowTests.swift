@@ -82,6 +82,36 @@ struct SettingsWindowTests {
   }
 
   @Test
+  func numberSwitchesFollowPresentKeys() {
+    var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(SettingsValues.effective(from: config).numberJump == false)
+    #expect(SettingsValues.effective(from: config).numberReorder == false)
+    #expect(SettingsValues.effective(from: config).numberScope == .windows)
+    #expect(SettingsValues.effective(from: config).rowOrder == .none)
+    config.numberJump = true
+    config.numberReorder = true
+    config.numberScope = .allRows
+    #expect(SettingsValues.effective(from: config).numberJump == true)
+    #expect(SettingsValues.effective(from: config).numberReorder == true)
+    #expect(SettingsValues.effective(from: config).numberScope == .allRows)
+    let saved = SettingsValues.effective(from: config)
+      .configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(saved.numberJump == true)
+    #expect(saved.numberReorder == true)
+    #expect(saved.numberScope == .allRows)
+  }
+
+  @Test
+  func offNumberSwitchesStayOmittedOnSave() {
+    let saved = SettingsValues.defaults
+      .configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(saved.numberJump == nil)
+    #expect(saved.numberReorder == nil)
+    #expect(saved.numberScope == nil)
+    #expect(saved.rowOrder == [])
+  }
+
+  @Test
   func romajiScopeFollowsPresentKey() {
     var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
     config.romajiScope = .kanaOnly
