@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import Foundation
 @testable import Lanterna
@@ -121,6 +122,64 @@ struct MirroredPanelSurfaceTests {
     // answers a dismissal it never opened with silence.
     #expect(second.dismissCount == 1)
     #expect(surface.isPresented == false)
+  }
+
+  /// The primary panel would sit with the cursor if it resolved the
+  /// every-display choice itself; held to its pool position, it sizes
+  /// for and centres on the first display instead.
+  @Test
+  func everyDisplayHoldsEachPanelToItsPoolPosition() throws {
+    let screen = try #require(NSScreen.screens.first)
+    let panel = SwitcherPanel()
+    panel.displayTarget = .all
+    panel.displayResolver = resolver(cursor: CGPoint(x: 1600, y: 100))
+    let surface = MirroredPanelSurface(panels: [panel], keyResolver: resolver(cursor: nil))
+    surface.displayTarget = .all
+    surface.present(windows: windows(), selecting: nil)
+    #expect(panel.assignedScreenIndex == 0)
+    #expect(panel.resolvedScreenIndex == 0)
+    #expect(abs(panel.frame.midX - screen.visibleFrame.midX) < 1)
+    surface.dismiss()
+  }
+
+  @Test
+  func singleTargetLeavesThePrimaryPanelToResolveItself() {
+    let panel = SwitcherPanel()
+    panel.assignedScreenIndex = 0
+    let surface = MirroredPanelSurface(panels: [panel], keyResolver: resolver(cursor: nil))
+    surface.displayTarget = .primary
+    surface.present(windows: windows(), selecting: nil)
+    #expect(panel.assignedScreenIndex == nil)
+    surface.dismiss()
+  }
+
+  @Test
+  func placingOnADisplayRefitsAndCentresThePanel() throws {
+    let screen = try #require(NSScreen.screens.first)
+    let panel = SwitcherPanel()
+    panel.present(windows: windows(), selecting: nil)
+    panel.setFrameOrigin(NSPoint(x: panel.frame.minX + 300, y: panel.frame.minY + 100))
+    panel.place(onScreen: 0)
+    let expected = PanelMetrics.fittedWidth(
+      PanelMetrics.width(for: panel.appearanceScale, step: panel.appearanceWidth),
+      in: screen.visibleFrame.width
+    )
+    #expect(panel.contentRect(forFrameRect: panel.frame).width == expected)
+    #expect(abs(panel.frame.midX - screen.visibleFrame.midX) < 1)
+    #expect(abs(panel.frame.midY - screen.visibleFrame.midY) < 1)
+    #expect(panel.assignedScreenIndex == 0)
+    panel.dismiss()
+  }
+
+  @Test
+  func aHeldPanelLeavesDisplayChangesToTheComposite() {
+    let panel = SwitcherPanel()
+    panel.present(windows: windows(), selecting: nil)
+    panel.assignedScreenIndex = 0
+    panel.setFrameOrigin(NSPoint(x: 17, y: 23))
+    panel.screensChanged()
+    #expect(panel.frame.origin == NSPoint(x: 17, y: 23))
+    panel.dismiss()
   }
 
   // MARK: Private
