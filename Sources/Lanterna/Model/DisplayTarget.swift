@@ -28,8 +28,7 @@ enum DisplayTarget: String, Sendable {
   /// Picks the display for one appearance from plain values, so the
   /// choice reads as a value test with no window server involved. The
   /// points and frames share the Cocoa base coordinate space, which is
-  /// what both the cursor position and the screen frames use. A point
-  /// on a shared edge belongs to the first screen that contains it.
+  /// what both the cursor position and the screen frames use.
   static func resolve(
     _ target: DisplayTarget,
     cursor: CGPoint?,
