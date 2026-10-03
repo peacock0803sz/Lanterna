@@ -235,6 +235,7 @@ final class PanelKeyCommands {
   /// what this process does about the click and nothing before it.
   func commitClickedRow(_ id: WindowItem.Identifier?) {
     guard surface.isPresented else { return }
+    let startedAt = now()
     // Read before the commit: taking the panel down throws the
     // list away. Recorded after the commit returns, so the write
     // lands outside the measured close interval.
@@ -242,14 +243,14 @@ final class PanelKeyCommands {
       selection.select(id)
     }
     let committedID = selection.chosenID
-    let committedQuery = filter.logSummary().query
+    let summary = filter.logSummary()
     wayOut.commit(
       by: .click,
       naming: committedID,
-      since: now(),
-      filter: filter.logSummary()
+      since: startedAt,
+      filter: summary
     )
-    recordShortcut(query: committedQuery, id: committedID)
+    recordShortcut(query: summary.query, id: committedID)
   }
 
   // MARK: Private
