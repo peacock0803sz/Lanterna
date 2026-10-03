@@ -53,6 +53,7 @@ final class PanelPresenter {
     self.showDelaySleep = showDelaySleep
     self.switcher = switcher
     self.tracker = tracker
+    keyCommands.onRowOrderChanged = { [weak self] order in self?.didReorderRows(order) }
   }
 
   // MARK: Internal
@@ -202,6 +203,10 @@ final class PanelPresenter {
 
   /// Whether scrolling moves the selection. Same timing as above.
   var scrollSelect = false
+
+  /// Where a rearranged row order goes for saving. Set by whoever
+  /// owns the file; the key commands report through here.
+  var onRowOrderChanged: ((ManualRowOrder) -> Void)?
 
   /// Whether digits with a jump modifier name rows. Read on every
   /// press, the same timing as above.
@@ -459,6 +464,14 @@ final class PanelPresenter {
   /// Whether the delay holds no press back: the ordinary path.
   private var pendingShowHoldIsOff: Bool {
     showDelay == nil
+  }
+
+  /// Records a rearranged row order and hands it to the file owner.
+  /// The key commands already answer to the new order; setting the
+  /// value again only repeats the same handover.
+  private func didReorderRows(_ order: ManualRowOrder) {
+    rowOrder = order
+    onRowOrderChanged?(order)
   }
 
   /// Hands the view's row gestures to the selection and the way out.
