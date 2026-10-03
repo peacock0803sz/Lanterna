@@ -84,6 +84,13 @@ final class PanelSelection {
     move { $0.moveToPrevious() }
   }
 
+  /// Puts the choice on the named row and tells the panel, the way
+  /// a keystroke would. Rows that are gone are left alone: the choice
+  /// stays where it is and the panel keeps drawing it.
+  func select(_ id: WindowItem.Identifier) {
+    move { $0.select(id) }
+  }
+
   // MARK: Private
 
   private let surface: any SwitcherSurface

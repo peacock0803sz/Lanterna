@@ -43,6 +43,12 @@ enum LaunchArguments {
     /// The panel show delay in milliseconds. Nil means off. No flag
     /// sets it; the file covers it.
     var showDelayMs: Double?
+    /// Whether hovering a row moves the selection. No flag sets it;
+    /// the file covers it.
+    var hoverSelect = false
+    /// Whether scrolling moves the selection. No flag sets it;
+    /// the file covers it.
+    var scrollSelect = false
     /// Retired flags the command line still gave, read past, for one
     /// diagnostics line each.
     var retiredFlags = [String]()

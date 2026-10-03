@@ -153,6 +153,15 @@ final class SwitcherPanel: NSPanel {
   /// is following.
   var panelWidth = PanelWidth.standard
 
+  /// Whether hovering a row moves the selection, read at launch from
+  /// the config file. A change takes effect on the next appearance,
+  /// never on the one already up.
+  var hoverSelect = false
+
+  /// Whether scrolling moves the selection, read at launch from the
+  /// config file. Same timing as the hover switch above.
+  var scrollSelect = false
+
   /// The width step the appearance on screen opened with. Frozen at
   /// `present` beside the text step, for the same reason.
   var appearanceWidth = PanelWidth.standard
