@@ -25,6 +25,7 @@ struct SettingsValues: Equatable, Sendable {
     textScale: .standard,
     displayTarget: .primary,
     panelWidth: .standard,
+    showDelayMs: nil,
     windowScope: .allApps,
     grouping: GroupingPolicy(),
     keyBindings: .defaults,
@@ -64,6 +65,8 @@ struct SettingsValues: Equatable, Sendable {
   /// The panel width step. Absent in the file means the standard
   /// step, the current width.
   var panelWidth: PanelWidth
+  /// The panel show delay in milliseconds. Nil means off.
+  var showDelayMs: Double?
   /// Which applications' rows each appearance starts on. Absent in the
   /// file means every application.
   var windowScope: WindowScope
@@ -98,6 +101,7 @@ struct SettingsValues: Equatable, Sendable {
       textScale: TextScaleLevel.effective(from: config),
       displayTarget: DisplayTarget.effective(from: config),
       panelWidth: PanelWidth.effective(from: config),
+      showDelayMs: ShowDelay.effective(config.showDelayMs).value,
       windowScope: config.windowScope ?? .allApps,
       grouping: GroupingPolicy(
         mode: config.grouping ?? .none,
@@ -160,6 +164,10 @@ struct SettingsValues: Equatable, Sendable {
     }
     if panelWidth != .standard {
       config.panelWidth = panelWidth.factor
+    }
+    // Off stays absent, so a later default change reaches saved files.
+    if let showDelayMs, showDelayMs > 0 {
+      config.showDelayMs = showDelayMs
     }
     if windowScope != defaults.windowScope {
       config.windowScope = windowScope
