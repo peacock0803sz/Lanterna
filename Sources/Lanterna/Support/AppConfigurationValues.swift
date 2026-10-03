@@ -346,12 +346,15 @@ extension AppConfiguration {
       config.textScale = textScale
       let (panelWidth, panelWidthIssue) = checkedOptionalPanelWidth(dict)
       config.panelWidth = panelWidth
+      let (showDelayMs, showDelayIssue) = checkedOptionalShowDelayMs(dict)
+      config.showDelayMs = showDelayMs
       return .success(DecodedConfiguration(
         config: config,
         assumedVersion: assumed,
         keyBindingIssues: decodeIssues + resolveIssues,
         textScaleIssue: textScaleIssue,
         panelWidthIssue: panelWidthIssue,
+        showDelayIssue: showDelayIssue,
         deprecatedKeys: deprecatedKeys.filter { dict[$0] != nil }
       ))
 

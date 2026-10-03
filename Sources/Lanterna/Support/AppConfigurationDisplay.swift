@@ -21,6 +21,20 @@ extension AppConfiguration {
     return .success(())
   }
 
+  /// Reads the optional show-delay key leniently: absent or zero means
+  /// off, a positive count wins, past the maximum clamps to it, and
+  /// anything else falls back to the default with a note instead of
+  /// failing the file.
+  static func checkedOptionalShowDelayMs(
+    _ dict: [String: Any]
+  ) -> (value: Double?, issue: String?) {
+    guard let rawValue = dict["showDelayMs"] else { return (nil, nil) }
+    guard let milliseconds = jsonDouble(rawValue) else {
+      return (ShowDelay.defaultMilliseconds, ShowDelay.invalidIssue)
+    }
+    return ShowDelay.effective(milliseconds)
+  }
+
   /// Reads the optional panel-width key leniently: absent means the
   /// standard width, a non-standard step wins, the standard step reads
   /// as absent so an explicit 1.0 stays omitted on save, and anything
@@ -47,6 +61,9 @@ extension AppConfiguration {
     }
     if let panelWidth = config.panelWidth {
       entries.append(encodedDouble(key: "panelWidth", value: panelWidth))
+    }
+    if let showDelayMs = config.showDelayMs {
+      entries.append(encodedDouble(key: "showDelayMs", value: showDelayMs))
     }
     return entries
   }
