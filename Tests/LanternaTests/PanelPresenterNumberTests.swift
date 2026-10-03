@@ -88,6 +88,10 @@ struct PanelPresenterNumberTests {
     #expect(fixture.log.lines.contains(where: {
       $0.hasPrefix("committed ") && $0.contains(named.displayTitle)
     }))
+    #expect(fixture.log.lines.contains(
+      "committed \(named.appName) — \(named.displayTitle) "
+        + "(\(named.id.logWord)) 4.8 ms after Option was released"
+    ))
   }
 
   @Test
