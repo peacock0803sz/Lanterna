@@ -147,6 +147,9 @@ extension AppDelegate {
     presenter.grouping = currentValues.grouping
     presenter.hoverSelect = options.hoverSelect
     presenter.scrollSelect = options.scrollSelect
+    presenter.numberJump = options.numberJump
+    presenter.numberReorder = options.numberReorder
+    presenter.numberScope = currentValues.numberScope
     return (panel, presenter)
   }
 
@@ -190,6 +193,9 @@ extension AppDelegate {
     presenter?.grouping = values.grouping
     presenter?.hoverSelect = values.hoverSelect
     presenter?.scrollSelect = values.scrollSelect
+    presenter?.numberJump = values.numberJump
+    presenter?.numberReorder = values.numberReorder
+    presenter?.numberScope = values.numberScope
     presenter?.showDelayMs = values.showDelayMs
     panel?.grouping = values.grouping
     if let panel, let composite = presenter?.surface as? MirroredPanelSurface {

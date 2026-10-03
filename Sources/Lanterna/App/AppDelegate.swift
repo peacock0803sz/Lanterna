@@ -228,6 +228,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     requestInputMonitoringIfNeeded()
     let monitor = ModifierKeyMonitor {
       presenter.handleCommandRelease()
+    } onOptionRelease: { [weak presenter] in
+      presenter?.handleOptionRelease()
     }
     self.monitor = monitor
     let outcome = monitor.start()
