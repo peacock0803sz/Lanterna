@@ -199,6 +199,28 @@ final class PanelPresenter {
   /// Whether scrolling moves the selection. Same timing as above.
   var scrollSelect = false
 
+  /// Whether digits with a jump modifier name rows. Read on every
+  /// press, the same timing as above.
+  var numberJump = false {
+    didSet { keyCommands.updateNumberJump(numberJump) }
+  }
+
+  /// Whether reorder presses move rows. Same timing as above.
+  var numberReorder = false {
+    didSet { keyCommands.updateReorder(numberReorder) }
+  }
+
+  /// Which rows numbers name. Same timing as above.
+  var numberScope = NumberScope.windows {
+    didSet { keyCommands.updateNumberScope(numberScope) }
+  }
+
+  /// The hand-arranged row orders shadowing the drawn order. Same
+  /// timing as the grouping below.
+  var rowOrder = ManualRowOrder.none {
+    didSet { keyCommands.updateRowOrder(rowOrder) }
+  }
+
   /// The compiled exclusion rules, handed to the key commands beside
   /// the modes, so the filter and the panel judge the same rows out.
   /// A change lands on the live filter at once: settings edits apply
@@ -332,6 +354,7 @@ final class PanelPresenter {
   /// turned to. Letting the slot go is what stops it.
   func handleCommandRelease() {
     let startedAt = now()
+    keyCommands.resetNumberInput()
     if pendingShow.isWaiting {
       guard let waiting = pendingShow.take() else { return }
       pendingPress.callOff()
@@ -356,6 +379,19 @@ final class PanelPresenter {
     }
     guard !keyCommands.isFilteringActive else { return }
     wayOut.commitOnCommandRelease(naming: selection.chosenID, since: startedAt, filter: keyCommands.filterSummary())
+  }
+
+  /// Acts on Option having been let go.
+  ///
+  /// Only a panel that is up answers: unlike Command, letting go of
+  /// Option never calls off a press still waiting for its first list.
+  /// The pending number dies with the release either way, committed or
+  /// not.
+  func handleOptionRelease() {
+    let startedAt = now()
+    keyCommands.resetNumberInput()
+    guard !keyCommands.isFilteringActive else { return }
+    wayOut.commitOnOptionRelease(naming: selection.chosenID, since: startedAt, filter: keyCommands.filterSummary())
   }
 
   // MARK: Private
