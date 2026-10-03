@@ -121,11 +121,11 @@ extension AppConfiguration {
   /// absent so the default reaches saved files.
   static func pointerSelectEntries(_ config: ValidConfiguration) -> [String] {
     var entries = [String]()
-    if let hoverSelect = config.hoverSelect {
-      entries.append(encodedBool(key: "hoverSelect", value: hoverSelect))
+    if config.hoverSelect == true {
+      entries.append(encodedBool(key: "hoverSelect", value: true))
     }
-    if let scrollSelect = config.scrollSelect {
-      entries.append(encodedBool(key: "scrollSelect", value: scrollSelect))
+    if config.scrollSelect == true {
+      entries.append(encodedBool(key: "scrollSelect", value: true))
     }
     return entries
   }

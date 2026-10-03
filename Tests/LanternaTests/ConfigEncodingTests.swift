@@ -51,6 +51,8 @@ struct ConfigEncodingTests {
     #expect(!text.contains("appearanceMode"))
     #expect(!text.contains("logLevel"))
     #expect(!text.contains("saveLogsToDisk"))
+    #expect(!text.contains("hoverSelect"))
+    #expect(!text.contains("scrollSelect"))
   }
 
   /// A file still holding the retired level key saves without it.
