@@ -374,7 +374,8 @@ extension AppConfiguration {
       keyBindings: file.keyBindings,
       textScale: TextScaleLevel.effective(from: file),
       displayTarget: DisplayTarget.effective(from: file),
-      panelWidth: PanelWidth.effective(from: file)
+      panelWidth: PanelWidth.effective(from: file),
+      showDelayMs: ShowDelay.effective(file.showDelayMs).value
     )
   }
 
