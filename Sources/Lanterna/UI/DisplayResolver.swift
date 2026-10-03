@@ -34,6 +34,10 @@ struct DisplayResolver: Sendable {
 
   // MARK: Internal
 
+  /// The connected displays, so callers map a resolved index back to
+  /// the same screens the call resolved over.
+  let screens: @Sendable () -> [DisplayInfo]
+
   /// The connected displays as the resolution sees them, with the
   /// menu-bar display first.
   static func currentScreens() -> [DisplayInfo] {
@@ -51,17 +55,36 @@ struct DisplayResolver: Sendable {
   /// Picks the display over explicit screens, so rearranged displays
   /// read as a value test with no window server involved.
   func resolve(_ target: DisplayTarget, over screens: [DisplayInfo]) -> ResolvedDisplay {
+    resolveWithFallback(target, over: screens).display
+  }
+
+  /// Resolves with whether the menu-bar display was a fallback rather
+  /// than the answer, so the caller can say so on the diagnostics line.
+  func resolveWithFallback(
+    _ target: DisplayTarget,
+    over screens: [DisplayInfo]
+  ) -> (display: ResolvedDisplay, fellBack: Bool) {
     switch target {
     case .cursor:
-      return DisplayTarget.resolve(target, cursor: cursor(), focusedWindow: nil, screens: screens)
+      let point = cursor()
+      return (
+        DisplayTarget.resolve(target, cursor: point, focusedWindow: nil, screens: screens),
+        unplaced(point, in: screens)
+      )
 
     case .frontWindow:
       let point = frontmostPID().flatMap { focusedPosition($0) }
-      return DisplayTarget.resolve(target, cursor: nil, focusedWindow: point, screens: screens)
+      return (
+        DisplayTarget.resolve(target, cursor: nil, focusedWindow: point, screens: screens),
+        unplaced(point, in: screens)
+      )
 
     case .primary,
          .all:
-      return DisplayTarget.resolve(target, cursor: nil, focusedWindow: nil, screens: screens)
+      return (
+        DisplayTarget.resolve(target, cursor: nil, focusedWindow: nil, screens: screens),
+        false
+      )
     }
   }
 
@@ -70,7 +93,6 @@ struct DisplayResolver: Sendable {
   private let cursor: @Sendable () -> CGPoint?
   private let frontmostPID: @Sendable () -> pid_t?
   private let focusedPosition: @Sendable (pid_t) -> CGPoint?
-  private let screens: @Sendable () -> [DisplayInfo]
 
   /// The focused window's position over the accessibility API, or
   /// nothing when the read fails. Each call makes and drops its own
@@ -117,6 +139,14 @@ struct DisplayResolver: Sendable {
       return nil
     }
     return point
+  }
+
+  /// True when the point is missing or held by no screen.
+  private func unplaced(_ point: CGPoint?, in screens: [DisplayInfo]) -> Bool {
+    guard let point else {
+      return true
+    }
+    return !screens.contains(where: { $0.frame.contains(point) })
   }
 
 }

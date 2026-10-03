@@ -40,6 +40,25 @@ struct DisplayResolverTests {
   }
 
   @Test
+  func missingPointReportsFallback() {
+    let (_, fellBack) = resolver().resolveWithFallback(.cursor, over: screens)
+    #expect(fellBack)
+  }
+
+  @Test
+  func placedPointReportsNoFallback() {
+    let (_, fellBack) = resolver(cursor: CGPoint(x: 1600, y: 100))
+      .resolveWithFallback(.cursor, over: screens)
+    #expect(!fellBack)
+  }
+
+  @Test
+  func primaryNeverReportsFallback() {
+    let (_, fellBack) = resolver().resolveWithFallback(.primary, over: screens)
+    #expect(!fellBack)
+  }
+
+  @Test
   func rearrangedScreensResolveAnew() {
     let moved = [
       DisplayInfo(frame: CGRect(x: 0, y: 0, width: 1080, height: 720), isPrimary: false),
