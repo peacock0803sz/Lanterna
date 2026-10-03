@@ -47,6 +47,10 @@ enum AppConfiguration {
     "showDelayMs",
     "hoverSelect",
     "scrollSelect",
+    "numberJump",
+    "numberReorder",
+    "numberScope",
+    "rowOrder",
     "windowScope",
     "grouping",
     "otherSpacePlacement",
@@ -102,6 +106,10 @@ struct ValidConfiguration: Equatable, Sendable {
     showDelayMs: Double? = nil,
     hoverSelect: Bool? = nil,
     scrollSelect: Bool? = nil,
+    numberJump: Bool? = nil,
+    numberReorder: Bool? = nil,
+    numberScope: NumberScope? = nil,
+    rowOrder: [RowOrderEntry] = [],
     windowScope: WindowScope? = nil,
     grouping: GroupingMode? = nil,
     subgroupPlacements: [DisplaySubgroup: SubgroupPlacement] = [:],
@@ -136,6 +144,10 @@ struct ValidConfiguration: Equatable, Sendable {
     self.showDelayMs = showDelayMs
     self.hoverSelect = hoverSelect
     self.scrollSelect = scrollSelect
+    self.numberJump = numberJump
+    self.numberReorder = numberReorder
+    self.numberScope = numberScope
+    self.rowOrder = rowOrder
     self.windowScope = windowScope
     self.grouping = grouping
     self.subgroupPlacements = subgroupPlacements
@@ -199,6 +211,17 @@ struct ValidConfiguration: Equatable, Sendable {
   /// Whether scrolling moves the selection. Nil means absent,
   /// which means off.
   var scrollSelect: Bool?
+  /// Whether holding a modifier and pressing a row number jumps to
+  /// that row. Nil means absent, which means off.
+  var numberJump: Bool?
+  /// Whether moving the selected row by key works in grouped lists.
+  /// Nil means absent, which means off.
+  var numberReorder: Bool?
+  /// Which rows row numbers cover. Nil means absent, which means
+  /// window rows alone.
+  var numberScope: NumberScope?
+  /// Hand-arranged row orders by manual group. Empty means absent.
+  var rowOrder: [RowOrderEntry]
   /// Which applications' rows each appearance starts on. Nil means
   /// absent, which means every application.
   var windowScope: WindowScope?
@@ -279,6 +302,8 @@ struct DecodedConfiguration: Equatable, Sendable {
   var deprecatedKeys = [String]()
   /// One entry per group assignment left out, for the diagnostics lines.
   var groupAssignmentIssues = [GroupAssignmentIssue]()
+  /// One entry per skipped row-order entry, for the diagnostics lines.
+  var rowOrderIssues = [RowOrderIssue]()
 }
 
 // MARK: - ConfigLoadOutcome
@@ -361,6 +386,7 @@ extension AppConfiguration {
     case .success(let config):
       return resolvedKeyBindings(dict, data: data, config: config, assumed: assumed)
         .flatMap { withGroupAssignments(dict, decoded: $0) }
+        .flatMap { withRowOrder(dict, decoded: $0) }
 
     case .failure(let error):
       return .failure(error)
@@ -389,7 +415,9 @@ extension AppConfiguration {
       panelWidth: PanelWidth.effective(from: file),
       showDelayMs: ShowDelay.effective(file.showDelayMs).value,
       hoverSelect: file.hoverSelect ?? false,
-      scrollSelect: file.scrollSelect ?? false
+      scrollSelect: file.scrollSelect ?? false,
+      numberJump: file.numberJump ?? false,
+      numberReorder: file.numberReorder ?? false
     )
   }
 

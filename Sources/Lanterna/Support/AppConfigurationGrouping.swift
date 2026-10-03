@@ -24,6 +24,12 @@ extension AppConfiguration {
     case .failure(let error):
       return .failure(error)
     }
+    switch checkedOptionalWord(dict, key: "numberScope", as: NumberScope.self) {
+    case .success(let found):
+      config.numberScope = found
+    case .failure(let error):
+      return .failure(error)
+    }
     switch checkedOptionalWord(dict, key: "grouping", as: GroupingMode.self) {
     case .success(let found):
       config.grouping = found

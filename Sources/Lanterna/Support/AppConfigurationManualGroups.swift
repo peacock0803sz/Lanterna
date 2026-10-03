@@ -15,6 +15,83 @@ struct GroupAssignmentIssue: Equatable, Sendable {
   }
 }
 
+// MARK: - RowOrderIssue
+
+/// One row-order entry the file held and the decoding left out.
+struct RowOrderIssue: Equatable, Sendable {
+  /// Where the entry stood in the file's list.
+  let index: Int
+  /// Why it was left out, in plain words.
+  let reason: String
+
+  /// The diagnostics line, ending with where the entry stood.
+  var diagnosticsLine: String {
+    "row order skipped (\(reason)): rowOrder[\(index)]"
+  }
+}
+
+// MARK: - AppConfiguration + row order
+
+/// The keys for hand-arranged row orders. A value that is not a list
+/// refuses the file; an entry that cannot be read, or that names a
+/// group an earlier entry already named, is left out with an issue.
+extension AppConfiguration {
+
+  // MARK: Internal
+
+  /// Adds the row orders to a decoded file.
+  static func withRowOrder(
+    _ dict: [String: Any],
+    decoded: DecodedConfiguration
+  ) -> Result<DecodedConfiguration, ConfigDecodeError> {
+    guard let raw = dict["rowOrder"] else { return .success(decoded) }
+    guard let entries = raw as? [Any] else {
+      return .failure(.invalidValue(key: "rowOrder"))
+    }
+    var decoded = decoded
+    var seen = Set<Int>()
+    for (index, entry) in entries.enumerated() {
+      switch rowOrderEntry(from: entry) {
+      case .success(let order):
+        guard seen.insert(order.group).inserted else {
+          decoded.rowOrderIssues.append(
+            RowOrderIssue(index: index, reason: "duplicate group \(order.group)")
+          )
+          continue
+        }
+        decoded.config.rowOrder.append(order)
+
+      case .failure(let reason):
+        decoded.rowOrderIssues.append(RowOrderIssue(index: index, reason: reason.text))
+      }
+    }
+    return .success(decoded)
+  }
+
+  // MARK: Private
+
+  /// Reads one row-order entry: a group number holding a nonempty list
+  /// of row keys. Anything else leaves the entry out.
+  private static func rowOrderEntry(from entry: Any) -> Result<RowOrderEntry, UnreadableAssignment> {
+    guard
+      let object = entry as? [String: Any],
+      let rawGroup = object["group"],
+      let group = jsonInt(rawGroup),
+      (1 ... maximumGroupCount).contains(group),
+      let rawKeys = object["keys"] as? [Any],
+      !rawKeys.isEmpty
+    else {
+      return .failure(UnreadableAssignment(text: "unreadable entry"))
+    }
+    let keys = rawKeys.compactMap { $0 as? String }.filter { !$0.isEmpty }
+    guard keys.count == rawKeys.count, !keys.isEmpty else {
+      return .failure(UnreadableAssignment(text: "unreadable entry"))
+    }
+    return .success(RowOrderEntry(group: group, keys: keys))
+  }
+
+}
+
 // MARK: - AppConfiguration + manual groups
 
 /// The keys for manual groups. The count, the heading style and the names
