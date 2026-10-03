@@ -51,3 +51,11 @@ enum PanelWidth: Int, CaseIterable, Equatable, Sendable {
     (scaledWidth * factor).rounded()
   }
 }
+
+extension PanelWidth {
+  /// The step one run uses: a spelled step wins, anything missing
+  /// means the standard step, the current width.
+  static func effective(from config: ValidConfiguration) -> PanelWidth {
+    config.panelWidth.flatMap(PanelWidth.init(factor:)) ?? .standard
+  }
+}

@@ -22,8 +22,11 @@ enum DisplayTarget: String, Sendable {
 
   // MARK: Internal
 
-  /// The default resolution when a target cannot be placed.
-  static let fallback = DisplayTarget.primary
+  /// The target for one run: a spelled target wins, anything missing
+  /// means the menu-bar display.
+  static func effective(from config: ValidConfiguration) -> DisplayTarget {
+    config.displayTarget ?? .primary
+  }
 
   /// Picks the display for one appearance from plain values, so the
   /// choice reads as a value test with no window server involved. The
