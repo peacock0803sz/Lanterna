@@ -452,7 +452,16 @@ final class PanelPresenter {
     keyCommands.beginFiltering(fullWindows: ordered, filtering: presses.first == .filter)
     let layout = keyCommands.shownLayout
     selection.beginSecond(layout.rowIDs, ranking: layout.rankedRows.map(\.id))
-    for press in presses.dropFirst() {
+    replayDelayedPresses(Array(presses.dropFirst()))
+    return ordered
+  }
+
+  /// Walks waiting presses past the first over the fresh choice.
+  ///
+  /// Shared by showing and by the silent commit, so both replay the
+  /// same presses the same way.
+  private func replayDelayedPresses(_ presses: [HotkeyCombination]) {
+    for press in presses {
       switch press {
       case .forward:
         selection.moveToNext()
@@ -462,7 +471,6 @@ final class PanelPresenter {
         keyCommands.activateFiltering()
       }
     }
-    return ordered
   }
 
   /// A press arriving while the panel is already up. Either it moves the
@@ -546,16 +554,7 @@ final class PanelPresenter {
     selection.beginSecond(layout.rowIDs, ranking: layout.rankedRows.map(\.id))
     // Presses the delay held past the first one walk here, after the
     // choice exists to walk and before the panel reads it off.
-    for press in replay {
-      switch press {
-      case .forward:
-        selection.moveToNext()
-      case .reverse:
-        selection.moveToPrevious()
-      case .filter:
-        keyCommands.activateFiltering()
-      }
-    }
+    replayDelayedPresses(replay)
     operations.begin(windows: ordered)
     surface.present(windows: shown, selecting: selection.chosenID, filterActive: keyCommands.isFilteringActive)
     let becameKey = surface.takeKeys()
