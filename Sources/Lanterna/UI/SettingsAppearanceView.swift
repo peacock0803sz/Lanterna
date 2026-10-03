@@ -73,6 +73,23 @@ struct SettingsAppearanceView: View {
             caption: "\(Int((values.panelWidth.factor * 100).rounded()))% of the standard width."
           )
         }
+        LabeledContent {
+          HStack {
+            Text(delayText)
+            Stepper(
+              "Show delay",
+              value: delayMs,
+              in: 0 ... 1000,
+              step: 50
+            )
+            .labelsHidden()
+          }
+        } label: {
+          SettingsFormLabel(
+            title: "Show delay",
+            caption: "Wait this long before showing the panel. 0 means off."
+          )
+        }
       }
       Section("Preview") {
         preview
@@ -108,6 +125,23 @@ struct SettingsAppearanceView: View {
     .accessibilityElement(children: .combine)
     .accessibilityLabel("Preview")
     .appliedAppearance(values.appearanceMode)
+  }
+
+  /// The delay stepper position spelling the milliseconds: nil reads
+  /// as zero, and zero writes back as nil so off stays omitted on save.
+  private var delayMs: Binding<Double> {
+    Binding(
+      get: { values.showDelayMs ?? 0 },
+      set: { values.showDelayMs = $0 == 0 ? nil : $0 }
+    )
+  }
+
+  /// The count as the stepper names it: a number, or off at zero.
+  private var delayText: String {
+    guard let milliseconds = values.showDelayMs, milliseconds > 0 else {
+      return "Off"
+    }
+    return "\(Int(milliseconds)) ms"
   }
 
   /// The width slider position spelling the step, the same way the
