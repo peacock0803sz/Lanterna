@@ -20,10 +20,11 @@ struct PanelPresenterScrollTests {
     fixture.presenter.scrollSelect = true
 
     let opening = fixture.presenter.selection.chosenID
+    #expect(opening == fixture.windows[1].id)
     fixture.surface.onScrollStep?(1)
 
-    #expect(fixture.presenter.selection.chosenID != opening)
-    #expect(fixture.surface.shownSelections.count == 1)
+    #expect(fixture.presenter.selection.chosenID == fixture.windows[2].id)
+    #expect(fixture.surface.shownSelections == [fixture.windows[2].id])
   }
 
   @Test
