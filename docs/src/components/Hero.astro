@@ -151,6 +151,18 @@ const resolveHeroHref = (link: string) =>
     background-color: var(--ln-hairline);
   }
 
+  @media (max-width: 49.99rem) {
+    .intro {
+      gap: 24px;
+      padding: 32px 0 40px;
+    }
+
+    h1 {
+      letter-spacing: -1.5px;
+      line-height: 1.05;
+    }
+  }
+
   /* Run the chart plate edge to edge, out of the centred content column. */
   .bleed {
     margin-inline: calc(50% - 50vw);

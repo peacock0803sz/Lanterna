@@ -1,8 +1,17 @@
 ---
 // Edition selector next to the site title. Each built version is an edition of
 // the chart; the menu groups them as stable, preview (main), and archive.
+// The `panel` variant sits in the mobile menu as a full-width field whose list
+// opens in place below it.
 import { getEditions, type EditionGroup } from "../lib/editions";
 import LucideIcon from "./LucideIcon.astro";
+
+interface Props {
+  variant?: "bar" | "panel";
+}
+
+const { variant = "bar" } = Astro.props;
+const menuId = `ln-edition-menu-${variant}`;
 
 const { all, current } = getEditions(
   Astro.url.pathname,
@@ -38,19 +47,30 @@ const triggerLabel =
 {current && (
   <ln-edition-select>
     <nav
-      class="editions"
+      class:list={["editions", variant]}
       aria-label={Astro.locals.t("editions.accessibleLabel")}
     >
+      {variant === "panel" && <p class="field-label">Edition</p>}
       <button
         type="button"
         class="trigger"
         aria-expanded="false"
-        aria-controls="ln-edition-menu"
+        aria-controls={menuId}
       >
-        <span>ED. {triggerLabel}</span>
-        <LucideIcon name="chevron-down" size={12} class="chevron" />
+        {variant === "bar" ? (
+          <>
+            <span>ED. {triggerLabel}</span>
+            <LucideIcon name="chevron-down" size={12} class="chevron" />
+          </>
+        ) : (
+          <>
+            <span class="trigger-number">ED. {current.number}</span>
+            <span class="trigger-meta">{meta(current.group, current.ref)}</span>
+            <LucideIcon name="chevrons-up-down" size={15} />
+          </>
+        )}
       </button>
-      <div class="menu" id="ln-edition-menu" hidden>
+      <div class="menu" id={menuId} hidden>
         {sections.map(({ label, editions }) => (
           <>
             <p class="section">{label}</p>
@@ -224,13 +244,51 @@ const triggerLabel =
     color: var(--ln-ink);
   }
 
-  /* On phones the menu spans the viewport under the header bar. */
-  @media (max-width: 49.99rem) {
-    .menu {
-      position: fixed;
-      inset-block-start: var(--ln-nav-bar-height);
-      inset-inline: var(--sl-nav-pad-x);
-      width: auto;
-    }
+  /* ---------- Panel variant ---------- */
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .field-label {
+    margin: 0;
+    font-family: var(--ln-font-mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ln-muted);
+  }
+
+  .panel .trigger {
+    gap: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    letter-spacing: 1px;
+    line-height: 17px;
+  }
+
+  .trigger-number {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .trigger-meta {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 10px;
+    text-align: start;
+    text-overflow: ellipsis;
+    color: var(--ln-muted);
+  }
+
+  .panel .menu {
+    position: static;
+    width: auto;
+    max-height: none;
+    margin-top: -9px;
+    box-shadow: none;
   }
 </style>

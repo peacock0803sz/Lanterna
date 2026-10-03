@@ -1,14 +1,24 @@
 ---
+import { getEditions } from "../lib/editions";
 import { sheetKey } from "../lib/sheets";
 
 const { entry, sidebar } = Astro.locals.starlightRoute;
 const key = sheetKey(sidebar, Astro.url.pathname);
+// Phones have no edition button in the header bar, so the breadcrumb names
+// any edition other than stable.
+const { current } = getEditions(Astro.url.pathname, Astro.locals.devEdition);
+const edition = current?.group === "stable" ? undefined : current?.number;
 ---
 
 {/* Section headings in the article are numbered after the sheet, e.g. B1, B2. */}
 {key && <style is:inline set:html={`:root { --ln-sheet: '${key}'; }`} />}
 <div class="page-title">
-  {key && <p class="breadcrumb">Chart No. 1 / Sheet {key}</p>}
+  {key && (
+    <p class="breadcrumb">
+      Chart No. 1 / {edition && <span class="edition">Ed. {edition} / </span>}
+      Sheet {key}
+    </p>
+  )}
   <h1 id="_top">{entry.data.title}</h1>
   {entry.data.description && (
     <p class="description">{entry.data.description}</p>
@@ -46,5 +56,17 @@ const key = sheetKey(sidebar, Astro.url.pathname);
     font-size: 18px;
     line-height: 33px;
     color: var(--ln-secondary);
+  }
+
+  @media (max-width: 49.99rem) {
+    h1 {
+      font-size: 38px;
+    }
+  }
+
+  @media (min-width: 50rem) {
+    .edition {
+      display: none;
+    }
   }
 </style>
