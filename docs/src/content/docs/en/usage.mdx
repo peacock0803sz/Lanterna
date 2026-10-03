@@ -103,28 +103,31 @@ Panel Width in the same tab scales the panel from Narrow to Wide in five steps. 
 
 Show delay in the same tab waits before showing the panel, from 0 to 1000 milliseconds in steps of 50. At 0, shown as Off, the panel appears at once as before. With a wait set, letting go before it runs out switches without showing anything, and holding on opens the panel as usual. A new wait takes effect the next time the panel opens.
 
-Hover to select in the same tab moves the selection to the row under the pointer. Off by default; the choice follows the pointer once it is on. The panel never moves under a pointer that has not moved since it opened. Scroll to select moves the selection by scrolling instead of scrolling the view, and the view follows the selection. Off by default. Clicking a row picks it and switches to it with either switch off or on.
+Hover to select in the same tab moves the selection to the row under the pointer. Off by default; the choice follows the pointer once it is on. The panel never moves under a pointer that has not moved since it opened. Scroll to select moves the selection by scrolling instead of scrolling the view, and the view follows the selection. Off by default. Clicking a row picks it and switches to it with either switch off or on. Number jump in the same tab jumps to a row by its number: hold left or right Command or Option, press the digits in order, and let go to switch. Row numbers show while the modifier is held. Off by default. Row numbers names which rows numbers cover: window rows alone, or every row. Reorder rows in the same tab moves the selected row with Shift and arrow keys inside grouped lists, keeping the order across restarts. Off by default.
 
 ## Customizing keybindings
 
 Every keybinding below can be changed through the `keybindings` section of the config file or the Keyboard tab of Settings. Keys are physical positions, so they work the same under any input source.
 
-| Action                 | Default keys                             |
-| ---------------------- | ---------------------------------------- |
-| Show                   | <kbd>⌘</kbd><kbd>Tab</kbd>               |
-| Show in reverse        | <kbd>⇧</kbd><kbd>⌘</kbd><kbd>Tab</kbd>   |
-| Show for filtering     | <kbd>⌘</kbd><kbd>Space</kbd>             |
-| Next                   | <kbd>↓</kbd>                             |
-| Previous               | <kbd>↑</kbd>                             |
-| Commit                 | <kbd>↩</kbd>, keypad `Enter`             |
-| Cancel                 | <kbd>esc</kbd>, <kbd>⌘</kbd><kbd>.</kbd> |
-| Toggle active app only | <kbd>⌘</kbd><kbd>/</kbd>                 |
-| Delete backward        | <kbd>⌫</kbd>                             |
-| Clear query            | <kbd>esc</kbd>                           |
-| Close window           | <kbd>⌘</kbd><kbd>W</kbd>                 |
-| Quit application       | <kbd>⌘</kbd><kbd>Q</kbd>                 |
-| Hide application       | <kbd>⌘</kbd><kbd>H</kbd>                 |
-| Minimize window        | <kbd>⌘</kbd><kbd>M</kbd>                 |
+| Action                 | Default keys                                      |
+| ---------------------- | ------------------------------------------------- |
+| Show                   | <kbd>⌘</kbd><kbd>Tab</kbd>                        |
+| Show in reverse        | <kbd>⇧</kbd><kbd>⌘</kbd><kbd>Tab</kbd>            |
+| Show for filtering     | <kbd>⌘</kbd><kbd>Space</kbd>                      |
+| Next                   | <kbd>↓</kbd>                                      |
+| Previous               | <kbd>↑</kbd>                                      |
+| Commit                 | <kbd>↩</kbd>, keypad `Enter`                      |
+| Cancel                 | <kbd>esc</kbd>, <kbd>⌘</kbd><kbd>.</kbd>          |
+| Toggle active app only | <kbd>⌘</kbd><kbd>/</kbd>                          |
+| Delete backward        | <kbd>⌫</kbd>                                      |
+| Clear query            | <kbd>esc</kbd>                                    |
+| Close window           | <kbd>⌘</kbd><kbd>W</kbd>                          |
+| Quit application       | <kbd>⌘</kbd><kbd>Q</kbd>                          |
+| Hide application       | <kbd>⌘</kbd><kbd>H</kbd>                          |
+| Minimize window        | <kbd>⌘</kbd><kbd>M</kbd>                          |
+| Jump to row number     | <kbd>⌘</kbd>/<kbd>⌥</kbd> digits                  |
+| Move row up            | <kbd>⇧</kbd><kbd>⌘</kbd>/<kbd>⌥</kbd><kbd>↑</kbd> |
+| Move row down          | <kbd>⇧</kbd><kbd>⌘</kbd>/<kbd>⌥</kbd><kbd>↓</kbd> |
 
 Show, Show in reverse, and Show for filtering reach across the system, and the window actions and Toggle active app only would fire while typing, so every key for those needs `Cmd`, `Ctrl`, or `Opt`. A key already used by another action is refused, except that Clear query and Cancel may share keys. An action left with no keys falls back to its defaults, but if the defaults are also taken the action can stay unbound with a diagnostics entry. Invocation changes apply at once.
 
