@@ -74,8 +74,10 @@ enum PanelMetrics {
 
   /// Fits a content width into a visible width, keeping the margin.
   /// A fitting width passes through; only an overflow is cut.
+  /// Never drops below zero, so a very narrow display still yields
+  /// a usable width.
   static func fittedWidth(_ width: CGFloat, in visibleWidth: CGFloat) -> CGFloat {
-    min(width, visibleWidth - screenMargin)
+    min(width, max(visibleWidth - screenMargin, 0))
   }
 
   /// Height for a given number of rows at one step. The cap stays put

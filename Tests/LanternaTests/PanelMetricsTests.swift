@@ -216,6 +216,7 @@ extension PanelMetricsTests {
     #expect(PanelMetrics.screenMargin == 40)
     #expect(PanelMetrics.fittedWidth(720, in: 1512) == 720)
     #expect(PanelMetrics.fittedWidth(936, in: 900) == 860)
+    #expect(PanelMetrics.fittedWidth(720, in: 30) == 0)
   }
 
   /// The padding and the cap stay put while the rows grow, so a large
