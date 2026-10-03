@@ -570,9 +570,37 @@ site-search > button[data-open-modal] > kbd {
   color: inherit;
 }
 
+/* From tablet width up, the button reads as a search field. */
 @media (min-width: 50rem) {
-  site-search {
-    width: auto;
+  site-search > button[data-open-modal] {
+    width: 100%;
+    height: auto;
+    padding: 8px 10px 8px 12px;
+    border: 1px solid var(--ln-hairline);
+    border-radius: 0;
+    background-color: var(--ln-key);
+  }
+
+  site-search > button[data-open-modal]:hover {
+    border-color: var(--ln-muted);
+  }
+
+  site-search > button[data-open-modal] > svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  site-search > button[data-open-modal] > span {
+    flex: 1;
+    text-align: start;
+  }
+
+  site-search > button[data-open-modal] > kbd {
+    padding: 1px 6px;
+    border: 1px solid var(--ln-hairline);
+    border-radius: 0;
+    font-family: var(--ln-font-mono);
+    font-size: 11px;
   }
 }
 

@@ -3,38 +3,34 @@ import Search from "@astrojs/starlight/components/Search.astro";
 import { Image } from "astro:assets";
 import appIcon from "../assets/app-icon.png";
 import LanguageSelect from "./LanguageSelect.astro";
+import LucideIcon from "./LucideIcon.astro";
 import VersionSelect from "./VersionSelect.astro";
 import ThemeSelect from "./ThemeSelect.astro";
 
-const { siteTitle, siteTitleHref, sidebar } = Astro.locals.starlightRoute;
-
-// The home page is reached from the site title, so the header lists the other sheets only.
-const sheets = sidebar
-  .filter((entry) => entry.type === "link")
-  .slice(1)
-  .map(({ href, label, isCurrent }) => ({ href, label, isCurrent }));
+const { siteTitle, siteTitleHref } = Astro.locals.starlightRoute;
 ---
 
 <div class="header">
-  <a href={siteTitleHref} class="site-title">
-    <Image src={appIcon} alt="" width={30} height={30} class="logo" />
-    <span translate="no">{siteTitle}</span>
-  </a>
-  <nav class="links" aria-label="Main">
-    {sheets.map(({ href, label, isCurrent }) => (
-      <a href={href} aria-current={isCurrent ? "page" : undefined}>
-        {label}
-      </a>
-    ))}
-    <a href="https://github.com/peacock0803sz/Lanterna">GitHub</a>
-  </nav>
-  <div class="tools print:hidden">
+  <div class="brand">
+    <a href={siteTitleHref} class="site-title">
+      <Image src={appIcon} alt="" width={30} height={30} class="logo" />
+      <span translate="no">{siteTitle}</span>
+    </a>
+    <VersionSelect />
+  </div>
+  <div class="search print:hidden">
     <Search />
-    <div class="tools-secondary">
-      <LanguageSelect />
-      <VersionSelect />
-      <ThemeSelect />
-    </div>
+  </div>
+  <div class="tools print:hidden">
+    <a
+      href="https://github.com/peacock0803sz/Lanterna"
+      class="github"
+      aria-label="GitHub"
+    >
+      <LucideIcon name="github" size={17} />
+    </a>
+    <LanguageSelect />
+    <ThemeSelect />
   </div>
 </div>
 
@@ -42,9 +38,15 @@ const sheets = sidebar
   .header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 1.5rem;
+    gap: 1rem;
     height: 100%;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-inline-end: auto;
   }
 
   .site-title {
@@ -65,37 +67,24 @@ const sheets = sidebar
     border-radius: 7px;
   }
 
-  .links {
-    display: none;
-    align-items: center;
-    gap: 36px;
-  }
-
-  .links a {
-    font-size: 14px;
-    color: var(--ln-secondary);
-    text-decoration: none;
-  }
-
-  .links a:hover,
-  .links a[aria-current="page"] {
-    color: var(--ln-ink);
-  }
-
-  .links a[aria-current="page"] {
-    font-weight: 600;
-  }
-
-  .tools,
-  .tools-secondary {
+  .tools {
     display: flex;
     align-items: center;
     gap: 24px;
   }
 
+  .github {
+    display: flex;
+    color: var(--ln-muted);
+  }
+
+  .github:hover {
+    color: var(--ln-ink);
+  }
+
   /* On phones, sheet pages carry these in the menu instead; the menu button sits where they would be. */
   @media (max-width: 49.99rem) {
-    :global([data-has-sidebar]) .tools-secondary {
+    :global([data-has-sidebar]) .tools {
       display: none;
     }
   }
@@ -103,10 +92,15 @@ const sheets = sidebar
   @media (min-width: 50rem) {
     .header {
       display: grid;
-      grid-template-columns: 1fr auto 1fr;
+      grid-template-columns: 1fr minmax(0, 21.25rem) 1fr;
+      gap: 1.5rem;
     }
 
-    .links {
+    .brand {
+      margin-inline-end: 0;
+    }
+
+    .search {
       display: flex;
     }
 
