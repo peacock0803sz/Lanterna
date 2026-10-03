@@ -619,16 +619,17 @@ final class PanelPresenter {
   /// panel that is up answers; a dismissed panel shows nothing either
   /// way, and the next appearance seeds its own state. While the hint
   /// mode names rows by number, the full order stays up regardless of
-  /// the modifiers, so the display never flickers; with the switch
-  /// off the push stays empty and no jump can happen.
+  /// the modifiers and of the jump switch, so the display never
+  /// flickers; naming rows is display, jumping to them still needs
+  /// the switch, so with the switch off no jump can happen.
   private func pushNumberedRows() {
     guard surface.isPresented else { return }
-    guard numberJump else {
-      surface.showNumberedRows([])
-      return
-    }
     if surface.appearanceHints == .numbers {
       surface.showNumberedRows(keyCommands.numberedRows().map(\.id))
+      return
+    }
+    guard numberJump else {
+      surface.showNumberedRows([])
       return
     }
     let held = lastModifierFlags.contains(.maskCommand)

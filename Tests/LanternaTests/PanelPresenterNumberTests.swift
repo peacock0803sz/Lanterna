@@ -157,6 +157,15 @@ struct PanelPresenterNumberTests {
   }
 
   @Test
+  func numbersModeShowsNumbersWithJumpOff() {
+    let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+    fixture.surface.appearanceHints = .numbers
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+    #expect(fixture.surface.numberedRowOrders.last == fixture.windows.map(\.id))
+  }
+
+  @Test
   func numbersModeKeepsNumbersUpAfterRelease() {
     let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
     fixture.presenter.numberJump = true
