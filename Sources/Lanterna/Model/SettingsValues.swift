@@ -26,6 +26,9 @@ struct SettingsValues: Equatable, Sendable {
     displayTarget: .primary,
     hoverSelect: false,
     scrollSelect: false,
+    numberJump: false,
+    numberReorder: false,
+    numberScope: .windows,
     panelWidth: .standard,
     showDelayMs: nil,
     windowScope: .allApps,
@@ -70,6 +73,15 @@ struct SettingsValues: Equatable, Sendable {
   /// Whether scrolling moves the selection. Absent in the file
   /// means off.
   var scrollSelect: Bool
+  /// Whether holding a modifier and pressing a row number jumps to
+  /// that row. Absent in the file means off.
+  var numberJump: Bool
+  /// Whether moving the selected row by key works in grouped lists.
+  /// Absent in the file means off.
+  var numberReorder: Bool
+  /// Which rows row numbers cover. Absent in the file means window
+  /// rows alone.
+  var numberScope: NumberScope
   /// The panel width step. Absent in the file means the standard
   /// step, the current width.
   var panelWidth: PanelWidth
@@ -110,6 +122,9 @@ struct SettingsValues: Equatable, Sendable {
       displayTarget: DisplayTarget.effective(from: config),
       hoverSelect: config.hoverSelect ?? false,
       scrollSelect: config.scrollSelect ?? false,
+      numberJump: config.numberJump ?? false,
+      numberReorder: config.numberReorder ?? false,
+      numberScope: NumberScope.effective(from: config),
       panelWidth: PanelWidth.effective(from: config),
       showDelayMs: ShowDelay.effective(config.showDelayMs).value,
       windowScope: config.windowScope ?? .allApps,
@@ -180,6 +195,15 @@ struct SettingsValues: Equatable, Sendable {
     }
     if scrollSelect != defaults.scrollSelect {
       config.scrollSelect = scrollSelect
+    }
+    if numberJump != defaults.numberJump {
+      config.numberJump = numberJump
+    }
+    if numberReorder != defaults.numberReorder {
+      config.numberReorder = numberReorder
+    }
+    if numberScope != defaults.numberScope {
+      config.numberScope = numberScope
     }
     // Off stays absent, so a later default change reaches saved files.
     if let showDelayMs, showDelayMs > 0 {
