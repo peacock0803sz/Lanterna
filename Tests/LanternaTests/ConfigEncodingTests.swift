@@ -35,6 +35,8 @@ struct ConfigEncodingTests {
     config.appearanceMode = .light
     config.romajiScope = .kanaOnly
     config.saveLogsToDisk = false
+    config.hoverSelect = true
+    config.scrollSelect = true
     let decoded = AppConfiguration.decode(AppConfiguration.encode(config))
     #expect(decoded.successValue?.config == config)
   }
@@ -49,6 +51,8 @@ struct ConfigEncodingTests {
     #expect(!text.contains("appearanceMode"))
     #expect(!text.contains("logLevel"))
     #expect(!text.contains("saveLogsToDisk"))
+    #expect(!text.contains("hoverSelect"))
+    #expect(!text.contains("scrollSelect"))
   }
 
   /// A file still holding the retired level key saves without it.

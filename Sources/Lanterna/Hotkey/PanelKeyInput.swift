@@ -70,6 +70,8 @@ enum CommitKey: Equatable, Sendable {
   case keypadEnter
   /// A customized commit key, by physical position.
   case custom(UInt16)
+  /// A row click: the pointer's explicit choice, not a keystroke.
+  case click
 }
 
 // MARK: - CancelKey

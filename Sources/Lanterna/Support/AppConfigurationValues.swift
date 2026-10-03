@@ -33,6 +33,18 @@ extension AppConfiguration {
     case .failure(let error):
       return .failure(error)
     }
+    switch checkedOptionalBool(dict, key: "hoverSelect") {
+    case .success(let found):
+      config.hoverSelect = found
+    case .failure(let error):
+      return .failure(error)
+    }
+    switch checkedOptionalBool(dict, key: "scrollSelect") {
+    case .success(let found):
+      config.scrollSelect = found
+    case .failure(let error):
+      return .failure(error)
+    }
     switch checkedOptionalChannel(dict, key: "updateChannel") {
     case .success(let found):
       config.updateChannel = found

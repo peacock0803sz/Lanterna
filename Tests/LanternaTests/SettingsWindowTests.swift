@@ -59,6 +59,29 @@ struct SettingsWindowTests {
   }
 
   @Test
+  func pointerSwitchesFollowPresentKeys() {
+    var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(SettingsValues.effective(from: config).hoverSelect == false)
+    #expect(SettingsValues.effective(from: config).scrollSelect == false)
+    config.hoverSelect = true
+    config.scrollSelect = true
+    #expect(SettingsValues.effective(from: config).hoverSelect == true)
+    #expect(SettingsValues.effective(from: config).scrollSelect == true)
+    let saved = SettingsValues.effective(from: config)
+      .configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(saved.hoverSelect == true)
+    #expect(saved.scrollSelect == true)
+  }
+
+  @Test
+  func offSwitchesStayOmittedOnSave() {
+    let saved = SettingsValues.defaults
+      .configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(saved.hoverSelect == nil)
+    #expect(saved.scrollSelect == nil)
+  }
+
+  @Test
   func romajiScopeFollowsPresentKey() {
     var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
     config.romajiScope = .kanaOnly

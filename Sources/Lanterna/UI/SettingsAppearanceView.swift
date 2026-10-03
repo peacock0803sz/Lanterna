@@ -90,6 +90,18 @@ struct SettingsAppearanceView: View {
             caption: "Wait this long before showing the panel. 0 means off."
           )
         }
+        Toggle(isOn: $values.hoverSelect) {
+          SettingsFormLabel(
+            title: "Hover to select",
+            caption: "Move the selection to the row under the pointer."
+          )
+        }
+        Toggle(isOn: $values.scrollSelect) {
+          SettingsFormLabel(
+            title: "Scroll to select",
+            caption: "Move the selection by scrolling. The view follows the selection."
+          )
+        }
       }
       Section("Preview") {
         preview

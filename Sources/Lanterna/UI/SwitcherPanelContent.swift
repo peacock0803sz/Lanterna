@@ -27,7 +27,12 @@ extension SwitcherPanel {
       fuzzyMatchEnabled: searchSettings.fuzzyMatchEnabled,
       textScale: appearanceScale,
       scopeBand: scopeBand,
-      grouping: grouping
+      grouping: grouping,
+      hoverSelect: hoverSelect,
+      scrollSelect: scrollSelect,
+      hoverAnchor: hoverAnchor,
+      onHoverRow: onHoverRow,
+      onClickRow: onClickRow
     )
   }
 

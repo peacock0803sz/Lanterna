@@ -52,6 +52,7 @@ extension AppConfiguration {
     entries.append(contentsOf: searchSettingEntries(config))
     entries.append(contentsOf: textScaleEntries(config))
     entries.append(contentsOf: displayEntries(config))
+    entries.append(contentsOf: pointerSelectEntries(config))
     entries.append(contentsOf: updateCheckEntries(config))
     entries.append(encodedInt(key: "version", value: config.version))
     entries.append(contentsOf: listingEntries(config))
@@ -113,6 +114,20 @@ extension AppConfiguration {
   /// One `"key": 1.12` line, indented two spaces.
   static func encodedDouble(key: String, value: Double) -> String {
     "  \"\(key)\": \(value)"
+  }
+
+  /// The two pointer-selection lines, in canonical order, skipping
+  /// absent values. Only an enabled switch is ever written: off stays
+  /// absent so the default reaches saved files.
+  static func pointerSelectEntries(_ config: ValidConfiguration) -> [String] {
+    var entries = [String]()
+    if config.hoverSelect == true {
+      entries.append(encodedBool(key: "hoverSelect", value: true))
+    }
+    if config.scrollSelect == true {
+      entries.append(encodedBool(key: "scrollSelect", value: true))
+    }
+    return entries
   }
 
   // MARK: Private

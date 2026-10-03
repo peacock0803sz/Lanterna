@@ -153,6 +153,36 @@ final class SwitcherPanel: NSPanel {
   /// is following.
   var panelWidth = PanelWidth.standard
 
+  /// Whether hovering a row moves the selection, read at launch from
+  /// the config file. A change takes effect on the next appearance,
+  /// never on the one already up.
+  var hoverSelect = false
+
+  /// Whether scrolling moves the selection, read at launch from the
+  /// config file. Same timing as the hover switch above.
+  var scrollSelect = false
+
+  /// The pointer position this appearance opened with. Taken when the
+  /// panel goes up — after the show delay fires, when one is set — so
+  /// the first hover, arriving without the pointer having moved,
+  /// leaves the opening choice alone. Thrown away with the appearance.
+  var hoverAnchor: HoverAnchor?
+
+  /// Where a row hover goes. Set by the presenter; the view only calls
+  /// while the hover switch is on.
+  var onHoverRow: ((WindowItem.Identifier) -> Void)?
+
+  /// Where a row click goes. Set by the presenter; the view always calls.
+  var onClickRow: ((WindowItem.Identifier) -> Void)?
+
+  /// Where a scroll step goes. Set by the presenter; the panel calls
+  /// while the scroll switch is on.
+  var onScrollStep: ((Int) -> Void)?
+
+  /// Gathers wheel amounts into whole selection steps. Reset on every
+  /// appearance, so one appearance never spends another's remainder.
+  var scrollGathering = ScrollAccumulator()
+
   /// The width step the appearance on screen opened with. Frozen at
   /// `present` beside the text step, for the same reason.
   var appearanceWidth = PanelWidth.standard
@@ -229,6 +259,34 @@ final class SwitcherPanel: NSPanel {
     false
   }
 
+  override func scrollWheel(with event: NSEvent) {
+    guard scrollSelect else {
+      super.scrollWheel(with: event)
+      return
+    }
+    // Coasting after the fingers lift carries no new intent, so it earns no steps.
+    // (`momentumPhase` is empty for a real wheel turn and set while coasting.)
+    guard event.momentumPhase.isEmpty else {
+      return
+    }
+    // Down goes to the next row. `scrollingDeltaY` alone cannot say which
+    // way is down: natural scrolling flips its sign, so the sign is read
+    // back through `isDirectionInvertedFromDevice` first.
+    let steps = scrollGathering.advance(
+      by: ScrollAccumulator.direction(
+        deltaY: event.scrollingDeltaY,
+        inverted: event.isDirectionInvertedFromDevice
+      )
+    )
+    guard steps != 0 else {
+      return
+    }
+    let direction = steps > 0 ? 1 : -1
+    for _ in 0 ..< abs(steps) {
+      onScrollStep?(direction)
+    }
+  }
+
   /// Ordered front regardless rather than made key and ordered front.
   /// Apple says of the ordinary order-front that a window cannot be moved
   /// in front of the key window unless the two belong to the same
@@ -257,6 +315,8 @@ final class SwitcherPanel: NSPanel {
     resolvedScreenIndex = assignedScreenIndex ?? resolveFreshIndex()
     hostingView.rootView.query = ""
     hostingView.rootView.filterActive = filterActive
+    hoverAnchor = HoverAnchor(point: NSEvent.mouseLocation)
+    scrollGathering = ScrollAccumulator()
     update(windows: windows)
     hostingView.rootView.appearanceToken = appearances
     showSelection(selecting)
@@ -295,6 +355,7 @@ final class SwitcherPanel: NSPanel {
 
   func dismiss() {
     resolvedScreenIndex = nil
+    hoverAnchor = nil
     orderOut(nil)
   }
 

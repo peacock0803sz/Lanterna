@@ -117,6 +117,8 @@ extension AppDelegate {
     panel.grouping = currentValues.grouping
     panel.displayTarget = options.displayTarget
     panel.panelWidth = options.panelWidth
+    panel.hoverSelect = options.hoverSelect
+    panel.scrollSelect = options.scrollSelect
     let composite = MirroredPanelSurface(panels: [panel])
     composite.displayTarget = options.displayTarget
     composite.makeMirror = {
@@ -143,6 +145,8 @@ extension AppDelegate {
     )
     presenter.windowScope = currentValues.windowScope
     presenter.grouping = currentValues.grouping
+    presenter.hoverSelect = options.hoverSelect
+    presenter.scrollSelect = options.scrollSelect
     return (panel, presenter)
   }
 
@@ -172,6 +176,8 @@ extension AppDelegate {
     panel?.textScale = values.textScale
     panel?.displayTarget = values.displayTarget
     panel?.panelWidth = values.panelWidth
+    panel?.hoverSelect = values.hoverSelect
+    panel?.scrollSelect = values.scrollSelect
     let searchSettings = SearchSettings(
       fuzzyMatchEnabled: values.fuzzyMatchEnabled,
       shortcutMemoryLength: values.shortcutMemoryLength,
@@ -182,6 +188,8 @@ extension AppDelegate {
     presenter?.searchSettings = searchSettings
     presenter?.windowScope = values.windowScope
     presenter?.grouping = values.grouping
+    presenter?.hoverSelect = values.hoverSelect
+    presenter?.scrollSelect = values.scrollSelect
     presenter?.showDelayMs = values.showDelayMs
     panel?.grouping = values.grouping
     if let panel, let composite = presenter?.surface as? MirroredPanelSurface {
