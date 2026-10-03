@@ -131,7 +131,7 @@ final class MirroredPanelSurface: SwitcherSurface {
   }
 
   func dismiss() {
-    for panel in activePanels {
+    for panel in panels {
       panel.dismiss()
     }
   }
