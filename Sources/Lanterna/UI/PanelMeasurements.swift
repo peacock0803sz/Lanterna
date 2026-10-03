@@ -154,6 +154,7 @@ struct PanelExitMeasurement: Sendable {
   /// the phrases below are what this file exists to pin.
   enum Trigger: Equatable, Sendable {
     case commandRelease
+    case optionRelease
     case commitKey(CommitKey)
     case cancelKey(CancelKey)
 
@@ -167,6 +168,7 @@ struct PanelExitMeasurement: Sendable {
     var phrase: String {
       switch self {
       case .commandRelease: "Command was released"
+      case .optionRelease: "Option was released"
       case .commitKey(.returnKey): "Return"
       case .commitKey(.keypadEnter): "keypad Enter"
       case .commitKey(.custom(let code)): "key \(code)"
@@ -185,6 +187,7 @@ struct PanelExitMeasurement: Sendable {
     var isCommit: Bool {
       switch self {
       case .commandRelease,
+           .optionRelease,
            .commitKey:
         true
       case .cancelKey:
@@ -246,11 +249,13 @@ struct PanelExitMeasurement: Sendable {
     let timing = "\(Diagnostics.millisecondsText(elapsed)) ms after \(trigger.phrase)"
     switch (outcome, trigger) {
     case (.committed(let appName, let displayTitle, let id), .commandRelease),
+         (.committed(let appName, let displayTitle, let id), .optionRelease),
          (.committed(let appName, let displayTitle, let id), .commitKey):
       let row = Self.rowDescription(appName: appName, displayTitle: displayTitle, id: id)
       return "committed \(row) \(timing)" + filterSuffix
 
     case (.nothingToCommit, .commandRelease),
+         (.nothingToCommit, .optionRelease),
          (.nothingToCommit, .commitKey):
       return "committed nothing \(timing) (the list was empty)" + filterSuffix
 
@@ -271,7 +276,9 @@ struct PanelExitMeasurement: Sendable {
          (.nothingToCommit, .cancelKey),
          (.pressCalledOff, .commitKey),
          (.pressCalledOff, .cancelKey),
+         (.pressCalledOff, .optionRelease),
          (.cancelled, .commandRelease),
+         (.cancelled, .optionRelease),
          (.cancelled, .commitKey):
       preconditionFailure("\(outcome) cannot have been brought about by \(trigger)")
     }
