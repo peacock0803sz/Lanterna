@@ -331,8 +331,8 @@ extension AppConfiguration {
   /// The only place that touches the file besides the scaffold write:
   /// existing files are read and never written (FR-013). Returns the
   /// outcome with the file URL so callers can say where in diagnostics.
-  static func loadOrScaffold(applicationSupport: URL) -> (ConfigLoadOutcome, URL) {
-    let url = configFileURL(applicationSupport: applicationSupport)
+  static func loadOrScaffold(applicationSupport: URL, kind: BuildKind = .stable) -> (ConfigLoadOutcome, URL) {
+    let url = configFileURL(applicationSupport: applicationSupport, kind: kind)
     guard FileManager.default.fileExists(atPath: url.path) else {
       do {
         try writeScaffold(to: url)
@@ -429,12 +429,26 @@ extension AppConfiguration {
 
   /// Where the file lives under the given Application Support directory.
   ///
+  /// Stable keeps the long-standing `Lanterna/config.json`; the other kinds
+  /// keep their own file in a subdirectory beside it. Only the config path
+  /// branches per kind; the Lanterna directory itself does not move.
+  ///
   /// The directory is a parameter rather than read here, so tests pass a
   /// temporary one and only `main.swift` resolves the real one (R8).
-  static func configFileURL(applicationSupport: URL) -> URL {
-    applicationSupport
-      .appendingPathComponent("Lanterna", isDirectory: true)
-      .appendingPathComponent("config.json")
+  static func configFileURL(applicationSupport: URL, kind: BuildKind = .stable) -> URL {
+    switch kind {
+    case .stable:
+      applicationSupport
+        .appendingPathComponent("Lanterna", isDirectory: true)
+        .appendingPathComponent("config.json")
+
+    case .main,
+         .debug:
+      applicationSupport
+        .appendingPathComponent("Lanterna", isDirectory: true)
+        .appendingPathComponent(kind.rawValue, isDirectory: true)
+        .appendingPathComponent("config.json")
+    }
   }
 
   /// Writes the scaffold. Only for files that do not exist (FR-012);
