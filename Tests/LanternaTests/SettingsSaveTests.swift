@@ -32,6 +32,18 @@ struct SettingsSaveTests {
   }
 
   @Test
+  func unknownKeysSaveWithoutConfirmation() throws {
+    let url = try temporaryFile()
+    try Data(#"{"version": 1, "mystery": 1}"#.utf8).write(to: url)
+    let decoded = try #require(AppConfiguration.decode(try Data(contentsOf: url)).successValue)
+    var saving = minimalConfig()
+    saving.unknownFields = decoded.config.unknownFields
+    #expect(SettingsSaver.save(saving, to: url, replacingInvalidFile: false) == .saved)
+    let reread = try #require(AppConfiguration.decode(try Data(contentsOf: url)).successValue)
+    #expect(reread.config.unknownFields == [UnknownField(key: "mystery", json: "1")])
+  }
+
+  @Test
   func invalidFileNeedsConfirmationFirst() throws {
     let url = try temporaryFile()
     try Data("not json".utf8).write(to: url)

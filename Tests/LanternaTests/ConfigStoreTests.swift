@@ -423,7 +423,7 @@ struct ConfigStoreTests {
       Issue.record("expected failed, found \(outcome)")
       return
     }
-    #expect(!reason.isEmpty)
+    #expect(reason.contains(stableURL.path))
     #expect(!FileManager.default.fileExists(atPath: mainURL.path))
   }
 
