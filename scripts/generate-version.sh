@@ -46,9 +46,8 @@ case ${1:-} in
 esac
 
 # Git trusts a size mismatch between the index and the file without running
-# the filter, and a stamp is never as long as the placeholder, so the entries
-# are refreshed after stamping. Only with the filter in place: without it this
-# would stage the stamps themselves.
+# the filter, so the entries are refreshed after stamping. Only with the
+# filter in place: without it this would stage the stamps themselves.
 refresh_index() {
     if [[ $(git config --get filter.stamped-version.clean || true) == "$filter_command" ]]; then
         for stamped in "$target" "$kind_target"; do
@@ -79,6 +78,8 @@ if [[ -f $kind_target ]]; then
     current_kind=$(sed -n 's/.*static let kind = "\(.*\)"/\1/p' "$kind_target" | head -n 1)
 fi
 if [[ $dev -eq 1 ]]; then
+    # Development builds read as main. The checked-in placeholder is also
+    # main, so an unstamped checkout build never claims the stable slot.
     kind="main"
 else
     kind="stable"

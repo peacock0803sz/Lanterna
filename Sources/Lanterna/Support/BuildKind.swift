@@ -49,6 +49,7 @@ enum BuildKind: String, Sendable {
 
   /// The location fallback, mirroring `LogOrigin`: an executable inside an
   /// `.app` under the install roots reads as stable, anything else as main.
+  /// Kept as a mirror rather than shared so the log origins stay untouched.
   private static func fallback(executable: URL, home: URL) -> BuildKind {
     let path = executable.standardizedFileURL.path
     guard path.contains(".app/") else { return .main }

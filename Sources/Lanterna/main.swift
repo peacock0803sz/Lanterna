@@ -37,6 +37,8 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
     if let executable = Bundle.main.executableURL {
       BuildKind.of(executable: executable)
     } else {
+      // Without an executable URL there is nothing to judge by; share the
+      // legacy slot rather than inventing a new one.
       .stable
     }
   let (outcome, url) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: buildKind)

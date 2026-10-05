@@ -13,8 +13,8 @@ extension AppConfiguration {
   /// Sorted keys, two-space indent, trailing newline, matching the
   /// scaffold's shape. Absent values are omitted, so a configuration
   /// holding only the version encodes to the scaffold itself. Only
-  /// known keys are written: anything unknown never survives decoding,
-  /// so there is nothing else to keep.
+  /// known keys are validated: unknown keys ride along verbatim in
+  /// `unknownFields`, so there is nothing else to lose.
   static func encode(_ config: ValidConfiguration) -> Data {
     var entries = [String]()
     if let appearanceMode = config.appearanceMode {
