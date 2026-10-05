@@ -66,7 +66,7 @@ bash skk2migemo.sh SKK-JISYO.L ~/Library/Application\ Support/Lanterna/migemo-di
 SKK dictionaries ship in EUC-JP, so the script converts the output to UTF-8. Entries with okurigana are out of scope, `/`-separated candidates become tab-separated words, and annotations after `;` are dropped, keeping bare kanji only. With a repo checkout, use `scripts/skk2migemo.sh` directly.
 
 :::note
-A missing or broken dictionary falls back to kana-only matching. To turn kanji matches off, set `"romajiScope": "kana"` in `~/Library/Application Support/Lanterna/config.json`. Absent means `"kanji"`.
+A missing or broken dictionary falls back to kana-only matching. To turn kanji matches off, set `"romajiScope": "kana"` in `~/Library/Application Support/Lanterna/config.json`. Absent means `"kanji"`. Development and debug builds keep their own settings in `Lanterna/main/config.json` and `Lanterna/debug/config.json` respectively.
 :::
 
 ## Window actions
