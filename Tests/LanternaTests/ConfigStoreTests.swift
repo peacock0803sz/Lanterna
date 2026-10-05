@@ -123,7 +123,6 @@ struct ConfigStoreTests {
       ("\"just a string\"", .notJSONObject),
       ("{\"version\": \"one\"}", .invalidVersion("one")),
       ("{\"version\": 2}", .newerVersion(2)),
-      ("{\"version\": 1, \"filterMode\": \"x\"}", .unknownKey("filterMode")),
       ("{\"version\": 1, \"sampleCount\": -1}", .invalidValue(key: "sampleCount")),
       ("{\"version\": 1, \"sampleCount\": \"three\"}", .invalidValue(key: "sampleCount")),
       ("{\"version\": 1, \"sampleCount\": true}", .invalidValue(key: "sampleCount")),
@@ -142,16 +141,15 @@ struct ConfigStoreTests {
     #expect(ConfigDecodeError.notJSONObject.reason == "not a JSON object")
     #expect(ConfigDecodeError.emptyFile.reason == "file is empty")
     #expect(ConfigDecodeError.newerVersion(2).reason == "version 2 is newer than 1")
-    #expect(ConfigDecodeError.unknownKey("filterMode").reason == "unknown key \"filterMode\"")
     #expect(
       ConfigDecodeError.invalidValue(key: "sampleCount").reason == "sampleCount is not a valid value"
     )
   }
 
   @Test
-  func mruKeysAreRejectedAndNeverStored() throws {
-    let error = try #require(decode("{\"version\": 1, \"mru\": []}").failureValue)
-    #expect(error == .unknownKey("mru"))
+  func unknownKeysAreKeptNotRejected() throws {
+    let decoded = try #require(decode("{\"version\": 1, \"mru\": []}").successValue)
+    #expect(decoded.config.unknownFields == [UnknownField(key: "mru", json: "[]")])
   }
 
   @Test
@@ -233,7 +231,6 @@ struct ConfigStoreTests {
       ("{\"version\": 1, \"minimizedMode\": \"separate-at-bottom\"}", .invalidValue(key: "minimizedMode")),
       ("{\"version\": 1, \"minimizedMode\": 1}", .invalidValue(key: "minimizedMode")),
       ("{\"version\": 1, \"minimizedMode\": true}", .invalidValue(key: "minimizedMode")),
-      ("{\"version\": 1, \"otherSpaceMode\": \"hide\", \"mysteryMode\": \"show\"}", .unknownKey("mysteryMode")),
     ]
     for (text, expected) in cases {
       #expect(decode(text).failureValue == expected, "for \(text)")
@@ -280,11 +277,11 @@ struct ConfigStoreTests {
   }
 
   @Test
-  func romajiScopeWithUnknownKeyFallsBackAsAWhole() {
-    #expect(
-      decode("{\"version\": 1, \"romajiScope\": \"kana\", \"mystery\": 1}").failureValue
-        == .unknownKey("mystery")
+  func romajiScopeWithUnknownKeyReadsPast() throws {
+    let decoded = try #require(
+      decode("{\"version\": 1, \"romajiScope\": \"kana\", \"mystery\": 1}").successValue
     )
+    #expect(decoded.config.unknownFields == [UnknownField(key: "mystery", json: "1")])
   }
 
   @Test
@@ -369,6 +366,13 @@ struct ConfigStoreTests {
       return
     }
     #expect(stableDecoded.config.appearanceMode == .light)
+  }
+
+  @Test
+  func unknownKeysReadPastWithDiagnostics() throws {
+    let decoded = try #require(decode(#"{"version": 1, "mystery": 1}"#).successValue)
+    #expect(decoded.config.sampleCount == nil)
+    #expect(decoded.config.unknownFields == [UnknownField(key: "mystery", json: "1")])
   }
 
   // MARK: Private

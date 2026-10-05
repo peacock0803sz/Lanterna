@@ -77,8 +77,9 @@ struct UpdateCheckTests {
   }
 
   @Test
-  func unknownKeysAndNewerVersionsAreInvalid() {
-    #expect(decode("{\"version\": 1, \"updateCheckEnabled\": true, \"filterMode\": \"x\"}").failureValue != nil)
+  func unknownKeysReadPastButNewerVersionsAreInvalid() throws {
+    let decoded = try #require(decode("{\"version\": 1, \"updateCheckEnabled\": true, \"filterMode\": \"x\"}").successValue)
+    #expect(decoded.config.unknownFields == [UnknownField(key: "filterMode", json: "\"x\"")])
     #expect(decode("{\"version\": 2, \"updateCheckEnabled\": true}").failureValue != nil)
   }
 

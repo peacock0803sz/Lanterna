@@ -68,8 +68,10 @@ struct ShowDelayConfigTests {
   }
 
   @Test
-  func unknownKeysStillFailTheFile() {
-    #expect(decode("{\"version\": 1, \"showDelayMs\": 150, \"frobnicate\": 1}").failureValue != nil)
+  func unknownKeysReadPast() throws {
+    let decoded = try #require(decode("{\"version\": 1, \"showDelayMs\": 150, \"frobnicate\": 1}").successValue)
+    #expect(decoded.config.showDelayMs == 150)
+    #expect(decoded.config.unknownFields == [UnknownField(key: "frobnicate", json: "1")])
   }
 
   /// A spelled count round-trips; absent and zero stay omitted on save.

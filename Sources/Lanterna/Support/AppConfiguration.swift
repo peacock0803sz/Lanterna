@@ -250,7 +250,21 @@ struct ValidConfiguration: Equatable, Sendable {
   /// The customized section as spelled, kept so saving writes back what
   /// lost rather than what won. Nil means absent, meaning all defaults.
   var keyBindingSection: [KeyBindingAction: [RawKeyBinding]]?
+  /// Keys this build does not know, in file order, kept so saving writes
+  /// them back. Empty means none, which means nothing to preserve.
+  var unknownFields = [UnknownField]()
 
+}
+
+// MARK: - UnknownField
+
+/// A setting key this build does not know, kept verbatim so saving writes
+/// it back instead of dropping it. Retired keys (`deprecatedKeys`) are
+/// not this: those are known and deliberately left out on save.
+struct UnknownField: Equatable, Sendable {
+  var key: String
+  /// The value in canonical JSON spelling.
+  var json: String
 }
 
 // MARK: - ConfigDecodeError
@@ -262,7 +276,6 @@ enum ConfigDecodeError: Error, Equatable, Sendable {
   case emptyFile
   case invalidVersion(String)
   case newerVersion(Int)
-  case unknownKey(String)
   case invalidValue(key: String)
 
   // MARK: Internal
@@ -277,8 +290,6 @@ enum ConfigDecodeError: Error, Equatable, Sendable {
       "invalid version \(raw)"
     case .newerVersion(let found):
       "version \(found) is newer than \(AppConfiguration.currentVersion)"
-    case .unknownKey(let key):
-      "unknown key \"\(key)\""
     case .invalidValue(let key):
       "\(key) is not a valid value"
     }
@@ -356,14 +367,15 @@ extension AppConfiguration {
   ///
   /// A pure function over bytes so every accepted and rejected shape is
   /// unit-testable, the way `LaunchArguments.parse` is over arguments.
-  /// Anything outside the schema invalidates the whole file, except the
-  /// lenient keybindings entries and text scale, which fall back with
-  /// diagnostics instead of failing the file.
+  /// Anything outside the schema invalidates the whole file, except unknown
+  /// keys and the lenient keybindings entries and text scale, which are kept
+  /// or fall back with diagnostics instead of failing the file.
   static func decode(_ data: Data) -> Result<DecodedConfiguration, ConfigDecodeError> {
     let dict: [String: Any]
+    let unknowns: [UnknownField]
     switch parseObject(data) {
     case .success(let parsed):
-      dict = parsed
+      (dict, unknowns) = parsed
     case .failure(let error):
       return .failure(error)
     }
@@ -393,6 +405,11 @@ extension AppConfiguration {
       return resolvedKeyBindings(dict, data: data, config: config, assumed: assumed)
         .flatMap { withGroupAssignments(dict, decoded: $0) }
         .flatMap { withRowOrder(dict, decoded: $0) }
+        .map { decoded in
+          var decoded = decoded
+          decoded.config.unknownFields = unknowns
+          return decoded
+        }
 
     case .failure(let error):
       return .failure(error)
@@ -464,7 +481,10 @@ extension AppConfiguration {
   // MARK: Private
 
   /// Parses bytes into a JSON object, refusing anything else.
-  private static func parseObject(_ data: Data) -> Result<[String: Any], ConfigDecodeError> {
+  ///
+  /// Keys no build needs to know are kept verbatim rather than failing
+  /// the file, sorted so the kept order is stable across runs.
+  private static func parseObject(_ data: Data) -> Result<([String: Any], [UnknownField]), ConfigDecodeError> {
     guard !data.isEmpty else { return .failure(.emptyFile) }
     let raw: Any
     do {
@@ -473,11 +493,43 @@ extension AppConfiguration {
       return .failure(.notJSONObject)
     }
     guard let dict = raw as? [String: Any] else { return .failure(.notJSONObject) }
-    // Sorted so the reported key is stable across runs.
+    var unknowns = [UnknownField]()
     for key in dict.keys.sorted() where !knownKeys.contains(key) {
-      return .failure(.unknownKey(key))
+      guard let json = canonicalJSON(dict[key] as Any) else { continue }
+      unknowns.append(UnknownField(key: key, json: json))
     }
-    return .success(dict)
+    return .success((dict, unknowns))
+  }
+
+  /// The canonical spelling of an unknown value: sorted keys, one space
+  /// after each separator. Never executed or validated, only written back.
+  private static func canonicalJSON(_ value: Any) -> String? {
+    if value is NSNull {
+      return "null"
+    }
+    if CFGetTypeID(value as CFTypeRef) == CFBooleanGetTypeID() {
+      return (value as? Bool) == true ? "true" : "false"
+    }
+    if let number = value as? NSNumber {
+      return number.stringValue
+    }
+    if let text = value as? String {
+      return "\"\(escaped(text))\""
+    }
+    if let array = value as? [Any] {
+      let items = array.compactMap(canonicalJSON)
+      guard items.count == array.count else { return nil }
+      return "[" + items.joined(separator: ", ") + "]"
+    }
+    if let dict = value as? [String: Any] {
+      var entries = [String]()
+      for key in dict.keys.sorted() {
+        guard let json = canonicalJSON(dict[key] as Any) else { return nil }
+        entries.append("\"\(escaped(key))\": \(json)")
+      }
+      return "{" + entries.joined(separator: ", ") + "}"
+    }
+    return nil
   }
 
   /// Reads the version, assuming 1 when absent (R4).

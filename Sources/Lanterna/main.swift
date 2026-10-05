@@ -128,6 +128,14 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
         context: ["path": .string(url.path)]
       ))
     }
+    for field in decoded.config.unknownFields {
+      Diagnostics.writeLine(LogLine(
+        .warning,
+        .config,
+        "config: unknown key \"\(field.key)\" is not used by this build and was kept: \(url.path)",
+        context: ["path": .string(url.path), "issue": .string("unknown key \"\(field.key)\"")]
+      ))
+    }
 
   case .created:
     options = AppConfiguration.effectiveOptions(file: defaults, cli: cliOptions)
