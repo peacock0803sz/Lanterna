@@ -306,6 +306,71 @@ struct ConfigStoreTests {
     #expect(modes.hiddenApp == .separateAtBottom)
   }
 
+  @Test
+  func savingToOneKindLeavesTheOtherAlone() throws {
+    let base = try tempDirectory()
+    let stableURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .stable)
+    let mainURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .main)
+    var main = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    main.appearanceMode = .dark
+    #expect(SettingsSaver.save(main, to: mainURL, replacingInvalidFile: false) == .saved)
+    #expect(!FileManager.default.fileExists(atPath: stableURL.path))
+    let decoded = try #require(AppConfiguration.decode(try Data(contentsOf: mainURL)).successValue)
+    #expect(decoded.config.appearanceMode == .dark)
+  }
+
+  @Test
+  func kindsLoadIndependently() throws {
+    let base = try tempDirectory()
+    var stable = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    stable.appearanceMode = .light
+    var main = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    main.appearanceMode = .dark
+    let stableURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .stable)
+    let mainURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .main)
+    #expect(SettingsSaver.save(stable, to: stableURL, replacingInvalidFile: false) == .saved)
+    #expect(SettingsSaver.save(main, to: mainURL, replacingInvalidFile: false) == .saved)
+    let (stableOutcome, _) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: .stable)
+    let (mainOutcome, _) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: .main)
+    guard case .loaded(let stableDecoded) = stableOutcome else {
+      Issue.record("expected stable loaded, found \(stableOutcome)")
+      return
+    }
+    guard case .loaded(let mainDecoded) = mainOutcome else {
+      Issue.record("expected main loaded, found \(mainOutcome)")
+      return
+    }
+    #expect(stableDecoded.config.appearanceMode == .light)
+    #expect(mainDecoded.config.appearanceMode == .dark)
+  }
+
+  @Test
+  func brokenKindFileFallsBackAlone() throws {
+    let base = try tempDirectory()
+    let stableURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .stable)
+    let mainURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .main)
+    var stable = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    stable.appearanceMode = .light
+    #expect(SettingsSaver.save(stable, to: stableURL, replacingInvalidFile: false) == .saved)
+    try FileManager.default.createDirectory(
+      at: mainURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try Data("not json".utf8).write(to: mainURL)
+    let (mainOutcome, _) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: .main)
+    guard case .failed(let reason) = mainOutcome else {
+      Issue.record("expected main failed, found \(mainOutcome)")
+      return
+    }
+    #expect(!reason.isEmpty)
+    let (stableOutcome, _) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: .stable)
+    guard case .loaded(let stableDecoded) = stableOutcome else {
+      Issue.record("expected stable loaded, found \(stableOutcome)")
+      return
+    }
+    #expect(stableDecoded.config.appearanceMode == .light)
+  }
+
   // MARK: Private
 
   private func decode(_ text: String) -> Result<DecodedConfiguration, ConfigDecodeError> {

@@ -33,9 +33,16 @@ let configFileURL: URL?
 let lanternaDirectory: URL?
 let tableDirectory = MigemoEngine.tableDirectoryURL()
 if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
-  let (outcome, url) = AppConfiguration.loadOrScaffold(applicationSupport: base)
+  let buildKind: BuildKind =
+    if let executable = Bundle.main.executableURL {
+      BuildKind.of(executable: executable)
+    } else {
+      .stable
+    }
+  let (outcome, url) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: buildKind)
   configFileURL = url
-  lanternaDirectory = url.deletingLastPathComponent()
+  // Only the config path branches per kind; the shared directory stays put.
+  lanternaDirectory = base.appendingPathComponent("Lanterna", isDirectory: true)
   let defaults = ValidConfiguration(
     version: AppConfiguration.currentVersion,
     sampleCount: nil,
@@ -48,7 +55,7 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
     launchDesired = decoded.config.launchAtLogin ?? false
     openSharedMatcher(
       scope: RomajiScope.effective(from: decoded.config),
-      lanternaDirectory: url.deletingLastPathComponent()
+      lanternaDirectory: lanternaDirectory
     )
     if decoded.assumedVersion {
       Diagnostics.writeLine(LogLine(
@@ -128,7 +135,7 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
     launchDesired = defaults.launchAtLogin ?? false
     openSharedMatcher(
       scope: .kanaKanji,
-      lanternaDirectory: url.deletingLastPathComponent()
+      lanternaDirectory: lanternaDirectory
     )
     Diagnostics.writeLine(LogLine(
       .info,
@@ -143,7 +150,7 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
     launchDesired = defaults.launchAtLogin ?? false
     openSharedMatcher(
       scope: .kanaKanji,
-      lanternaDirectory: url.deletingLastPathComponent()
+      lanternaDirectory: lanternaDirectory
     )
     Diagnostics.writeLine(LogLine(
       .error,
