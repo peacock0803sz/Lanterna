@@ -80,11 +80,20 @@ struct SettingsPersistenceTests {
   }
 
   @Test
-  func unknownKeyInvalidatesFileAsAWhole() throws {
+  func unknownKeyReadsPastAndSurvivesASave() throws {
     let url = try temporaryFile()
     try Data("{\"version\": 1, \"mystery\": 1}".utf8).write(to: url)
-    let data = try Data(contentsOf: url)
-    #expect(AppConfiguration.decode(data).failureValue == .unknownKey("mystery"))
+    let decoded = try #require(AppConfiguration.decode(try Data(contentsOf: url)).successValue)
+    #expect(decoded.config.unknownFields == [UnknownField(key: "mystery", json: "1")])
+    var saving = SettingsValues.effective(from: decoded.config).configuration(
+      version: 1,
+      sampleCount: nil,
+      stopMonitorEverySeconds: nil
+    )
+    saving.unknownFields = decoded.config.unknownFields
+    #expect(SettingsSaver.save(saving, to: url, replacingInvalidFile: false) == .saved)
+    let reread = try #require(AppConfiguration.decode(try Data(contentsOf: url)).successValue)
+    #expect(reread.config.unknownFields == [UnknownField(key: "mystery", json: "1")])
   }
 
   // MARK: Private

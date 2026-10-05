@@ -73,4 +73,31 @@ struct ConfigEncodingTests {
     #expect(!text.contains("logLevel"))
     #expect(text.contains("launchAtLogin"))
   }
+
+  /// An unknown key reads past with its text kept, and saves back unchanged.
+  @Test
+  func unknownKeysAreKeptAndWrittenBack() throws {
+    let decoded = try #require(
+      AppConfiguration.decode(Data(#"{"version": 1, "mystery": {"a": [1, true, "x"]}}"#.utf8)).successValue
+    )
+    #expect(decoded.config.unknownFields == [UnknownField(key: "mystery", json: #"{"a": [1, true, "x"]}"#)])
+    let text = try #require(String(bytes: AppConfiguration.encode(decoded.config), encoding: .utf8))
+    #expect(text == "{\n  \"mystery\": {\"a\": [1, true, \"x\"]},\n  \"version\": 1\n}\n")
+  }
+
+  /// Scalar unknowns keep their spelling across a save.
+  @Test
+  func scalarUnknownsRoundTrip() throws {
+    let decoded = try #require(
+      AppConfiguration.decode(Data(#"{"version": 1, "future": 2, "flag": true}"#.utf8)).successValue
+    )
+    #expect(decoded.config.unknownFields == [
+      UnknownField(key: "flag", json: "true"),
+      UnknownField(key: "future", json: "2"),
+    ])
+    let reread = try #require(
+      AppConfiguration.decode(AppConfiguration.encode(decoded.config)).successValue
+    )
+    #expect(reread.config.unknownFields == decoded.config.unknownFields)
+  }
 }

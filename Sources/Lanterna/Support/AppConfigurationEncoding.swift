@@ -13,8 +13,8 @@ extension AppConfiguration {
   /// Sorted keys, two-space indent, trailing newline, matching the
   /// scaffold's shape. Absent values are omitted, so a configuration
   /// holding only the version encodes to the scaffold itself. Only
-  /// known keys are written: anything unknown never survives decoding,
-  /// so there is nothing else to keep.
+  /// known keys are validated: unknown keys ride along verbatim in
+  /// `unknownFields`, so there is nothing else to lose.
   static func encode(_ config: ValidConfiguration) -> Data {
     var entries = [String]()
     if let appearanceMode = config.appearanceMode {
@@ -57,6 +57,7 @@ extension AppConfiguration {
     entries.append(contentsOf: updateCheckEntries(config))
     entries.append(encodedInt(key: "version", value: config.version))
     entries.append(contentsOf: listingEntries(config))
+    entries.append(contentsOf: unknownFieldEntries(config))
     // Every line opens with two spaces and its quoted key, so sorting
     // the lines sorts the keys. Helpers may append in any order.
     return Data(("{\n" + entries.sorted().joined(separator: ",\n") + "\n}\n").utf8)
@@ -220,6 +221,12 @@ extension AppConfiguration {
   private static func textScaleEntries(_ config: ValidConfiguration) -> [String] {
     guard let textScale = config.textScale else { return [] }
     return [encodedDouble(key: "textScale", value: textScale)]
+  }
+
+  /// The unknown lines, kept verbatim so a save never drops what this
+  /// build does not understand. Sorted with everything else by the caller.
+  private static func unknownFieldEntries(_ config: ValidConfiguration) -> [String] {
+    config.unknownFields.map { field in "  \"\(escaped(field.key))\": \(field.json)" }
   }
 
   /// One `"key": true` line, indented two spaces.

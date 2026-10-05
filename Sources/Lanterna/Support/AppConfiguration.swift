@@ -12,9 +12,10 @@ import Foundation
 
 /// The known keys of the config file, and nothing else.
 ///
-/// A file holding any other key is invalid as a whole (FR-005). The check is
-/// written out rather than derived from a `Decodable` struct because decoding
-/// ignores unknown keys, which would silently accept them.
+/// A file holding any other key stays usable: unknown keys are kept
+/// verbatim and written back on save. The check is written out rather
+/// than derived from a `Decodable` struct because decoding ignores
+/// unknown keys without keeping them.
 enum AppConfiguration {
   /// The schema generation this build understands.
   static let currentVersion = 1
@@ -250,7 +251,21 @@ struct ValidConfiguration: Equatable, Sendable {
   /// The customized section as spelled, kept so saving writes back what
   /// lost rather than what won. Nil means absent, meaning all defaults.
   var keyBindingSection: [KeyBindingAction: [RawKeyBinding]]?
+  /// Keys this build does not know, sorted for stability, kept so saving
+  /// writes them back. Empty means none, which means nothing to preserve.
+  var unknownFields = [UnknownField]()
 
+}
+
+// MARK: - UnknownField
+
+/// A setting key this build does not know, kept verbatim so saving writes
+/// it back instead of dropping it. Retired keys (`deprecatedKeys`) are
+/// not this: those are known and deliberately left out on save.
+struct UnknownField: Equatable, Sendable {
+  var key: String
+  /// The value in canonical JSON spelling.
+  var json: String
 }
 
 // MARK: - ConfigDecodeError
@@ -262,7 +277,6 @@ enum ConfigDecodeError: Error, Equatable, Sendable {
   case emptyFile
   case invalidVersion(String)
   case newerVersion(Int)
-  case unknownKey(String)
   case invalidValue(key: String)
 
   // MARK: Internal
@@ -277,8 +291,6 @@ enum ConfigDecodeError: Error, Equatable, Sendable {
       "invalid version \(raw)"
     case .newerVersion(let found):
       "version \(found) is newer than \(AppConfiguration.currentVersion)"
-    case .unknownKey(let key):
-      "unknown key \"\(key)\""
     case .invalidValue(let key):
       "\(key) is not a valid value"
     }
@@ -331,8 +343,19 @@ extension AppConfiguration {
   /// The only place that touches the file besides the scaffold write:
   /// existing files are read and never written (FR-013). Returns the
   /// outcome with the file URL so callers can say where in diagnostics.
-  static func loadOrScaffold(applicationSupport: URL) -> (ConfigLoadOutcome, URL) {
-    let url = configFileURL(applicationSupport: applicationSupport)
+  static func loadOrScaffold(applicationSupport: URL, kind: BuildKind = .stable) -> (ConfigLoadOutcome, URL) {
+    let url = configFileURL(applicationSupport: applicationSupport, kind: kind)
+    if !FileManager.default.fileExists(atPath: url.path) {
+      switch copyLegacyFileForFirstLaunch(applicationSupport: applicationSupport, kind: kind, to: url) {
+      case .copied,
+           .noSource:
+        break
+      case .invalidSource(let reason):
+        return (.failed(reason: reason), url)
+      case .cannotCopy:
+        return (.failed(reason: "cannot create file"), url)
+      }
+    }
     guard FileManager.default.fileExists(atPath: url.path) else {
       do {
         try writeScaffold(to: url)
@@ -356,14 +379,15 @@ extension AppConfiguration {
   ///
   /// A pure function over bytes so every accepted and rejected shape is
   /// unit-testable, the way `LaunchArguments.parse` is over arguments.
-  /// Anything outside the schema invalidates the whole file, except the
-  /// lenient keybindings entries and text scale, which fall back with
-  /// diagnostics instead of failing the file.
+  /// Anything outside the schema invalidates the whole file, except unknown
+  /// keys and the lenient keybindings entries and text scale, which are kept
+  /// or fall back with diagnostics instead of failing the file.
   static func decode(_ data: Data) -> Result<DecodedConfiguration, ConfigDecodeError> {
     let dict: [String: Any]
+    let unknowns: [UnknownField]
     switch parseObject(data) {
     case .success(let parsed):
-      dict = parsed
+      (dict, unknowns) = parsed
     case .failure(let error):
       return .failure(error)
     }
@@ -393,6 +417,11 @@ extension AppConfiguration {
       return resolvedKeyBindings(dict, data: data, config: config, assumed: assumed)
         .flatMap { withGroupAssignments(dict, decoded: $0) }
         .flatMap { withRowOrder(dict, decoded: $0) }
+        .map { decoded in
+          var decoded = decoded
+          decoded.config.unknownFields = unknowns
+          return decoded
+        }
 
     case .failure(let error):
       return .failure(error)
@@ -429,12 +458,26 @@ extension AppConfiguration {
 
   /// Where the file lives under the given Application Support directory.
   ///
+  /// Stable keeps the long-standing `Lanterna/config.json`; the other kinds
+  /// keep their own file in a subdirectory beside it. Only the config path
+  /// branches per kind; the Lanterna directory itself does not move.
+  ///
   /// The directory is a parameter rather than read here, so tests pass a
   /// temporary one and only `main.swift` resolves the real one (R8).
-  static func configFileURL(applicationSupport: URL) -> URL {
-    applicationSupport
-      .appendingPathComponent("Lanterna", isDirectory: true)
-      .appendingPathComponent("config.json")
+  static func configFileURL(applicationSupport: URL, kind: BuildKind = .stable) -> URL {
+    switch kind {
+    case .stable:
+      applicationSupport
+        .appendingPathComponent("Lanterna", isDirectory: true)
+        .appendingPathComponent("config.json")
+
+    case .main,
+         .debug:
+      applicationSupport
+        .appendingPathComponent("Lanterna", isDirectory: true)
+        .appendingPathComponent(kind.rawValue, isDirectory: true)
+        .appendingPathComponent("config.json")
+    }
   }
 
   /// Writes the scaffold. Only for files that do not exist (FR-012);
@@ -449,8 +492,57 @@ extension AppConfiguration {
 
   // MARK: Private
 
+  /// What a first-launch copy attempt found.
+  private enum FirstLaunchCopy {
+    /// The legacy file was copied to the kind's location; loading continues.
+    case copied
+    /// Nothing to copy from; the caller falls back to the scaffold.
+    case noSource
+    /// The legacy file exists but fails validation; loading reports why.
+    case invalidSource(reason: String)
+    /// The legacy file is readable and valid but could not be copied.
+    case cannotCopy
+  }
+
+  /// Copies the stable file for a kind's first launch.
+  ///
+  /// Stable itself never copies: its file is the legacy one, so a missing
+  /// file means a fresh scaffold. Anything readable but invalid reports
+  /// the validation reason; the legacy file itself is only ever read.
+  private static func copyLegacyFileForFirstLaunch(
+    applicationSupport: URL,
+    kind: BuildKind,
+    to url: URL
+  ) -> FirstLaunchCopy {
+    guard kind != .stable else { return .noSource }
+    let legacy = configFileURL(applicationSupport: applicationSupport, kind: .stable)
+    guard FileManager.default.fileExists(atPath: legacy.path) else { return .noSource }
+    guard let data = try? Data(contentsOf: legacy) else {
+      return .invalidSource(reason: "cannot read file: \(legacy.path)")
+    }
+    if case .failure(let error) = decode(data) {
+      return .invalidSource(reason: "\(error.reason): \(legacy.path)")
+    }
+    do {
+      try FileManager.default.createDirectory(
+        at: url.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+      )
+      // Re-check before writing: another first launch may have created
+      // the file after the caller's check. Then there is nothing to copy.
+      guard !FileManager.default.fileExists(atPath: url.path) else { return .noSource }
+      try data.write(to: url, options: .atomic)
+      return .copied
+    } catch {
+      return .cannotCopy
+    }
+  }
+
   /// Parses bytes into a JSON object, refusing anything else.
-  private static func parseObject(_ data: Data) -> Result<[String: Any], ConfigDecodeError> {
+  ///
+  /// Keys no build needs to know are kept verbatim rather than failing
+  /// the file, sorted so the kept order is stable across runs.
+  private static func parseObject(_ data: Data) -> Result<([String: Any], [UnknownField]), ConfigDecodeError> {
     guard !data.isEmpty else { return .failure(.emptyFile) }
     let raw: Any
     do {
@@ -459,11 +551,46 @@ extension AppConfiguration {
       return .failure(.notJSONObject)
     }
     guard let dict = raw as? [String: Any] else { return .failure(.notJSONObject) }
-    // Sorted so the reported key is stable across runs.
+    var unknowns = [UnknownField]()
     for key in dict.keys.sorted() where !knownKeys.contains(key) {
-      return .failure(.unknownKey(key))
+      guard let json = canonicalJSON(dict[key] as Any) else { continue }
+      unknowns.append(UnknownField(key: key, json: json))
     }
-    return .success(dict)
+    return .success((dict, unknowns))
+  }
+
+  /// The canonical spelling of an unknown value: sorted keys, one space
+  /// after each separator. Numbers may respell (`1.0` reads back as `1`)
+  /// but keep their meaning; the text is never executed, only written back.
+  /// Every `JSONSerialization` output matches one branch below, so `nil`
+  /// is unreachable from real files.
+  private static func canonicalJSON(_ value: Any) -> String? {
+    if value is NSNull {
+      return "null"
+    }
+    if CFGetTypeID(value as CFTypeRef) == CFBooleanGetTypeID() {
+      return (value as? Bool) == true ? "true" : "false"
+    }
+    if let number = value as? NSNumber {
+      return number.stringValue
+    }
+    if let text = value as? String {
+      return "\"\(escaped(text))\""
+    }
+    if let array = value as? [Any] {
+      let items = array.compactMap(canonicalJSON)
+      guard items.count == array.count else { return nil }
+      return "[" + items.joined(separator: ", ") + "]"
+    }
+    if let dict = value as? [String: Any] {
+      var entries = [String]()
+      for key in dict.keys.sorted() {
+        guard let json = canonicalJSON(dict[key] as Any) else { return nil }
+        entries.append("\"\(escaped(key))\": \(json)")
+      }
+      return "{" + entries.joined(separator: ", ") + "}"
+    }
+    return nil
   }
 
   /// Reads the version, assuming 1 when absent (R4).

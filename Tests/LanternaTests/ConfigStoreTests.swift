@@ -123,7 +123,6 @@ struct ConfigStoreTests {
       ("\"just a string\"", .notJSONObject),
       ("{\"version\": \"one\"}", .invalidVersion("one")),
       ("{\"version\": 2}", .newerVersion(2)),
-      ("{\"version\": 1, \"filterMode\": \"x\"}", .unknownKey("filterMode")),
       ("{\"version\": 1, \"sampleCount\": -1}", .invalidValue(key: "sampleCount")),
       ("{\"version\": 1, \"sampleCount\": \"three\"}", .invalidValue(key: "sampleCount")),
       ("{\"version\": 1, \"sampleCount\": true}", .invalidValue(key: "sampleCount")),
@@ -142,16 +141,15 @@ struct ConfigStoreTests {
     #expect(ConfigDecodeError.notJSONObject.reason == "not a JSON object")
     #expect(ConfigDecodeError.emptyFile.reason == "file is empty")
     #expect(ConfigDecodeError.newerVersion(2).reason == "version 2 is newer than 1")
-    #expect(ConfigDecodeError.unknownKey("filterMode").reason == "unknown key \"filterMode\"")
     #expect(
       ConfigDecodeError.invalidValue(key: "sampleCount").reason == "sampleCount is not a valid value"
     )
   }
 
   @Test
-  func mruKeysAreRejectedAndNeverStored() throws {
-    let error = try #require(decode("{\"version\": 1, \"mru\": []}").failureValue)
-    #expect(error == .unknownKey("mru"))
+  func unknownKeysAreKeptNotRejected() throws {
+    let decoded = try #require(decode("{\"version\": 1, \"mru\": []}").successValue)
+    #expect(decoded.config.unknownFields == [UnknownField(key: "mru", json: "[]")])
   }
 
   @Test
@@ -233,7 +231,6 @@ struct ConfigStoreTests {
       ("{\"version\": 1, \"minimizedMode\": \"separate-at-bottom\"}", .invalidValue(key: "minimizedMode")),
       ("{\"version\": 1, \"minimizedMode\": 1}", .invalidValue(key: "minimizedMode")),
       ("{\"version\": 1, \"minimizedMode\": true}", .invalidValue(key: "minimizedMode")),
-      ("{\"version\": 1, \"otherSpaceMode\": \"hide\", \"mysteryMode\": \"show\"}", .unknownKey("mysteryMode")),
     ]
     for (text, expected) in cases {
       #expect(decode(text).failureValue == expected, "for \(text)")
@@ -280,11 +277,11 @@ struct ConfigStoreTests {
   }
 
   @Test
-  func romajiScopeWithUnknownKeyFallsBackAsAWhole() {
-    #expect(
-      decode("{\"version\": 1, \"romajiScope\": \"kana\", \"mystery\": 1}").failureValue
-        == .unknownKey("mystery")
+  func romajiScopeWithUnknownKeyReadsPast() throws {
+    let decoded = try #require(
+      decode("{\"version\": 1, \"romajiScope\": \"kana\", \"mystery\": 1}").successValue
     )
+    #expect(decoded.config.unknownFields == [UnknownField(key: "mystery", json: "1")])
   }
 
   @Test
@@ -304,6 +301,130 @@ struct ConfigStoreTests {
     #expect(modes.fullscreen == .separateAtBottom)
     #expect(modes.otherSpace == .show)
     #expect(modes.hiddenApp == .separateAtBottom)
+  }
+
+  @Test
+  func savingToOneKindLeavesTheOtherAlone() throws {
+    let base = try tempDirectory()
+    let stableURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .stable)
+    let mainURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .main)
+    var main = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    main.appearanceMode = .dark
+    #expect(SettingsSaver.save(main, to: mainURL, replacingInvalidFile: false) == .saved)
+    #expect(!FileManager.default.fileExists(atPath: stableURL.path))
+    let decoded = try #require(AppConfiguration.decode(try Data(contentsOf: mainURL)).successValue)
+    #expect(decoded.config.appearanceMode == .dark)
+  }
+
+  @Test
+  func kindsLoadIndependently() throws {
+    let base = try tempDirectory()
+    var stable = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    stable.appearanceMode = .light
+    var main = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    main.appearanceMode = .dark
+    let stableURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .stable)
+    let mainURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .main)
+    #expect(SettingsSaver.save(stable, to: stableURL, replacingInvalidFile: false) == .saved)
+    #expect(SettingsSaver.save(main, to: mainURL, replacingInvalidFile: false) == .saved)
+    let (stableOutcome, _) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: .stable)
+    let (mainOutcome, _) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: .main)
+    guard case .loaded(let stableDecoded) = stableOutcome else {
+      Issue.record("expected stable loaded, found \(stableOutcome)")
+      return
+    }
+    guard case .loaded(let mainDecoded) = mainOutcome else {
+      Issue.record("expected main loaded, found \(mainOutcome)")
+      return
+    }
+    #expect(stableDecoded.config.appearanceMode == .light)
+    #expect(mainDecoded.config.appearanceMode == .dark)
+  }
+
+  @Test
+  func brokenKindFileFallsBackAlone() throws {
+    let base = try tempDirectory()
+    let stableURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .stable)
+    let mainURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .main)
+    var stable = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    stable.appearanceMode = .light
+    #expect(SettingsSaver.save(stable, to: stableURL, replacingInvalidFile: false) == .saved)
+    try FileManager.default.createDirectory(
+      at: mainURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try Data("not json".utf8).write(to: mainURL)
+    let (mainOutcome, _) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: .main)
+    guard case .failed(let reason) = mainOutcome else {
+      Issue.record("expected main failed, found \(mainOutcome)")
+      return
+    }
+    #expect(!reason.isEmpty)
+    let (stableOutcome, _) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: .stable)
+    guard case .loaded(let stableDecoded) = stableOutcome else {
+      Issue.record("expected stable loaded, found \(stableOutcome)")
+      return
+    }
+    #expect(stableDecoded.config.appearanceMode == .light)
+  }
+
+  @Test
+  func unknownKeysReadPastWithDiagnostics() throws {
+    let decoded = try #require(decode(#"{"version": 1, "mystery": 1}"#).successValue)
+    #expect(decoded.config.sampleCount == nil)
+    #expect(decoded.config.unknownFields == [UnknownField(key: "mystery", json: "1")])
+  }
+
+  @Test
+  func firstLaunchCopiesTheStableFile() throws {
+    let base = try tempDirectory()
+    let stableURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .stable)
+    try FileManager.default.createDirectory(
+      at: stableURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    let original = "{\"version\": 1, \"appearanceMode\": \"dark\"}"
+    try Data(original.utf8).write(to: stableURL)
+    let mainURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .main)
+    let (outcome, found) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: .main)
+    #expect(found == mainURL)
+    guard case .loaded(let decoded) = outcome else {
+      Issue.record("expected loaded, found \(outcome)")
+      return
+    }
+    #expect(decoded.config.appearanceMode == .dark)
+    #expect(try String(contentsOf: mainURL, encoding: .utf8) == original)
+    #expect(try String(contentsOf: stableURL, encoding: .utf8) == original)
+  }
+
+  @Test
+  func firstLaunchWithoutSourceScaffolds() throws {
+    let base = try tempDirectory()
+    let debugURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .debug)
+    let (outcome, found) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: .debug)
+    #expect(found == debugURL)
+    #expect(outcome == .created)
+    #expect(try String(contentsOf: debugURL, encoding: .utf8) == AppConfiguration.scaffoldJSON)
+  }
+
+  @Test
+  func firstLaunchWithBrokenSourceFailsWithoutCopying() throws {
+    let base = try tempDirectory()
+    let stableURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .stable)
+    try FileManager.default.createDirectory(
+      at: stableURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try Data("not json".utf8).write(to: stableURL)
+    let mainURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .main)
+    let (outcome, found) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: .main)
+    #expect(found == mainURL)
+    guard case .failed(let reason) = outcome else {
+      Issue.record("expected failed, found \(outcome)")
+      return
+    }
+    #expect(reason.contains(stableURL.path))
+    #expect(!FileManager.default.fileExists(atPath: mainURL.path))
   }
 
   // MARK: Private

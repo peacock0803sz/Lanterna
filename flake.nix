@@ -253,6 +253,14 @@
                           static let describe = "${describeEscaped}"
                       }
                       EOF
+                      # The nix output lands under /nix/store, which reads as
+                      # stable, so stamp the kind the same way.
+                      cat > Sources/Lanterna/Support/StampedBuildKind.swift <<'EOF'
+                      /// Stamped by the nix build. Do not edit.
+                      enum StampedBuildKind {
+                          static let kind = "stable"
+                      }
+                      EOF
                       # --disable-sandbox: SwiftPM compiles the manifest inside
                       # sandbox-exec, which the build context does not permit.
                       swift build --disable-sandbox --triple arm64-apple-macosx26.0 --configuration release

@@ -23,11 +23,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 target="Sources/Lanterna/Support/StampedVersion.swift"
+kind_target="Sources/Lanterna/Support/StampedBuildKind.swift"
 filter_command="bash scripts/generate-version.sh --clean"
 
 case ${1:-} in
 --clean)
-    exec sed -E 's/(static let describe = ").*(")/\1dev\2/'
+    exec sed -E -e 's/(static let describe = ").*(")/\1dev\2/' -e 's/(static let kind = ").*(")/\1main\2/'
     ;;
 --install-filter)
     if [[ $(git config --get filter.stamped-version.clean || true) != "$filter_command" ]]; then
@@ -45,13 +46,16 @@ case ${1:-} in
 esac
 
 # Git trusts a size mismatch between the index and the file without running
-# the filter, and a stamp is never as long as the placeholder, so the entry is
-# refreshed after stamping. Only with the filter in place: without it this
-# would stage the stamp itself.
+# the filter, so the entries are refreshed after stamping. Only with the
+# filter in place: without it this would stage the stamps themselves.
 refresh_index() {
-    if [[ $(git config --get filter.stamped-version.clean || true) == "$filter_command" &&
-        $(git check-attr filter -- "$target") == *": stamped-version" ]]; then
-        git update-index -- "$target"
+    if [[ $(git config --get filter.stamped-version.clean || true) == "$filter_command" ]]; then
+        for stamped in "$target" "$kind_target"; do
+            if [[ $(git check-attr filter -- "$stamped") == *": stamped-version" ]] &&
+                git ls-files --error-unmatch -- "$stamped" >/dev/null 2>&1; then
+                git update-index -- "$stamped"
+            fi
+        done
     fi
 }
 
@@ -66,10 +70,21 @@ if [[ $dev -eq 0 && ! $describe =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
 fi
 
 current=""
+current_kind=""
 if [[ -f $target ]]; then
     current=$(sed -n 's/.*static let describe = "\(.*\)"/\1/p' "$target" | head -n 1)
 fi
-if [[ $current == "$describe" ]]; then
+if [[ -f $kind_target ]]; then
+    current_kind=$(sed -n 's/.*static let kind = "\(.*\)"/\1/p' "$kind_target" | head -n 1)
+fi
+if [[ $dev -eq 1 ]]; then
+    # Development builds read as main. The checked-in placeholder is also
+    # main, so an unstamped checkout build never claims the stable slot.
+    kind="main"
+else
+    kind="stable"
+fi
+if [[ $current == "$describe" && $current_kind == "$kind" ]]; then
     refresh_index
     echo "generate-version: already stamped $describe"
     exit 0
@@ -80,6 +95,14 @@ cat > "$target" <<EOF
 enum StampedVersion {
   /// The raw \`git describe\` string of the checkout this binary came from.
   static let describe = "$describe"
+}
+EOF
+cat > "$kind_target" <<EOF
+/// Stamped by scripts/generate-version.sh at build time. Do not edit.
+enum StampedBuildKind {
+  /// Which configuration slot this binary belongs to: "stable" for the
+  /// packaged release, "main" for development builds.
+  static let kind = "$kind"
 }
 EOF
 refresh_index
