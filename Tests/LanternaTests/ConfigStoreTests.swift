@@ -375,6 +375,58 @@ struct ConfigStoreTests {
     #expect(decoded.config.unknownFields == [UnknownField(key: "mystery", json: "1")])
   }
 
+  @Test
+  func firstLaunchCopiesTheStableFile() throws {
+    let base = try tempDirectory()
+    let stableURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .stable)
+    try FileManager.default.createDirectory(
+      at: stableURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    let original = "{\"version\": 1, \"appearanceMode\": \"dark\"}"
+    try Data(original.utf8).write(to: stableURL)
+    let mainURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .main)
+    let (outcome, found) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: .main)
+    #expect(found == mainURL)
+    guard case .loaded(let decoded) = outcome else {
+      Issue.record("expected loaded, found \(outcome)")
+      return
+    }
+    #expect(decoded.config.appearanceMode == .dark)
+    #expect(try String(contentsOf: mainURL, encoding: .utf8) == original)
+    #expect(try String(contentsOf: stableURL, encoding: .utf8) == original)
+  }
+
+  @Test
+  func firstLaunchWithoutSourceScaffolds() throws {
+    let base = try tempDirectory()
+    let debugURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .debug)
+    let (outcome, found) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: .debug)
+    #expect(found == debugURL)
+    #expect(outcome == .created)
+    #expect(try String(contentsOf: debugURL, encoding: .utf8) == AppConfiguration.scaffoldJSON)
+  }
+
+  @Test
+  func firstLaunchWithBrokenSourceFailsWithoutCopying() throws {
+    let base = try tempDirectory()
+    let stableURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .stable)
+    try FileManager.default.createDirectory(
+      at: stableURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try Data("not json".utf8).write(to: stableURL)
+    let mainURL = AppConfiguration.configFileURL(applicationSupport: base, kind: .main)
+    let (outcome, found) = AppConfiguration.loadOrScaffold(applicationSupport: base, kind: .main)
+    #expect(found == mainURL)
+    guard case .failed(let reason) = outcome else {
+      Issue.record("expected failed, found \(outcome)")
+      return
+    }
+    #expect(!reason.isEmpty)
+    #expect(!FileManager.default.fileExists(atPath: mainURL.path))
+  }
+
   // MARK: Private
 
   private func decode(_ text: String) -> Result<DecodedConfiguration, ConfigDecodeError> {

@@ -344,6 +344,17 @@ extension AppConfiguration {
   /// outcome with the file URL so callers can say where in diagnostics.
   static func loadOrScaffold(applicationSupport: URL, kind: BuildKind = .stable) -> (ConfigLoadOutcome, URL) {
     let url = configFileURL(applicationSupport: applicationSupport, kind: kind)
+    if !FileManager.default.fileExists(atPath: url.path) {
+      switch copyLegacyFileForFirstLaunch(applicationSupport: applicationSupport, kind: kind, to: url) {
+      case .copied,
+           .noSource:
+        break
+      case .invalidSource(let reason):
+        return (.failed(reason: reason), url)
+      case .cannotCopy:
+        return (.failed(reason: "cannot create file"), url)
+      }
+    }
     guard FileManager.default.fileExists(atPath: url.path) else {
       do {
         try writeScaffold(to: url)
@@ -479,6 +490,49 @@ extension AppConfiguration {
   }
 
   // MARK: Private
+
+  /// What a first-launch copy attempt found.
+  private enum FirstLaunchCopy {
+    /// The legacy file was copied to the kind's location; loading continues.
+    case copied
+    /// Nothing to copy from; the caller falls back to the scaffold.
+    case noSource
+    /// The legacy file exists but fails validation; loading reports why.
+    case invalidSource(reason: String)
+    /// The legacy file is readable and valid but could not be copied.
+    case cannotCopy
+  }
+
+  /// Copies the stable file for a kind's first launch.
+  ///
+  /// Stable itself never copies: its file is the legacy one, so a missing
+  /// file means a fresh scaffold. Anything readable but invalid reports
+  /// the validation reason; the legacy file itself is only ever read.
+  private static func copyLegacyFileForFirstLaunch(
+    applicationSupport: URL,
+    kind: BuildKind,
+    to url: URL
+  ) -> FirstLaunchCopy {
+    guard kind != .stable else { return .noSource }
+    let legacy = configFileURL(applicationSupport: applicationSupport, kind: .stable)
+    guard FileManager.default.fileExists(atPath: legacy.path) else { return .noSource }
+    guard let data = try? Data(contentsOf: legacy) else {
+      return .invalidSource(reason: "cannot read file")
+    }
+    if case .failure(let error) = decode(data) {
+      return .invalidSource(reason: error.reason)
+    }
+    do {
+      try FileManager.default.createDirectory(
+        at: url.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+      )
+      try data.write(to: url, options: .atomic)
+      return .copied
+    } catch {
+      return .cannotCopy
+    }
+  }
 
   /// Parses bytes into a JSON object, refusing anything else.
   ///
