@@ -12,9 +12,10 @@ import Foundation
 
 /// The known keys of the config file, and nothing else.
 ///
-/// A file holding any other key is invalid as a whole (FR-005). The check is
-/// written out rather than derived from a `Decodable` struct because decoding
-/// ignores unknown keys, which would silently accept them.
+/// A file holding any other key stays usable: unknown keys are kept
+/// verbatim and written back on save. The check is written out rather
+/// than derived from a `Decodable` struct because decoding ignores
+/// unknown keys without keeping them.
 enum AppConfiguration {
   /// The schema generation this build understands.
   static let currentVersion = 1
@@ -250,8 +251,8 @@ struct ValidConfiguration: Equatable, Sendable {
   /// The customized section as spelled, kept so saving writes back what
   /// lost rather than what won. Nil means absent, meaning all defaults.
   var keyBindingSection: [KeyBindingAction: [RawKeyBinding]]?
-  /// Keys this build does not know, in file order, kept so saving writes
-  /// them back. Empty means none, which means nothing to preserve.
+  /// Keys this build does not know, sorted for stability, kept so saving
+  /// writes them back. Empty means none, which means nothing to preserve.
   var unknownFields = [UnknownField]()
 
 }
@@ -517,16 +518,19 @@ extension AppConfiguration {
     let legacy = configFileURL(applicationSupport: applicationSupport, kind: .stable)
     guard FileManager.default.fileExists(atPath: legacy.path) else { return .noSource }
     guard let data = try? Data(contentsOf: legacy) else {
-      return .invalidSource(reason: "cannot read file")
+      return .invalidSource(reason: "cannot read file: \(legacy.path)")
     }
     if case .failure(let error) = decode(data) {
-      return .invalidSource(reason: error.reason)
+      return .invalidSource(reason: "\(error.reason): \(legacy.path)")
     }
     do {
       try FileManager.default.createDirectory(
         at: url.deletingLastPathComponent(),
         withIntermediateDirectories: true
       )
+      // Re-check before writing: another first launch may have created
+      // the file after the caller's check. Then there is nothing to copy.
+      guard !FileManager.default.fileExists(atPath: url.path) else { return .noSource }
       try data.write(to: url, options: .atomic)
       return .copied
     } catch {
@@ -556,7 +560,10 @@ extension AppConfiguration {
   }
 
   /// The canonical spelling of an unknown value: sorted keys, one space
-  /// after each separator. Never executed or validated, only written back.
+  /// after each separator. Numbers may respell (`1.0` reads back as `1`)
+  /// but keep their meaning; the text is never executed, only written back.
+  /// Every `JSONSerialization` output matches one branch below, so `nil`
+  /// is unreachable from real files.
   private static func canonicalJSON(_ value: Any) -> String? {
     if value is NSNull {
       return "null"
