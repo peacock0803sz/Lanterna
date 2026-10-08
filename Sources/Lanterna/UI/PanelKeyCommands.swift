@@ -16,9 +16,9 @@ import AppKit
 /// twice been divided by the length the linter allows, and this is the piece
 /// whose next addition is already written down.
 ///
-/// Holds no state of its own. Everything it needs to answer a press belongs
-/// to something else — the panel, the chosen row, the ways out — and a copy
-/// of any of it here would be a second record of one thing.
+/// Holds only one appearance's input state — the gathered digits and the
+/// remembered repeat — while the panel, the chosen row and the ways out
+/// all belong to something else.
 @MainActor
 final class PanelKeyCommands {
 
@@ -33,7 +33,8 @@ final class PanelKeyCommands {
     searchSettings: SearchSettings = SearchSettings(),
     keyBindings: KeyBindingTable = .defaults,
     now: @escaping @MainActor () -> ContinuousClock.Instant,
-    operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)? = nil
+    operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)? = nil,
+    startFiltering: (@MainActor () -> Void)? = nil
   ) {
     self.surface = surface
     self.selection = selection
@@ -45,6 +46,7 @@ final class PanelKeyCommands {
     filter.searchSettings = searchSettings
     self.now = now
     self.operate = operate
+    self.startFiltering = startFiltering
   }
 
   // MARK: Internal
@@ -88,6 +90,7 @@ final class PanelKeyCommands {
   func beginFiltering(fullWindows: [WindowItem], filtering: Bool = false) {
     filter.scopeToggleKey = keyBindings[.toggleScope].first?.displayName
     numberInput.reset()
+    repeatSwallow.reset()
     filter.begin(fullWindows: fullWindows, filtering: filtering, activeApplication: frontmostProcessIdentifier())
     surface.showScope(filter.scopeBand)
   }
@@ -167,6 +170,7 @@ final class PanelKeyCommands {
   func endFiltering() {
     filter.reset()
     numberInput.reset()
+    repeatSwallow.reset()
   }
 
   /// Swaps the rows on screen for a list an operation hands over — its
@@ -228,6 +232,9 @@ final class PanelKeyCommands {
     // asking anything.
     let startedAt = now()
     guard surface.isPresented else { return .passedThrough }
+    if repeatSwallow.swallows(keystroke) {
+      return .absorbed
+    }
     // A new press answers the old failure: the note goes before
     // anything the press means is done.
     surface.clearNotice()
@@ -277,6 +284,11 @@ final class PanelKeyCommands {
 
     case .toggleScope:
       filter.toggleScope()
+
+    case .startFiltering:
+      guard !filter.isActive else { break }
+      repeatSwallow.hold(keystroke.keyCode)
+      startFiltering?()
 
     case .filterText(let text):
       filter.append(text)
@@ -347,6 +359,8 @@ final class PanelKeyCommands {
   private var rowOrder = ManualRowOrder.none
   /// The digits gathered since the last reset.
   private var numberInput = NumberInput()
+  /// The key code whose repeats read as nothing after switching.
+  private var repeatSwallow = KeyRepeatSwallow()
 
   private let surface: any SwitcherSurface
   private let selection: PanelSelection
@@ -356,6 +370,8 @@ final class PanelKeyCommands {
   /// Handed the row chosen as the key is pressed, so a choice moved
   /// before the operation gets its turn does not change its target.
   private let operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)?
+  /// Switches the presented panel into filtering, through the presenter.
+  private let startFiltering: (@MainActor () -> Void)?
 
   /// Moves the chosen row one step inside its manual group, saving the
   /// rearranged order through the handler above. Anything outside a
