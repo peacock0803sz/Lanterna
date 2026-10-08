@@ -4,26 +4,14 @@ import Foundation
 extension LogWindowState {
 
   /// Adds lines of this launch at the end, filtering only the new ones.
-  /// Lines that belong earlier, from filling a gap, are merged in place.
+  /// Past the row cap the oldest-numbered lines leave, from the live
+  /// lists alone; the saved rows stay as read.
   func appendRows(_ newRows: [LogRow]) {
-    guard let first = newRows.first?.entry else { return }
-    if let last = currentRows.last?.entry, first.sequence <= last.sequence {
-      mergeIntoCurrent(newRows)
-      return
-    }
+    guard !newRows.isEmpty else { return }
     currentRows.append(contentsOf: newRows)
     rows.append(contentsOf: newRows)
     shownRows.append(contentsOf: newRows.filter(matches))
-  }
-
-  /// Merges lines of this launch into their places by number, dropping
-  /// any already held.
-  func mergeIntoCurrent(_ newRows: [LogRow]) {
-    let held = Set(currentRows.map(\.id))
-    let added = newRows.filter { !held.contains($0.id) }
-    guard !added.isEmpty else { return }
-    currentRows = (currentRows + added).sorted { ($0.entry?.sequence ?? 0) < ($1.entry?.sequence ?? 0) }
-    rebuildRows()
+    trimCurrentRowsToCapacity()
   }
 
   /// Lays the rows out again for the scope: this launch alone, or every

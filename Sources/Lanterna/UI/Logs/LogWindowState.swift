@@ -130,6 +130,12 @@ final class LogWindowState {
 
   // MARK: Internal
 
+  /// How many of this launch's lines `currentRows` and `pendingRows`
+  /// each hold at most. Tied to the mirror's capacity, so the window
+  /// shows what the mirror still holds; the saved launches in
+  /// `olderRows` are bounded separately by how much is read from disk.
+  static let rowsCapacity = DiagnosticLog.capacity
+
   /// Every row read for the current scope, oldest first.
   var rows = [LogRow]()
 
@@ -152,19 +158,15 @@ final class LogWindowState {
   /// Whether Save logs to disk is on. Off offers this launch alone.
   var isSavingEnabled = true
 
-  /// Ranges of this launch already looked for in its file, found or not,
-  /// so none is read twice.
-  var filledRanges = [ClosedRange<UInt64>]()
-
   var selection = Set<LogRow.ID>()
 
   /// Whether the list holds still. Lines still arrive and wait in
   /// `pendingRows` until the reader resumes.
   var isPaused = false
 
-  /// Lines that arrived while paused, oldest first. Kept here rather than
-  /// read again on resume, so lines the mirror has dropped meanwhile are
-  /// not lost.
+  /// Lines that arrived while paused, oldest first. Held only up to the
+  /// row cap, so a long pause still lets the oldest waiting lines go;
+  /// what the mirror dropped meanwhile past the cap stays on disk alone.
   var pendingRows = [LogRow]()
 
   /// Whether the window is on screen. Polling runs only while it is.
@@ -174,10 +176,6 @@ final class LogWindowState {
   /// in `pendingRows`.
   var lastSequence: UInt64 = 0
 
-  /// Numbers of this launch the mirror no longer held when they were
-  /// asked for. Read and cleared by whoever fills them from the saved file.
-  var missingRanges = [ClosedRange<UInt64>]()
-
   @ObservationIgnored let entriesAfter: @MainActor (UInt64) -> [Diagnostics.LogEntry]
   @ObservationIgnored let currentLaunch: LaunchID
   @ObservationIgnored let savedLogs: SavedLogSource?
@@ -185,7 +183,6 @@ final class LogWindowState {
   @ObservationIgnored let liveInterval: Duration
   @ObservationIgnored var liveTask: Task<Void, Never>?
   @ObservationIgnored var olderTask: Task<Void, Never>?
-  @ObservationIgnored var fillTask: Task<Void, Never>?
 
   /// Which fixed columns show, in what order and how wide, as the table
   /// keeps it.
@@ -264,6 +261,31 @@ final class LogWindowState {
   /// Whether any filter is narrowing the list.
   var isFiltering: Bool {
     !searchText.isEmpty || levelFloor != .debug || category != nil
+  }
+
+  /// Drops the oldest-numbered rows past the cap from `currentRows`, and
+  /// takes the same rows out of `rows` and `shownRows` by difference.
+  /// The saved `olderRows` are never touched; full refiltering is left
+  /// to the caller that needs it.
+  func trimCurrentRowsToCapacity() {
+    guard currentRows.count > Self.rowsCapacity else { return }
+    let ordered = currentRows.sorted { ($0.entry?.sequence ?? 0) < ($1.entry?.sequence ?? 0) }
+    let kept = Array(ordered.suffix(Self.rowsCapacity))
+    let keptIDs = Set(kept.map(\.id))
+    let evicted = Set(currentRows.map(\.id)).subtracting(keptIDs)
+    currentRows = kept
+    guard !evicted.isEmpty else { return }
+    rows.removeAll { evicted.contains($0.id) }
+    shownRows.removeAll { evicted.contains($0.id) }
+  }
+
+  /// Drops the oldest-numbered waiting lines past the cap. The shown
+  /// `currentRows` stay as they are while paused.
+  func trimPendingRowsToCapacity() {
+    guard pendingRows.count > Self.rowsCapacity else { return }
+    pendingRows = Array(
+      pendingRows.sorted { ($0.entry?.sequence ?? 0) < ($1.entry?.sequence ?? 0) }.suffix(Self.rowsCapacity)
+    )
   }
 
   /// Whether the filters let `row` through: its level reaches the floor,

@@ -24,8 +24,6 @@ struct SavedLaunchBatch: Sendable {
 struct SavedLogSource: Sendable {
   /// This launch's file while its lines are being saved, nil otherwise.
   let currentFile: @MainActor @Sendable () -> URL?
-  /// This launch's file, its lines named as `launch`.
-  let readCurrent: @Sendable (_ url: URL, _ launch: LaunchID) -> SavedLaunchRead
   /// Every saved launch but the file at `excluding`, oldest first.
   let readOthers: @Sendable (_ excluding: URL?) -> SavedLaunchBatch
 }
@@ -35,9 +33,6 @@ extension SavedLogSource {
   static func live(store: LaunchLogStore) -> SavedLogSource {
     SavedLogSource(
       currentFile: { Diagnostics.savingTo },
-      readCurrent: { url, launch in
-        store.read(SavedLaunchFile(url: url, launch: launch, byteCount: 0))
-      },
       readOthers: { excluding in
         var batch = SavedLaunchBatch()
         for file in store.files() where file.url.standardizedFileURL != excluding?.standardizedFileURL {
@@ -57,9 +52,9 @@ extension SavedLogSource {
 
 // MARK: - LogWindowState + scope
 
-/// Reading the saved launches: the older ones for All launches, and this
-/// launch's own file for the lines the mirror dropped before they were
-/// taken in.
+/// Reading the saved launches for All launches. Lines the mirror dropped
+/// stay on disk alone: past the row cap the live list lets them go rather
+/// than reading them back.
 extension LogWindowState {
 
   // MARK: Internal
@@ -91,36 +86,6 @@ extension LogWindowState {
     }
   }
 
-  /// Fills the numbers of this launch the mirror dropped, from this
-  /// launch's file. Skipped while nothing is being saved; a range looked
-  /// for once is not looked for again, found or not.
-  func fillMissingIfNeeded() {
-    guard fillTask == nil, !missingRanges.isEmpty else { return }
-    guard let savedLogs, let url = savedLogs.currentFile() else {
-      missingRanges = []
-      return
-    }
-    let ranges = missingRanges
-    missingRanges = []
-    filledRanges.append(contentsOf: ranges)
-    let launch = currentLaunch
-    fillTask = Task { [weak self] in
-      let read = await Task.detached { savedLogs.readCurrent(url, launch) }.value
-      guard let self else { return }
-      fillTask = nil
-      let found = read.entries
-        .filter { entry in ranges.contains { $0.contains(entry.sequence) } }
-        .map(LogRow.init(entry:))
-      reportSkipped(lines: read.skippedLines, files: read.isReadable ? 0 : 1)
-      if isPaused {
-        pendingRows.append(contentsOf: found)
-      } else {
-        mergeIntoCurrent(found)
-      }
-      fillMissingIfNeeded()
-    }
-  }
-
   func scopeChanged() {
     if scope == .allLaunches, !hasSavedLogs {
       scope = .thisLaunch
@@ -134,7 +99,6 @@ extension LogWindowState {
     } else {
       rebuildRows()
     }
-    fillMissingIfNeeded()
   }
 
   /// Reads every saved launch but this one in the background, then shows

@@ -58,8 +58,6 @@ struct LogWindowLiveTests {
     let feed = LogFeed((5 ... 7).map { LogFixture.entry(sequence: $0) })
     let state = Self.state(over: feed)
     state.ingest()
-    #expect(state.missingRanges.isEmpty)
-    #expect(state.filledRanges.isEmpty)
     #expect(state.rows.map(\.entry?.sequence) == [5, 6, 7])
   }
 
