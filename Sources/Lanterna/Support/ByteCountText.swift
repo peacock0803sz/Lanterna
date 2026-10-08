@@ -11,7 +11,6 @@ enum ByteCountText {
     if bytes < 1024 {
       return "\(bytes) B"
     }
-    // Avoid %.1f KB rounding up to 1024.0 KB just below 1 MB.
     if Double(bytes) / 1024 < 1023.95 {
       return String(format: "%.1f KB", Double(bytes) / 1024)
     }

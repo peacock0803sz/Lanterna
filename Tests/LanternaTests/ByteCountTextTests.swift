@@ -1,8 +1,8 @@
 @testable import Lanterna
 import Testing
 
-/// Byte counts change unit at 1 KB, and at the last count that one
-/// decimal KB would not round up to `1024.0 KB`.
+/// Byte counts change unit at 1 KB, and just past the last count that
+/// one decimal KB shows without rounding up to `1024.0 KB`.
 struct ByteCountTextTests {
 
   @Test
