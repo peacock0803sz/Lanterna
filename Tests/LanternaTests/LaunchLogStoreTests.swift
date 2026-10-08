@@ -230,18 +230,27 @@ struct LaunchLogStoreTests {
     #expect(batch.unreadableFiles == 0)
   }
 
+  /// Newest first: a small readable file, a broken one, one over what is
+  /// left of the budget, and one past the launch count. Only the broken
+  /// one counts; the files the limits leave unread count as nothing.
   @Test
   func anUnreadableFileStillCountsWhileALimitedOneDoesNot() throws {
     let folder = try TemporaryFolder()
     let store = LaunchLogStore(directory: folder.url, timeZone: Self.tokyo)
-    _ = try Self.write(count: 2, launch: Self.launch(1), store: store)
-    let brokenURL = store.fileURL(for: Self.launch(0))
-    try FileManager.default.createDirectory(at: folder.url, withIntermediateDirectories: true)
+    _ = try Self.write(count: 2, launch: Self.launch(0), store: store)
+    let big = try Self.write(count: 30, launch: Self.launch(1), store: store)
+    let brokenURL = store.fileURL(for: Self.launch(2))
     try Data((#"{"format":2,"launch":"x"}"# + "\n").utf8).write(to: brokenURL)
-    let source = SavedLogSource.live(store: store, limits: SavedLogReadLimits(launchCount: 5, byteBudget: 10 * 1024 * 1024))
+    let newest = try Self.write(count: 2, launch: Self.launch(3), store: store)
+    let sizes = Dictionary(uniqueKeysWithValues: store.files().map { ($0.launch, $0.byteCount) })
+    let newestSize = try #require(sizes[newest])
+    let budget = newestSize * 5
+    #expect(try #require(sizes[big]) > budget - newestSize)
+    let source = SavedLogSource.live(store: store, limits: SavedLogReadLimits(launchCount: 3, byteBudget: budget))
     let batch = source.readOthers(nil)
-    #expect(batch.launches.count == 1)
+    #expect(batch.launches.map(\.launch) == [newest])
     #expect(batch.unreadableFiles == 1)
+    #expect(batch.skippedLines == 0)
   }
 
   @Test
