@@ -86,7 +86,7 @@ struct SettingsDiagnosticsSection: View {
         }
         retentionRow(
           title: "Saved log bytes",
-          value: "\(Self.megabytes(retention.savedBytes)) / \(Self.megabytes(retention.savedBytesLimit))"
+          value: "\(Self.byteText(retention.savedBytes)) / \(Self.byteText(retention.savedBytesLimit))"
         )
         retentionRow(title: "App icons", value: "\(retention.iconCount)")
         retentionRow(title: "Shortcut memory", value: "\(retention.shortcutCount) / \(retention.shortcutLimit)")
@@ -118,8 +118,17 @@ struct SettingsDiagnosticsSection: View {
     )
   }
 
-  private static func megabytes(_ bytes: Int) -> String {
-    String(format: "%.1f MB", Double(bytes) / 1_048_576)
+  /// Bytes in the unit that reads best: whole bytes below 1 KB, one
+  /// decimal KB below 1 MB, and one decimal MB above. Small reads would
+  /// otherwise round to `0.0 MB`.
+  private static func byteText(_ bytes: Int) -> String {
+    if bytes < 1024 {
+      return "\(bytes) B"
+    }
+    if bytes < 1_048_576 {
+      return String(format: "%.1f KB", Double(bytes) / 1024)
+    }
+    return String(format: "%.1f MB", Double(bytes) / 1_048_576)
   }
 
   private func retentionRow(title: String, value: String) -> some View {
