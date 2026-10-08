@@ -42,6 +42,14 @@ final class DiagnosticLogStore: @unchecked Sendable {
     return entries
   }
 
+  /// How many mirrored lines are held, read under the lock without
+  /// copying the entries. For counters that need only the count.
+  var recentCount: Int {
+    lock.lock()
+    defer { lock.unlock() }
+    return entries.count
+  }
+
   var summary: String? {
     lock.lock()
     defer { lock.unlock() }

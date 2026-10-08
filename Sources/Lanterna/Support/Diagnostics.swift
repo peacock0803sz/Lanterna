@@ -67,6 +67,11 @@ enum Diagnostics {
     store.recent
   }
 
+  /// How many mirrored lines are held, without copying them.
+  static var recentCount: Int {
+    store.recentCount
+  }
+
   /// The launch summary, pinned outside the ring. A long run must not push
   /// the startup outcome and the permission state off the view.
   static var launchSummary: String? {

@@ -10,6 +10,13 @@ import SwiftUI
 final class DiagnosticsDisplay: ObservableObject {
   /// The saved logs in brief, or nil when this run keeps none.
   @Published var savedSummary: String?
+  /// What this run holds onto, refreshed when the settings open and
+  /// after the saved logs change. Nil until launch has built the log
+  /// window's state.
+  @Published var retention: RetentionSnapshot?
+  /// Reads the retention numbers again. Wired by the delegate, which
+  /// owns the holders.
+  var refreshRetention: () -> Void = { }
   var showLogs: () -> Void = { }
   var deleteSavedLogs: () -> Void = { }
   /// Switches saving on or off now; off with `deleting` also removes
@@ -69,6 +76,27 @@ struct SettingsDiagnosticsSection: View {
           Text("The logs of earlier launches are removed. This launch keeps its own.")
         }
       }
+      if let retention = display.retention {
+        SettingsFormLabel(
+          title: "Retention",
+          caption: "What this run holds onto, as count / cap. Uncapped items show their count alone."
+        )
+        retentionRow(title: "Log rows", value: "\(retention.liveRows) / \(retention.liveRowsLimit)")
+        if retention.logPaused {
+          retentionRow(title: "Waiting rows", value: "\(retention.waitingRows) / \(retention.waitingRowsLimit)")
+        }
+        retentionRow(
+          title: "Saved log bytes",
+          value: "\(ByteCountText.text(retention.savedBytes)) / \(ByteCountText.text(retention.savedBytesLimit))"
+        )
+        retentionRow(title: "App icons", value: "\(retention.iconCount)")
+        retentionRow(title: "Shortcut memory", value: "\(retention.shortcutCount) / \(retention.shortcutLimit)")
+        retentionRow(
+          title: "Recent uses",
+          value: "\(retention.mruRecords) windows · \(retention.mruApplications) apps"
+        )
+        retentionRow(title: "Mirrored log lines", value: "\(retention.mirrorRows) / \(retention.mirrorRowsLimit)")
+      }
     }
   }
 
@@ -89,6 +117,14 @@ struct SettingsDiagnosticsSection: View {
         }
       }
     )
+  }
+
+  private func retentionRow(title: String, value: String) -> some View {
+    HStack {
+      SettingsFormLabel(title: title)
+      Spacer()
+      Text(value)
+    }
   }
 
   private func setSaving(_ saving: Bool, deleting: Bool) {

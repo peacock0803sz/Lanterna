@@ -10,11 +10,23 @@ struct SavedLaunchEntries: Sendable {
 
 // MARK: - SavedLaunchBatch
 
-/// Every saved launch but this one, with what reading them skipped.
+/// The newest saved launches but this one, within the read limits, with
+/// what reading them skipped and how many bytes they took.
 struct SavedLaunchBatch: Sendable {
   var launches = [SavedLaunchEntries]()
   var skippedLines = 0
   var unreadableFiles = 0
+  /// Bytes taken from the files, headers included.
+  var bytesRead = 0
+}
+
+// MARK: - SavedLogReadLimits
+
+/// How much of the saved launches the log window reads: the newest
+/// `launchCount` launches within `byteBudget` bytes altogether.
+struct SavedLogReadLimits: Equatable, Sendable {
+  var launchCount: Int
+  var byteBudget: Int
 }
 
 // MARK: - SavedLogSource
@@ -24,31 +36,63 @@ struct SavedLaunchBatch: Sendable {
 struct SavedLogSource: Sendable {
   /// This launch's file while its lines are being saved, nil otherwise.
   let currentFile: @MainActor @Sendable () -> URL?
-  /// This launch's file, its lines named as `launch`.
-  let readCurrent: @Sendable (_ url: URL, _ launch: LaunchID) -> SavedLaunchRead
-  /// Every saved launch but the file at `excluding`, oldest first.
+  /// The newest saved launches but the file at `excluding`, oldest first,
+  /// within the limits the source was made with.
   let readOthers: @Sendable (_ excluding: URL?) -> SavedLaunchBatch
 }
 
 extension SavedLogSource {
   /// Reads `store`, with this launch's file as the diagnostics name it.
-  static func live(store: LaunchLogStore) -> SavedLogSource {
+  /// The newest file alone over the budget is read by its tail; a later
+  /// file that would pass the budget stops the reading, and older files
+  /// past the launch count are never opened. Files left unread by the
+  /// limits count as neither skipped nor unreadable.
+  static func live(
+    store: LaunchLogStore,
+    limits: SavedLogReadLimits = SavedLogReadLimits(
+      launchCount: LaunchLogStore.readLaunchLimit,
+      byteBudget: LaunchLogStore.readByteLimit
+    )
+  ) -> SavedLogSource {
     SavedLogSource(
       currentFile: { Diagnostics.savingTo },
-      readCurrent: { url, launch in
-        store.read(SavedLaunchFile(url: url, launch: launch, byteCount: 0))
-      },
       readOthers: { excluding in
         var batch = SavedLaunchBatch()
-        for file in store.files() where file.url.standardizedFileURL != excluding?.standardizedFileURL {
+        let files = store.files()
+          .filter { $0.url.standardizedFileURL != excluding?.standardizedFileURL }
+          .suffix(limits.launchCount)
+        var budget = limits.byteBudget
+        var isNewest = true
+        var launches = [SavedLaunchEntries]()
+        for file in files.reversed() {
+          if isNewest {
+            isNewest = false
+            if file.byteCount > budget {
+              let read = store.readTail(file, budget: budget)
+              guard read.isReadable else {
+                batch.unreadableFiles += 1
+                continue
+              }
+              batch.skippedLines += read.skippedLines
+              batch.bytesRead += read.byteCount
+              budget -= read.byteCount
+              launches.append(SavedLaunchEntries(launch: file.launch, entries: read.entries))
+              continue
+            }
+          } else if file.byteCount > budget {
+            break
+          }
           let read = store.read(file)
           guard read.isReadable else {
             batch.unreadableFiles += 1
             continue
           }
           batch.skippedLines += read.skippedLines
-          batch.launches.append(SavedLaunchEntries(launch: file.launch, entries: read.entries))
+          batch.bytesRead += read.byteCount
+          budget -= read.byteCount
+          launches.append(SavedLaunchEntries(launch: file.launch, entries: read.entries))
         }
+        batch.launches = launches.reversed()
         return batch
       }
     )
@@ -57,9 +101,10 @@ extension SavedLogSource {
 
 // MARK: - LogWindowState + scope
 
-/// Reading the saved launches: the older ones for All launches, and this
-/// launch's own file for the lines the mirror dropped before they were
-/// taken in.
+/// Reading the saved launches for All launches. This launch's lines the
+/// mirror dropped are not read back: past the row cap the live list lets
+/// them go. Only the saved file can still have them, and only if saving
+/// took them in before the mirror dropped them.
 extension LogWindowState {
 
   // MARK: Internal
@@ -83,41 +128,12 @@ extension LogWindowState {
     olderTask?.cancel()
     olderTask = nil
     olderRows = []
+    savedLogsBytesRead = 0
     hasReadOlder = false
     if scope == .allLaunches {
       loadOlder()
     } else {
       rebuildRows()
-    }
-  }
-
-  /// Fills the numbers of this launch the mirror dropped, from this
-  /// launch's file. Skipped while nothing is being saved; a range looked
-  /// for once is not looked for again, found or not.
-  func fillMissingIfNeeded() {
-    guard fillTask == nil, !missingRanges.isEmpty else { return }
-    guard let savedLogs, let url = savedLogs.currentFile() else {
-      missingRanges = []
-      return
-    }
-    let ranges = missingRanges
-    missingRanges = []
-    filledRanges.append(contentsOf: ranges)
-    let launch = currentLaunch
-    fillTask = Task { [weak self] in
-      let read = await Task.detached { savedLogs.readCurrent(url, launch) }.value
-      guard let self else { return }
-      fillTask = nil
-      let found = read.entries
-        .filter { entry in ranges.contains { $0.contains(entry.sequence) } }
-        .map(LogRow.init(entry:))
-      reportSkipped(lines: read.skippedLines, files: read.isReadable ? 0 : 1)
-      if isPaused {
-        pendingRows.append(contentsOf: found)
-      } else {
-        mergeIntoCurrent(found)
-      }
-      fillMissingIfNeeded()
     }
   }
 
@@ -134,11 +150,10 @@ extension LogWindowState {
     } else {
       rebuildRows()
     }
-    fillMissingIfNeeded()
   }
 
-  /// Reads every saved launch but this one in the background, then shows
-  /// them, unless the scope moved on meanwhile.
+  /// Reads the newest saved launches but this one in the background, then
+  /// shows them, unless the scope moved on meanwhile.
   func loadOlder() {
     guard let savedLogs else {
       rebuildRows()
@@ -156,6 +171,7 @@ extension LogWindowState {
       olderRows = batch.launches.flatMap { launch in
         [LogRow(separatorFor: launch.launch)] + launch.entries.map(LogRow.init(entry:))
       }
+      savedLogsBytesRead = batch.bytesRead
       rebuildRows()
       reportSkipped(lines: batch.skippedLines, files: batch.unreadableFiles)
     }

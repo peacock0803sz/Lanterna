@@ -43,6 +43,8 @@ struct SavedLaunchRead: Sendable {
   /// False when the header was missing or of another format version, in
   /// which case nothing was read.
   let isReadable: Bool
+  /// Bytes taken from the file, header included.
+  let byteCount: Int
 }
 
 // MARK: - SavedLogsUsage
@@ -97,6 +99,12 @@ struct LaunchLogStore: Sendable {
   static let launchLimit = 20
   /// The most the kept launches may take together.
   static let byteLimit = 50 * 1024 * 1024
+  /// How many of the newest saved launches the log window reads at most.
+  /// Apart from how many are kept above.
+  static let readLaunchLimit = 5
+  /// How many bytes of saved launches the log window reads at most.
+  /// Apart from how many are kept above.
+  static let readByteLimit = 5 * 1024 * 1024
 
   /// `…/Lanterna/Logs/<origin>`, one folder per origin.
   let directory: URL
@@ -197,11 +205,11 @@ struct LaunchLogStore: Sendable {
   /// last line cut short, is skipped and counted.
   func read(_ file: SavedLaunchFile) -> SavedLaunchRead {
     guard let data = try? Data(contentsOf: file.url) else {
-      return SavedLaunchRead(entries: [], skippedLines: 0, isReadable: false)
+      return SavedLaunchRead(entries: [], skippedLines: 0, isReadable: false, byteCount: 0)
     }
     var lines = data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true)
     guard let header = lines.first, LaunchLogCoding.isReadableHeader(Data(header)) else {
-      return SavedLaunchRead(entries: [], skippedLines: 0, isReadable: false)
+      return SavedLaunchRead(entries: [], skippedLines: 0, isReadable: false, byteCount: 0)
     }
     lines.removeFirst()
     var entries = [Diagnostics.LogEntry]()
@@ -214,7 +222,60 @@ struct LaunchLogStore: Sendable {
         skipped += 1
       }
     }
-    return SavedLaunchRead(entries: entries, skippedLines: skipped, isReadable: true)
+    return SavedLaunchRead(entries: entries, skippedLines: skipped, isReadable: true, byteCount: data.count)
+  }
+
+  /// Reads the newest lines of `file` within `budget` bytes, header
+  /// included. The header is looked for only within the first read from
+  /// the start, and a file whose header ends past it is unreadable; the
+  /// tail drops the fragment its first bytes belong to, up to the first
+  /// newline, without counting it as skipped, so a file larger than the
+  /// budget still yields its latest lines.
+  func readTail(_ file: SavedLaunchFile, budget: Int) -> SavedLaunchRead {
+    let unreadable = SavedLaunchRead(entries: [], skippedLines: 0, isReadable: false, byteCount: 0)
+    guard let handle = try? FileHandle(forReadingFrom: file.url) else {
+      return unreadable
+    }
+    defer { try? handle.close() }
+    guard let end = try? handle.seekToEnd(), end > 0 else {
+      return unreadable
+    }
+    let size = Int(end)
+    try? handle.seek(toOffset: 0)
+    let prefix = (try? handle.read(upToCount: min(size, 8192))) ?? Data()
+    guard let headerEnd = prefix.firstIndex(of: UInt8(ascii: "\n")) else {
+      return unreadable
+    }
+    let headerLength = headerEnd + 1
+    guard LaunchLogCoding.isReadableHeader(Data(prefix[..<headerEnd])) else {
+      return unreadable
+    }
+    guard budget > headerLength, size > headerLength else {
+      return unreadable
+    }
+    let tailLength = min(size - headerLength, budget - headerLength)
+    let tailStart = size - tailLength
+    try? handle.seek(toOffset: UInt64(tailStart))
+    let tail = (try? handle.readToEnd()) ?? Data()
+    var lines = tail.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true)
+    if tailStart > headerLength, !lines.isEmpty {
+      try? handle.seek(toOffset: UInt64(tailStart - 1))
+      let aligned = (try? handle.read(upToCount: 1))?.first == UInt8(ascii: "\n")
+      if !aligned {
+        lines.removeFirst()
+      }
+    }
+    var entries = [Diagnostics.LogEntry]()
+    entries.reserveCapacity(lines.count)
+    var skipped = 0
+    for line in lines {
+      if let entry = LaunchLogCoding.entry(from: Data(line), launch: file.launch) {
+        entries.append(entry)
+      } else {
+        skipped += 1
+      }
+    }
+    return SavedLaunchRead(entries: entries, skippedLines: skipped, isReadable: true, byteCount: headerLength + tail.count)
   }
 
 }

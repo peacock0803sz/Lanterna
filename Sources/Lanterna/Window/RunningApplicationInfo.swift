@@ -22,29 +22,33 @@ struct RunningApplicationInfo {
   /// order the workspace reports. Ordering for display happens later, from
   /// the process identifier, because this order is not guaranteed.
   static func regularApplications() -> [RunningApplicationInfo] {
-    let currentProcess = getpid()
-    return NSWorkspace.shared.runningApplications.compactMap { application in
-      guard
-        isCandidate(
-          activationPolicy: application.activationPolicy,
+    // The pool frees this pass's Objective-C temporaries as it ends,
+    // rather than when the run loop next drains.
+    autoreleasepool {
+      let currentProcess = getpid()
+      return NSWorkspace.shared.runningApplications.compactMap { application in
+        guard
+          isCandidate(
+            activationPolicy: application.activationPolicy,
+            processIdentifier: application.processIdentifier,
+            currentProcess: currentProcess
+          )
+        else {
+          return nil
+        }
+        return RunningApplicationInfo(
           processIdentifier: application.processIdentifier,
-          currentProcess: currentProcess
+          name: displayName(
+            localizedName: application.localizedName,
+            bundleURL: application.bundleURL,
+            executableURL: application.executableURL,
+            processIdentifier: application.processIdentifier
+          ),
+          bundleIdentifier: application.bundleIdentifier,
+          isHidden: application.isHidden,
+          icon: resolvedIcon(application.icon)
         )
-      else {
-        return nil
       }
-      return RunningApplicationInfo(
-        processIdentifier: application.processIdentifier,
-        name: displayName(
-          localizedName: application.localizedName,
-          bundleURL: application.bundleURL,
-          executableURL: application.executableURL,
-          processIdentifier: application.processIdentifier
-        ),
-        bundleIdentifier: application.bundleIdentifier,
-        isHidden: application.isHidden,
-        icon: resolvedIcon(application.icon)
-      )
     }
   }
 

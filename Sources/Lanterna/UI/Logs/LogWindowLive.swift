@@ -4,31 +4,27 @@ import Foundation
 /// on request.
 extension LogWindowState {
 
-  // MARK: Internal
-
   /// How many waiting lines the current filters would show on resume.
   var pendingCount: Int {
     pendingRows.count(where: matches)
   }
 
   /// Takes in the lines written since the last look. While paused they
-  /// wait; otherwise they join the list. A jump in the numbers means the
-  /// mirror dropped lines before they were read, and the range is noted
-  /// for filling from the saved file.
+  /// wait; otherwise they join the list. Past the row cap the oldest
+  /// lines leave whichever list took them in. Lines the mirror already
+  /// dropped are not read back; only the saved file can still have them,
+  /// and only if saving took them in before the mirror let them go.
   func ingest() {
     let new = entriesAfter(lastSequence)
-    guard let first = new.first, let last = new.last else { return }
-    if first.sequence > lastSequence + 1 {
-      noteMissing(lastSequence + 1 ... first.sequence - 1)
-    }
+    guard let last = new.last else { return }
     lastSequence = last.sequence
     let newRows = new.map(LogRow.init(entry:))
     if isPaused {
       pendingRows.append(contentsOf: newRows)
+      trimPendingRowsToCapacity()
     } else {
       appendRows(newRows)
     }
-    fillMissingIfNeeded()
   }
 
   func pause() {
@@ -69,12 +65,6 @@ extension LogWindowState {
         ingest()
       }
     }
-  }
-
-  // MARK: Private
-
-  private func noteMissing(_ range: ClosedRange<UInt64>) {
-    missingRanges.append(range)
   }
 
 }

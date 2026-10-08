@@ -108,6 +108,16 @@ final class PanelFilter {
     layout(of: fullWindows)
   }
 
+  /// How many shortcut rows are remembered, and up to how many. Read
+  /// for the diagnostics through the commands.
+  var shortcutMemoryCount: Int {
+    shortcutMemory.entries.count
+  }
+
+  var shortcutMemoryLimit: Int {
+    shortcutMemory.maxEntries
+  }
+
   /// Starts an appearance over the whole ordered list, remembering nothing.
   /// Filtering answers keystrokes only when the appearance asked for it.
   /// Draws nothing: the caller opens the choice and the panel on

@@ -8,7 +8,7 @@ import Testing
 struct LogWindowPersistenceTests {
   @Test
   func reopeningKeepsTheFiltersScopeAndColumns() {
-    let saved = FakeSavedLogs(current: [])
+    let saved = FakeSavedLogs()
     let state = LogWindowState(entriesAfter: { _ in [] }, savedLogs: saved.source, writeLine: { _ in })
     let guides = GuideWindows(logState: state)
     let window = guides.logWindow()
@@ -31,7 +31,7 @@ struct LogWindowPersistenceTests {
 
   @Test
   func savingOffKeepsTheScopeOnThisLaunch() {
-    let saved = FakeSavedLogs(current: [])
+    let saved = FakeSavedLogs()
     let state = LogWindowState(entriesAfter: { _ in [] }, savedLogs: saved.source, writeLine: { _ in })
     state.scope = .allLaunches
     state.setSavingEnabled(false)
