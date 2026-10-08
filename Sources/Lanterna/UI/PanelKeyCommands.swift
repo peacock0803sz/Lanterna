@@ -82,6 +82,16 @@ final class PanelKeyCommands {
     filter.isActive
   }
 
+  /// How many shortcut rows are remembered, and up to how many. Read
+  /// for the diagnostics through the presenter.
+  var shortcutMemoryCount: Int {
+    filter.shortcutMemoryCount
+  }
+
+  var shortcutMemoryLimit: Int {
+    filter.shortcutMemoryLimit
+  }
+
   /// Starts an appearance over the whole ordered list, filtering only
   /// when the appearance asked for it, on the configured scope. The band
   /// is handed over before the panel goes up, so the panel sizes for it.
@@ -351,6 +361,7 @@ final class PanelKeyCommands {
   private let selection: PanelSelection
   private let wayOut: PanelExit
   private let filter: PanelFilter
+
   private let now: @MainActor () -> ContinuousClock.Instant
   /// Handed the row chosen as the key is pressed, so a choice moved
   /// before the operation gets its turn does not change its target.
