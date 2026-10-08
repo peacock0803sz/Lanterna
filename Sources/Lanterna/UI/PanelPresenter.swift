@@ -174,7 +174,8 @@ final class PanelPresenter {
   /// What a press means to a panel that is up.
   ///
   /// `lazy` because it is handed the way out, which is itself `lazy`. It
-  /// holds nothing of its own — the panel, the chosen row and the ways out
+  /// holds only one appearance's input state — the gathered digits and the
+  /// remembered repeat — while the panel, the chosen row and the ways out
   /// are all this object's — so the two can share them rather than keep
   /// second copies.
   /// The way out and the operations, built beside the presenter, reach it.
@@ -189,7 +190,8 @@ final class PanelPresenter {
     now: now,
     operate: { [weak self] operation, chosen in
       self?.startOperation(operation, naming: chosen)
-    }
+    },
+    startFiltering: { [weak self] in self?.switchToFiltering() }
   )
 
   /// Carries out the operations on the chosen row. Made beside the
@@ -415,6 +417,12 @@ final class PanelPresenter {
     wayOut.commitOnOptionRelease(naming: selection.chosenID, since: startedAt, filter: keyCommands.filterSummary())
   }
 
+  /// Switches the presented panel into filtering, stopping the release watch.
+  func switchToFiltering() {
+    keyCommands.activateFiltering()
+    commandWatch.stop()
+  }
+
   // MARK: Private
 
   /// Whether letting go of Command is what closes the panel.
@@ -609,8 +617,7 @@ final class PanelPresenter {
     case .reverse:
       selection.moveToPrevious()
     case .filter:
-      keyCommands.activateFiltering()
-      commandWatch.stop()
+      switchToFiltering()
     }
   }
 
