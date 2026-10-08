@@ -16,7 +16,8 @@ enum AppIconResolver {
   static let placeholder: NSImage = NSWorkspace.shared.icon(for: .applicationBundle)
 
   /// How many icons are held. Watched from the diagnostics, not capped:
-  /// one entry per application bounds it in practice.
+  /// one entry per bundle identifier seen this run, never evicted, so
+  /// applications that have quit still count.
   static var cachedCount: Int {
     iconsByBundleIdentifier.count
   }
