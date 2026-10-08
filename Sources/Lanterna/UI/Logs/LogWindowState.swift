@@ -171,7 +171,8 @@ final class LogWindowState {
   /// Lines that arrived while paused, oldest first. Held only up to the
   /// row cap, so a long pause still lets the oldest waiting lines go;
   /// what the mirror dropped meanwhile is not read back, and only the
-  /// saved file still has it, if saving was on when it was written.
+  /// saved file can still have it, if saving took it in before the
+  /// mirror let it go.
   var pendingRows = [LogRow]()
 
   /// Whether the window is on screen. Polling runs only while it is.

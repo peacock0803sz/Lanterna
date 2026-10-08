@@ -103,8 +103,8 @@ extension SavedLogSource {
 
 /// Reading the saved launches for All launches. This launch's lines the
 /// mirror dropped are not read back: past the row cap the live list lets
-/// them go, and only the saved file still has them, if saving was on
-/// when they were written.
+/// them go. Only the saved file can still have them, and only if saving
+/// took them in before the mirror dropped them.
 extension LogWindowState {
 
   // MARK: Internal
