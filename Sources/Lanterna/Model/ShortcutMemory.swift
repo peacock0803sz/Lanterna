@@ -8,6 +8,15 @@
 /// not here: this only answers what was recorded.
 struct ShortcutMemory: Equatable, Sendable {
 
+  // MARK: Lifecycle
+
+  /// Spelled out because the private recency list would otherwise make
+  /// the synthesized memberwise initializer private on older compilers.
+  init(maxLength: Int, maxEntries: Int = 256) {
+    self.maxLength = maxLength
+    self.maxEntries = maxEntries
+  }
+
   // MARK: Internal
 
   /// The recorded choices, keyed by the whole query folded to lowercase.
@@ -20,7 +29,7 @@ struct ShortcutMemory: Equatable, Sendable {
   /// How many queries are remembered at most. Past it the longest-ago
   /// recorded query leaves first. Apart from `maxLength`, which caps the
   /// length of one query rather than the number of them.
-  var maxEntries = 256
+  var maxEntries: Int
 
   /// Records one commit. Empty queries, queries longer than the length
   /// cap, and a zero length cap record nothing. Recording again moves
