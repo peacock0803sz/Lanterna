@@ -39,6 +39,7 @@ enum KeyBindingAction: String, CaseIterable, Equatable, Sendable {
   case numberJump
   case moveRowUp
   case moveRowDown
+  case startFiltering
 
   // MARK: Internal
 
@@ -415,6 +416,7 @@ struct KeyBindingTable: Equatable, Sendable {
         ResolvedKey(keyCode: UInt16(kVK_DownArrow), modifiers: [.command, .shift]),
         ResolvedKey(keyCode: UInt16(kVK_DownArrow), modifiers: [.option, .shift]),
       ],
+      .startFiltering: [ResolvedKey(keyCode: UInt16(kVK_ANSI_S), modifiers: [])],
     ])
   }
 
