@@ -90,7 +90,7 @@ struct PanelKeyInputTests {
   @Test
   func keysWithNoMeaningAreAbsorbed() {
     #expect(PanelKeyInput.action(for: press(kVK_ANSI_A)) == .absorb)
-    #expect(PanelKeyInput.action(for: press(kVK_ANSI_S, .command)) == .absorb)
+    #expect(PanelKeyInput.action(for: press(kVK_ANSI_D, .command)) == .absorb)
     #expect(PanelKeyInput.action(for: press(kVK_F1)) == .absorb)
     #expect(PanelKeyInput.action(for: press(kVK_Space)) == .absorb)
   }
@@ -163,7 +163,7 @@ struct PanelKeyInputTests {
 
   /// The operations win over filtering: an operation key held with
   /// Command is an operation even where its letter would type, while any
-  /// other Command letter still narrows.
+  /// other Command letter still narrows while filtering.
   @Test
   func theOperationKeysWinOverFiltering() {
     #expect(
@@ -171,8 +171,65 @@ struct PanelKeyInputTests {
         == .windowOperation(.closeWindow)
     )
     #expect(
+      PanelKeyInput.action(for: press(kVK_ANSI_D, .command, characters: "d"))
+        == .filterText("d")
+    )
+  }
+
+  @Test
+  func shortEntryReadsAsFiltering() {
+    #expect(
       PanelKeyInput.action(for: press(kVK_ANSI_S, .command, characters: "s"))
         == .filterText("s")
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_S, .command, characters: "s"),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false
+      ) == .filterText("s")
+    )
+  }
+
+  @Test
+  func startFilteringAnswersOnlyWhileNotFiltering() {
+    let table = KeyBindingTable.defaults
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_S, [], characters: "s"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .startFiltering
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_S, .command, characters: "s"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .startFiltering
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_S, [], characters: "s"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: true
+      ) == .filterText("s")
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_S, [], repeating: true, characters: "s"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .absorb
     )
   }
 
