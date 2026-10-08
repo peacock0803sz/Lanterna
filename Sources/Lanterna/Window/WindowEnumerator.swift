@@ -142,11 +142,13 @@ struct WindowEnumerator {
     using reader: any ApplicationWindowReading,
     locator: any SpaceLocating
   ) -> Gathered {
-    let results = read(identifiers, using: reader)
-    let windowIDs = results.flatMap { result in
-      (try? result.get())?.records.map(\.windowID) ?? []
+    autoreleasepool {
+      let results = read(identifiers, using: reader)
+      let windowIDs = results.flatMap { result in
+        (try? result.get())?.records.map(\.windowID) ?? []
+      }
+      return Gathered(results: results, spaces: locator.reading(among: windowIDs))
     }
-    return Gathered(results: results, spaces: locator.reading(among: windowIDs))
   }
 
   /// Reads all applications concurrently, one result per input position.
