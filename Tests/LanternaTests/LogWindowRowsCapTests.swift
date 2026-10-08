@@ -104,6 +104,44 @@ struct LogWindowRowsCapTests {
     #expect(state.rows.count == olderCount + 1 + DiagnosticLog.capacity)
   }
 
+  /// Taking in past the cap while All launches already shows trims the
+  /// laid-out rows in place, rather than laying them out again.
+  @Test
+  func cappingUnderAllLaunchesLeavesTheSavedRowsAtTheHead() async {
+    let earlier = LaunchID(
+      startedAt: LogFixture.launch.startedAt.addingTimeInterval(-3600),
+      isCurrent: false,
+      timeZone: TimeZone(identifier: "Asia/Tokyo") ?? .gmt
+    )
+    let saved = FakeSavedLogs()
+    saved.others = [
+      SavedLaunchEntries(launch: earlier, entries: LogFixture.entries(count: 3, launch: earlier))
+    ]
+    let feed = LogFeed(LogFixture.entries(count: 10))
+    let state = LogWindowState(
+      entriesAfter: { after in feed.entries.filter { $0.sequence > after } },
+      currentLaunch: LogFixture.launch,
+      savedLogs: saved.source,
+      liveInterval: .seconds(3600)
+    )
+    state.ingest()
+    state.scope = .allLaunches
+    await state.olderTask?.value
+    let olderIDs = state.olderRows.map(\.id)
+    #expect(olderIDs.count == 4)
+    let total = DiagnosticLog.capacity + 30
+    feed.entries.append(contentsOf: (11 ... UInt64(total)).map { LogFixture.entry(sequence: $0) })
+    state.ingest()
+    #expect(state.currentRows.count == DiagnosticLog.capacity)
+    #expect(state.rows.count == olderIDs.count + 1 + DiagnosticLog.capacity)
+    #expect(Array(state.rows.prefix(olderIDs.count)).map(\.id) == olderIDs)
+    let separator = state.rows[olderIDs.count]
+    #expect(separator.isSeparator)
+    #expect(separator.launch == LogFixture.launch)
+    #expect(Array(state.rows.suffix(DiagnosticLog.capacity)).map(\.id) == state.currentRows.map(\.id))
+    #expect(state.shownRows.map(\.id) == state.rows.filter(state.matches).map(\.id))
+  }
+
   // MARK: Private
 
   private static func state(over feed: LogFeed) -> LogWindowState {
