@@ -45,7 +45,7 @@ enum RetentionCounts {
     mruRecordCount: Int,
     mruApplicationCount: Int,
     iconCount: Int = AppIconResolver.cachedCount,
-    mirrorCount: Int = Diagnostics.recentEntries.count
+    mirrorCount: Int = Diagnostics.recentCount
   ) -> RetentionSnapshot {
     RetentionSnapshot(
       liveRows: logState.currentRows.count,
