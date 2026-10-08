@@ -22,6 +22,8 @@ struct RunningApplicationInfo {
   /// order the workspace reports. Ordering for display happens later, from
   /// the process identifier, because this order is not guaranteed.
   static func regularApplications() -> [RunningApplicationInfo] {
+    // The pool frees this pass's Objective-C temporaries as it ends,
+    // rather than when the run loop next drains.
     autoreleasepool {
       let currentProcess = getpid()
       return NSWorkspace.shared.runningApplications.compactMap { application in

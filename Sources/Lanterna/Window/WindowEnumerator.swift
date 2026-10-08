@@ -142,6 +142,8 @@ struct WindowEnumerator {
     using reader: any ApplicationWindowReading,
     locator: any SpaceLocating
   ) -> Gathered {
+    // The pool frees this pass's Objective-C temporaries as it ends,
+    // rather than whenever the pool around the caller next drains.
     autoreleasepool {
       let results = read(identifiers, using: reader)
       let windowIDs = results.flatMap { result in
