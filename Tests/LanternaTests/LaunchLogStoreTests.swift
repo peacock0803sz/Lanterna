@@ -150,21 +150,26 @@ struct LaunchLogStoreTests {
     #expect(batch.unreadableFiles == 0)
   }
 
+  /// The oldest file would fit in what is left of the budget, so it is
+  /// left unread only because the file over the budget stops the reading.
   @Test
-  func aSecondFileAloneOverTheBudgetIsNotRead() throws {
+  func aFileOverTheBudgetStopsTheReadingOfOlderOnes() throws {
     let folder = try TemporaryFolder()
     let store = LaunchLogStore(directory: folder.url, timeZone: Self.tokyo)
-    let older = try Self.write(count: 30, launch: Self.launch(0), store: store)
-    let newer = try Self.write(count: 2, launch: Self.launch(1), store: store)
+    let oldest = try Self.write(count: 2, launch: Self.launch(0), store: store)
+    let middle = try Self.write(count: 30, launch: Self.launch(1), store: store)
+    let newest = try Self.write(count: 2, launch: Self.launch(2), store: store)
     let sizes = Dictionary(uniqueKeysWithValues: store.files().map { ($0.launch, $0.byteCount) })
-    let newerSize = try #require(sizes[newer])
-    let olderSize = try #require(sizes[older])
-    let budget = newerSize * 5
-    #expect(olderSize > budget)
+    let newestSize = try #require(sizes[newest])
+    let middleSize = try #require(sizes[middle])
+    let oldestSize = try #require(sizes[oldest])
+    let budget = newestSize * 5
+    #expect(middleSize > budget - newestSize)
+    #expect(oldestSize <= budget - newestSize)
     let source = SavedLogSource.live(store: store, limits: SavedLogReadLimits(launchCount: 5, byteBudget: budget))
     let batch = source.readOthers(nil)
-    #expect(batch.launches.count == 1)
-    #expect(batch.launches.first?.launch == newer)
+    #expect(batch.launches.map(\.launch) == [newest])
+    #expect(batch.bytesRead == newestSize)
     #expect(batch.unreadableFiles == 0)
   }
 
