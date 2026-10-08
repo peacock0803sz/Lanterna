@@ -35,7 +35,7 @@ enum KeyBindingCategory: CaseIterable, Equatable, Hashable, Sendable {
     switch self {
     case .switcher: [.show, .showReverse, .showFilter]
     case .navigation: [.next, .previous, .commit, .cancel, .toggleScope, .numberJump, .moveRowUp, .moveRowDown]
-    case .query: [.deleteBackward, .clearQuery]
+    case .query: [.startFiltering, .deleteBackward, .clearQuery]
     case .windowActions: [.closeWindow, .quitApplication, .hideApplication, .minimizeWindow]
     }
   }
@@ -54,6 +54,7 @@ enum KeyBindingCategory: CaseIterable, Equatable, Hashable, Sendable {
     case .numberJump: "Jump to row number"
     case .moveRowUp: "Move row up"
     case .moveRowDown: "Move row down"
+    case .startFiltering: "Start filtering"
     case .deleteBackward: "Delete backward"
     case .clearQuery: "Clear query"
     case .closeWindow: "Close window"
