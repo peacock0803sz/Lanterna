@@ -226,10 +226,11 @@ struct LaunchLogStore: Sendable {
   }
 
   /// Reads the newest lines of `file` within `budget` bytes, header
-  /// included. The header is read from the start; the tail drops the
-  /// fragment its first bytes belong to, up to the first newline,
-  /// without counting it, so a file larger than the budget still yields
-  /// its latest lines.
+  /// included. The header is looked for only within the first read from
+  /// the start, and a file whose header ends past it is unreadable; the
+  /// tail drops the fragment its first bytes belong to, up to the first
+  /// newline, without counting it as skipped, so a file larger than the
+  /// budget still yields its latest lines.
   func readTail(_ file: SavedLaunchFile, budget: Int) -> SavedLaunchRead {
     let unreadable = SavedLaunchRead(entries: [], skippedLines: 0, isReadable: false, byteCount: 0)
     guard let handle = try? FileHandle(forReadingFrom: file.url) else {
