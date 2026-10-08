@@ -76,6 +76,14 @@ struct KeyBindingTableTests {
     #expect(table[.show] == [key(kVK_Tab, .command)])
     #expect(table[.closeWindow] == [key(kVK_ANSI_W, .command)])
     #expect(table[.toggleScope] == [key(kVK_ANSI_Slash, .command)])
+    #expect(
+      table[.next]
+        == [key(kVK_DownArrow), key(kVK_ANSI_J), key(kVK_ANSI_N)]
+    )
+    #expect(
+      table[.previous]
+        == [key(kVK_UpArrow), key(kVK_ANSI_K), key(kVK_ANSI_P)]
+    )
   }
 
   /// The scope key is held to a modifier, the way the window operations
