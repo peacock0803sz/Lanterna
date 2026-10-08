@@ -375,8 +375,18 @@ struct KeyBindingTable: Equatable, Sendable {
         ResolvedKey(keyCode: UInt16(kVK_Tab), modifiers: [.command, .shift])
       ],
       .showFilter: [ResolvedKey(keyCode: UInt16(kVK_Space), modifiers: .command)],
-      .next: [ResolvedKey(keyCode: UInt16(kVK_DownArrow), modifiers: [])],
-      .previous: [ResolvedKey(keyCode: UInt16(kVK_UpArrow), modifiers: [])],
+      // Bare letters answer only while not filtering; while filtering
+      // they type into the query.
+      .next: [
+        ResolvedKey(keyCode: UInt16(kVK_DownArrow), modifiers: []),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_J), modifiers: []),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_N), modifiers: []),
+      ],
+      .previous: [
+        ResolvedKey(keyCode: UInt16(kVK_UpArrow), modifiers: []),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_K), modifiers: []),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_P), modifiers: []),
+      ],
       .commit: [
         ResolvedKey(keyCode: UInt16(kVK_Return), modifiers: []),
         ResolvedKey(keyCode: UInt16(kVK_ANSI_KeypadEnter), modifiers: []),
