@@ -15,6 +15,12 @@ enum AppIconResolver {
   /// image instead of allocating a copy per row.
   static let placeholder: NSImage = NSWorkspace.shared.icon(for: .applicationBundle)
 
+  /// How many icons are held. Watched from the diagnostics, not capped:
+  /// one entry per application bounds it in practice.
+  static var cachedCount: Int {
+    iconsByBundleIdentifier.count
+  }
+
   /// Several windows of one application are the normal case, so each bundle
   /// identifier is looked up in the workspace at most once.
   static func icon(forBundleIdentifier bundleIdentifier: String?) -> NSImage {

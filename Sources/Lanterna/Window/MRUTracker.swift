@@ -104,6 +104,18 @@ final class MRUTracker {
     }
   }
 
+  /// How many window uses are remembered. Watched from the diagnostics,
+  /// not capped: sweeping on every appearance bounds it in practice.
+  var recordCount: Int {
+    records.count
+  }
+
+  /// How many application uses are remembered, apart from the records
+  /// above. Watched, not capped, like them.
+  var applicationSequenceCount: Int {
+    applicationSequences.count
+  }
+
   /// Writes down one use. Recording the same target twice only moves its
   /// number forward; the order keeps it first either way, which is what
   /// makes a commit followed by its own activation notification harmless.
