@@ -133,8 +133,8 @@ final class LogWindowState {
   /// How many of this launch's lines `currentRows` and `pendingRows`
   /// each hold at most. Tied to the mirror's capacity, so neither list
   /// holds more of this launch's lines than the mirror does; the saved
-  /// launches in
-  /// `olderRows` are bounded separately by how much is read from disk.
+  /// launches in `olderRows` are bounded separately by how much is read
+  /// from disk.
   static let rowsCapacity = DiagnosticLog.capacity
 
   /// Every row read for the current scope, oldest first.

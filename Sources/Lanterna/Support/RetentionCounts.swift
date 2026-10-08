@@ -2,8 +2,9 @@ import Foundation
 
 // MARK: - RetentionSnapshot
 
-/// What the process holds onto that can grow, counted for the diagnostics. Items
-/// with a limit read as `current/limit`; watched items carry no limit.
+/// What the process holds onto that can grow, counted for the
+/// diagnostics. Items with a limit read as `current/limit`; watched
+/// items carry no limit.
 struct RetentionSnapshot: Equatable, Sendable {
   /// This launch's live log rows.
   var liveRows: Int

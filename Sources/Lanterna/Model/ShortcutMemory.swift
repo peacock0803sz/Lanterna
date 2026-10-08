@@ -23,8 +23,8 @@ struct ShortcutMemory: Equatable, Sendable {
   var maxEntries = 256
 
   /// Records one commit. Empty queries, queries longer than the length
-  /// cap, and a zero length cap record nothing. Recording again moves the query newest,
-  /// so a hit often used is not the one that leaves.
+  /// cap, and a zero length cap record nothing. Recording again moves
+  /// the query newest, so a hit often used is not the one that leaves.
   mutating func record(query: String, id: WindowItem.Identifier) {
     guard inScope(query) else { return }
     let key = query.lowercased()
