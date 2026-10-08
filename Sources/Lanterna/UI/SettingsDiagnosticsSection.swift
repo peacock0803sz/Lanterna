@@ -125,7 +125,8 @@ struct SettingsDiagnosticsSection: View {
     if bytes < 1024 {
       return "\(bytes) B"
     }
-    if bytes < 1_048_576 {
+    // Avoid %.1f KB rounding up to 1024.0 KB just below 1 MB.
+    if Double(bytes) / 1024 < 1023.95 {
       return String(format: "%.1f KB", Double(bytes) / 1024)
     }
     return String(format: "%.1f MB", Double(bytes) / 1_048_576)
