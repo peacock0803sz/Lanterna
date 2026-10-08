@@ -112,6 +112,8 @@ enum PanelKeyAction: Equatable, Sendable {
   /// would step.
   case moveRowUp
   case moveRowDown
+  /// Switches a panel that is not filtering into filtering.
+  case startFiltering
   /// Backspace: shortens the query by one character.
   case filterBackspace
   /// Clears the query, leaving the panel up.
@@ -484,6 +486,7 @@ enum PanelKeyInput {
       (.commit, .commit(commitKey(for: keystroke))),
       (.cancel, .cancel(cancelKey(for: keystroke))),
       (.toggleScope, .toggleScope),
+      (.startFiltering, .startFiltering),
       (.clearQuery, .clearQuery),
       (.deleteBackward, .filterBackspace),
     ]
@@ -540,6 +543,7 @@ extension PanelKeyAction {
          .cancel,
          .windowOperation,
          .toggleScope,
+         .startFiltering,
          .numberDigit,
          .moveRowUp,
          .moveRowDown,
