@@ -94,7 +94,9 @@ enum PanelKeyAction: Equatable, Sendable {
   case cancel(CancelKey)
   /// An operation on the chosen row. Read before the filtering row: an
   /// operation key held with Command is an operation even where its
-  /// letter would type, while any other Command letter still narrows.
+  /// letter would type, while any other Command letter still narrows
+  /// while filtering. While not filtering, a bare-assigned letter held
+  /// with Command answers its operation too.
   case windowOperation(WindowOperation)
   /// Switches this showing between every application's windows and the
   /// active application's alone.
@@ -327,18 +329,21 @@ enum PanelKeyInput {
   /// What the panel should do about this press with the number
   /// switches in force. Off reads as the table holding neither the
   /// number row nor the reorder rows, so an unchanged file keeps the
-  /// long-standing meanings key for key.
+  /// long-standing meanings key for key. Callers omitting `filtering`
+  /// read as filtering, as before.
   static func action(
     for keystroke: PanelKeystroke,
     table: KeyBindingTable,
     numberJumpEnabled: Bool = false,
-    reorderEnabled: Bool = false
+    reorderEnabled: Bool = false,
+    filtering: Bool = true
   ) -> PanelKeyAction {
     let action = meaning(
       of: keystroke,
       table: table,
       numberJumpEnabled: numberJumpEnabled,
-      reorderEnabled: reorderEnabled
+      reorderEnabled: reorderEnabled,
+      filtering: filtering
     )
     guard keystroke.isARepeat else { return action }
     return action.whenTheKeyboardIsRepeating
@@ -426,7 +431,8 @@ enum PanelKeyInput {
     of keystroke: PanelKeystroke,
     table: KeyBindingTable,
     numberJumpEnabled: Bool = false,
-    reorderEnabled: Bool = false
+    reorderEnabled: Bool = false,
+    filtering: Bool = true
   ) -> PanelKeyAction {
     if Int(keystroke.keyCode) == kVK_Tab, !holdsTab(table) {
       return .absorb
@@ -436,7 +442,8 @@ enum PanelKeyInput {
         for: keystroke,
         table: table,
         numberJumpEnabled: numberJumpEnabled,
-        reorderEnabled: reorderEnabled
+        reorderEnabled: reorderEnabled,
+        filtering: filtering
       )
     {
       return winner
@@ -459,7 +466,8 @@ enum PanelKeyInput {
     for keystroke: PanelKeystroke,
     table: KeyBindingTable,
     numberJumpEnabled: Bool = false,
-    reorderEnabled: Bool = false
+    reorderEnabled: Bool = false,
+    filtering: Bool = true
   ) -> PanelKeyAction? {
     var ordered: [(KeyBindingAction, PanelKeyAction)] = WindowOperation.allCases.map {
       ($0.binding, .windowOperation($0))
@@ -480,7 +488,7 @@ enum PanelKeyInput {
       (.deleteBackward, .filterBackspace),
     ]
     let ranked = ordered.enumerated().compactMap { order, entry in
-      narrowness(of: keystroke, action: entry.0, table: table).map {
+      narrowness(of: keystroke, action: entry.0, table: table, filtering: filtering).map {
         (narrowness: $0, order: order, action: entry.1)
       }
     }
@@ -495,13 +503,12 @@ enum PanelKeyInput {
   private static func narrowness(
     of keystroke: PanelKeystroke,
     action: KeyBindingAction,
-    table: KeyBindingTable
+    table: KeyBindingTable,
+    filtering: Bool = true
   ) -> Int? {
     let schema: NSEvent.ModifierFlags = [.shift, .control, .option, .command]
-    return table[action].filter { key in
-      key.keyCode == keystroke.keyCode && key.modifiers.isSubset(of: keystroke.modifiers)
-        && (!key.modifiers.isEmpty || WindowFilter.allowedText(keystroke.characters) == nil)
-    }.lazy.map { $0.modifiers.intersection(schema).rawValue.nonzeroBitCount }.max()
+    return table[action].filter { $0.answers(keystroke, filtering: filtering) }.lazy
+      .map { $0.modifiers.intersection(schema).rawValue.nonzeroBitCount }.max()
   }
 
   /// Whether show, showReverse or showFilter holds Tab. Only an explicit
