@@ -235,7 +235,8 @@ final class PanelKeyCommands {
       for: keystroke,
       table: keyBindings,
       numberJumpEnabled: numberJumpEnabled,
-      reorderEnabled: reorderEnabled
+      reorderEnabled: reorderEnabled,
+      filtering: filter.isActive
     )
     // Only consecutive digit presses gather into a number: anything
     // else hands the pending digits back before it is answered.
@@ -409,7 +410,7 @@ final class PanelKeyCommands {
   /// apart: it keeps no state, and the filter is where the question
   /// is answered.
   private func cancelOrClear(_ keystroke: PanelKeystroke, since startedAt: ContinuousClock.Instant) {
-    if keyBindings.matches(keystroke, action: .clearQuery), filter.clear() {
+    if keyBindings.matches(keystroke, action: .clearQuery, filtering: filter.isActive), filter.clear() {
       return
     }
     wayOut.cancel(
