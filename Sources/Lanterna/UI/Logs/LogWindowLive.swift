@@ -10,9 +10,10 @@ extension LogWindowState {
   }
 
   /// Takes in the lines written since the last look. While paused they
-  /// wait; otherwise they join the list. Lines the mirror already
-  /// dropped stay on disk alone: past the row cap the oldest waiting
-  /// lines leave too.
+  /// wait; otherwise they join the list. Past the row cap the oldest
+  /// lines leave whichever list took them in. Lines the mirror already
+  /// dropped are not read back; only the saved file, when saving is on,
+  /// still has them.
   func ingest() {
     let new = entriesAfter(lastSequence)
     guard let last = new.last else { return }

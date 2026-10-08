@@ -131,8 +131,9 @@ final class LogWindowState {
   // MARK: Internal
 
   /// How many of this launch's lines `currentRows` and `pendingRows`
-  /// each hold at most. Tied to the mirror's capacity, so the window
-  /// shows what the mirror still holds; the saved launches in
+  /// each hold at most. Tied to the mirror's capacity, so neither list
+  /// holds more of this launch's lines than the mirror does; the saved
+  /// launches in
   /// `olderRows` are bounded separately by how much is read from disk.
   static let rowsCapacity = DiagnosticLog.capacity
 
@@ -169,7 +170,8 @@ final class LogWindowState {
 
   /// Lines that arrived while paused, oldest first. Held only up to the
   /// row cap, so a long pause still lets the oldest waiting lines go;
-  /// what the mirror dropped meanwhile past the cap stays on disk alone.
+  /// what the mirror dropped meanwhile is not read back, and only the
+  /// saved file, when saving is on, still has it.
   var pendingRows = [LogRow]()
 
   /// Whether the window is on screen. Polling runs only while it is.

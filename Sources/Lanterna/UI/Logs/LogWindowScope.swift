@@ -101,9 +101,9 @@ extension SavedLogSource {
 
 // MARK: - LogWindowState + scope
 
-/// Reading the saved launches for All launches. Lines the mirror dropped
-/// stay on disk alone: past the row cap the live list lets them go rather
-/// than reading them back.
+/// Reading the saved launches for All launches. This launch's lines the
+/// mirror dropped are not read back: past the row cap the live list lets
+/// them go, and only the saved file, when saving is on, still has them.
 extension LogWindowState {
 
   // MARK: Internal
