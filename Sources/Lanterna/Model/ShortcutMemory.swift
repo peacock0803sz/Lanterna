@@ -49,7 +49,8 @@ struct ShortcutMemory: Equatable, Sendable {
   /// the count cap is aged on this side.
   private var order = [String]()
 
-  /// Whether a query takes part at all: non-empty and within the cap.
+  /// Whether a query takes part at all: non-empty and within the
+  /// length cap.
   private func inScope(_ query: String) -> Bool {
     !query.isEmpty && query.count <= maxLength
   }
