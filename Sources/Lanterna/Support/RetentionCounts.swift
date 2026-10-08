@@ -36,7 +36,7 @@ struct RetentionSnapshot: Equatable, Sendable {
 /// Gathers one retention snapshot from the owners.
 enum RetentionCounts {
 
-  /// Reads the current numbers. The limits ride on the same constants as
+  /// Reads the current numbers. The limits ride on the same values as
   /// the caps themselves rather than copies of them. The saved bytes
   /// limit is the default read budget, which holds only while the saved
   /// logs are read with the default limits.
