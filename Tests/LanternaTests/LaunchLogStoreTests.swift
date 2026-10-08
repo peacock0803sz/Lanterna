@@ -151,7 +151,8 @@ struct LaunchLogStoreTests {
   }
 
   /// The oldest file would fit in what is left of the budget, so it is
-  /// left unread only because the file over the budget stops the reading.
+  /// left unread only because the middle file, over what is left of the
+  /// budget, stops the reading.
   @Test
   func aFileOverTheBudgetStopsTheReadingOfOlderOnes() throws {
     let folder = try TemporaryFolder()
