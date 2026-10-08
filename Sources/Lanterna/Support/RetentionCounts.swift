@@ -11,6 +11,9 @@ struct RetentionSnapshot: Equatable, Sendable {
   /// Log lines that arrived while paused.
   var waitingRows: Int
   var waitingRowsLimit: Int
+  /// Whether the log list is holding still. Only then is the waiting
+  /// count shown beside the live one.
+  var logPaused: Bool
   /// Bytes taken from the saved launches on the last read.
   var savedBytes: Int
   var savedBytesLimit: Int
@@ -49,6 +52,7 @@ enum RetentionCounts {
       liveRowsLimit: LogWindowState.rowsCapacity,
       waitingRows: logState.pendingRows.count,
       waitingRowsLimit: LogWindowState.rowsCapacity,
+      logPaused: logState.isPaused,
       savedBytes: logState.savedLogsBytesRead,
       savedBytesLimit: LaunchLogStore.readByteLimit,
       shortcutCount: shortcutMemoryCount,

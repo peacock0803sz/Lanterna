@@ -24,6 +24,7 @@ struct RetentionCountsTests {
     #expect(snapshot.liveRowsLimit == DiagnosticLog.capacity)
     #expect(snapshot.waitingRows == 1)
     #expect(snapshot.waitingRowsLimit == DiagnosticLog.capacity)
+    #expect(snapshot.logPaused == false)
     #expect(snapshot.savedBytes == 4096)
     #expect(snapshot.savedBytesLimit == LaunchLogStore.readByteLimit)
     #expect(snapshot.shortcutCount == 7)
