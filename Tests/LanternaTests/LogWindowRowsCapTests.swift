@@ -104,8 +104,9 @@ struct LogWindowRowsCapTests {
     #expect(state.rows.count == olderCount + 1 + DiagnosticLog.capacity)
   }
 
-  /// Taking in past the cap while All launches already shows trims the
-  /// laid-out rows in place, rather than laying them out again.
+  /// Taking in past the cap while All launches already shows keeps the
+  /// saved rows at the head, then this launch's separator, then the
+  /// capped current rows.
   @Test
   func cappingUnderAllLaunchesLeavesTheSavedRowsAtTheHead() async {
     let earlier = LaunchID(
