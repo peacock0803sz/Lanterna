@@ -22,8 +22,8 @@ struct ShortcutMemory: Equatable, Sendable {
   /// length of one query rather than the number of them.
   var maxEntries = 256
 
-  /// Records one commit. Empty queries, queries longer than the cap, and
-  /// a zero cap record nothing. Recording again moves the query newest,
+  /// Records one commit. Empty queries, queries longer than the length
+  /// cap, and a zero length cap record nothing. Recording again moves the query newest,
   /// so a hit often used is not the one that leaves.
   mutating func record(query: String, id: WindowItem.Identifier) {
     guard inScope(query) else { return }
@@ -37,7 +37,7 @@ struct ShortcutMemory: Equatable, Sendable {
   }
 
   /// The recorded row for one query, if any. Empty queries, queries
-  /// longer than the cap, and a zero cap answer nothing.
+  /// longer than the length cap, and a zero length cap answer nothing.
   func lookup(query: String) -> WindowItem.Identifier? {
     guard inScope(query) else { return nil }
     return entries[query.lowercased()]
