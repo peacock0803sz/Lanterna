@@ -55,19 +55,24 @@ struct LogWindowRowsCapTests {
   }
 
   @Test
-  func trimmingDropsTheOldestNumberNotTheArrivalOrder() {
+  func trimmingDropsTheOldestNumberNotTheArrivalOrder() throws {
     let state = Self.state(over: LogFeed())
     state.currentRows = (1 ... 5).map { LogRow(entry: LogFixture.entry(sequence: $0)) }
       + [LogRow(entry: LogFixture.entry(sequence: 0))]
     state.currentRows += (6 ... UInt64(DiagnosticLog.capacity + 1)).map { LogRow(entry: LogFixture.entry(sequence: $0)) }
     state.rows = state.currentRows
     state.shownRows = state.currentRows
+    let evictedID = try #require(state.currentRows.first { $0.entry?.sequence == 0 }?.id)
+    let keptID = try #require(state.currentRows.first { $0.entry?.sequence == 2 }?.id)
+    state.selection = [evictedID, keptID]
     state.trimCurrentRowsToCapacity()
     #expect(state.currentRows.count == DiagnosticLog.capacity)
     #expect(!state.currentRows.compactMap(\.entry?.sequence).contains(0))
     #expect(state.currentRows.compactMap(\.entry?.sequence).min() == 2)
     #expect(state.rows.count == DiagnosticLog.capacity)
     #expect(state.shownRows.count == DiagnosticLog.capacity)
+    #expect(!state.selection.contains(evictedID))
+    #expect(state.selection == [keptID])
   }
 
   @Test

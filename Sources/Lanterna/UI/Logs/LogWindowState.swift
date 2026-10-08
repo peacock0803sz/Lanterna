@@ -268,6 +268,8 @@ final class LogWindowState {
 
   /// Drops the oldest-numbered rows past the cap from `currentRows`, and
   /// takes the same rows out of `rows` and `shownRows` by difference.
+  /// Selections of the dropped rows go with them, so the selection never
+  /// points at rows the window no longer holds.
   /// The saved `olderRows` are never touched; full refiltering is left
   /// to the caller that needs it.
   func trimCurrentRowsToCapacity() {
@@ -280,6 +282,7 @@ final class LogWindowState {
     guard !evicted.isEmpty else { return }
     rows.removeAll { evicted.contains($0.id) }
     shownRows.removeAll { evicted.contains($0.id) }
+    selection.subtract(evicted)
   }
 
   /// Drops the oldest-numbered waiting lines past the cap. The shown
