@@ -50,8 +50,9 @@ extension AppDelegate {
 
   // MARK: Private
 
-  /// What this run holds onto, or nil when the log window is not up.
-  /// Read fresh every time the settings open, so the numbers are the
+  /// What this run holds onto, or nil before launch has built the log
+  /// window's state. The log rows read zero until the log window is
+  /// first shown, since lines are taken in only while it is. Read fresh every time the settings open, so the numbers are the
   /// latest rather than the ones from the last opening.
   private func retentionSnapshot() -> RetentionSnapshot? {
     guard let logState = guideWindows?.logState else { return nil }

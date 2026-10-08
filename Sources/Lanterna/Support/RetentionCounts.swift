@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - RetentionSnapshot
 
-/// Everything the process holds onto, counted for the diagnostics. Items
+/// What the process holds onto that can grow, counted for the diagnostics. Items
 /// with a limit read as `current/limit`; watched items carry no limit.
 struct RetentionSnapshot: Equatable, Sendable {
   /// This launch's live log rows.
@@ -36,7 +36,9 @@ struct RetentionSnapshot: Equatable, Sendable {
 enum RetentionCounts {
 
   /// Reads the current numbers. The limits ride on the same constants as
-  /// the caps themselves, so the two cannot drift apart.
+  /// the caps themselves rather than copies of them. The saved bytes
+  /// limit is the default read budget, which holds only while the saved
+  /// logs are read with the default limits.
   @MainActor
   static func snapshot(
     logState: LogWindowState,

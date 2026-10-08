@@ -11,7 +11,8 @@ final class DiagnosticsDisplay: ObservableObject {
   /// The saved logs in brief, or nil when this run keeps none.
   @Published var savedSummary: String?
   /// What this run holds onto, refreshed when the settings open and
-  /// after the saved logs change. Nil when the log window is not up.
+  /// after the saved logs change. Nil until launch has built the log
+  /// window's state.
   @Published var retention: RetentionSnapshot?
   /// Reads the retention numbers again. Wired by the delegate, which
   /// owns the holders.
@@ -119,8 +120,9 @@ struct SettingsDiagnosticsSection: View {
   }
 
   /// Bytes in the unit that reads best: whole bytes below 1 KB, one
-  /// decimal KB below 1 MB, and one decimal MB above. Small reads would
-  /// otherwise round to `0.0 MB`.
+  /// decimal KB below 1 MB, and one decimal MB from there up. Just under
+  /// 1 MB, where one decimal KB would round up to `1024.0 KB`, MB is
+  /// used already. Small reads would otherwise round to `0.0 MB`.
   private static func byteText(_ bytes: Int) -> String {
     if bytes < 1024 {
       return "\(bytes) B"
