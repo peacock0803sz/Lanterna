@@ -405,6 +405,45 @@ struct KeyBindingTableTests {
   }
 
   @Test
+  func bareAnswersFollowFiltering() {
+    let bare = key(kVK_ANSI_J)
+    let guarded = key(kVK_ANSI_J, .command)
+    func stroke(_ modifiers: NSEvent.ModifierFlags, _ characters: String) -> PanelKeystroke {
+      PanelKeystroke(
+        keyCode: UInt16(kVK_ANSI_J),
+        modifiers: modifiers,
+        isARepeat: false,
+        characters: characters
+      )
+    }
+    #expect(guarded.answers(stroke(.command, "j"), filtering: false))
+    #expect(guarded.answers(stroke(.command, "j"), filtering: true))
+    #expect(guarded.answers(stroke(.command, ""), filtering: true))
+    #expect(bare.answers(stroke([], ""), filtering: false))
+    #expect(bare.answers(stroke([], "/"), filtering: false))
+    #expect(bare.answers(stroke([], "j"), filtering: false))
+    #expect(bare.answers(stroke([], ""), filtering: true))
+    #expect(bare.answers(stroke([], "/"), filtering: true))
+    #expect(!bare.answers(stroke([], "j"), filtering: true))
+    #expect(bare.answers(stroke(.command, "j"), filtering: false))
+    #expect(!bare.answers(stroke(.command, "j"), filtering: true))
+  }
+
+  @Test
+  func matchesWithoutFilteringKeepsFiltering() {
+    var table = KeyBindingTable.defaults
+    table.keys[.next] = [key(kVK_ANSI_J)]
+    let press = PanelKeystroke(
+      keyCode: UInt16(kVK_ANSI_J),
+      modifiers: [],
+      isARepeat: false,
+      characters: "j"
+    )
+    #expect(!table.matches(press, action: .next))
+    #expect(table.matches(press, action: .next, filtering: false))
+  }
+
+  @Test
   func kanaIndependentByConstruction() {
     // Resolution never sees characters: the same physical key resolves
     // the same way whatever the input source produced.
