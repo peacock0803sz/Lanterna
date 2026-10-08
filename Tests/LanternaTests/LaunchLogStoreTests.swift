@@ -133,6 +133,113 @@ struct LaunchLogStoreTests {
   }
 
   @Test
+  func stopsBeforeTheFileThatWouldPassTheBudget() throws {
+    let folder = try TemporaryFolder()
+    let store = LaunchLogStore(directory: folder.url, timeZone: Self.tokyo)
+    let older = try Self.write(count: 8, launch: Self.launch(0), store: store)
+    let newer = try Self.write(count: 6, launch: Self.launch(1), store: store)
+    let sizes = Dictionary(uniqueKeysWithValues: store.files().map { ($0.launch, $0.byteCount) })
+    let olderSize = try #require(sizes[older])
+    let newerSize = try #require(sizes[newer])
+    let budget = newerSize + olderSize / 2
+    let source = SavedLogSource.live(store: store, limits: SavedLogReadLimits(launchCount: 5, byteBudget: budget))
+    let batch = source.readOthers(nil)
+    #expect(batch.launches.count == 1)
+    #expect(batch.launches.first?.launch == newer)
+    #expect(batch.bytesRead == newerSize)
+    #expect(batch.unreadableFiles == 0)
+  }
+
+  @Test
+  func aSecondFileAloneOverTheBudgetIsNotRead() throws {
+    let folder = try TemporaryFolder()
+    let store = LaunchLogStore(directory: folder.url, timeZone: Self.tokyo)
+    let older = try Self.write(count: 30, launch: Self.launch(0), store: store)
+    let newer = try Self.write(count: 2, launch: Self.launch(1), store: store)
+    let sizes = Dictionary(uniqueKeysWithValues: store.files().map { ($0.launch, $0.byteCount) })
+    let newerSize = try #require(sizes[newer])
+    let olderSize = try #require(sizes[older])
+    let budget = newerSize * 5
+    #expect(olderSize > budget)
+    let source = SavedLogSource.live(store: store, limits: SavedLogReadLimits(launchCount: 5, byteBudget: budget))
+    let batch = source.readOthers(nil)
+    #expect(batch.launches.count == 1)
+    #expect(batch.launches.first?.launch == newer)
+    #expect(batch.unreadableFiles == 0)
+  }
+
+  @Test
+  func aNewestFileAloneOverTheBudgetReadsOnlyItsTail() throws {
+    let folder = try TemporaryFolder()
+    let store = LaunchLogStore(directory: folder.url, timeZone: Self.tokyo)
+    let launch = try Self.write(count: 40, launch: Self.launch(0), store: store)
+    let size = try #require(store.files().first { $0.launch == launch }?.byteCount)
+    let budget = size / 4
+    #expect(size > budget)
+    let source = SavedLogSource.live(store: store, limits: SavedLogReadLimits(launchCount: 5, byteBudget: budget))
+    let batch = source.readOthers(nil)
+    #expect(batch.launches.count == 1)
+    #expect(batch.bytesRead <= budget)
+    #expect(batch.skippedLines == 0)
+    let sequences = batch.launches.first?.entries.map(\.sequence) ?? []
+    #expect(sequences.last == 40)
+    #expect(sequences == sequences.sorted())
+  }
+
+  @Test
+  func theTailSkipsItsFragmentWithoutCountingIt() throws {
+    let folder = try TemporaryFolder()
+    let store = LaunchLogStore(directory: folder.url, timeZone: Self.tokyo)
+    let (launch, url) = try store.create(for: Self.launch(0), version: "v0")
+    for sequence: UInt64 in 1 ... 30 {
+      try append(LaunchLogCoding.line(for: LogFixture.entry(sequence: sequence, launch: launch)), to: url)
+      if sequence == 25 {
+        try append("{not json}\n", to: url)
+      }
+    }
+    let size = try #require(store.files().first { $0.launch == launch }?.byteCount)
+    let budget = size / 3
+    let source = SavedLogSource.live(store: store, limits: SavedLogReadLimits(launchCount: 5, byteBudget: budget))
+    let batch = source.readOthers(nil)
+    #expect(batch.launches.count == 1)
+    #expect(batch.bytesRead <= budget)
+    #expect(batch.skippedLines == 1)
+    #expect(batch.launches.first?.entries.map(\.sequence).last == 30)
+  }
+
+  @Test
+  func beyondTheLaunchCountOnlyTheNewestAreRead() throws {
+    let folder = try TemporaryFolder()
+    let store = LaunchLogStore(directory: folder.url, timeZone: Self.tokyo)
+    let current = try Self.write(count: 1, launch: Self.launch(9), store: store)
+    var launches = [LaunchID]()
+    for index in 0 ..< 3 {
+      launches.append(try Self.write(count: 2, launch: Self.launch(index), store: store))
+    }
+    let currentURL = store.fileURL(for: current)
+    let source = SavedLogSource.live(store: store, limits: SavedLogReadLimits(launchCount: 2, byteBudget: 10 * 1024 * 1024))
+    let batch = source.readOthers(currentURL)
+    #expect(batch.launches.map(\.launch) == [Self.launch(1), Self.launch(2)])
+    let sizes = Dictionary(uniqueKeysWithValues: store.files().map { ($0.launch, $0.byteCount) })
+    #expect(batch.bytesRead == (sizes[Self.launch(1)] ?? 0) + (sizes[Self.launch(2)] ?? 0))
+    #expect(batch.unreadableFiles == 0)
+  }
+
+  @Test
+  func anUnreadableFileStillCountsWhileALimitedOneDoesNot() throws {
+    let folder = try TemporaryFolder()
+    let store = LaunchLogStore(directory: folder.url, timeZone: Self.tokyo)
+    _ = try Self.write(count: 2, launch: Self.launch(1), store: store)
+    let brokenURL = store.fileURL(for: Self.launch(0))
+    try FileManager.default.createDirectory(at: folder.url, withIntermediateDirectories: true)
+    try Data((#"{"format":2,"launch":"x"}"# + "\n").utf8).write(to: brokenURL)
+    let source = SavedLogSource.live(store: store, limits: SavedLogReadLimits(launchCount: 5, byteBudget: 10 * 1024 * 1024))
+    let batch = source.readOthers(nil)
+    #expect(batch.launches.count == 1)
+    #expect(batch.unreadableFiles == 1)
+  }
+
+  @Test
   func eachOriginKeepsItsOwnFolder() {
     let support = URL(fileURLWithPath: "/tmp/support")
     #expect(
@@ -163,6 +270,19 @@ struct LaunchLogStoreTests {
       isCurrent: false,
       timeZone: tokyo
     )
+  }
+
+  /// Creates one launch's file holding `count` lines, returning it.
+  @discardableResult
+  private static func write(count: Int, launch: LaunchID, store: LaunchLogStore) throws -> LaunchID {
+    let (made, url) = try store.create(for: launch, version: "v0")
+    let handle = try FileHandle(forWritingTo: url)
+    defer { try? handle.close() }
+    try handle.seekToEnd()
+    for sequence: UInt64 in 1 ... UInt64(count) {
+      try handle.write(contentsOf: Data(LaunchLogCoding.line(for: LogFixture.entry(sequence: sequence, launch: made)).utf8))
+    }
+    return made
   }
 
   private func append(_ text: String, to url: URL) throws {

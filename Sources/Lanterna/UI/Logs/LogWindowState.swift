@@ -152,6 +152,9 @@ final class LogWindowState {
   /// Whether the older launches have been read since they last changed.
   var hasReadOlder = false
 
+  /// Bytes taken from the saved launches on the last read, headers
+  /// included. Back to zero once the older rows are forgotten.
+  var savedLogsBytesRead = 0
   /// True while saved launches are being read.
   var isLoading = false
 

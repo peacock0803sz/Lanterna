@@ -98,6 +98,24 @@ struct LogWindowScopeTests {
     #expect(LogExport.jsonLines(state.shownEntries).contains(#""launch":"\#(Self.earlier.stamp)""#))
   }
 
+  /// The state reports how many saved bytes it shows, and forgets the
+  /// count with the rows.
+  @Test
+  func theStateReportsSavedBytesAndForgetsThemWithTheRows() async {
+    let saved = FakeSavedLogs()
+    saved.others = [
+      SavedLaunchEntries(launch: Self.earlier, entries: LogFixture.entries(count: 2, launch: Self.earlier))
+    ]
+    saved.bytes = 2048
+    let state = Self.state(over: LogFeed(), saved: saved)
+    state.scope = .allLaunches
+    await state.olderTask?.value
+    #expect(state.savedLogsBytesRead == 2048)
+    state.invalidateSavedLaunches()
+    #expect(state.savedLogsBytesRead == 0)
+    #expect(state.olderRows.isEmpty)
+  }
+
   /// Skipped lines are reported once per read.
   @Test
   func skippedLinesAreReportedOncePerRead() async {
@@ -140,13 +158,14 @@ final class FakeSavedLogs: @unchecked Sendable {
 
   var others = [SavedLaunchEntries]()
   var skipped = 0
+  var bytes = 0
   var isSaving = true
 
   var source: SavedLogSource {
     SavedLogSource(
       currentFile: { [self] in isSaving ? URL(fileURLWithPath: "/tmp/current.jsonl") : nil },
       readOthers: { [self] _ in
-        SavedLaunchBatch(launches: others, skippedLines: skipped, unreadableFiles: 0)
+        SavedLaunchBatch(launches: others, skippedLines: skipped, unreadableFiles: 0, bytesRead: bytes)
       }
     )
   }
