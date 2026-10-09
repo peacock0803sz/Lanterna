@@ -202,6 +202,8 @@ open class KeyBindings {
   quitApplication: Listing<KeyBinding>? = null
   hideApplication: Listing<KeyBinding>? = null
   minimizeWindow: Listing<KeyBinding>? = null
+  startFiltering: Listing<KeyBinding>? = null
+  openSettings: Listing<KeyBinding>? = null
 }
 
 /// User-configurable keybindings. Absent means all defaults.
