@@ -403,10 +403,23 @@ struct KeyBindingTable: Equatable, Sendable {
       .toggleScope: [ResolvedKey(keyCode: UInt16(kVK_ANSI_Slash), modifiers: .command)],
       .deleteBackward: [ResolvedKey(keyCode: UInt16(kVK_Delete), modifiers: [])],
       .clearQuery: [ResolvedKey(keyCode: UInt16(kVK_Escape), modifiers: [])],
-      .closeWindow: [ResolvedKey(keyCode: UInt16(kVK_ANSI_W), modifiers: .command)],
-      .quitApplication: [ResolvedKey(keyCode: UInt16(kVK_ANSI_Q), modifiers: .command)],
-      .hideApplication: [ResolvedKey(keyCode: UInt16(kVK_ANSI_H), modifiers: .command)],
-      .minimizeWindow: [ResolvedKey(keyCode: UInt16(kVK_ANSI_M), modifiers: .command)],
+      // Window operations answer Command and Option alike: each Option key stands beside its Command key.
+      .closeWindow: [
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_W), modifiers: .command),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_W), modifiers: .option),
+      ],
+      .quitApplication: [
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_Q), modifiers: .command),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_Q), modifiers: .option),
+      ],
+      .hideApplication: [
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_H), modifiers: .command),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_H), modifiers: .option),
+      ],
+      .minimizeWindow: [
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_M), modifiers: .command),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_M), modifiers: .option),
+      ],
       // Every decimal digit on both the main row and the keypad, each
       // with Command and with Option: the number jump answers them all.
       .numberJump: Self.defaultNumberJumpKeys,
