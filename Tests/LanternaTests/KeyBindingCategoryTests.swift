@@ -23,6 +23,7 @@ struct KeyBindingCategoryTests {
       .previous,
       .commit,
       .cancel,
+      .openSettings,
       .toggleScope,
       .numberJump,
       .moveRowUp,
@@ -59,6 +60,7 @@ struct KeyBindingCategoryTests {
       "Move row up",
       "Move row down",
       "Start filtering",
+      "Open settings",
     ])
   }
 
