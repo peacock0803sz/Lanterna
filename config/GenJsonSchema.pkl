@@ -91,7 +91,9 @@ local function keyBindingsFragment(prop: reflect.Property): Dynamic = new {
     for (action in new Listing<String> {
       "show"; "showReverse"; "showFilter"; "next"; "previous";
       "commit"; "cancel"; "toggleScope"; "deleteBackward"; "clearQuery";
-      "closeWindow"; "quitApplication"; "hideApplication"; "minimizeWindow"
+      "closeWindow"; "quitApplication"; "hideApplication"; "minimizeWindow";
+      "numberJump"; "moveRowUp"; "moveRowDown";
+      "startFiltering"; "openSettings"
     }) {
       [action] = new {
         ["type"] = "array"

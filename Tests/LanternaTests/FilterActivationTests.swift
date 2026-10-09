@@ -22,10 +22,10 @@ struct FilterActivationTests {
     let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
     fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
     let letter = PanelKeystroke(
-      keyCode: UInt16(kVK_ANSI_S),
+      keyCode: UInt16(kVK_ANSI_D),
       modifiers: [],
       isARepeat: false,
-      characters: "s"
+      characters: "d"
     )
     #expect(fixture.presenter.handleKeyStroke(letter) == .absorbed)
     #expect(fixture.surface.updatedLists.isEmpty)

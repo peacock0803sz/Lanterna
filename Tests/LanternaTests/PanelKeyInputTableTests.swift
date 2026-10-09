@@ -83,11 +83,54 @@ struct PanelKeyInputTableTests {
   }
 
   @Test
-  func bareLetterBindingYieldsToTyping() {
+  func bareLetterBindingYieldsToTypingWhileFiltering() {
     let table = tableWith(.next, resolved(kVK_ANSI_N))
     #expect(
-      PanelKeyInput.action(for: tablePress(kVK_ANSI_N, [], characters: "n"), table: table)
-        == .filterText("n")
+      PanelKeyInput.action(
+        for: tablePress(kVK_ANSI_N, [], characters: "n"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: true
+      ) == .filterText("n")
+    )
+  }
+
+  @Test
+  func bareLetterBindingDrivesWhileNotFiltering() {
+    let table = tableWith(.next, resolved(kVK_ANSI_N))
+    #expect(
+      PanelKeyInput.action(
+        for: tablePress(kVK_ANSI_N, [], characters: "n"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .selectNext
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: tablePress(kVK_ANSI_N, .command, characters: "n"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .selectNext
+    )
+  }
+
+  @Test
+  func narrowerBindingWinsWhileNotFiltering() {
+    var table = tableWith(.next, resolved(kVK_ANSI_N))
+    table.keys[.commit] = [resolved(kVK_ANSI_N, .command)]
+    #expect(
+      PanelKeyInput.action(
+        for: tablePress(kVK_ANSI_N, .command, characters: "n"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .commit(.custom(45))
     )
   }
 
@@ -147,8 +190,10 @@ struct PanelKeyInputTableTests {
       PanelKeyInput.action(for: tablePress(kVK_ANSI_H, .control), table: table)
         == .windowOperation(.closeWindow)
     )
+    // Bare typing narrows instead: no bare binding holds H, so "h" filters.
     #expect(
-      PanelKeyInput.action(for: tablePress(kVK_ANSI_H), table: table) == .absorb
+      PanelKeyInput.action(for: tablePress(kVK_ANSI_H, [], characters: "h"), table: table)
+        == .filterText("h")
     )
   }
 

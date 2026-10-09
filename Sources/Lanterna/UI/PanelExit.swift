@@ -216,6 +216,19 @@ final class PanelExit {
     record(.cancelled, by: .cancelKey(key), since: startedAt, filter: filterSummary)
   }
 
+  /// Hides the panel to open the settings.
+  ///
+  /// Dismisses before recording like a cancellation, so the figure spans the
+  /// call that hides the panel and none of making the settings.
+  func leaveForSettings(
+    by key: SettingsKey,
+    since startedAt: ContinuousClock.Instant,
+    filter filterSummary: FilterLogSummary? = nil
+  ) {
+    dismissPanel()
+    record(.leftForSettings, by: .settingsKey(key), since: startedAt, filter: filterSummary)
+  }
+
   /// Takes the panel down for a release that came by no route at all.
   ///
   /// Plainly worded rather than measured, and deliberately not put through

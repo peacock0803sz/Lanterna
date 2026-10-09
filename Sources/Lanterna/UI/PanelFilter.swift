@@ -39,9 +39,10 @@ final class PanelFilter {
   /// from the config file and whenever the settings change, like the
   /// exclusion rules are recompiled.
   var searchSettings = SearchSettings()
-  /// Whether keystrokes narrow the list right now. Set only by the filter
-  /// invocation; a panel shown any other way leaves it off, and typing is
-  /// swallowed as before.
+  /// Whether keystrokes narrow the list right now. Set by the filter
+  /// invocation and by the start-filtering key on a presented panel; a panel
+  /// shown any other way leaves it off, and typing is swallowed as before
+  /// unless a bare binding answers while not filtering.
   private(set) var isActive = false
   /// How the special kinds show. Read at launch from the config file;
   /// the panel keeps the rows and this decides which reach the screen.

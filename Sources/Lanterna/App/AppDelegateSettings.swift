@@ -153,6 +153,7 @@ extension AppDelegate {
     presenter.numberScope = currentValues.numberScope
     presenter.rowOrder = currentValues.rowOrder
     presenter.onRowOrderChanged = { [weak self] order in self?.saveRowOrder(order) }
+    presenter.onOpenSettings = { [weak self] in self?.openSettings() }
     return (panel, presenter)
   }
 

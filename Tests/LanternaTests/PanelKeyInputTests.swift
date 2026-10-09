@@ -86,11 +86,30 @@ struct PanelKeyInputTests {
 
   /// Keys nobody gave a meaning to still arrive, and are still swallowed.
   /// The panel takes the whole keyboard while it is up, so there is no such
-  /// thing here as a key that carries on to somewhere else.
+  /// thing here as a key that carries on to somewhere else. Only presses
+  /// that type nothing read as absorbed here: a letter with characters
+  /// narrows while filtering, so typing letters are pinned where filtering
+  /// is on rather than here.
   @Test
   func keysWithNoMeaningAreAbsorbed() {
-    #expect(PanelKeyInput.action(for: press(kVK_ANSI_A)) == .absorb)
-    #expect(PanelKeyInput.action(for: press(kVK_ANSI_S, .command)) == .absorb)
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_A),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .absorb
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_D, .command),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .absorb
+    )
     #expect(PanelKeyInput.action(for: press(kVK_F1)) == .absorb)
     #expect(PanelKeyInput.action(for: press(kVK_Space)) == .absorb)
   }
@@ -144,26 +163,26 @@ struct PanelKeyInputTests {
   @Test
   func commandLettersOperateOnTheChosenRow() {
     #expect(
-      PanelKeyInput.action(for: press(kVK_ANSI_W, .command))
+      PanelKeyInput.action(for: press(kVK_ANSI_W, .command, characters: "w"))
         == .windowOperation(.closeWindow)
     )
     #expect(
-      PanelKeyInput.action(for: press(kVK_ANSI_Q, .command))
+      PanelKeyInput.action(for: press(kVK_ANSI_Q, .command, characters: "q"))
         == .windowOperation(.quitApplication)
     )
     #expect(
-      PanelKeyInput.action(for: press(kVK_ANSI_H, .command))
+      PanelKeyInput.action(for: press(kVK_ANSI_H, .command, characters: "h"))
         == .windowOperation(.hideApplication)
     )
     #expect(
-      PanelKeyInput.action(for: press(kVK_ANSI_M, .command))
+      PanelKeyInput.action(for: press(kVK_ANSI_M, .command, characters: "m"))
         == .windowOperation(.minimizeWindow)
     )
   }
 
   /// The operations win over filtering: an operation key held with
   /// Command is an operation even where its letter would type, while any
-  /// other Command letter still narrows.
+  /// other Command letter still narrows while filtering.
   @Test
   func theOperationKeysWinOverFiltering() {
     #expect(
@@ -171,8 +190,65 @@ struct PanelKeyInputTests {
         == .windowOperation(.closeWindow)
     )
     #expect(
+      PanelKeyInput.action(for: press(kVK_ANSI_D, .command, characters: "d"))
+        == .filterText("d")
+    )
+  }
+
+  @Test
+  func shortEntryReadsAsFiltering() {
+    #expect(
       PanelKeyInput.action(for: press(kVK_ANSI_S, .command, characters: "s"))
         == .filterText("s")
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_S, .command, characters: "s"),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false
+      ) == .filterText("s")
+    )
+  }
+
+  @Test
+  func startFilteringAnswersOnlyWhileNotFiltering() {
+    let table = KeyBindingTable.defaults
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_S, [], characters: "s"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .startFiltering
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_S, .command, characters: "s"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .startFiltering
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_S, [], characters: "s"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: true
+      ) == .filterText("s")
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_S, [], repeating: true, characters: "s"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .absorb
     )
   }
 
@@ -203,7 +279,8 @@ struct PanelKeyInputTests {
   /// cases above already say each of these bare shapes one by one; this
   /// says them together, as the run sees them, so that dropping one of
   /// them reads as losing the run rather than as losing a row of a table.
-  /// Moving along the list is the arrows' job on this run — Tab stays
+  /// Moving along the list is the arrows' job on this run, with the bare
+  /// J, K, N and P moving too while not filtering — Tab stays
   /// swallowed even here, because the two-path reason above does not turn
   /// on which modifiers are down.
   @Test
@@ -212,5 +289,237 @@ struct PanelKeyInputTests {
     #expect(PanelKeyInput.action(for: press(kVK_UpArrow)) == .selectPrevious)
     #expect(PanelKeyInput.action(for: press(kVK_Escape)) == .cancel(.escape))
     #expect(PanelKeyInput.action(for: press(kVK_Tab)) == .absorb)
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_J, [], characters: "j"),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .selectNext
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_K, [], characters: "k"),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .selectPrevious
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_N, [], characters: "n"),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .selectNext
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_P, [], characters: "p"),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .selectPrevious
+    )
+  }
+
+  @Test
+  func defaultLettersMoveWhileNotFiltering() {
+    let table = KeyBindingTable.defaults
+    let nextKeys = [(kVK_ANSI_J, "j", "J"), (kVK_ANSI_N, "n", "N")]
+    let previousKeys = [(kVK_ANSI_K, "k", "K"), (kVK_ANSI_P, "p", "P")]
+    for (code, lower, upper) in nextKeys {
+      #expect(
+        PanelKeyInput.action(
+          for: press(code, [], characters: lower),
+          table: table,
+          numberJumpEnabled: false,
+          reorderEnabled: false,
+          filtering: false
+        ) == .selectNext
+      )
+      #expect(
+        PanelKeyInput.action(
+          for: press(code, .command, characters: lower),
+          table: table,
+          numberJumpEnabled: false,
+          reorderEnabled: false,
+          filtering: false
+        ) == .selectNext
+      )
+      #expect(
+        PanelKeyInput.action(
+          for: press(code, [.shift, .command], characters: upper),
+          table: table,
+          numberJumpEnabled: false,
+          reorderEnabled: false,
+          filtering: false
+        ) == .selectNext
+      )
+      #expect(
+        PanelKeyInput.action(
+          for: press(code, .control, characters: lower),
+          table: table,
+          numberJumpEnabled: false,
+          reorderEnabled: false,
+          filtering: false
+        ) == .selectNext
+      )
+      #expect(
+        PanelKeyInput.action(
+          for: press(code, .option, characters: lower),
+          table: table,
+          numberJumpEnabled: false,
+          reorderEnabled: false,
+          filtering: false
+        ) == .selectNext
+      )
+    }
+    for (code, lower, upper) in previousKeys {
+      #expect(
+        PanelKeyInput.action(
+          for: press(code, [], characters: lower),
+          table: table,
+          numberJumpEnabled: false,
+          reorderEnabled: false,
+          filtering: false
+        ) == .selectPrevious
+      )
+      #expect(
+        PanelKeyInput.action(
+          for: press(code, .command, characters: lower),
+          table: table,
+          numberJumpEnabled: false,
+          reorderEnabled: false,
+          filtering: false
+        ) == .selectPrevious
+      )
+      #expect(
+        PanelKeyInput.action(
+          for: press(code, [.shift, .command], characters: upper),
+          table: table,
+          numberJumpEnabled: false,
+          reorderEnabled: false,
+          filtering: false
+        ) == .selectPrevious
+      )
+      #expect(
+        PanelKeyInput.action(
+          for: press(code, .control, characters: lower),
+          table: table,
+          numberJumpEnabled: false,
+          reorderEnabled: false,
+          filtering: false
+        ) == .selectPrevious
+      )
+      #expect(
+        PanelKeyInput.action(
+          for: press(code, .option, characters: lower),
+          table: table,
+          numberJumpEnabled: false,
+          reorderEnabled: false,
+          filtering: false
+        ) == .selectPrevious
+      )
+    }
+  }
+
+  @Test
+  func defaultLettersTypeWhileFiltering() {
+    let table = KeyBindingTable.defaults
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_J, [], characters: "j"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: true
+      ) == .filterText("j")
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_N, .command, characters: "n"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: true
+      ) == .filterText("n")
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_K, [], characters: "k"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: true
+      ) == .filterText("k")
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_P, .command, characters: "p"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: true
+      ) == .filterText("p")
+    )
+  }
+
+  @Test
+  func defaultLetterRepeatMovesWhileNotFiltering() {
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_J, [], repeating: true, characters: "j"),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .selectNext
+    )
+  }
+
+  @Test
+  func openingSettingsAnswersCommandCommaEitherWay() {
+    let table = KeyBindingTable.defaults
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_Comma, .command, characters: ","),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .openSettings
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_Comma, .command, characters: ","),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: true
+      ) == .openSettings
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_Comma, [], characters: ","),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .absorb
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_Comma, .command, repeating: true, characters: ","),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .absorb
+    )
   }
 }

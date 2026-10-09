@@ -76,6 +76,16 @@ struct KeyBindingTableTests {
     #expect(table[.show] == [key(kVK_Tab, .command)])
     #expect(table[.closeWindow] == [key(kVK_ANSI_W, .command)])
     #expect(table[.toggleScope] == [key(kVK_ANSI_Slash, .command)])
+    #expect(
+      table[.next]
+        == [key(kVK_DownArrow), key(kVK_ANSI_J), key(kVK_ANSI_N)]
+    )
+    #expect(
+      table[.previous]
+        == [key(kVK_UpArrow), key(kVK_ANSI_K), key(kVK_ANSI_P)]
+    )
+    #expect(table[.startFiltering] == [key(kVK_ANSI_S)])
+    #expect(table[.openSettings] == [key(kVK_ANSI_Comma, .command)])
   }
 
   /// The scope key is held to a modifier, the way the window operations
@@ -402,6 +412,64 @@ struct KeyBindingTableTests {
       to: .next,
       in: .defaults
     ) == .heldBy([.cancel, .clearQuery]))
+  }
+
+  @Test
+  func bareAnswersFollowFiltering() {
+    let bare = key(kVK_ANSI_J)
+    let guarded = key(kVK_ANSI_J, .command)
+    func stroke(_ modifiers: NSEvent.ModifierFlags, _ characters: String) -> PanelKeystroke {
+      PanelKeystroke(
+        keyCode: UInt16(kVK_ANSI_J),
+        modifiers: modifiers,
+        isARepeat: false,
+        characters: characters
+      )
+    }
+    #expect(guarded.answers(stroke(.command, "j"), filtering: false))
+    #expect(guarded.answers(stroke(.command, "j"), filtering: true))
+    #expect(guarded.answers(stroke(.command, ""), filtering: true))
+    #expect(bare.answers(stroke([], ""), filtering: false))
+    #expect(bare.answers(stroke([], "/"), filtering: false))
+    #expect(bare.answers(stroke([], "j"), filtering: false))
+    #expect(bare.answers(stroke([], ""), filtering: true))
+    #expect(bare.answers(stroke([], "/"), filtering: true))
+    #expect(!bare.answers(stroke([], "j"), filtering: true))
+    #expect(bare.answers(stroke(.command, "j"), filtering: false))
+    #expect(!bare.answers(stroke(.command, "j"), filtering: true))
+  }
+
+  @Test
+  func matchesWithoutFilteringKeepsFiltering() {
+    var table = KeyBindingTable.defaults
+    table.keys[.next] = [key(kVK_ANSI_J)]
+    let press = PanelKeystroke(
+      keyCode: UInt16(kVK_ANSI_J),
+      modifiers: [],
+      isARepeat: false,
+      characters: "j"
+    )
+    #expect(!table.matches(press, action: .next))
+    #expect(table.matches(press, action: .next, filtering: false))
+  }
+
+  @Test
+  func settingsAssignmentRefusalSpellsTheRules() {
+    #expect(KeyBindingTable.refusal(
+      assigning: key(kVK_ANSI_Comma),
+      to: .openSettings,
+      in: .defaults
+    ) == .needsModifiers)
+    #expect(KeyBindingTable.refusal(
+      assigning: key(kVK_ANSI_F),
+      to: .startFiltering,
+      in: .defaults
+    ) == nil)
+    #expect(KeyBindingTable.refusal(
+      assigning: key(kVK_ANSI_S),
+      to: .startFiltering,
+      in: .defaults
+    ) == .alreadyHeld)
   }
 
   @Test

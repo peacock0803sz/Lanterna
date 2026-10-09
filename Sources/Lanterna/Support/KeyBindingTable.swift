@@ -39,6 +39,8 @@ enum KeyBindingAction: String, CaseIterable, Equatable, Sendable {
   case numberJump
   case moveRowUp
   case moveRowDown
+  case startFiltering
+  case openSettings
 
   // MARK: Internal
 
@@ -55,7 +57,8 @@ enum KeyBindingAction: String, CaseIterable, Equatable, Sendable {
          .toggleScope,
          .numberJump,
          .moveRowUp,
-         .moveRowDown:
+         .moveRowDown,
+         .openSettings:
       .guarded
     default:
       .bare
@@ -148,6 +151,16 @@ struct ResolvedKey: Equatable, Hashable, Sendable {
   func hash(into hasher: inout Hasher) {
     hasher.combine(keyCode)
     hasher.combine(modifiers.rawValue)
+  }
+
+  /// Whether this binding answers the press under the given filtering state.
+  ///
+  /// A panel that is not filtering drops typed characters, so a bare letter
+  /// binding answers there too. Callers omitting `filtering` keep the
+  /// long-standing rule of answering only presses that type nothing.
+  func answers(_ keystroke: PanelKeystroke, filtering: Bool) -> Bool {
+    keyCode == keystroke.keyCode && modifiers.isSubset(of: keystroke.modifiers)
+      && (!modifiers.isEmpty || !filtering || WindowFilter.allowedText(keystroke.characters) == nil)
   }
 
   // MARK: Private
@@ -365,8 +378,18 @@ struct KeyBindingTable: Equatable, Sendable {
         ResolvedKey(keyCode: UInt16(kVK_Tab), modifiers: [.command, .shift])
       ],
       .showFilter: [ResolvedKey(keyCode: UInt16(kVK_Space), modifiers: .command)],
-      .next: [ResolvedKey(keyCode: UInt16(kVK_DownArrow), modifiers: [])],
-      .previous: [ResolvedKey(keyCode: UInt16(kVK_UpArrow), modifiers: [])],
+      // Bare letters answer only while not filtering; while filtering
+      // they type into the query.
+      .next: [
+        ResolvedKey(keyCode: UInt16(kVK_DownArrow), modifiers: []),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_J), modifiers: []),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_N), modifiers: []),
+      ],
+      .previous: [
+        ResolvedKey(keyCode: UInt16(kVK_UpArrow), modifiers: []),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_K), modifiers: []),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_P), modifiers: []),
+      ],
       .commit: [
         ResolvedKey(keyCode: UInt16(kVK_Return), modifiers: []),
         ResolvedKey(keyCode: UInt16(kVK_ANSI_KeypadEnter), modifiers: []),
@@ -395,6 +418,8 @@ struct KeyBindingTable: Equatable, Sendable {
         ResolvedKey(keyCode: UInt16(kVK_DownArrow), modifiers: [.command, .shift]),
         ResolvedKey(keyCode: UInt16(kVK_DownArrow), modifiers: [.option, .shift]),
       ],
+      .startFiltering: [ResolvedKey(keyCode: UInt16(kVK_ANSI_S), modifiers: [])],
+      .openSettings: [ResolvedKey(keyCode: UInt16(kVK_ANSI_Comma), modifiers: .command)],
     ])
   }
 
@@ -462,15 +487,13 @@ struct KeyBindingTable: Equatable, Sendable {
   }
 
   /// Whether this press drives the action: the key sits on a bound
-  /// position with the required modifiers held. A bare binding only
-  /// answers a key that types nothing, so a letter keeps narrowing
-  /// the list instead of triggering.
-  func matches(_ keystroke: PanelKeystroke, action: KeyBindingAction) -> Bool {
-    (keys[action] ?? []).contains { key in
-      key.keyCode == keystroke.keyCode
-        && key.modifiers.isSubset(of: keystroke.modifiers)
-        && (!key.modifiers.isEmpty || !typesText(keystroke))
-    }
+  /// position with the required modifiers held. While filtering, a bare
+  /// binding only answers a key that types nothing, so a letter keeps
+  /// narrowing the list instead of triggering; while not filtering, typed
+  /// characters are dropped anyway, so the bare binding answers those too.
+  /// Callers omitting `filtering` keep the filtering behaviour.
+  func matches(_ keystroke: PanelKeystroke, action: KeyBindingAction, filtering: Bool = true) -> Bool {
+    (keys[action] ?? []).contains { $0.answers(keystroke, filtering: filtering) }
   }
 
   // MARK: Private
@@ -482,15 +505,6 @@ struct KeyBindingTable: Equatable, Sendable {
         ResolvedKey(keyCode: UInt16(code), modifiers: .option),
       ]
     }
-  }
-
-  /// Whether the press would narrow the list rather than drive.
-  ///
-  /// Read here, where a row means filtering: going by key code keeps
-  /// the table independent of the input source, and what the key made
-  /// is only asked where filtering is at stake.
-  private func typesText(_ keystroke: PanelKeystroke) -> Bool {
-    WindowFilter.allowedText(keystroke.characters) != nil
   }
 
 }
