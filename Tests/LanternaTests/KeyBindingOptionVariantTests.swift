@@ -161,4 +161,44 @@ struct KeyBindingOptionVariantTests {
     )
   }
 
+  @Test
+  func customizationTakingOptionWLeavesCommandW() {
+    let taken = ResolvedKey(keyCode: UInt16(kVK_ANSI_W), modifiers: .option)
+    let kept = ResolvedKey(keyCode: UInt16(kVK_ANSI_W), modifiers: .command)
+    let (table, issues) = KeyBindingResolver.resolve(
+      [.commit: [RawKeyBinding(keyCode: kVK_ANSI_W, modifiers: ["opt"])]],
+      order: [.commit]
+    )
+    #expect(table[.commit] == [taken])
+    #expect(table[.closeWindow] == [kept])
+    #expect(issues.count == 1)
+    #expect(issues[0].action == .closeWindow)
+    #expect(issues[0].reason == .conflict)
+  }
+
+  @Test
+  func customizedWindowKeyGainsNoOptionSibling() {
+    let (table, issues) = KeyBindingResolver.resolve(
+      [.closeWindow: [RawKeyBinding(keyCode: kVK_ANSI_W, modifiers: ["cmd"])]],
+      order: [.closeWindow]
+    )
+    #expect(table[.closeWindow] == [ResolvedKey(keyCode: UInt16(kVK_ANSI_W), modifiers: .command)])
+    #expect(issues.isEmpty)
+  }
+
+  @Test
+  func strippedOptionKeyStopsDrivingTheOperation() {
+    var table = KeyBindingTable.defaults
+    table.keys[.closeWindow] = [ResolvedKey(keyCode: UInt16(kVK_ANSI_W), modifiers: .command)]
+    #expect(
+      PanelKeyInput.action(
+        for: optionPress(kVK_ANSI_W, .option, characters: "w"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: true
+      ) != .windowOperation(.closeWindow)
+    )
+  }
+
 }
