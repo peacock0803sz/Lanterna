@@ -40,6 +40,7 @@ enum KeyBindingAction: String, CaseIterable, Equatable, Sendable {
   case moveRowUp
   case moveRowDown
   case startFiltering
+  case openSettings
 
   // MARK: Internal
 
@@ -56,7 +57,8 @@ enum KeyBindingAction: String, CaseIterable, Equatable, Sendable {
          .toggleScope,
          .numberJump,
          .moveRowUp,
-         .moveRowDown:
+         .moveRowDown,
+         .openSettings:
       .guarded
     default:
       .bare
@@ -417,6 +419,7 @@ struct KeyBindingTable: Equatable, Sendable {
         ResolvedKey(keyCode: UInt16(kVK_DownArrow), modifiers: [.option, .shift]),
       ],
       .startFiltering: [ResolvedKey(keyCode: UInt16(kVK_ANSI_S), modifiers: [])],
+      .openSettings: [ResolvedKey(keyCode: UInt16(kVK_ANSI_Comma), modifiers: .command)],
     ])
   }
 
