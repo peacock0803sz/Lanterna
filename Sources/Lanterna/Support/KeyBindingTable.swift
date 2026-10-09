@@ -432,7 +432,11 @@ struct KeyBindingTable: Equatable, Sendable {
         ResolvedKey(keyCode: UInt16(kVK_DownArrow), modifiers: [.option, .shift]),
       ],
       .startFiltering: [ResolvedKey(keyCode: UInt16(kVK_ANSI_S), modifiers: [])],
-      .openSettings: [ResolvedKey(keyCode: UInt16(kVK_ANSI_Comma), modifiers: .command)],
+      // Settings opens with either modifier, the way the window operations do.
+      .openSettings: [
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_Comma), modifiers: .command),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_Comma), modifiers: .option),
+      ],
     ])
   }
 
