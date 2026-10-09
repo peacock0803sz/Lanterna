@@ -444,4 +444,45 @@ struct PanelKeyInputTests {
       ) == .selectNext
     )
   }
+
+  @Test
+  func openingSettingsAnswersCommandCommaEitherWay() {
+    let table = KeyBindingTable.defaults
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_Comma, .command, characters: ","),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .openSettings
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_Comma, .command, characters: ","),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: true
+      ) == .openSettings
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_Comma, [], characters: ","),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .absorb
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_Comma, .command, repeating: true, characters: ","),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .absorb
+    )
+  }
 }
