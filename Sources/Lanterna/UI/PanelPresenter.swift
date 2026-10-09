@@ -191,7 +191,8 @@ final class PanelPresenter {
     operate: { [weak self] operation, chosen in
       self?.startOperation(operation, naming: chosen)
     },
-    startFiltering: { [weak self] in self?.switchToFiltering() }
+    startFiltering: { [weak self] in self?.switchToFiltering() },
+    openSettings: { [weak self] in self?.onOpenSettings?() }
   )
 
   /// Carries out the operations on the chosen row. Made beside the
@@ -209,6 +210,9 @@ final class PanelPresenter {
   /// Where a rearranged row order goes for saving. Set by whoever
   /// owns the file; the key commands report through here.
   var onRowOrderChanged: ((ManualRowOrder) -> Void)?
+
+  /// Where opening the settings goes. Set by whoever owns the file.
+  var onOpenSettings: (@MainActor () -> Void)?
 
   /// Whether digits with a jump modifier name rows. Read on every
   /// press, the same timing as above.
