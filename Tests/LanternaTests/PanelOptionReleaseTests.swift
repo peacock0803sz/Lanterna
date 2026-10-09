@@ -69,6 +69,30 @@ struct PanelOptionReleaseTests {
     #expect(!fixture.log.lines.contains(where: { $0.hasPrefix("committed ") }))
   }
 
+  @Test
+  func optionCommaHidesAndOpensSettingsWithoutCommitting() {
+    let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+    var opened = 0
+    fixture.presenter.onOpenSettings = { opened += 1 }
+    fixture.presenter.handleHotkey(.filter, deliveryDelay: nil)
+    fixture.presenter.modifierFlagsChanged([.maskAlternate])
+    #expect(
+      fixture.presenter.handleKeyStroke(PanelKeystroke(
+        keyCode: UInt16(kVK_ANSI_Comma),
+        modifiers: .option,
+        isARepeat: false,
+        characters: ","
+      )) == .absorbed
+    )
+    #expect(!fixture.surface.isPresented)
+    #expect(opened == 1)
+    #expect(fixture.log.lines.count(where: { $0.hasPrefix("left for settings ") }) == 1)
+    let afterLeaving = fixture.log.lines
+    fixture.presenter.modifierFlagsChanged([])
+    fixture.presenter.handleOptionRelease()
+    #expect(fixture.log.lines == afterLeaving)
+  }
+
   // MARK: Private
 
   private func keyCode(for digit: Int) -> UInt16 {
