@@ -1,5 +1,23 @@
+import AppKit
+import Carbon.HIToolbox
 @testable import Lanterna
 import Testing
+
+/// A press the way the hardware spells one: the Option layer never
+/// reaches the characters, so an Option letter carries its plain letter.
+private func optionPress(
+  _ keyCode: Int,
+  _ modifiers: NSEvent.ModifierFlags,
+  repeating: Bool = false,
+  characters: String
+) -> PanelKeystroke {
+  PanelKeystroke(
+    keyCode: UInt16(keyCode),
+    modifiers: modifiers,
+    isARepeat: repeating,
+    characters: characters
+  )
+}
 
 // MARK: - KeyBindingOptionVariantTests
 
@@ -26,6 +44,79 @@ struct KeyBindingOptionVariantTests {
         }
       }
     }
+  }
+
+  /// Option window keys drive their operations whether filtering or
+  /// not. Never reading as filter text pins that the letter never
+  /// reaches the query, even mid-filtering.
+  @Test(arguments: [
+    (kVK_ANSI_W, WindowOperation.closeWindow, "w"),
+    (kVK_ANSI_Q, WindowOperation.quitApplication, "q"),
+    (kVK_ANSI_H, WindowOperation.hideApplication, "h"),
+    (kVK_ANSI_M, WindowOperation.minimizeWindow, "m"),
+  ])
+  func optionWindowKeysDriveOperations(keyCode: Int, operation: WindowOperation, characters: String) {
+    let table = KeyBindingTable.defaults
+    for filtering in [false, true] {
+      #expect(
+        PanelKeyInput.action(
+          for: optionPress(keyCode, .option, characters: characters),
+          table: table,
+          numberJumpEnabled: false,
+          reorderEnabled: false,
+          filtering: filtering
+        ) == .windowOperation(operation)
+      )
+    }
+  }
+
+  @Test
+  func combinedModifiersDriveCloseWindow() {
+    let table = KeyBindingTable.defaults
+    #expect(
+      PanelKeyInput.action(
+        for: optionPress(kVK_ANSI_W, [.command, .option], characters: "w"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .windowOperation(.closeWindow)
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: optionPress(kVK_ANSI_W, [.option, .shift], characters: "W"),
+        table: table,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: true
+      ) == .windowOperation(.closeWindow)
+    )
+  }
+
+  @Test
+  func repeatedOptionWindowKeyAbsorbs() {
+    #expect(
+      PanelKeyInput.action(
+        for: optionPress(kVK_ANSI_W, .option, repeating: true, characters: "w"),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .absorb
+    )
+  }
+
+  @Test
+  func optionWindowKeyWinsOverNumberJump() {
+    #expect(
+      PanelKeyInput.action(
+        for: optionPress(kVK_ANSI_W, .option, characters: "w"),
+        table: .defaults,
+        numberJumpEnabled: true,
+        reorderEnabled: false,
+        filtering: false
+      ) == .windowOperation(.closeWindow)
+    )
   }
 
 }
