@@ -119,4 +119,46 @@ struct KeyBindingOptionVariantTests {
     )
   }
 
+  /// The Option settings key opens settings whether filtering or not.
+  /// Never reading as filter text pins that the comma never reaches
+  /// the query, even mid-filtering.
+  @Test(arguments: [false, true])
+  func optionSettingsKeyOpensSettings(filtering: Bool) {
+    #expect(
+      PanelKeyInput.action(
+        for: optionPress(kVK_ANSI_Comma, .option, characters: ","),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: filtering
+      ) == .openSettings
+    )
+  }
+
+  @Test
+  func combinedModifiersOpenSettings() {
+    #expect(
+      PanelKeyInput.action(
+        for: optionPress(kVK_ANSI_Comma, [.command, .option], characters: ","),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: true
+      ) == .openSettings
+    )
+  }
+
+  @Test
+  func repeatedOptionSettingsKeyAbsorbs() {
+    #expect(
+      PanelKeyInput.action(
+        for: optionPress(kVK_ANSI_Comma, .option, repeating: true, characters: ","),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .absorb
+    )
+  }
+
 }
