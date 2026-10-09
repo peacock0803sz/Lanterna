@@ -114,6 +114,8 @@ enum PanelKeyAction: Equatable, Sendable {
   case moveRowDown
   /// Switches a panel that is not filtering into filtering.
   case startFiltering
+  /// Hides the panel and opens the settings.
+  case openSettings
   /// Backspace: shortens the query by one character.
   case filterBackspace
   /// Clears the query, leaving the panel up.
@@ -487,6 +489,7 @@ enum PanelKeyInput {
       (.cancel, .cancel(cancelKey(for: keystroke))),
       (.toggleScope, .toggleScope),
       (.startFiltering, .startFiltering),
+      (.openSettings, .openSettings),
       (.clearQuery, .clearQuery),
       (.deleteBackward, .filterBackspace),
     ]
@@ -544,6 +547,7 @@ extension PanelKeyAction {
          .windowOperation,
          .toggleScope,
          .startFiltering,
+         .openSettings,
          .numberDigit,
          .moveRowUp,
          .moveRowDown,
