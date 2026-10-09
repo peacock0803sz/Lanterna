@@ -190,8 +190,10 @@ struct PanelKeyInputTableTests {
       PanelKeyInput.action(for: tablePress(kVK_ANSI_H, .control), table: table)
         == .windowOperation(.closeWindow)
     )
+    // Bare typing narrows instead: no bare binding holds H, so "h" filters.
     #expect(
-      PanelKeyInput.action(for: tablePress(kVK_ANSI_H), table: table) == .absorb
+      PanelKeyInput.action(for: tablePress(kVK_ANSI_H, [], characters: "h"), table: table)
+        == .filterText("h")
     )
   }
 
