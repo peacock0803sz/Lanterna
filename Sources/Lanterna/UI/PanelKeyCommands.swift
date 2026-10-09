@@ -34,7 +34,8 @@ final class PanelKeyCommands {
     keyBindings: KeyBindingTable = .defaults,
     now: @escaping @MainActor () -> ContinuousClock.Instant,
     operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)? = nil,
-    startFiltering: (@MainActor () -> Void)? = nil
+    startFiltering: (@MainActor () -> Void)? = nil,
+    openSettings: (@MainActor () -> Void)? = nil
   ) {
     self.surface = surface
     self.selection = selection
@@ -47,6 +48,7 @@ final class PanelKeyCommands {
     self.now = now
     self.operate = operate
     self.startFiltering = startFiltering
+    self.openSettings = openSettings
   }
 
   // MARK: Internal
@@ -290,6 +292,15 @@ final class PanelKeyCommands {
       repeatSwallow.hold(keystroke.keyCode)
       startFiltering?()
 
+    case .openSettings:
+      let summary = filter.logSummary()
+      wayOut.leaveForSettings(
+        by: PanelKeyInput.settingsKey(for: keystroke),
+        since: startedAt,
+        filter: summary
+      )
+      openSettings?()
+
     case .filterText(let text):
       filter.append(text)
 
@@ -372,6 +383,8 @@ final class PanelKeyCommands {
   private let operate: (@Sendable @MainActor (WindowOperation, WindowItem.Identifier?) -> Void)?
   /// Switches the presented panel into filtering, through the presenter.
   private let startFiltering: (@MainActor () -> Void)?
+  /// Opens the settings, through the presenter.
+  private let openSettings: (@MainActor () -> Void)?
 
   /// Moves the chosen row one step inside its manual group, saving the
   /// rearranged order through the handler above. Anything outside a
