@@ -408,6 +408,39 @@ struct PanelExitTests {
     #expect(fixture.surface.presentedSelections.last == fixture.windows[1].id)
   }
 
+  @Test
+  func leavingForSettingsCoversTheCallThatHidesThePanel() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.surface.onDismiss = { [clock = fixture.clock] in
+      _ = clock.read()
+    }
+    let startedAt = fixture.clock.read()
+    fixture.presenter.wayOut.leaveForSettings(by: .commandComma, since: startedAt)
+    #expect(fixture.log.lines.last == "left for settings 9.6 ms after Cmd+Comma")
+  }
+
+  @Test
+  func leavingForSettingsClosesOnceAndCommitsNothingAfter() {
+    let fixture = runningWithAMonitor()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    #expect(fixture.surface.isPresented)
+    let linesBefore = fixture.log.lines.count
+    let startedAt = fixture.clock.read()
+    fixture.presenter.wayOut.leaveForSettings(by: .commandComma, since: startedAt)
+    #expect(!fixture.surface.isPresented)
+    #expect(fixture.log.lines.count == linesBefore + 1)
+    #expect(fixture.log.lines.last?.hasPrefix("left for settings ") == true)
+    #expect(!fixture.log.lines.contains(where: { $0.hasPrefix("cancelled ") }))
+    #expect(!fixture.log.lines.contains(where: { $0.hasPrefix("committed ") }))
+    let afterLeaving = fixture.log.lines
+    fixture.presenter.wayOut.commitOnCommandRelease(
+      naming: fixture.presenter.selection.chosenID,
+      since: fixture.clock.read()
+    )
+    #expect(fixture.log.lines == afterLeaving)
+  }
+
   // MARK: Private
 
   private func runningWithAMonitor(entryCount: Int = 12) -> Fixture {
