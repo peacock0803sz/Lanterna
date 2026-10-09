@@ -98,9 +98,9 @@ struct HotkeyMeasurement: Sendable {
 
 /// One appearance ending, and what ended it.
 ///
-/// Committing, calling a press off and cancelling are different events: a
+/// Committing, calling a press off, cancelling and opening the settings are different events: a
 /// release or a key landing on a panel that is up, a press given up on before
-/// the panel ever appeared, and a key saying not this one. They share a type
+/// the panel ever appeared, a key saying not this one, and a key asking for the settings. They share a type
 /// all the same: they are measured over the same span, they go to the same
 /// place, and all the line has to do is let whoever reads it tell which of
 /// them happened. One type puts the wordings in one `switch`, where a single
@@ -108,7 +108,7 @@ struct HotkeyMeasurement: Sendable {
 /// that they differ.
 ///
 /// Named for the exit rather than for the release, because the release is now
-/// one of three things that can reach here.
+/// one of the things that can reach here.
 ///
 /// Holds the names and the identity rather than the `WindowItem` they came
 /// from. The item carries an `NSImage` and so is not `Sendable`, and a line
@@ -143,7 +143,7 @@ struct PanelExitMeasurement: Sendable {
   /// there is, because no test can build a pair that cannot happen without
   /// being written to do exactly that.
   ///
-  /// Borrows `CommitKey` and `CancelKey` rather than restating them.
+  /// Borrows `CommitKey`, `CancelKey` and `SettingsKey` rather than restating them.
   /// Which keys commit and which cancel is `PanelKeyInput`'s vocabulary,
   /// settled where a keystroke is given its meaning; a second spelling here
   /// would make the presenter's hand-off from one to the other a place
@@ -157,6 +157,7 @@ struct PanelExitMeasurement: Sendable {
     case optionRelease
     case commitKey(CommitKey)
     case cancelKey(CancelKey)
+    case settingsKey(SettingsKey)
 
     // MARK: Internal
 
@@ -179,6 +180,8 @@ struct PanelExitMeasurement: Sendable {
       case .cancelKey(.commandPeriod): "Cmd+Period"
       case .cancelKey(.escape): "Escape"
       case .cancelKey(.custom(let code)): "key \(code)"
+      case .settingsKey(.commandComma): "Cmd+Comma"
+      case .settingsKey(.custom(let code)): "key \(code)"
       }
     }
 
@@ -190,7 +193,8 @@ struct PanelExitMeasurement: Sendable {
            .optionRelease,
            .commitKey:
         true
-      case .cancelKey:
+      case .cancelKey,
+           .settingsKey:
         false
       }
     }
@@ -226,6 +230,8 @@ struct PanelExitMeasurement: Sendable {
     /// there is no emptiness to tell here: nothing was going to be taken
     /// either way.
     case cancelled
+    /// The panel closed to open the settings. No row is named, like a cancellation.
+    case leftForSettings
   }
 
   let outcome: Outcome
@@ -267,19 +273,30 @@ struct PanelExitMeasurement: Sendable {
     case (.cancelled, .cancelKey):
       return "cancelled \(timing)" + filterSuffix
 
+    case (.leftForSettings, .settingsKey):
+      return "left for settings \(timing)" + filterSuffix
+
     // The pairs that cannot happen, gathered in one place. Written out
     // rather than swept up by a `default`: a case added to either enum
     // then fails to build until somebody decides which side of this line
     // it falls on, where a `default` would take the new pair in silence
     // and say so only on the run that reached it.
     case (.committed, .cancelKey),
+         (.committed, .settingsKey),
          (.nothingToCommit, .cancelKey),
+         (.nothingToCommit, .settingsKey),
          (.pressCalledOff, .commitKey),
          (.pressCalledOff, .cancelKey),
          (.pressCalledOff, .optionRelease),
+         (.pressCalledOff, .settingsKey),
          (.cancelled, .commandRelease),
          (.cancelled, .optionRelease),
-         (.cancelled, .commitKey):
+         (.cancelled, .commitKey),
+         (.cancelled, .settingsKey),
+         (.leftForSettings, .commandRelease),
+         (.leftForSettings, .optionRelease),
+         (.leftForSettings, .commitKey),
+         (.leftForSettings, .cancelKey):
       preconditionFailure("\(outcome) cannot have been brought about by \(trigger)")
     }
   }
@@ -387,7 +404,7 @@ struct PanelExitMeasurement: Sendable {
   /// outcome by itself — the trigger's words are already inside `timing` —
   /// so switching on the outcome would compile, read the same, and quietly
   /// print `cancelled ... after Command was released` for a combination no
-  /// run produces. Naming both is what gives the six that cannot happen
+  /// run produces. Naming both is what gives the pairs that cannot happen
   /// somewhere to be turned away.
   /// The filtering evidence, or nothing when the query was empty.
   private var filterSuffix: String {
