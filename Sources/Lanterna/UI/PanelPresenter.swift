@@ -412,10 +412,14 @@ final class PanelPresenter {
   ///
   /// Only a panel that is up answers: unlike Command, letting go of
   /// Option never calls off a press still waiting for its first list.
-  /// The pending number dies with the release either way, committed or
-  /// not.
+  /// While Command stays held the release does nothing and the pending
+  /// number carries on for the Command release to settle; otherwise the
+  /// pending number dies with the release either way, committed or not.
+  /// The tap reports the keystroke's flags before the release itself,
+  /// so the held flags read as the state of the stroke that let Option go.
   func handleOptionRelease() {
     let startedAt = now()
+    guard !lastModifierFlags.contains(.maskCommand) else { return }
     keyCommands.resetNumberInput()
     guard !keyCommands.isFilteringActive else { return }
     wayOut.commitOnOptionRelease(naming: selection.chosenID, since: startedAt, filter: keyCommands.filterSummary())
@@ -457,7 +461,8 @@ final class PanelPresenter {
 
   /// The modifiers held as of the last tap report. Seeded per
   /// appearance from the held Command, because the tap only reports
-  /// changes and the opening press holds Command already.
+  /// changes and the opening press holds Command already. The Option
+  /// release also reads it to tell a release under Command apart.
   private var lastModifierFlags: CGEventFlags = []
 
   /// How long the watch waits between looks (`UnreportedReleaseWatch`'s
