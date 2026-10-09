@@ -366,6 +366,8 @@ struct PanelExitMeasurementTests {
       Self.measurement(.pressCalledOff),
       Self.measurement(.cancelled, by: .cancelKey(.commandPeriod)),
       Self.measurement(.cancelled, by: .cancelKey(.escape)),
+      Self.measurement(.leftForSettings, by: .settingsKey(.commandComma)),
+      Self.measurement(.leftForSettings, by: .settingsKey(.custom(3))),
     ].map(\.summaryLine)
 
     #expect(Set(lines).count == lines.count)
