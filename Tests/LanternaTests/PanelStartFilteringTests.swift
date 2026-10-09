@@ -48,6 +48,7 @@ struct PanelStartFilteringTests {
     let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
     fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
     _ = fixture.presenter.handleKeyStroke(filteringStroke(kVK_ANSI_S, .command, characters: "s"))
+    fixture.presenter.modifierFlagsChanged([])
     fixture.presenter.handleCommandRelease()
     fixture.presenter.handleOptionRelease()
     #expect(fixture.surface.isPresented)
