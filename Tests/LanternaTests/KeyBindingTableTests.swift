@@ -84,6 +84,8 @@ struct KeyBindingTableTests {
       table[.previous]
         == [key(kVK_UpArrow), key(kVK_ANSI_K), key(kVK_ANSI_P)]
     )
+    #expect(table[.startFiltering] == [key(kVK_ANSI_S)])
+    #expect(table[.openSettings] == [key(kVK_ANSI_Comma, .command)])
   }
 
   /// The scope key is held to a modifier, the way the window operations
