@@ -118,7 +118,7 @@ struct HotkeyMeasurementTests {
 /// What the end of an appearance says it was.
 ///
 /// The exits that carry a measured span are worded by this type: a release, a
-/// commit key, a cancel key, and a press let go of before its panel ever
+/// commit key, a cancel key, a settings key, and a press let go of before its panel ever
 /// arrived. They are pinned here rather than where the decision is made, so a
 /// reword shows up as a failure in the file that owns the wording.
 ///
@@ -407,6 +407,38 @@ struct PanelExitMeasurementTests {
       Self.measurement(.nothingToCommit, by: .commitKey(.returnKey)).summaryLine
         == "committed nothing 4.8 ms after Return (the list was empty)"
     )
+  }
+
+  @Test
+  func leavingForSettingsNamesTheKey() {
+    #expect(
+      Self.measurement(.leftForSettings, by: .settingsKey(.commandComma)).summaryLine
+        == "left for settings 4.8 ms after Cmd+Comma"
+    )
+    #expect(
+      Self.measurement(.leftForSettings, by: .settingsKey(.custom(3))).summaryLine
+        == "left for settings 4.8 ms after key 3"
+    )
+  }
+
+  @Test
+  func leavingForSettingsCarriesTheQuery() {
+    let summary = FilterLogSummary(query: "saf", matchedCount: 2, totalCount: 31)
+    #expect(
+      PanelExitMeasurement(
+        outcome: .leftForSettings,
+        trigger: .settingsKey(.commandComma),
+        elapsed: .microseconds(4800),
+        filterSummary: summary
+      ).summaryLine
+        == "left for settings 4.8 ms after Cmd+Comma; filter \"saf\" (2 of 31)"
+    )
+  }
+
+  @Test
+  func leavingForSettingsIsNotACommit() {
+    #expect(!PanelExitMeasurement.Trigger.settingsKey(.commandComma).isCommit)
+    #expect(!PanelExitMeasurement.Trigger.settingsKey(.custom(3)).isCommit)
   }
 
   // MARK: Private
