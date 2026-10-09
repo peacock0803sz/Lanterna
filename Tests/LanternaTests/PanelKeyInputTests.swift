@@ -86,11 +86,30 @@ struct PanelKeyInputTests {
 
   /// Keys nobody gave a meaning to still arrive, and are still swallowed.
   /// The panel takes the whole keyboard while it is up, so there is no such
-  /// thing here as a key that carries on to somewhere else.
+  /// thing here as a key that carries on to somewhere else. Only presses
+  /// that type nothing read as absorbed here: a letter with characters
+  /// narrows while filtering, so typing letters are pinned where filtering
+  /// is on rather than here.
   @Test
   func keysWithNoMeaningAreAbsorbed() {
-    #expect(PanelKeyInput.action(for: press(kVK_ANSI_A)) == .absorb)
-    #expect(PanelKeyInput.action(for: press(kVK_ANSI_D, .command)) == .absorb)
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_A),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .absorb
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_D, .command),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .absorb
+    )
     #expect(PanelKeyInput.action(for: press(kVK_F1)) == .absorb)
     #expect(PanelKeyInput.action(for: press(kVK_Space)) == .absorb)
   }
@@ -144,19 +163,19 @@ struct PanelKeyInputTests {
   @Test
   func commandLettersOperateOnTheChosenRow() {
     #expect(
-      PanelKeyInput.action(for: press(kVK_ANSI_W, .command))
+      PanelKeyInput.action(for: press(kVK_ANSI_W, .command, characters: "w"))
         == .windowOperation(.closeWindow)
     )
     #expect(
-      PanelKeyInput.action(for: press(kVK_ANSI_Q, .command))
+      PanelKeyInput.action(for: press(kVK_ANSI_Q, .command, characters: "q"))
         == .windowOperation(.quitApplication)
     )
     #expect(
-      PanelKeyInput.action(for: press(kVK_ANSI_H, .command))
+      PanelKeyInput.action(for: press(kVK_ANSI_H, .command, characters: "h"))
         == .windowOperation(.hideApplication)
     )
     #expect(
-      PanelKeyInput.action(for: press(kVK_ANSI_M, .command))
+      PanelKeyInput.action(for: press(kVK_ANSI_M, .command, characters: "m"))
         == .windowOperation(.minimizeWindow)
     )
   }
@@ -282,6 +301,24 @@ struct PanelKeyInputTests {
     #expect(
       PanelKeyInput.action(
         for: press(kVK_ANSI_K, [], characters: "k"),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .selectPrevious
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_N, [], characters: "n"),
+        table: .defaults,
+        numberJumpEnabled: false,
+        reorderEnabled: false,
+        filtering: false
+      ) == .selectNext
+    )
+    #expect(
+      PanelKeyInput.action(
+        for: press(kVK_ANSI_P, [], characters: "p"),
         table: .defaults,
         numberJumpEnabled: false,
         reorderEnabled: false,
