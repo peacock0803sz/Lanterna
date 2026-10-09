@@ -452,6 +452,25 @@ struct KeyBindingTableTests {
   }
 
   @Test
+  func settingsAssignmentRefusalSpellsTheRules() {
+    #expect(KeyBindingTable.refusal(
+      assigning: key(kVK_ANSI_Comma),
+      to: .openSettings,
+      in: .defaults
+    ) == .needsModifiers)
+    #expect(KeyBindingTable.refusal(
+      assigning: key(kVK_ANSI_F),
+      to: .startFiltering,
+      in: .defaults
+    ) == nil)
+    #expect(KeyBindingTable.refusal(
+      assigning: key(kVK_ANSI_S),
+      to: .startFiltering,
+      in: .defaults
+    ) == .alreadyHeld)
+  }
+
+  @Test
   func kanaIndependentByConstruction() {
     // Resolution never sees characters: the same physical key resolves
     // the same way whatever the input source produced.
