@@ -367,6 +367,7 @@ struct PanelExitMeasurementTests {
       Self.measurement(.cancelled, by: .cancelKey(.commandPeriod)),
       Self.measurement(.cancelled, by: .cancelKey(.escape)),
       Self.measurement(.leftForSettings, by: .settingsKey(.commandComma)),
+      Self.measurement(.leftForSettings, by: .settingsKey(.optionComma)),
       Self.measurement(.leftForSettings, by: .settingsKey(.custom(3))),
     ].map(\.summaryLine)
 
@@ -418,6 +419,10 @@ struct PanelExitMeasurementTests {
         == "left for settings 4.8 ms after Cmd+Comma"
     )
     #expect(
+      Self.measurement(.leftForSettings, by: .settingsKey(.optionComma)).summaryLine
+        == "left for settings 4.8 ms after Opt+Comma"
+    )
+    #expect(
       Self.measurement(.leftForSettings, by: .settingsKey(.custom(3))).summaryLine
         == "left for settings 4.8 ms after key 3"
     )
@@ -440,6 +445,7 @@ struct PanelExitMeasurementTests {
   @Test
   func leavingForSettingsIsNotACommit() {
     #expect(!PanelExitMeasurement.Trigger.settingsKey(.commandComma).isCommit)
+    #expect(!PanelExitMeasurement.Trigger.settingsKey(.optionComma).isCommit)
     #expect(!PanelExitMeasurement.Trigger.settingsKey(.custom(3)).isCommit)
   }
 
