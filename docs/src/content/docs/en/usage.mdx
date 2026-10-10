@@ -28,7 +28,7 @@ import SwitchSequence from "../../../components/SwitchSequence.astro";
 | <kbd>⌘</kbd><kbd>J</kbd>/<kbd>N</kbd>  | Moves to the next row, like <kbd>↓</kbd>.                                                     |
 | <kbd>⌘</kbd><kbd>K</kbd>/<kbd>P</kbd>  | Moves to the previous row, like <kbd>↑</kbd>.                                                 |
 | <kbd>⌘</kbd><kbd>S</kbd>               | Switches the open switcher to filter mode.                                                    |
-| <kbd>⌘</kbd><kbd>,</kbd>               | Closes the switcher and opens Settings.                                                       |
+| <kbd>⌘</kbd>/<kbd>⌥</kbd><kbd>,</kbd>  | Closes the switcher and opens Settings.                                                       |
 
 ## Filtering
 
@@ -75,14 +75,14 @@ A missing or broken dictionary falls back to kana-only matching. To turn kanji m
 
 ## Window actions
 
-While the switcher is up, hold `Cmd` and press one of these keys to act on the chosen row. The switcher stays up and the list updates in place.
+While the switcher is up, hold `Cmd` or `Opt` and press one of these keys to act on the chosen row. The switcher stays up and the list updates in place.
 
-|                          |                       |
-| ------------------------ | --------------------- |
-| <kbd>⌘</kbd><kbd>W</kbd> | Closes the window.    |
-| <kbd>⌘</kbd><kbd>Q</kbd> | Quits the app.        |
-| <kbd>⌘</kbd><kbd>H</kbd> | Hides the app.        |
-| <kbd>⌘</kbd><kbd>M</kbd> | Minimizes the window. |
+|                                       |                       |
+| ------------------------------------- | --------------------- |
+| <kbd>⌘</kbd>/<kbd>⌥</kbd><kbd>W</kbd> | Closes the window.    |
+| <kbd>⌘</kbd>/<kbd>⌥</kbd><kbd>Q</kbd> | Quits the app.        |
+| <kbd>⌘</kbd>/<kbd>⌥</kbd><kbd>H</kbd> | Hides the app.        |
+| <kbd>⌘</kbd>/<kbd>⌥</kbd><kbd>M</kbd> | Minimizes the window. |
 
 By default, hidden apps and minimized windows move below the other windows, grouped under headings such as HIDDEN APPS and MINIMIZED. If an action fails, the list goes back to how it was and a short note appears. You cannot act on Lanterna's own row. On the row of an app with no open window, closing and minimizing have nothing to act on and say so, while quitting and hiding act on the app.
 
@@ -107,7 +107,7 @@ Panel Width in the same tab scales the panel from Narrow to Wide in five steps. 
 
 Show delay in the same tab waits before showing the panel, from 0 to 1000 milliseconds in steps of 50. At 0, shown as Off, the panel appears at once as before. With a wait set, letting go before it runs out switches without showing anything, and holding on opens the panel as usual. A new wait takes effect the next time the panel opens.
 
-Hover to select in the same tab moves the selection to the row under the pointer. Off by default; the choice follows the pointer once it is on. The panel never moves under a pointer that has not moved since it opened. Scroll to select moves the selection by scrolling instead of scrolling the view, and the view follows the selection. Off by default. Clicking a row picks it and switches to it with either switch off or on. Number jump in the same tab jumps to a row by its number: hold left or right Command or Option, press the digits in order, and let go to switch. Row numbers show while the modifier is held. Off by default. Row numbers names which rows numbers cover: window rows alone, or every row. Reorder rows in the same tab moves the selected row with Shift and arrow keys inside grouped lists, keeping the order across restarts. Off by default.
+Hover to select in the same tab moves the selection to the row under the pointer. Off by default; the choice follows the pointer once it is on. The panel never moves under a pointer that has not moved since it opened. Scroll to select moves the selection by scrolling instead of scrolling the view, and the view follows the selection. Off by default. Clicking a row picks it and switches to it with either switch off or on. Number jump in the same tab jumps to a row by its number: hold left or right Command or Option, press the digits in order, and let go to switch. When both Command and Option are held, the switch happens on releasing Command. Row numbers show while the modifier is held. Off by default. Row numbers names which rows numbers cover: window rows alone, or every row. Reorder rows in the same tab moves the selected row with Shift and arrow keys inside grouped lists, keeping the order across restarts. Off by default.
 
 ## Customizing keybindings
 
@@ -125,12 +125,12 @@ Every keybinding below can be changed through the `keybindings` section of the c
 | Toggle active app only | <kbd>⌘</kbd><kbd>/</kbd>                          |
 | Delete backward        | <kbd>⌫</kbd>                                      |
 | Clear query            | <kbd>esc</kbd>                                    |
-| Close window           | <kbd>⌘</kbd><kbd>W</kbd>                          |
-| Quit application       | <kbd>⌘</kbd><kbd>Q</kbd>                          |
-| Hide application       | <kbd>⌘</kbd><kbd>H</kbd>                          |
-| Minimize window        | <kbd>⌘</kbd><kbd>M</kbd>                          |
+| Close window           | <kbd>⌘</kbd>/<kbd>⌥</kbd><kbd>W</kbd>             |
+| Quit application       | <kbd>⌘</kbd>/<kbd>⌥</kbd><kbd>Q</kbd>             |
+| Hide application       | <kbd>⌘</kbd>/<kbd>⌥</kbd><kbd>H</kbd>             |
+| Minimize window        | <kbd>⌘</kbd>/<kbd>⌥</kbd><kbd>M</kbd>             |
 | Start filtering        | <kbd>S</kbd>                                      |
-| Open settings          | <kbd>⌘</kbd><kbd>,</kbd>                          |
+| Open settings          | <kbd>⌘</kbd>/<kbd>⌥</kbd><kbd>,</kbd>             |
 | Jump to row number     | <kbd>⌘</kbd>/<kbd>⌥</kbd> digits                  |
 | Move row up            | <kbd>⇧</kbd><kbd>⌘</kbd>/<kbd>⌥</kbd><kbd>↑</kbd> |
 | Move row down          | <kbd>⇧</kbd><kbd>⌘</kbd>/<kbd>⌥</kbd><kbd>↓</kbd> |

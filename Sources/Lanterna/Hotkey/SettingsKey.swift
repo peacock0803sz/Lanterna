@@ -9,20 +9,27 @@ import Carbon.HIToolbox
 /// flattened them would throw that evidence away.
 enum SettingsKey: Equatable, Sendable {
   case commandComma
-  /// A customized settings key, by physical position.
+  case optionComma
+  /// Any other settings key, by physical position.
   case custom(UInt16)
 }
 
 extension PanelKeyInput {
   /// Which settings key arrived, for the line that says so.
   ///
-  /// The long-standing key keeps its name; anything else goes down by
-  /// position, which is the same evidence in plainer words.
+  /// The default keys keep their names; anything else goes down by
+  /// position, which is the same evidence in plainer words. Command is
+  /// read first, so a comma pressed with both modifiers names Command.
   static func settingsKey(for keystroke: PanelKeystroke) -> SettingsKey {
-    if Int(keystroke.keyCode) == kVK_ANSI_Comma, keystroke.modifiers.contains(.command) {
-      .commandComma
-    } else {
-      .custom(keystroke.keyCode)
+    guard Int(keystroke.keyCode) == kVK_ANSI_Comma else {
+      return .custom(keystroke.keyCode)
     }
+    if keystroke.modifiers.contains(.command) {
+      return .commandComma
+    }
+    if keystroke.modifiers.contains(.option) {
+      return .optionComma
+    }
+    return .custom(keystroke.keyCode)
   }
 }

@@ -56,6 +56,31 @@ struct PanelOpenSettingsTests {
     #expect(fixture.log.lines.last?.contains("; filter \"saf\" (") == true)
   }
 
+  /// The line names the key the press came in on: each default comma by its
+  /// own modifier, and a customized key by position.
+  @Test(arguments: [
+    (kVK_ANSI_Comma, NSEvent.ModifierFlags.command, false, " after Cmd+Comma"),
+    (kVK_ANSI_Comma, .option, false, " after Opt+Comma"),
+    (kVK_ANSI_Semicolon, .command, true, " after key 41"),
+  ])
+  func leavingNamesTheKeyPressed(
+    keyCode: Int,
+    modifiers: NSEvent.ModifierFlags,
+    customized: Bool,
+    ending: String
+  ) {
+    let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+    if customized {
+      var table = KeyBindingTable.defaults
+      table.keys[.openSettings] = [ResolvedKey(keyCode: UInt16(keyCode), modifiers: modifiers)]
+      fixture.presenter.keyBindings = table
+    }
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = fixture.presenter.handleKeyStroke(settingsStroke(keyCode, modifiers))
+    let line = fixture.log.lines.last { $0.hasPrefix("left for settings ") }
+    #expect(line?.hasSuffix(ending) == true)
+  }
+
   @Test
   func repeatedCommaAloneOpensNothing() {
     let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)

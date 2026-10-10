@@ -181,6 +181,7 @@ struct PanelExitMeasurement: Sendable {
       case .cancelKey(.escape): "Escape"
       case .cancelKey(.custom(let code)): "key \(code)"
       case .settingsKey(.commandComma): "Cmd+Comma"
+      case .settingsKey(.optionComma): "Opt+Comma"
       case .settingsKey(.custom(let code)): "key \(code)"
       }
     }

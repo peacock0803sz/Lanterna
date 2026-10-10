@@ -77,10 +77,11 @@ struct PanelPresenterNumberTests {
 
   @Test
   func optionReleaseCommitsTheNamedRow() {
-    let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+    let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true, heldModifiers: .maskAlternate)
     fixture.presenter.numberJump = true
     fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
     pressDigit(3, modifiers: .option, through: fixture)
+    fixture.presenter.modifierFlagsChanged([])
     fixture.presenter.handleOptionRelease()
 
     #expect(fixture.surface.dismissCount == 1)

@@ -156,8 +156,8 @@ struct ResolvedKey: Equatable, Hashable, Sendable {
   /// Whether this binding answers the press under the given filtering state.
   ///
   /// A panel that is not filtering drops typed characters, so a bare letter
-  /// binding answers there too. Callers omitting `filtering` keep the
-  /// long-standing rule of answering only presses that type nothing.
+  /// binding answers there too. While filtering, a bare binding answers
+  /// only presses that type nothing.
   func answers(_ keystroke: PanelKeystroke, filtering: Bool) -> Bool {
     keyCode == keystroke.keyCode && modifiers.isSubset(of: keystroke.modifiers)
       && (!modifiers.isEmpty || !filtering || WindowFilter.allowedText(keystroke.characters) == nil)
@@ -370,7 +370,7 @@ struct KeyBindingTable: Equatable, Sendable {
     kVK_ANSI_Keypad0,
   ]
 
-  /// The long-standing behaviour, key for key.
+  /// The bindings an unchanged file resolves to.
   static var defaults: KeyBindingTable {
     KeyBindingTable(keys: [
       .show: [ResolvedKey(keyCode: UInt16(kVK_Tab), modifiers: .command)],
@@ -403,10 +403,23 @@ struct KeyBindingTable: Equatable, Sendable {
       .toggleScope: [ResolvedKey(keyCode: UInt16(kVK_ANSI_Slash), modifiers: .command)],
       .deleteBackward: [ResolvedKey(keyCode: UInt16(kVK_Delete), modifiers: [])],
       .clearQuery: [ResolvedKey(keyCode: UInt16(kVK_Escape), modifiers: [])],
-      .closeWindow: [ResolvedKey(keyCode: UInt16(kVK_ANSI_W), modifiers: .command)],
-      .quitApplication: [ResolvedKey(keyCode: UInt16(kVK_ANSI_Q), modifiers: .command)],
-      .hideApplication: [ResolvedKey(keyCode: UInt16(kVK_ANSI_H), modifiers: .command)],
-      .minimizeWindow: [ResolvedKey(keyCode: UInt16(kVK_ANSI_M), modifiers: .command)],
+      // Window operations answer Command and Option alike: each Option key stands beside its Command key.
+      .closeWindow: [
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_W), modifiers: .command),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_W), modifiers: .option),
+      ],
+      .quitApplication: [
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_Q), modifiers: .command),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_Q), modifiers: .option),
+      ],
+      .hideApplication: [
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_H), modifiers: .command),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_H), modifiers: .option),
+      ],
+      .minimizeWindow: [
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_M), modifiers: .command),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_M), modifiers: .option),
+      ],
       // Every decimal digit on both the main row and the keypad, each
       // with Command and with Option: the number jump answers them all.
       .numberJump: Self.defaultNumberJumpKeys,
@@ -419,7 +432,11 @@ struct KeyBindingTable: Equatable, Sendable {
         ResolvedKey(keyCode: UInt16(kVK_DownArrow), modifiers: [.option, .shift]),
       ],
       .startFiltering: [ResolvedKey(keyCode: UInt16(kVK_ANSI_S), modifiers: [])],
-      .openSettings: [ResolvedKey(keyCode: UInt16(kVK_ANSI_Comma), modifiers: .command)],
+      // Settings opens with either modifier, the way the window operations do.
+      .openSettings: [
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_Comma), modifiers: .command),
+        ResolvedKey(keyCode: UInt16(kVK_ANSI_Comma), modifiers: .option),
+      ],
     ])
   }
 

@@ -16,9 +16,9 @@ import AppKit
 /// twice been divided by the length the linter allows, and this is the piece
 /// whose next addition is already written down.
 ///
-/// Holds only one appearance's input state — the gathered digits and the
-/// remembered repeat — while the panel, the chosen row and the ways out
-/// all belong to something else.
+/// Holds one appearance's input state — the filter, the row order, the
+/// switches in force, the gathered digits and the remembered repeat — while
+/// the panel, the chosen row and the ways out all belong to something else.
 @MainActor
 final class PanelKeyCommands {
 
@@ -288,7 +288,6 @@ final class PanelKeyCommands {
       filter.toggleScope()
 
     case .startFiltering:
-      guard !filter.isActive else { break }
       repeatSwallow.hold(keystroke.keyCode)
       startFiltering?()
 

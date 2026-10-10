@@ -74,7 +74,22 @@ struct KeyBindingTableTests {
     #expect(table[.commit].count == 2)
     #expect(table[.cancel].count == 2)
     #expect(table[.show] == [key(kVK_Tab, .command)])
-    #expect(table[.closeWindow] == [key(kVK_ANSI_W, .command)])
+    #expect(
+      table[.closeWindow]
+        == [key(kVK_ANSI_W, .command), key(kVK_ANSI_W, .option)]
+    )
+    #expect(
+      table[.quitApplication]
+        == [key(kVK_ANSI_Q, .command), key(kVK_ANSI_Q, .option)]
+    )
+    #expect(
+      table[.hideApplication]
+        == [key(kVK_ANSI_H, .command), key(kVK_ANSI_H, .option)]
+    )
+    #expect(
+      table[.minimizeWindow]
+        == [key(kVK_ANSI_M, .command), key(kVK_ANSI_M, .option)]
+    )
     #expect(table[.toggleScope] == [key(kVK_ANSI_Slash, .command)])
     #expect(
       table[.next]
@@ -85,7 +100,10 @@ struct KeyBindingTableTests {
         == [key(kVK_UpArrow), key(kVK_ANSI_K), key(kVK_ANSI_P)]
     )
     #expect(table[.startFiltering] == [key(kVK_ANSI_S)])
-    #expect(table[.openSettings] == [key(kVK_ANSI_Comma, .command)])
+    #expect(
+      table[.openSettings]
+        == [key(kVK_ANSI_Comma, .command), key(kVK_ANSI_Comma, .option)]
+    )
   }
 
   /// The scope key is held to a modifier, the way the window operations
@@ -285,19 +303,31 @@ struct KeyBindingTableTests {
 
   @Test
   func panelCustomizationDisplacesUntouchedDefaults() {
-    // commit takes Cmd+W, which closeWindow holds only by default:
-    // the untouched default gives way and ends up unbound.
+    // commit takes Cmd+W, which closeWindow holds by default alongside
+    // Opt+W: the untouched default gives up only the taken key.
     let (table, issues) = KeyBindingResolver.resolve(
       [.commit: [raw(kVK_ANSI_W, "cmd")]],
       order: [.commit]
     )
     #expect(table[.commit] == [key(kVK_ANSI_W, .command)])
-    #expect(table[.closeWindow] == [])
-    #expect(issues.count == 2)
+    #expect(table[.closeWindow] == [key(kVK_ANSI_W, .option)])
+    #expect(issues.count == 1)
     #expect(issues[0].action == .closeWindow)
     #expect(issues[0].reason == .conflict)
-    #expect(issues[1].action == .closeWindow)
-    #expect(issues[1].detail.contains("unbound"))
+    // Taking every default key leaves the action with nothing to read,
+    // which stays unbound.
+    let (emptied, emptiedIssues) = KeyBindingResolver.resolve(
+      [.commit: [raw(kVK_ANSI_W, "cmd"), raw(kVK_ANSI_W, "opt")]],
+      order: [.commit]
+    )
+    #expect(emptied[.closeWindow] == [])
+    #expect(emptiedIssues.count == 3)
+    #expect(emptiedIssues[0].action == .closeWindow)
+    #expect(emptiedIssues[0].reason == .conflict)
+    #expect(emptiedIssues[1].action == .closeWindow)
+    #expect(emptiedIssues[1].reason == .conflict)
+    #expect(emptiedIssues[2].action == .closeWindow)
+    #expect(emptiedIssues[2].detail.contains("unbound"))
   }
 
   @Test
@@ -312,10 +342,10 @@ struct KeyBindingTableTests {
       order: [.closeWindow, .quitApplication]
     )
     #expect(table[.quitApplication] == [key(kVK_ANSI_W, .command)])
-    #expect(table[.closeWindow] == [])
-    #expect(issues.count == 2)
-    #expect(issues[1].action == .closeWindow)
-    #expect(issues[1].detail.contains("unbound"))
+    #expect(table[.closeWindow] == [key(kVK_ANSI_W, .option)])
+    #expect(issues.count == 1)
+    #expect(issues[0].action == .closeWindow)
+    #expect(issues[0].reason == .invalid)
   }
 
   @Test
