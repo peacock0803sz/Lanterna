@@ -156,8 +156,8 @@ struct ResolvedKey: Equatable, Hashable, Sendable {
   /// Whether this binding answers the press under the given filtering state.
   ///
   /// A panel that is not filtering drops typed characters, so a bare letter
-  /// binding answers there too. Callers omitting `filtering` keep the
-  /// long-standing rule of answering only presses that type nothing.
+  /// binding answers there too. While filtering, a bare binding answers
+  /// only presses that type nothing.
   func answers(_ keystroke: PanelKeystroke, filtering: Bool) -> Bool {
     keyCode == keystroke.keyCode && modifiers.isSubset(of: keystroke.modifiers)
       && (!modifiers.isEmpty || !filtering || WindowFilter.allowedText(keystroke.characters) == nil)
@@ -370,7 +370,7 @@ struct KeyBindingTable: Equatable, Sendable {
     kVK_ANSI_Keypad0,
   ]
 
-  /// The long-standing behaviour, key for key.
+  /// The bindings an unchanged file resolves to.
   static var defaults: KeyBindingTable {
     KeyBindingTable(keys: [
       .show: [ResolvedKey(keyCode: UInt16(kVK_Tab), modifiers: .command)],

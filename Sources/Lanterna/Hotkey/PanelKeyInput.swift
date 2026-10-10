@@ -95,8 +95,8 @@ enum PanelKeyAction: Equatable, Sendable {
   /// An operation on the chosen row. Read before the filtering row: an
   /// operation key held with Command is an operation even where its
   /// letter would type, while any other Command letter still narrows
-  /// while filtering. While not filtering, a bare-assigned letter held
-  /// with Command answers its operation too.
+  /// while filtering. While not filtering, a letter bound with no
+  /// modifier to any action also answers with modifiers held.
   case windowOperation(WindowOperation)
   /// Switches this showing between every application's windows and the
   /// active application's alone.
@@ -332,8 +332,8 @@ enum PanelKeyInput {
 
   /// What the panel should do about this press with the number
   /// switches in force. Off reads as the table holding neither the
-  /// number row nor the reorder rows, so an unchanged file keeps the
-  /// long-standing meanings key for key. Callers omitting `filtering`
+  /// number row nor the reorder rows, so their keys keep the meanings
+  /// the rest of the table gives them. Callers omitting `filtering`
   /// read as filtering, as before.
   static func action(
     for keystroke: PanelKeystroke,

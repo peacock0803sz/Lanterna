@@ -174,10 +174,9 @@ final class PanelPresenter {
   /// What a press means to a panel that is up.
   ///
   /// `lazy` because it is handed the way out, which is itself `lazy`. It
-  /// holds only one appearance's input state — the gathered digits and the
-  /// remembered repeat — while the panel, the chosen row and the ways out
-  /// are all this object's — so the two can share them rather than keep
-  /// second copies.
+  /// holds one appearance's input state, while the panel, the chosen row
+  /// and the ways out are all this object's, so the two can share them
+  /// rather than keep second copies.
   /// The way out and the operations, built beside the presenter, reach it.
   lazy var keyCommands = PanelKeyCommands(
     surface: surface,
@@ -415,8 +414,8 @@ final class PanelPresenter {
   /// While Command stays held the release does nothing and the pending
   /// number carries on for the Command release to settle; otherwise the
   /// pending number dies with the release either way, committed or not.
-  /// The tap reports the keystroke's flags before the release itself,
-  /// so the held flags read as the state of the stroke that let Option go.
+  /// The tap reports the flags-changed event's flags before the release
+  /// itself, so the held flags read as the state that event left behind.
   func handleOptionRelease() {
     let startedAt = now()
     guard !lastModifierFlags.contains(.maskCommand) else { return }
