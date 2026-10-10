@@ -488,7 +488,13 @@ enum PanelKeyInput {
       (.commit, .commit(commitKey(for: keystroke))),
       (.cancel, .cancel(cancelKey(for: keystroke))),
       (.toggleScope, .toggleScope),
-      (.startFiltering, .startFiltering),
+    ]
+    // A panel already filtering has nothing to switch into, so the key
+    // keeps whatever else it means there, typing included.
+    if !filtering {
+      ordered.append((.startFiltering, .startFiltering))
+    }
+    ordered += [
       (.openSettings, .openSettings),
       (.clearQuery, .clearQuery),
       (.deleteBackward, .filterBackspace),

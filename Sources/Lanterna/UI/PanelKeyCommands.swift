@@ -288,7 +288,6 @@ final class PanelKeyCommands {
       filter.toggleScope()
 
     case .startFiltering:
-      guard !filter.isActive else { break }
       repeatSwallow.hold(keystroke.keyCode)
       startFiltering?()
 

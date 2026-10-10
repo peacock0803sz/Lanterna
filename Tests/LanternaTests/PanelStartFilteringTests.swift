@@ -81,6 +81,19 @@ struct PanelStartFilteringTests {
     #expect(fixture.surface.updatedQueries.last == "s")
   }
 
+  /// A start key moved onto a letter held with a modifier still types that
+  /// letter while filtering, rather than being swallowed with no effect.
+  @Test(arguments: [NSEvent.ModifierFlags.command, .shift])
+  func modifiedStartKeyTypesWhileFiltering(modifiers: NSEvent.ModifierFlags) {
+    let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
+    var table = KeyBindingTable.defaults
+    table.keys[.startFiltering] = [ResolvedKey(keyCode: UInt16(kVK_ANSI_F), modifiers: modifiers)]
+    fixture.presenter.keyBindings = table
+    fixture.presenter.handleHotkey(.filter, deliveryDelay: nil)
+    _ = fixture.presenter.handleKeyStroke(filteringStroke(kVK_ANSI_F, modifiers, characters: "f"))
+    #expect(fixture.surface.updatedQueries.last == "f")
+  }
+
   @Test
   func sSwitchesWhenTheInvocationKeyMoves() {
     let fixture = Fixture(entryCount: 12, closesOnCommandRelease: true)
