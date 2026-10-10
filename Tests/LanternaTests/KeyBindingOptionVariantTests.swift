@@ -200,7 +200,7 @@ struct KeyBindingOptionVariantTests {
         numberJumpEnabled: false,
         reorderEnabled: false,
         filtering: true
-      ) != .windowOperation(.closeWindow)
+      ) == .filterText("w")
     )
   }
 
