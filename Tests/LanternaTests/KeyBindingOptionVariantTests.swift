@@ -21,11 +21,14 @@ private func optionPress(
 
 // MARK: - KeyBindingOptionVariantTests
 
-/// Names the pair a newly added default key overlaps.
+/// The Option keys that stand beside the Command defaults.
 ///
-/// The resolver already fails an overlapping default as a conflict, without
-/// naming which two actions share the key. This test points at the pair and
-/// the key, so adding a default key shows the existing default it collides with.
+/// The defaults share no key across actions: the resolver already fails an
+/// overlapping default as a conflict without naming which two actions share
+/// the key, so the first test points at the pair and the key. The rest pin
+/// that the Option window keys and the Option comma answer the way their
+/// Command keys do, repeats included, and that a customized window key
+/// neither keeps nor gains an Option sibling.
 @MainActor
 struct KeyBindingOptionVariantTests {
 
