@@ -285,6 +285,9 @@ extension AppConfiguration {
     if let fuzzyMatchEnabled = config.fuzzyMatchEnabled {
       lines.append(encodedBool(key: "fuzzyMatchEnabled", value: fuzzyMatchEnabled))
     }
+    if config.listWindowsOnAllSpaces == true {
+      lines.append(encodedBool(key: "listWindowsOnAllSpaces", value: true))
+    }
     if let resultOrder = config.resultOrder {
       lines.append(encodedString(key: "resultOrder", value: resultOrder))
     }

@@ -209,6 +209,12 @@ extension AppConfiguration {
     case .failure(let error):
       return .failure(error)
     }
+    switch checkedOptionalBool(dict, key: "listWindowsOnAllSpaces") {
+    case .success(let found):
+      config.listWindowsOnAllSpaces = found
+    case .failure(let error):
+      return .failure(error)
+    }
     switch checkedOptionalResultOrder(dict, key: "resultOrder") {
     case .success(let found):
       config.resultOrder = found

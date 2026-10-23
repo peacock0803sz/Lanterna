@@ -35,6 +35,10 @@
       "description": "Whether the filter also matches subsequence queries, not only\nsubstrings. Absent means on.",
       "type": "boolean"
     },
+    "listWindowsOnAllSpaces": {
+      "description": "Whether the list also reads windows on desktops no display is\nshowing, which takes longer. Absent means off.",
+      "type": "boolean"
+    },
     "resultOrder": {
       "description": "The order the narrowed rows draw in. Absent means \"mru\".",
       "type": "string",
@@ -1285,6 +1289,10 @@
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },
+            "listWindowsOnAllSpaces": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
             "appearanceMode": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
@@ -1594,6 +1602,10 @@
               "deprecated": true
             },
             "fuzzyMatchEnabled": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "listWindowsOnAllSpaces": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },

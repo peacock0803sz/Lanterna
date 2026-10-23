@@ -17,6 +17,7 @@ struct SearchSettingsUITests {
     var values = SettingsValues.defaults
     values.shortcutMemoryLength = 1
     values.fuzzyMatchEnabled = false
+    values.listWindowsOnAllSpaces = true
     values.resultOrder = .score
     let config = values.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
     #expect(SettingsSaver.save(config, to: url, replacingInvalidFile: false) == .saved)
@@ -24,6 +25,7 @@ struct SearchSettingsUITests {
     let reread = SettingsValues.effective(from: decoded.config)
     #expect(reread.shortcutMemoryLength == 1)
     #expect(reread.fuzzyMatchEnabled == false)
+    #expect(reread.listWindowsOnAllSpaces == true)
     #expect(reread.resultOrder == .score)
   }
 
@@ -37,6 +39,8 @@ struct SearchSettingsUITests {
     let reread = SettingsValues.effective(from: decoded.config)
     #expect(reread.shortcutMemoryLength == 5)
     #expect(reread.fuzzyMatchEnabled == true)
+    #expect(reread.listWindowsOnAllSpaces == false)
+    #expect(try !String(contentsOf: url, encoding: .utf8).contains("listWindowsOnAllSpaces"))
     #expect(reread.resultOrder == .mru)
   }
 

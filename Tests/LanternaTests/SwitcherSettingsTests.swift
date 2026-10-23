@@ -445,6 +445,7 @@ struct SwitcherSettingsTests {
   private static let sharedPanelKeys: [(key: String, spelled: String)] = [
     ("resultOrder", #""resultOrder": "score""#),
     ("fuzzyMatchEnabled", #""fuzzyMatchEnabled": false"#),
+    ("listWindowsOnAllSpaces", #""listWindowsOnAllSpaces": true"#),
     ("grouping", #""grouping": "manual""#),
     ("groupCount", #""groupCount": 3"#),
     ("groupHeadingStyle", #""groupHeadingStyle": "name""#),

@@ -26,6 +26,24 @@
 /// `AXApplicationWindowReader.windowID(of:within:)`.
 extern AXError _AXUIElementGetWindow(AXUIElementRef element, CGWindowID *outWindowID);
 
+/// An accessibility element built from a raw token instead of found by
+/// walking the tree.
+///
+/// Undocumented, but exported from ApplicationServices. It passes the same
+/// test as `_AXUIElementGetWindow`: no public API reaches a window on a Space
+/// no display is showing. `kAXWindowsAttribute` leaves those windows out, and
+/// `CGWindowListCopyWindowInfo` names them but hands back no element to
+/// raise, close or minimize, so listing them and switching to them both need
+/// an element only this call makes.
+///
+/// The token is 20 bytes: the process id (`Int32`), `Int32` 0, `Int32`
+/// 0x636F636F, then the element id (`UInt64`), all in native byte order.
+/// An id that names no element is answered with an error at once rather than
+/// a wait, so a caller probes a range of ids and keeps what answers.
+///
+/// Returns a new reference. The caller treats NULL as no element.
+extern AXUIElementRef _AXUIElementCreateWithRemoteToken(CFDataRef token) CF_RETURNS_RETAINED;
+
 /// One of the window server's built-in keyboard shortcuts.
 typedef int CGSSymbolicHotKey;
 

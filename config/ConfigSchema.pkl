@@ -57,6 +57,10 @@ shortcutMemoryLength: Int? = null
 /// substrings. Absent means on.
 fuzzyMatchEnabled: Boolean? = null
 
+/// Whether the list also reads windows on desktops no display is
+/// showing, which takes longer. Absent means off.
+listWindowsOnAllSpaces: Boolean? = null
+
 /// The order the narrowed rows draw in: recent use first, or best match
 /// first.
 typealias ResultOrder = "mru"|"score"
@@ -388,6 +392,8 @@ open class SwitcherMain {
   /// Shared by both switchers; write it at the top level. Ignored here.
   fuzzyMatchEnabled: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
+  listWindowsOnAllSpaces: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
   appearanceMode: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   romajiScope: Any? = null
@@ -491,6 +497,8 @@ open class SwitcherParallel {
   scrollSelect: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   fuzzyMatchEnabled: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
+  listWindowsOnAllSpaces: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   appearanceMode: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.

@@ -84,6 +84,13 @@ struct SettingsSwitchersView: View {
               + "Off hands Opt+Tab back to the front application; its settings are kept."
           )
         }
+        Toggle(isOn: $values.listWindowsOnAllSpaces) {
+          SettingsFormLabel(
+            title: "Windows on all desktops",
+            caption: "List windows on every Mission Control desktop, not only the ones showing. "
+              + "Lanterna asks each app for more in the background, which uses more CPU."
+          )
+        }
       } footer: {
         VStack(spacing: 6) {
           tabPicker

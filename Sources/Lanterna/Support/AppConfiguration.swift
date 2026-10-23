@@ -40,6 +40,7 @@ enum AppConfiguration {
     "exclusions",
     "shortcutMemoryLength",
     "fuzzyMatchEnabled",
+    "listWindowsOnAllSpaces",
     "resultOrder",
     "keybindings",
     "textScale",
@@ -102,6 +103,7 @@ struct ValidConfiguration: Equatable, Sendable {
     exclusions: [ExclusionEntry]? = nil,
     shortcutMemoryLength: Int? = nil,
     fuzzyMatchEnabled: Bool? = nil,
+    listWindowsOnAllSpaces: Bool? = nil,
     resultOrder: String? = nil,
     textScale: Double? = nil,
     displayTarget: DisplayTarget? = nil,
@@ -145,6 +147,7 @@ struct ValidConfiguration: Equatable, Sendable {
     self.exclusions = exclusions
     self.shortcutMemoryLength = shortcutMemoryLength
     self.fuzzyMatchEnabled = fuzzyMatchEnabled
+    self.listWindowsOnAllSpaces = listWindowsOnAllSpaces
     self.resultOrder = resultOrder
     self.textScale = textScale
     self.displayTarget = displayTarget
@@ -198,6 +201,9 @@ struct ValidConfiguration: Equatable, Sendable {
   /// Whether subsequence queries match as well as substrings. Nil means
   /// absent, which means on.
   var fuzzyMatchEnabled: Bool?
+  /// Whether the list also reads windows on desktops no display is
+  /// showing. Nil means absent, which means off.
+  var listWindowsOnAllSpaces: Bool?
   /// The raw ordering word. Nil means absent, which means "mru".
   /// Kept as a string like `updateChannel`; the enum lives with T018.
   var resultOrder: String?

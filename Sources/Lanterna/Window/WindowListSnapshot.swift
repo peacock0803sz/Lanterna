@@ -21,10 +21,12 @@ struct WindowListSnapshot {
     skipped: [SkippedApplication],
     droppedWithoutID: Int,
     gatheredAt: ContinuousClock.Instant,
-    spacesUnread: Bool = false
+    spacesUnread: Bool = false,
+    otherSpacesCutShort: Int = 0
   ) {
     assert(Set(items.map(\.id)).count == items.count, "window ids must be unique")
     self.spacesUnread = spacesUnread
+    self.otherSpacesCutShort = otherSpacesCutShort
     self.items = items
     self.applicationCount = applicationCount
     self.gatheringDuration = gatheringDuration
@@ -61,6 +63,9 @@ struct WindowListSnapshot {
   /// Whether the pass found no Space any display is showing, so grouping
   /// by Space would have nothing to go on. Said on the summary line.
   let spacesUnread: Bool
+  /// How many applications ended their look for windows on other Spaces
+  /// early, so a missing row there is explained.
+  let otherSpacesCutShort: Int
 
   // When this pass finished assembling. The sweep spares records newer
   // than this: a snapshot that predates a use could not have observed it.
@@ -92,6 +97,9 @@ struct WindowListSnapshot {
     }
     if spacesUnread {
       line += "; Spaces unread"
+    }
+    if otherSpacesCutShort > 0 {
+      line += "; other Spaces cut short in \(otherSpacesCutShort) applications"
     }
     return line
   }

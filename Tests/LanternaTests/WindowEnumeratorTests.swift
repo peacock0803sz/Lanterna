@@ -131,6 +131,20 @@ struct WindowEnumeratorTests {
   }
 
   @Test
+  func applicationsCutShortOnOtherSpacesAreCounted() {
+    let result = snapshot(
+      applications: [application(100), application(200, name: "Mail"), application(300, name: "Notes")],
+      reads: [
+        100: read([record(10)], otherSpacesCutShort: true),
+        200: read([record(11)]),
+        300: read([record(12)], otherSpacesCutShort: true),
+      ]
+    )
+    #expect(result.otherSpacesCutShort == 2)
+    #expect(result.items.count == 3)
+  }
+
+  @Test
   func everyApplicationIsCountedIncludingSkippedOnes() {
     let result = snapshot(
       applications: [application(100), application(200, name: "Mail")],

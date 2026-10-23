@@ -95,6 +95,15 @@ struct WindowListSnapshotTests {
       + "; skipped TextEdit (timed out)")
   }
 
+  /// Applications whose look at other Spaces ended early are counted last,
+  /// and only when there are some.
+  @Test
+  func summaryCountsApplicationsWhoseOtherSpacesWereCutShort() {
+    #expect(snapshot(otherSpacesCutShort: 2).summaryLine
+      == "listed 9 windows from 11 applications in 71.2 ms"
+      + "; other Spaces cut short in 2 applications")
+  }
+
   /// A title never reaches the log, whatever went wrong.
   @Test
   func summaryNeverCarriesAWindowTitle() {
@@ -134,7 +143,8 @@ struct WindowListSnapshotTests {
     applicationCount: Int = 11,
     duration: Duration = .milliseconds(71.2),
     skipped: [WindowListSnapshot.SkippedApplication] = [],
-    droppedWithoutID: Int = 0
+    droppedWithoutID: Int = 0,
+    otherSpacesCutShort: Int = 0
   ) -> WindowListSnapshot {
     WindowListSnapshot(
       items: (0 ..< windowCount).map { item(CGWindowID($0), isOnOtherSpace: $0 < onOtherSpace) },
@@ -142,7 +152,8 @@ struct WindowListSnapshotTests {
       gatheringDuration: duration,
       skipped: skipped,
       droppedWithoutID: droppedWithoutID,
-      gatheredAt: .now
+      gatheredAt: .now,
+      otherSpacesCutShort: otherSpacesCutShort
     )
   }
 

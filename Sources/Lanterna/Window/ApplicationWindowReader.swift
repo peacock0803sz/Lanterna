@@ -50,6 +50,10 @@ struct ApplicationRead: Sendable, Equatable {
   /// Elements that were windows but reported no window-server id, counted for
   /// the diagnostics line so a silently missing row is still visible.
   let droppedWithoutID: Int
+  /// Whether the look for windows on other Spaces ended early, out of time
+  /// or on a failed read. The windows listed are all kept; only some of those
+  /// on other Spaces may be missing, which the diagnostics line says.
+  var otherSpacesCutShort = false
 }
 
 // MARK: - ReadFailure
@@ -127,8 +131,12 @@ struct ReadBudget {
 
   let startedAt: ContinuousClock.Instant
 
+  var deadline: ContinuousClock.Instant {
+    startedAt + Self.limit
+  }
+
   func isExpired(at instant: ContinuousClock.Instant) -> Bool {
-    instant - startedAt >= Self.limit
+    instant >= deadline
   }
 }
 
@@ -160,11 +168,17 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
       let error = _AXUIElementGetWindow(element, &windowID)
       return (error, windowID)
     },
+    probeWindows: @escaping @Sendable (pid_t, CGWindowID?, ContinuousClock.Instant) -> [ProbedWindow] = {
+      WindowProbe.windows(of: $0, stoppingAt: $1, until: $2)
+    },
+    includesOtherSpaces: Bool = false,
     now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
   ) {
     self.setMessagingTimeout = setMessagingTimeout
     self.copyAttribute = copyAttribute
     self.copyWindowID = copyWindowID
+    self.probeWindows = probeWindows
+    self.includesOtherSpaces = includesOtherSpaces
     self.now = now
   }
 
@@ -244,6 +258,8 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
   private let setMessagingTimeout: @Sendable (AXUIElement, Float) -> AXError
   private let copyAttribute: @Sendable (AXUIElement, String) -> (AXError, CFTypeRef?)
   private let copyWindowID: @Sendable (AXUIElement) -> (AXError, CGWindowID)
+  private let probeWindows: @Sendable (pid_t, CGWindowID?, ContinuousClock.Instant) -> [ProbedWindow]
+  private let includesOtherSpaces: Bool
   private let now: @Sendable () -> ContinuousClock.Instant
 
   /// What a `kAXErrorCannotComplete` that took `elapsed` to come back means:
@@ -270,7 +286,40 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
         droppedWithoutID += 1
       }
     }
-    return ApplicationRead(records: records, droppedWithoutID: droppedWithoutID)
+    let cutShort = includesOtherSpaces
+      && appendOtherSpaceRecords(to: &records, of: processIdentifier, within: budget)
+    return ApplicationRead(
+      records: records,
+      droppedWithoutID: droppedWithoutID,
+      otherSpacesCutShort: cutShort
+    )
+  }
+
+  /// Adds the windows the application's list left out, those on Spaces no
+  /// display is showing. Answers whether the look ended early.
+  ///
+  /// Best effort: the list already read is a complete answer, so a budget
+  /// spent or a failure while probing keeps it instead of discarding the
+  /// application for a bonus.
+  private func appendOtherSpaceRecords(
+    to records: inout [WindowRecord],
+    of processIdentifier: pid_t,
+    within budget: ReadBudget
+  ) -> Bool {
+    var known = Set(records.map(\.windowID))
+    let probed = probeWindows(processIdentifier, nil, budget.deadline)
+    do throws(ReadFailure) {
+      for window in probed where known.insert(window.windowID).inserted {
+        if case .record(let record) = try outcome(for: window.element, windowID: window.windowID, within: budget) {
+          records.append(record)
+        }
+      }
+    } catch {
+      return true
+    }
+    // The probe answers with what it found by the deadline and does not say
+    // whether it stopped there.
+    return budget.isExpired(at: now())
   }
 
   /// The application's window list, empty when nothing is open.
@@ -305,8 +354,11 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     }
   }
 
+  /// `windowID` is passed when the caller already read it, which saves the
+  /// round trip.
   private func outcome(
     for window: AXUIElement,
+    windowID knownID: CGWindowID? = nil,
     within budget: ReadBudget
   ) throws(ReadFailure) -> ElementOutcome {
     try prepare(window)
@@ -325,7 +377,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
       title: attribute(window, kAXTitleAttribute, within: budget) as? String ?? "",
       isMinimized: attribute(window, kAXMinimizedAttribute, within: budget) as? Bool ?? false,
       isFullscreen: attribute(window, fullscreenAttributeName, within: budget) as? Bool ?? false,
-      windowID: windowID(of: window, within: budget)
+      windowID: knownID != nil ? knownID : windowID(of: window, within: budget)
     )
   }
 

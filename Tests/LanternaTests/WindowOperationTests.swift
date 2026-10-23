@@ -156,8 +156,10 @@ struct WindowOperationTests {
   func minimizingWritesTheFlag() {
     let box = MinimizeBox()
     let minimizer = LiveWindowMinimizer(
-      copyWindows: { _ in (.success, [box.window]) },
-      copyWindowID: { _ in (.success, 7) },
+      resolver: WindowElementResolver(
+        copyWindows: { _ in (.success, [box.window]) },
+        copyWindowID: { _ in (.success, 7) }
+      ),
       setMinimized: { element, minimized in
         box.writes.append((element, minimized))
         return .success
@@ -171,11 +173,34 @@ struct WindowOperationTests {
   @Test
   func aRefusedMinimizeFails() {
     let minimizer = LiveWindowMinimizer(
-      copyWindows: { _ in (.success, []) },
-      copyWindowID: { _ in (.success, 0) },
+      resolver: WindowElementResolver(
+        copyWindows: { _ in (.success, []) },
+        copyWindowID: { _ in (.success, 0) }
+      ),
       setMinimized: { _, _ in .failure }
     )
     #expect(minimizer.minimizeWindow(target()) == .windowGone)
+  }
+
+  /// A window on another Space is missing from the list and found by the
+  /// probe, with the setting on.
+  @Test
+  func aTargetOnAnotherSpaceIsMinimizedThroughTheProbe() {
+    let box = MinimizeBox()
+    let minimizer = LiveWindowMinimizer(
+      resolver: WindowElementResolver(
+        copyWindows: { _ in (.success, []) },
+        copyWindowID: { _ in (.success, 7) },
+        probesOtherSpaces: { true },
+        probeWindows: { _, _, _ in [ProbedWindow(element: box.window, windowID: 7)] }
+      ),
+      setMinimized: { element, minimized in
+        box.writes.append((element, minimized))
+        return .success
+      }
+    )
+    #expect(minimizer.minimizeWindow(target()) == nil)
+    #expect(box.writes.count == 1)
   }
 
   /// A target no application still lists is gone, not broken.
@@ -267,10 +292,12 @@ struct WindowOperationTests {
     let box = ScriptBox(script)
     let elements = ElementBox(windows: windows, windowIDs: windowIDs)
     let made = LiveWindowCloser(
-      copyWindows: { _ in (listError, elements.windows) },
-      copyWindowID: { element in
-        (.success, elements.windowIDs[ObjectIdentifier(element)] ?? 0)
-      },
+      resolver: WindowElementResolver(
+        copyWindows: { _ in (listError, elements.windows) },
+        copyWindowID: { element in
+          (.success, elements.windowIDs[ObjectIdentifier(element)] ?? 0)
+        }
+      ),
       copyChildren: { element in
         (.success, box.script.children[ObjectIdentifier(element)])
       },

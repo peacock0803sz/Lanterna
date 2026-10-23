@@ -1,6 +1,5 @@
 import AppKit
 import ApplicationServices
-import PrivateAPIs
 
 // MARK: - ActivationTarget
 
@@ -48,7 +47,7 @@ protocol WindowSwitching: Sendable {
 
 /// Talks to the real accessibility API, in the order the contract pins down:
 /// activate, unminimize, raise. Resolving (row to element) happens first and
-/// reads nothing but the target application's own window list.
+/// is the shared resolver's, the way closing and minimizing resolve.
 ///
 /// Every seam is a closure defaulting to the real call, so tests script
 /// answers no live application can be asked to give. The shape follows
@@ -59,22 +58,7 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
 
   /// The defaults talk to the real accessibility API. Tests replace them.
   init(
-    createApplication: @escaping @Sendable (pid_t) -> AXUIElement = {
-      AXUIElementCreateApplication($0)
-    },
-    setMessagingTimeout: @escaping @Sendable (AXUIElement, Float) -> AXError = {
-      AXUIElementSetMessagingTimeout($0, $1)
-    },
-    copyWindows: @escaping @Sendable (AXUIElement) -> (AXError, [AXUIElement]?) = { application in
-      var value: CFTypeRef?
-      let error = AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &value)
-      return (error, value as? [AXUIElement])
-    },
-    copyWindowID: @escaping @Sendable (AXUIElement) -> (AXError, CGWindowID) = { element in
-      var windowID: CGWindowID = 0
-      let error = _AXUIElementGetWindow(element, &windowID)
-      return (error, windowID)
-    },
+    resolver: WindowElementResolver = WindowElementResolver(),
     activateApplication: @escaping @Sendable (pid_t) -> ApplicationActivation = { pid in
       guard let application = NSRunningApplication(processIdentifier: pid) else { return .missing }
       return application.activate() ? .activated : .refused
@@ -87,10 +71,7 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
     },
     now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
   ) {
-    self.createApplication = createApplication
-    self.setMessagingTimeout = setMessagingTimeout
-    self.copyWindows = copyWindows
-    self.copyWindowID = copyWindowID
+    self.resolver = resolver
     self.activateApplication = activateApplication
     self.setMinimized = setMinimized
     self.raiseWindow = raiseWindow
@@ -107,27 +88,20 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
     case refused
   }
 
-  static let messagingTimeout: Float = 1.0
-  /// Answers slower than this are waits, not refusals. Half the messaging
-  /// timeout leaves a wide margin on both sides; borrowed from the reader,
-  /// which draws the same line for the same code.
-  static let unreachableAnswerCeiling = Duration.milliseconds(500)
-
   func switchTo(_ target: ActivationTarget) -> ActivationOutcome {
     // An application with no window has nothing to resolve or raise:
     // bringing it forward is the whole switch.
     guard target.id.windowID != nil else {
       return activate(target).map { .failed($0) } ?? .switched
     }
-    // 0. Resolve the row back to an element, reading only the owning
-    // application's list. Never a fresher list: the target is what the
-    // appearance showed.
+    // 0. Resolve the row back to an element. Never off a fresher list:
+    // the target is what the appearance showed.
     let resolved: AXUIElement
-    switch resolve(target) {
+    switch resolver.resolve(target) {
     case .element(let element):
       resolved = element
-    case .failure(let outcome):
-      return outcome
+    case .failure(let failure):
+      return .failed(failure)
     }
     // 1. Activate first, so a hidden application is unhidden before any
     // window of it is touched.
@@ -148,114 +122,11 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
 
   // MARK: Private
 
-  /// What resolving came to. Apart from the outcome so a missing row stays
-  /// distinct from a failed read all the way to the wording.
-  private enum Resolution {
-    case element(AXUIElement)
-    case failure(ActivationOutcome)
-  }
-
-  /// One element against the target. Most elements are somebody else's row
-  /// and are skipped; an answer about the application aborts the whole
-  /// resolve instead. Anything else unreadable is skipped too: an element
-  /// that cannot be told apart cannot condemn the take, and a target never
-  /// matched is windowGone.
-  private enum ElementMatch {
-    case match
-    case skip
-    case abort(ActivationOutcome)
-  }
-
-  private let createApplication: @Sendable (pid_t) -> AXUIElement
-  private let setMessagingTimeout: @Sendable (AXUIElement, Float) -> AXError
-  private let copyWindows: @Sendable (AXUIElement) -> (AXError, [AXUIElement]?)
-  private let copyWindowID: @Sendable (AXUIElement) -> (AXError, CGWindowID)
+  private let resolver: WindowElementResolver
   private let activateApplication: @Sendable (pid_t) -> ApplicationActivation
   private let setMinimized: @Sendable (AXUIElement, Bool) -> AXError
   private let raiseWindow: @Sendable (AXUIElement) -> AXError
   private let now: @Sendable () -> ContinuousClock.Instant
-
-  /// Slow `cannotComplete` answers are waits, fast ones refusals. The line
-  /// is the reader's: half the messaging timeout either way.
-  private func waitedSince(_ instant: ContinuousClock.Instant) -> Bool {
-    now() - instant >= Self.unreachableAnswerCeiling
-  }
-
-  private func resolve(_ target: ActivationTarget) -> Resolution {
-    let application = createApplication(target.ownerProcessIdentifier)
-    guard setMessagingTimeout(application, Self.messagingTimeout) == .success else {
-      return .failure(.failed(.applicationGone))
-    }
-    let sentAt = now()
-    let (windowsError, rawElements) = copyWindows(application)
-    let elements: [AXUIElement]
-    switch windowsError {
-    case .success:
-      // An application that answers its window list with something
-      // that is not one cannot be read, and the reader's word for
-      // that is kept: malformed answer.
-      guard let rawElements else {
-        return .failure(.failed(.other(reason: "malformed answer")))
-      }
-      elements = rawElements
-
-    case .noValue:
-      // No open windows, which the reader reads as an empty list: a
-      // target of this application is gone rather than erroneous.
-      elements = []
-
-    default:
-      return .failure(listFailure(for: windowsError, since: sentAt))
-    }
-    for element in elements {
-      switch match(element, to: target) {
-      case .match:
-        return .element(element)
-      case .skip:
-        continue
-      case .abort(let outcome):
-        return .failure(outcome)
-      }
-    }
-    return .failure(.failed(.windowGone))
-  }
-
-  /// What a failed list read means. Apart so resolving stays readable:
-  /// the ceiling judges one message, whichever message it was.
-  private func listFailure(for error: AXError, since sentAt: ContinuousClock.Instant) -> ActivationOutcome {
-    switch error {
-    case .cannotComplete:
-      waitedSince(sentAt) ? .failed(.timedOut) : .failed(.applicationGone)
-    case .apiDisabled:
-      .failed(.other(reason: "permission missing"))
-    case .invalidUIElement:
-      .failed(.applicationGone)
-    case let error:
-      .failed(.other(reason: "error \(error.rawValue)"))
-    }
-  }
-
-  private func match(_ element: AXUIElement, to target: ActivationTarget) -> ElementMatch {
-    // The timeout rides with the element it protects: the setting
-    // applies to the element it is made on, so every element is given
-    // its own before its first message. One that cannot take it is
-    // skipped like anything else unreadable.
-    guard setMessagingTimeout(element, Self.messagingTimeout) == .success else {
-      return .skip
-    }
-    let attemptAt = now()
-    let (idError, windowID) = copyWindowID(element)
-    switch idError {
-    case .success:
-      return windowID != 0 && windowID == target.id.windowID ? .match : .skip
-    case .cannotComplete:
-      return .abort(waitedSince(attemptAt) ? .failed(.timedOut) : .failed(.applicationGone))
-    case .apiDisabled:
-      return .abort(.failed(.other(reason: "permission missing")))
-    default:
-      return .skip
-    }
-  }
 
   private func activate(_ target: ActivationTarget) -> ActivationFailure? {
     switch activateApplication(target.ownerProcessIdentifier) {
@@ -280,7 +151,7 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
       return nil
 
     case .cannotComplete:
-      return waitedSince(sentAt)
+      return resolver.waitedSince(sentAt)
         ? .timedOut
         : .other(reason: "error \(AXError.cannotComplete.rawValue)")
 

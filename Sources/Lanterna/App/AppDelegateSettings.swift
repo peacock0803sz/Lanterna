@@ -133,6 +133,9 @@ extension AppDelegate {
     }
     composite.refreshPool()
     composite.syncMirrors(from: panel)
+    // One resolver for all three, reading the setting at the time of use:
+    // they are built once and the setting changes live.
+    let resolver = WindowElementResolver(probesOtherSpaces: { [otherSpaces] in otherSpaces.isOn })
     let presenter = PanelPresenter(
       surface: composite,
       store: windowList,
@@ -145,7 +148,9 @@ extension AppDelegate {
         CGEventSource.flagsState(.combinedSessionState).contains(.maskAlternate)
       },
       showDelayMs: options.showDelayMs,
-      switcher: OwnWindowSwitcher(wrapped: LiveWindowSwitcher())
+      switcher: OwnWindowSwitcher(wrapped: LiveWindowSwitcher(resolver: resolver)),
+      closer: LiveWindowCloser(resolver: resolver),
+      minimizer: LiveWindowMinimizer(resolver: resolver)
     )
     presenter.windowScope = currentValues.windowScope
     presenter.grouping = currentValues.grouping

@@ -35,6 +35,8 @@ final class PanelPresenter {
       try? await Task.sleep(for: duration)
     },
     switcher: any WindowSwitching = LiveWindowSwitcher(),
+    closer: any WindowClosing = LiveWindowCloser(),
+    minimizer: any WindowMinimizing = LiveWindowMinimizer(),
     tracker: MRUTracker = MRUTracker()
   ) {
     self.surface = surface
@@ -56,6 +58,8 @@ final class PanelPresenter {
     self.showDelayMs = showDelayMs
     self.showDelaySleep = showDelaySleep
     self.switcher = switcher
+    self.closer = closer
+    self.minimizer = minimizer
     self.tracker = tracker
     keyCommands.onRowOrderChanged = { [weak self] order in self?.didReorderRows(order) }
   }
@@ -127,6 +131,10 @@ final class PanelPresenter {
   /// What commits take. Through to the way out, which owns the list the
   /// target is read off and is built beside the presenter.
   let switcher: any WindowSwitching
+
+  /// What the close and minimize keys send, through to the operations.
+  let closer: any WindowClosing
+  let minimizer: any WindowMinimizing
 
   /// What commits and appearances consult for the order rows are drawn in,
   /// owned here so recording and sorting share one memory.

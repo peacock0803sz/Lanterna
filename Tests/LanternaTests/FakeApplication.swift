@@ -51,11 +51,23 @@ final class FakeApplication: @unchecked Sendable {
   /// Answers `nil` to fall through to a successful fetch of `100 + index`.
   var windowIDResult: @Sendable (Int) -> (AXError, CGWindowID)? = { _ in nil }
 
+  /// Positions the application's window list answers with. `nil` is every
+  /// window.
+  var listedIndices: [Int]?
+  /// Positions the probe answers with, whatever the list holds.
+  var probedIndices = [Int]()
+  /// Time the probe takes, so its deadline can pass without waiting.
+  var probeCost = Duration.zero
+  /// The deadline and target each probe was handed.
+  private(set) var probes = [(target: CGWindowID?, deadline: ContinuousClock.Instant)]()
+  /// The fake clock; a test reads it to say when the read began.
+  private(set) var clock = ContinuousClock.now
+
   var attributesRead: [String] {
     reads.map { $0.name }
   }
 
-  func reader() -> AXApplicationWindowReader {
+  func reader(includesOtherSpaces: Bool = false) -> AXApplicationWindowReader {
     AXApplicationWindowReader(
       setMessagingTimeout: { [self] element, timeout in
         // Client-side, so it costs no time and is charged nothing.
@@ -80,12 +92,18 @@ final class FakeApplication: @unchecked Sendable {
         windowIDReads.append(index)
         return windowIDResult(index) ?? (.success, CGWindowID(100 + index))
       },
+      probeWindows: { [self] _, target, deadline in
+        probes.append((target, deadline))
+        clock = clock.advanced(by: probeCost)
+        return probedIndices.map { ProbedWindow(element: windows[$0], windowID: CGWindowID(100 + $0)) }
+      },
+      includesOtherSpaces: includesOtherSpaces,
       now: { [self] in clock }
     )
   }
 
-  func read() -> Result<ApplicationRead, ReadFailure> {
-    reader().read(processIdentifier: 42)
+  func read(includesOtherSpaces: Bool = false) -> Result<ApplicationRead, ReadFailure> {
+    reader(includesOtherSpaces: includesOtherSpaces).read(processIdentifier: 42)
   }
 
   /// The attributes read from one window, in order.
@@ -94,8 +112,6 @@ final class FakeApplication: @unchecked Sendable {
   }
 
   // MARK: Private
-
-  private var clock = ContinuousClock.now
 
   private func windowIndex(of element: AXUIElement) -> Int? {
     windows.firstIndex { CFEqual($0, element) }
@@ -110,7 +126,7 @@ final class FakeApplication: @unchecked Sendable {
   /// An ordinary standard window, unless a test says otherwise.
   private func value(at index: Int?, for name: String) -> CFTypeRef? {
     guard let index else {
-      return name == kAXWindowsAttribute ? windows as CFArray : nil
+      return name == kAXWindowsAttribute ? (listedIndices?.map { windows[$0] } ?? windows) as CFArray : nil
     }
     switch name {
     case kAXRoleAttribute: return kAXWindowRole as CFString

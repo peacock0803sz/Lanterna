@@ -40,10 +40,10 @@ extension PanelPresenter {
         self?.replacePresentedList(renewed, choosingWhere: anchor)
       },
       refresh: { [weak self] previous in await self?.freshList(carrying: previous) },
-      closer: LiveWindowCloser(),
+      closer: closer,
       quitter: LiveApplicationQuitter(),
       hider: LiveApplicationHider(),
-      minimizer: LiveWindowMinimizer(),
+      minimizer: minimizer,
       ownProcessIdentifier: ownProcessIdentifier,
       writeLine: writeLine,
       closeAfterEmptied: { [weak self] in self?.wayOut.closeAfterEmptiedList(operation: .quitApplication) },
