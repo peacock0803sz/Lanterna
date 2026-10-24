@@ -40,6 +40,11 @@ final class ScriptedAccessibility: @unchecked Sendable {
   private(set) var reopenPIDs = [pid_t]()
   /// What reopening answers.
   var reopenAnswer = ReopenNote.requested
+  /// What making the main window answers.
+  var setMainError = AXError.success
+  /// What each raising answers, in order; `nil` falls through to
+  /// `raiseError` above. Lets the first and the last raising fail apart.
+  var raiseErrors = [AXError?]()
   var timeoutResult = AXError.success
   /// Answers `nil` to fall through to `.success`, keyed by window index.
   var prepareErrors = [Int: AXError]()
@@ -102,10 +107,19 @@ final class ScriptedAccessibility: @unchecked Sendable {
         reopenPIDs.append(pid)
         return reopenAnswer
       },
+      setMain: { [self] element in
+        operationNames.append("setMain")
+        operated.append(ObjectIdentifier(element))
+        clock = clock.advanced(by: writeCost)
+        return setMainError
+      },
       raiseWindow: { [self] element in
         operationNames.append("raise")
         operated.append(ObjectIdentifier(element))
         clock = clock.advanced(by: writeCost)
+        if !raiseErrors.isEmpty {
+          return raiseErrors.removeFirst() ?? raiseError ?? writeError
+        }
         return raiseError ?? writeError
       },
       now: { [self] in clock }

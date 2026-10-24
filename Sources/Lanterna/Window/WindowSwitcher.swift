@@ -125,6 +125,9 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
     reopenApplication: @escaping @Sendable (pid_t) -> ReopenNote = {
       ApplicationReopener().reopen(processIdentifier: $0)
     },
+    setMain: @escaping @Sendable (AXUIElement) -> AXError = {
+      AXUIElementSetAttributeValue($0, kAXMainAttribute as CFString, kCFBooleanTrue as CFTypeRef)
+    },
     raiseWindow: @escaping @Sendable (AXUIElement) -> AXError = {
       AXUIElementPerformAction($0, kAXRaiseAction as CFString)
     },
@@ -138,6 +141,7 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
     self.setMinimized = setMinimized
     self.raiseWindow = raiseWindow
     self.reopenApplication = reopenApplication
+    self.setMain = setMain
     self.now = now
   }
 
@@ -156,6 +160,9 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
   /// timeout leaves a wide margin on both sides; borrowed from the reader,
   /// which draws the same line for the same code.
   static let unreachableAnswerCeiling = Duration.milliseconds(500)
+
+  let raiseWindow: @Sendable (AXUIElement) -> AXError
+  let setMain: @Sendable (AXUIElement) -> AXError
 
   func switchTo(_ target: ActivationTarget, policy: ActivationPolicy) -> ActivationReport {
     // An application with no window has nothing to resolve or raise:
@@ -181,6 +188,11 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
     case .failure(let outcome):
       return ActivationReport(outcome: outcome, reopen: nil, raiseAlone: nil)
     }
+    // Asked to, the chosen window goes first through the suppression
+    // path below, standing in for the rest of this order.
+    if policy.raisesOnlyChosenWindow {
+      return switchRaiseAlone(target, resolved: resolved)
+    }
     // 1. Activate first, so a hidden application is unhidden before any
     // window of it is touched.
     if let failure = activate(target) {
@@ -196,6 +208,46 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
       return ActivationReport(outcome: .failed(failure), reopen: nil, raiseAlone: nil)
     }
     return ActivationReport(outcome: .switched, reopen: nil, raiseAlone: nil)
+  }
+
+  func activate(_ target: ActivationTarget) -> ActivationFailure? {
+    switch activateApplication(target.ownerProcessIdentifier) {
+    case .activated:
+      nil
+    case .missing:
+      .applicationGone
+    case .refused:
+      .other(reason: "activation refused")
+    }
+  }
+
+  /// One AX write with the timeout drawn the same way everywhere: a slow
+  /// `cannotComplete` is a wait, anything fast a plain error to name.
+  func write(
+    _ element: AXUIElement,
+    _ action: @Sendable (AXUIElement) -> AXError
+  ) -> ActivationFailure? {
+    let sentAt = now()
+    switch action(element) {
+    case .success:
+      return nil
+
+    case .cannotComplete:
+      return waitedSince(sentAt)
+        ? .timedOut
+        : .other(reason: "error \(AXError.cannotComplete.rawValue)")
+
+    case let error:
+      return .other(reason: "error \(error.rawValue)")
+    }
+  }
+
+  func unminimize(_ element: AXUIElement) -> ActivationFailure? {
+    write(element) { setMinimized($0, false) }
+  }
+
+  func raise(_ element: AXUIElement) -> ActivationFailure? {
+    write(element, raiseWindow)
   }
 
   // MARK: Private
@@ -224,7 +276,6 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
   private let copyWindowID: @Sendable (AXUIElement) -> (AXError, CGWindowID)
   private let activateApplication: @Sendable (pid_t) -> ApplicationActivation
   private let setMinimized: @Sendable (AXUIElement, Bool) -> AXError
-  private let raiseWindow: @Sendable (AXUIElement) -> AXError
   private let reopenApplication: @Sendable (pid_t) -> ReopenNote
   private let now: @Sendable () -> ContinuousClock.Instant
 
@@ -308,46 +359,6 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
     default:
       return .skip
     }
-  }
-
-  private func activate(_ target: ActivationTarget) -> ActivationFailure? {
-    switch activateApplication(target.ownerProcessIdentifier) {
-    case .activated:
-      nil
-    case .missing:
-      .applicationGone
-    case .refused:
-      .other(reason: "activation refused")
-    }
-  }
-
-  /// One AX write with the timeout drawn the same way everywhere: a slow
-  /// `cannotComplete` is a wait, anything fast a plain error to name.
-  private func write(
-    _ element: AXUIElement,
-    _ action: @Sendable (AXUIElement) -> AXError
-  ) -> ActivationFailure? {
-    let sentAt = now()
-    switch action(element) {
-    case .success:
-      return nil
-
-    case .cannotComplete:
-      return waitedSince(sentAt)
-        ? .timedOut
-        : .other(reason: "error \(AXError.cannotComplete.rawValue)")
-
-    case let error:
-      return .other(reason: "error \(error.rawValue)")
-    }
-  }
-
-  private func unminimize(_ element: AXUIElement) -> ActivationFailure? {
-    write(element) { setMinimized($0, false) }
-  }
-
-  private func raise(_ element: AXUIElement) -> ActivationFailure? {
-    write(element, raiseWindow)
   }
 
 }
