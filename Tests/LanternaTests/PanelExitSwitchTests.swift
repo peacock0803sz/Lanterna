@@ -277,6 +277,43 @@ struct PanelExitSwitchTests {
     #expect(fixture.log.logged.last?.context["reopen"] == .string("requested"))
   }
 
+  /// Each noted take reads on its own pair line across appearances.
+  @Test
+  func notedTakesNameTheirNotesAcrossTakes() {
+    let fixture = released()
+    fixture.switcher.reports = [ActivationReport(
+      outcome: .switched,
+      reopen: .skippedNoBundle,
+      raiseAlone: nil
+    )]
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleCommandRelease()
+    #expect(fixture.log.lines.last?.contains("(reopen skipped (no bundle))") == true)
+    #expect(fixture.log.logged.last?.context["reopen"] == .string("skippedNoBundle"))
+
+    fixture.switcher.reports = [ActivationReport(
+      outcome: .switched,
+      reopen: nil,
+      raiseAlone: .held
+    )]
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleCommandRelease()
+    #expect(fixture.log.lines.last?.contains("(raised alone)") == true)
+    #expect(fixture.log.logged.last?.context["raiseAlone"] == .string("held"))
+
+    fixture.switcher.reports = [ActivationReport(
+      outcome: .switched,
+      reopen: nil,
+      raiseAlone: .notHeld(reason: "main window error -25205")
+    )]
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleCommandRelease()
+    #expect(
+      fixture.log.lines.last?.contains("(raised alone, not held (main window error -25205))") == true
+    )
+    #expect(fixture.log.logged.last?.context["raiseAlone"] == .string("notHeld"))
+  }
+
   // MARK: Private
 
   private func released() -> Fixture {
