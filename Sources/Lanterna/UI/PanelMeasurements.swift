@@ -459,9 +459,13 @@ struct SwitchMeasurement: Sendable {
   let outcome: ActivationOutcome
   let trigger: PanelExitMeasurement.Trigger
   let elapsed: Duration
-  /// What an engaged switch added to the take, or nothing when the take
-  /// ran the path it always ran. Absent reads exactly as before.
+  /// What the reopening switch added to the take. Nil when that switch
+  /// played no part, which is always so with it off; the summary line
+  /// then carries no reopen note.
   let reopen: ReopenNote?
+  /// What the raise-alone switch added to the take. Nil when that switch
+  /// played no part, which is always so with it off; the summary line
+  /// then carries no raise note.
   let raiseAlone: RaiseAloneNote?
 
   var summaryLine: String {
@@ -484,9 +488,9 @@ struct SwitchMeasurement: Sendable {
 
   // MARK: Private
 
-  /// The engaged switches' parenthesized words, or nothing. Spelled here
-  /// so the wording has one home; empty stays empty so a take that ran
-  /// the old path reads word for word as before.
+  /// The engaged switches' parenthesized words, or nothing. Spelled only
+  /// here; empty stays empty so a take with the switches off reads
+  /// `switched to <row> <timing>` with nothing between.
   private var notes: String {
     var words = [String]()
     switch reopen {
