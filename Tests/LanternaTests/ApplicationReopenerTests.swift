@@ -26,6 +26,7 @@ struct ApplicationReopenerTests {
     let reopener = script.reopener()
 
     #expect(reopener.reopen(processIdentifier: 4242) == .skippedNoBundle)
+    #expect(script.findPIDs == [4242])
     #expect(script.opened.isEmpty)
   }
 
@@ -37,6 +38,7 @@ struct ApplicationReopenerTests {
     let reopener = script.reopener()
 
     #expect(reopener.reopen(processIdentifier: 4242) == .requested)
+    #expect(script.findPIDs == [4242])
     #expect(script.opened.count == 1)
     #expect(script.opened.first?.activates == true)
     #expect(script.opened.first?.createsNewApplicationInstance == false)
@@ -151,12 +153,16 @@ private final class ScriptedReopen: @unchecked Sendable {
     let addsToRecentItems: Bool
   }
 
+  private(set) var findPIDs = [pid_t]()
   private(set) var opened = [Opening]()
   private(set) var lines = [LogLine]()
 
   func reopener() -> ApplicationReopener {
     ApplicationReopener(
-      findApplication: { [self] _ in application },
+      findApplication: { [self] pid in
+        findPIDs.append(pid)
+        return application
+      },
       openApplication: { [self] url, configuration, completion in
         opened.append(Opening(
           url: url,
