@@ -76,6 +76,21 @@ struct SettingsGeneralView: View {
           )
         }
       }
+      Section("Switching") {
+        Toggle(isOn: $values.reopenWindowlessApps) {
+          SettingsFormLabel(
+            title: "Open a window when switching to an app that has none",
+            caption: "Does what clicking the app's Dock icon does. The app decides whether a window opens."
+          )
+        }
+        Toggle(isOn: $values.raiseOnlyChosenWindow) {
+          SettingsFormLabel(
+            title: "Bring only the chosen window forward",
+            caption: "Keeps other windows of the same app where they were, on every display. "
+              + "A workaround for macOS; please report problems."
+          )
+        }
+      }
       Section("Updates") {
         Toggle(isOn: $values.updateCheckEnabled) {
           SettingsFormLabel(
