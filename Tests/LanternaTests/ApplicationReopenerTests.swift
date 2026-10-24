@@ -171,21 +171,23 @@ private final class ScriptedReopen: @unchecked Sendable {
           createsNewApplicationInstance: configuration.createsNewApplicationInstance,
           addsToRecentItems: configuration.addsToRecentItems
         ))
-        heldCompletion = completion
+        if let completion {
+          heldCompletions.append(completion)
+        }
       },
       writeLine: { [self] in lines.append($0) }
     )
   }
 
   func complete(with error: (any Error)?) {
-    let completion = heldCompletion
-    heldCompletion = nil
-    completion?(error)
+    precondition(!heldCompletions.isEmpty, "no pending reopen completion")
+    let completion = heldCompletions.removeFirst()
+    completion(error)
   }
 
   // MARK: Private
 
   private let application: (any ReopenableApplication)?
-  private var heldCompletion: (@Sendable (Error?) -> Void)?
+  private var heldCompletions = [@Sendable (Error?) -> Void]()
 
 }
