@@ -25,6 +25,7 @@ struct WindowSwitcherPolicyTests {
     #expect(report == ActivationReport(outcome: .switched, reopen: .requested, raiseAlone: nil))
     #expect(peer.operationNames == ["activate", "reopen"])
     #expect(peer.activatePIDs == [4242])
+    #expect(peer.createPIDs.isEmpty)
     #expect(peer.minimizeValues.isEmpty)
     #expect(peer.reopenPIDs == [4242])
   }
@@ -38,6 +39,7 @@ struct WindowSwitcherPolicyTests {
 
     #expect(report == ActivationReport(outcome: .switched, reopen: .skippedNoBundle, raiseAlone: nil))
     #expect(peer.operationNames == ["activate", "reopen"])
+    #expect(peer.createPIDs.isEmpty)
   }
 
   /// A take that never came forward opens nothing and notes nothing: the
@@ -68,6 +70,7 @@ struct WindowSwitcherPolicyTests {
 
     #expect(report == ActivationReport(outcome: .switched, reopen: nil, raiseAlone: nil))
     #expect(peer.operationNames == ["activate"])
+    #expect(peer.createPIDs.isEmpty)
     #expect(peer.reopenPIDs.isEmpty)
   }
 
@@ -200,6 +203,7 @@ struct WindowSwitcherPolicyTests {
 
     #expect(report == ActivationReport(outcome: .switched, reopen: nil, raiseAlone: nil))
     #expect(peer.operationNames == ["activate"])
+    #expect(peer.createPIDs.isEmpty)
   }
 
   // MARK: Private
