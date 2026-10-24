@@ -36,12 +36,52 @@ enum ActivationOutcome: Equatable, Sendable {
   case failed(ActivationFailure)
 }
 
+// MARK: - ActivationReport
+
+/// What taking a target came to, beside the outcome itself.
+///
+/// The notes stay absent unless a switch the commit asked for changed the
+/// taking: with both switches off the report carries the outcome alone,
+/// which is the path the commit always took.
+struct ActivationReport: Equatable, Sendable {
+  let outcome: ActivationOutcome
+  let reopen: ReopenNote?
+  let raiseAlone: RaiseAloneNote?
+}
+
+// MARK: - ReopenNote
+
+/// How opening a windowless application went. Only the call being taken up
+/// is noted here; a failure arriving later is a line of its own.
+enum ReopenNote: Equatable, Sendable {
+  case requested
+  case skippedNoBundle
+}
+
+// MARK: - RaiseAloneNote
+
+/// How bringing only the chosen window forward went. The wording names the
+/// procedure's own success; whether the order on screen kept still is read
+/// off the screen, not off this note.
+enum RaiseAloneNote: Equatable, Sendable {
+  case held
+  case notHeld(reason: String)
+}
+
 // MARK: - WindowSwitching
 
 /// The one entrance the commit paths call. Takes a single target rather than
 /// a list, so resolving off a fresher list at commit time has nowhere to go.
+/// Takes the two switches as one value, read fresh at each take.
 protocol WindowSwitching: Sendable {
-  func switchTo(_ target: ActivationTarget) -> ActivationOutcome
+  func switchTo(_ target: ActivationTarget, policy: ActivationPolicy) -> ActivationReport
+}
+
+extension WindowSwitching {
+  /// Both switches off: the path before either existed.
+  func switchTo(_ target: ActivationTarget) -> ActivationOutcome {
+    switchTo(target, policy: .off).outcome
+  }
 }
 
 // MARK: - LiveWindowSwitcher
@@ -113,11 +153,12 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
   /// which draws the same line for the same code.
   static let unreachableAnswerCeiling = Duration.milliseconds(500)
 
-  func switchTo(_ target: ActivationTarget) -> ActivationOutcome {
+  func switchTo(_ target: ActivationTarget, policy _: ActivationPolicy) -> ActivationReport {
     // An application with no window has nothing to resolve or raise:
     // bringing it forward is the whole switch.
     guard target.id.windowID != nil else {
-      return activate(target).map { .failed($0) } ?? .switched
+      let outcome: ActivationOutcome = activate(target).map { .failed($0) } ?? .switched
+      return ActivationReport(outcome: outcome, reopen: nil, raiseAlone: nil)
     }
     // 0. Resolve the row back to an element, reading only the owning
     // application's list. Never a fresher list: the target is what the
@@ -127,23 +168,23 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
     case .element(let element):
       resolved = element
     case .failure(let outcome):
-      return outcome
+      return ActivationReport(outcome: outcome, reopen: nil, raiseAlone: nil)
     }
     // 1. Activate first, so a hidden application is unhidden before any
     // window of it is touched.
     if let failure = activate(target) {
-      return .failed(failure)
+      return ActivationReport(outcome: .failed(failure), reopen: nil, raiseAlone: nil)
     }
     // 2. Unminimize unconditionally. Writing false where nothing is
     // minimized has no effect, which is cheaper than a round trip asking.
     if let failure = unminimize(resolved) {
-      return .failed(failure)
+      return ActivationReport(outcome: .failed(failure), reopen: nil, raiseAlone: nil)
     }
     // 3. Raise. Anything left standing here is the window to take.
     if let failure = raise(resolved) {
-      return .failed(failure)
+      return ActivationReport(outcome: .failed(failure), reopen: nil, raiseAlone: nil)
     }
-    return .switched
+    return ActivationReport(outcome: .switched, reopen: nil, raiseAlone: nil)
   }
 
   // MARK: Private

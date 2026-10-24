@@ -72,6 +72,33 @@ struct OwnWindowSwitcherTests {
     #expect(wrapped.targets.count == 1)
   }
 
+  /// A take of this process's own window never looks at the switches:
+  /// the wrapped switcher is not asked, and the report carries no notes.
+  @Test
+  func ownWindowIgnoresAnEngagedPolicy() {
+    let script = ScriptedOwn(activateAnswer: true, showAnswer: true)
+    let wrapped = FakeWindowSwitcher()
+    let policy = ActivationPolicy(reopensWindowlessApps: true, raisesOnlyChosenWindow: true)
+    let report = switcher(script: script, wrapped: wrapped).switchTo(target(pid: 123), policy: policy)
+
+    #expect(report == ActivationReport(outcome: .switched, reopen: nil, raiseAlone: nil))
+    #expect(wrapped.targets.isEmpty)
+    #expect(wrapped.policies.isEmpty)
+  }
+
+  /// Any other process receives the switches untouched: what the commit
+  /// asked for is what the wrapped switcher gets.
+  @Test
+  func otherProcessHandsThePolicyOver() {
+    let script = ScriptedOwn(activateAnswer: true, showAnswer: true)
+    let wrapped = FakeWindowSwitcher()
+    let policy = ActivationPolicy(reopensWindowlessApps: true, raisesOnlyChosenWindow: true)
+    let report = switcher(script: script, wrapped: wrapped).switchTo(target(pid: 999), policy: policy)
+
+    #expect(report == ActivationReport(outcome: .switched, reopen: nil, raiseAlone: nil))
+    #expect(wrapped.policies == [policy])
+  }
+
   // MARK: Private
 
   private func target(pid: pid_t, windowID: CGWindowID = 7) -> ActivationTarget {
