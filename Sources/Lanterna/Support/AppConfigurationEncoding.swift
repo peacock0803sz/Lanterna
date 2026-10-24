@@ -152,8 +152,9 @@ extension AppConfiguration {
     return entries
   }
 
-  /// The two commit-switch lines, in canonical order, skipping absent
-  /// values. Only an enabled switch is ever written, like above.
+  /// The commit-switch lines, in canonical order, skipping absent
+  /// values. Only an enabled switch is ever written: off stays absent so
+  /// the default reaches saved files.
   static func commitSwitchEntries(_ config: ValidConfiguration) -> [String] {
     var entries = [String]()
     if config.reopenWindowlessApps == true {

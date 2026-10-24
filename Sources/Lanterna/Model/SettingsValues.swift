@@ -126,7 +126,7 @@ struct SettingsValues: Equatable, Sendable {
   /// from an edited table.
   var loadedKeyBindings: KeyBindingTable
 
-  /// The two commit switches as the commit path takes them.
+  /// The commit switches as the commit path takes them.
   var activationPolicy: ActivationPolicy {
     ActivationPolicy(
       reopensWindowlessApps: reopenWindowlessApps,

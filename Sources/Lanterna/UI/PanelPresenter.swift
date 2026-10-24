@@ -214,7 +214,7 @@ final class PanelPresenter {
   /// Whether scrolling moves the selection. Same timing as above.
   var scrollSelect = false
 
-  /// The two commit switches both switchers share. Read fresh at each
+  /// The commit switches every switcher shares. Read fresh at each
   /// take, so a change lands on the next commit without a restart.
   var activationPolicy = ActivationPolicy.off
 

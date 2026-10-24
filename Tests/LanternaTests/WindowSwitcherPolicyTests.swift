@@ -7,9 +7,9 @@ import Testing
 
 /// What the commit switches change about a take.
 ///
-/// The old path stays the default: with both switches off the seam hears
-/// exactly what it always heard. An engaged switch adds one call in one
-/// place, and the report says what that call came to.
+/// With the commit switches off the seam hears only the default
+/// activating calls. An engaged switch adds its own calls to the
+/// take, and the report says what they came to.
 @MainActor
 struct WindowSwitcherPolicyTests {
 

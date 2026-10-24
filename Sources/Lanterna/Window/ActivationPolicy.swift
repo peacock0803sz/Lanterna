@@ -1,12 +1,13 @@
-/// The two switches a commit hands to the switcher, read fresh at each take.
+/// The commit switches a commit hands to the switcher, read fresh at each
+/// take.
 ///
-/// Both default off, so a commit that never heard of these takes exactly
-/// the path it always took. Held as one value rather than two loose flags
-/// so the commit path has a single thing to read and a single thing to
-/// hand over; nothing here is per switcher, because the two switches apply
-/// the same whichever switcher took the row.
+/// They default off, so a commit that never sets them takes the default
+/// path with no notes. Held as one value rather than
+/// loose flags so the commit path reads and hands over the switches
+/// together; nothing here is per switcher, because the commit switches
+/// apply the same whichever switcher took the row.
 struct ActivationPolicy: Equatable, Sendable {
-  /// Both switches off: the path before either existed.
+  /// The commit switches off: the default path, with no notes.
   static let off = ActivationPolicy(reopensWindowlessApps: false, raisesOnlyChosenWindow: false)
 
   /// Opens a window when the taken row names an application with none,

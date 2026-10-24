@@ -4,9 +4,9 @@ import Testing
 
 // MARK: - ActivationConfigTests
 
-/// The two commit switches in the settings file: absent means off, only
-/// real booleans count, only an engaged switch is written, and the
-/// switcher sections leave both alone.
+/// The commit switches in the settings file: absent means off, only real
+/// booleans count, only an engaged switch is written, and the switcher
+/// sections leave them alone.
 @MainActor
 struct ActivationConfigTests {
 

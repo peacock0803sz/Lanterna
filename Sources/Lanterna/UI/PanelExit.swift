@@ -353,8 +353,8 @@ final class PanelExit {
   /// is showing, and both go with the panel.
   private let switcher: any WindowSwitching
 
-  /// The two switches, read fresh at each take so a change lands on the
-  /// next commit without a restart.
+  /// The commit switches, read fresh at each take so a change lands on
+  /// the next commit without a restart.
   private let activationPolicy: @MainActor () -> ActivationPolicy
 
   /// Where a commit writes down that it happened, before anything is taken.

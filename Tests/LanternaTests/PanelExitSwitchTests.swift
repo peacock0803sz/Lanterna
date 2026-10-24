@@ -214,7 +214,7 @@ struct PanelExitSwitchTests {
     #expect(fixture.switcher.policies == [policy])
   }
 
-  /// A change between two takes lands on the second one without any
+  /// A change between takes lands on the next one without any
   /// restart: the switches are read fresh at each take.
   @Test
   func aSwitchChangeLandsOnTheNextTake() {
