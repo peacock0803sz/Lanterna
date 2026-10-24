@@ -122,6 +122,9 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
     setMinimized: @escaping @Sendable (AXUIElement, Bool) -> AXError = {
       AXUIElementSetAttributeValue($0, kAXMinimizedAttribute as CFString, $1 as CFTypeRef)
     },
+    reopenApplication: @escaping @Sendable (pid_t) -> ReopenNote = {
+      ApplicationReopener().reopen(processIdentifier: $0)
+    },
     raiseWindow: @escaping @Sendable (AXUIElement) -> AXError = {
       AXUIElementPerformAction($0, kAXRaiseAction as CFString)
     },
@@ -134,6 +137,7 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
     self.activateApplication = activateApplication
     self.setMinimized = setMinimized
     self.raiseWindow = raiseWindow
+    self.reopenApplication = reopenApplication
     self.now = now
   }
 
@@ -153,12 +157,19 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
   /// which draws the same line for the same code.
   static let unreachableAnswerCeiling = Duration.milliseconds(500)
 
-  func switchTo(_ target: ActivationTarget, policy _: ActivationPolicy) -> ActivationReport {
+  func switchTo(_ target: ActivationTarget, policy: ActivationPolicy) -> ActivationReport {
     // An application with no window has nothing to resolve or raise:
-    // bringing it forward is the whole switch.
+    // bringing it forward is the whole switch. Asked to, the workspace
+    // is then told to reopen it, the way its Dock icon would.
     guard target.id.windowID != nil else {
-      let outcome: ActivationOutcome = activate(target).map { .failed($0) } ?? .switched
-      return ActivationReport(outcome: outcome, reopen: nil, raiseAlone: nil)
+      switch activate(target) {
+      case .none:
+        let reopen: ReopenNote? = policy.reopensWindowlessApps ? reopenApplication(target.ownerProcessIdentifier) : nil
+        return ActivationReport(outcome: .switched, reopen: reopen, raiseAlone: nil)
+
+      case .some(let failure):
+        return ActivationReport(outcome: .failed(failure), reopen: nil, raiseAlone: nil)
+      }
     }
     // 0. Resolve the row back to an element, reading only the owning
     // application's list. Never a fresher list: the target is what the
@@ -214,6 +225,7 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
   private let activateApplication: @Sendable (pid_t) -> ApplicationActivation
   private let setMinimized: @Sendable (AXUIElement, Bool) -> AXError
   private let raiseWindow: @Sendable (AXUIElement) -> AXError
+  private let reopenApplication: @Sendable (pid_t) -> ReopenNote
   private let now: @Sendable () -> ContinuousClock.Instant
 
   /// Slow `cannotComplete` answers are waits, fast ones refusals. The line

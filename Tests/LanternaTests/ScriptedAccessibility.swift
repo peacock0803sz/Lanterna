@@ -36,6 +36,10 @@ final class ScriptedAccessibility: @unchecked Sendable {
   var malformedList = false
   /// Answers `nil` to fall through to a successful fetch of `100 + index`.
   var idAnswers = [Int: (AXError, CGWindowID)]()
+  /// The pids reopening was asked of, in order.
+  private(set) var reopenPIDs = [pid_t]()
+  /// What reopening answers.
+  var reopenAnswer = ReopenNote.requested
   var timeoutResult = AXError.success
   /// Answers `nil` to fall through to `.success`, keyed by window index.
   var prepareErrors = [Int: AXError]()
@@ -92,6 +96,11 @@ final class ScriptedAccessibility: @unchecked Sendable {
         operated.append(ObjectIdentifier(element))
         clock = clock.advanced(by: writeCost)
         return writeError
+      },
+      reopenApplication: { [self] pid in
+        operationNames.append("reopen")
+        reopenPIDs.append(pid)
+        return reopenAnswer
       },
       raiseWindow: { [self] element in
         operationNames.append("raise")
