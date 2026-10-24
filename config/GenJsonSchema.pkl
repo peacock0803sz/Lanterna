@@ -41,6 +41,10 @@ local function isGroupAssignments(prop: reflect.Property): Boolean = prop.name =
 /// Whether the property is the group name table.
 local function isGroupNames(prop: reflect.Property): Boolean = prop.name == "groupNames"
 
+/// Whether the property is the forced input source, the one free-form
+/// string key.
+local function isForcedInputSource(prop: reflect.Property): Boolean = prop.name == "forcedInputSource"
+
 /// Whether the property is the keybindings section (a nullable class).
 ///
 /// Matched by shape rather than by name, so a rename still renders.
@@ -75,7 +79,7 @@ local function inheritWrapper(inner: Dynamic, doc: String): Dynamic = new {
 /// actions above. A new top-level key lands here when it is shared, and
 /// the schema parity test holds the list to `knownKeys`.
 local sharedSwitcherKeys = new Listing<String> {
-  "appearanceMode"; "romajiScope"; "launchAtLogin"; "logLevel";
+  "appearanceMode"; "romajiScope"; "forcedInputSource"; "launchAtLogin"; "logLevel";
   "saveLogsToDisk"; "updateCheckEnabled"; "updateChannel"; "exclusions";
   "shortcutMemoryLength"; "keybindings"; "sampleCount"; "stopMonitorEvery";
   "rowOrder"; "groupNames"; "groupAssignments"; "resultOrder"; "grouping";
@@ -248,6 +252,12 @@ local function fragment(prop: reflect.Property): Dynamic =
         }
       }
       ["additionalProperties"] = false
+    }
+  else if (isForcedInputSource(prop))
+    new {
+      ["type"] = "string"
+      description = prop.docComment
+      ["minLength"] = 1
     }
   else if (isKeyBindings(prop))
     keyBindingsFragment(prop)

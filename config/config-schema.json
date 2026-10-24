@@ -26,6 +26,11 @@
         "kanji"
       ]
     },
+    "forcedInputSource": {
+      "description": "The input source ID (such as \"com.apple.keylayout.ABC\") selected while\nthe panel is up; the user's own comes back when it goes. Absent means\noff. An empty string invalidates the whole file.",
+      "type": "string",
+      "minLength": 1
+    },
     "shortcutMemoryLength": {
       "description": "How many characters of a query the shortcut memory covers: a longer\nquery is neither recorded nor applied. 0 means off. Absent means 5.\nValues above 5 invalidate the whole file (mirrored by the Swift\nvalidation, which also enforces the upper bound).",
       "type": "integer",
@@ -1293,6 +1298,10 @@
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },
+            "forcedInputSource": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
             "launchAtLogin": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
@@ -1602,6 +1611,10 @@
               "deprecated": true
             },
             "romajiScope": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "forcedInputSource": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },

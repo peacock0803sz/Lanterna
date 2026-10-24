@@ -55,6 +55,9 @@ extension AppConfiguration {
     if let otherSpaceMode = config.otherSpaceMode {
       entries.append(encodedString(key: "otherSpaceMode", value: otherSpaceMode.rawValue))
     }
+    if let forcedInputSource = config.forcedInputSource {
+      entries.append(encodedString(key: "forcedInputSource", value: escaped(forcedInputSource)))
+    }
     if let romajiScope = config.romajiScope {
       entries.append(encodedString(key: "romajiScope", value: romajiScope.rawValue))
     }

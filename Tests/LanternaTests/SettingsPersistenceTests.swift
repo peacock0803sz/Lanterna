@@ -20,6 +20,7 @@ struct SettingsPersistenceTests {
     values.appearanceMode = .dark
     values.displayModes.otherSpace = .hide
     values.romajiScope = .kanaOnly
+    values.forcedInputSource = "com.apple.keylayout.ABC"
     let config = values.configuration(version: 1, sampleCount: 2, stopMonitorEverySeconds: 5)
     #expect(SettingsSaver.save(config, to: url, replacingInvalidFile: false) == .saved)
     let readBack = try Data(contentsOf: url)

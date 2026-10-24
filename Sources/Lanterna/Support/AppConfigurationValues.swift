@@ -185,6 +185,21 @@ extension AppConfiguration {
     return .success(scope)
   }
 
+  /// Reads the optional forced input source. Any non-empty string is an
+  /// ID: whether it is installed is the system's to say at show time.
+  /// Anything else invalidates the whole file, like any other bad value.
+  static func checkedForcedInputSource(
+    _ dict: [String: Any],
+    into config: inout ValidConfiguration
+  ) -> Result<Void, ConfigDecodeError> {
+    guard let rawValue = dict["forcedInputSource"] else { return .success(()) }
+    guard let text = rawValue as? String, !text.isEmpty else {
+      return .failure(.invalidValue(key: "forcedInputSource"))
+    }
+    config.forcedInputSource = text
+    return .success(())
+  }
+
   /// Reads the three search-quality keys together, so the assembly stays
   /// small. The length bound is 0 to 5: the lower bound rides on the
   /// shared reader, the upper bound refuses the whole file, like any

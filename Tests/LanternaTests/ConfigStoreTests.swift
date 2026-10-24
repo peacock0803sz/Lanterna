@@ -285,6 +285,33 @@ struct ConfigStoreTests {
   }
 
   @Test
+  func forcedInputSourceIsAbsentByDefault() throws {
+    let decoded = try #require(decode("{\"version\": 1}").successValue)
+    #expect(decoded.config.forcedInputSource == nil)
+    #expect(SettingsValues.effective(from: decoded.config).forcedInputSource == nil)
+  }
+
+  @Test
+  func forcedInputSourceDecodesTheSourceID() throws {
+    let decoded = try #require(
+      decode("{\"version\": 1, \"forcedInputSource\": \"com.apple.keylayout.ABC\"}").successValue
+    )
+    #expect(decoded.config.forcedInputSource == "com.apple.keylayout.ABC")
+  }
+
+  @Test
+  func invalidForcedInputSourceFallsBackAsAWhole() {
+    let cases: [(String, ConfigDecodeError)] = [
+      ("{\"version\": 1, \"forcedInputSource\": \"\"}", .invalidValue(key: "forcedInputSource")),
+      ("{\"version\": 1, \"forcedInputSource\": true}", .invalidValue(key: "forcedInputSource")),
+      ("{\"version\": 1, \"forcedInputSource\": 1}", .invalidValue(key: "forcedInputSource")),
+    ]
+    for (text, expected) in cases {
+      #expect(decode(text).failureValue == expected, "for \(text)")
+    }
+  }
+
+  @Test
   func absentDisplayModesMeanDefaults() {
     let config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
     let modes = DisplayModes.effective(from: config)

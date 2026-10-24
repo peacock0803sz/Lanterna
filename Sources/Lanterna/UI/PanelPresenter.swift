@@ -234,6 +234,10 @@ final class PanelPresenter {
   /// appearance sets it as it goes up.
   private(set) var activeSwitcher = SwitcherIdentity.main
 
+  /// Taken while the panel is up, given back on every way out and at quit.
+  /// The settings set its target; a change lands at the next appearance.
+  let inputSourceLock = InputSourceLock()
+
   /// The main switcher's resolved list settings, read off the scope,
   /// display mode, and grouping fields. Computed so they never drift
   /// apart: every staging of a legacy field lands here with it.
@@ -887,6 +891,9 @@ final class PanelPresenter {
     // next change.
     lastModifierFlags = modifierFlags()
     pushNumberedRows()
+    // Before the keys, so the first keystroke already arrives under the
+    // forced source.
+    inputSourceLock.engage()
     let becameKey = surface.takeKeys()
     wayOut.nowShowing(ordered, startedAt: startedAt)
     let measurement = HotkeyMeasurement(

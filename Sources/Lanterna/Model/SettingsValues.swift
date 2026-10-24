@@ -45,6 +45,8 @@ struct SettingsValues: Equatable, Sendable {
   var appearanceMode: AppearanceMode
   var displayModes: DisplayModes
   var romajiScope: RomajiScope
+  /// The input source ID selected while the panel is up. Nil means off.
+  var forcedInputSource: String?
   /// Whether Lanterna checks for newer releases. Absent in the file means off.
   var updateCheckEnabled: Bool
   /// Which releases the check covers. Absent in the file means stable only.
@@ -139,6 +141,7 @@ struct SettingsValues: Equatable, Sendable {
       appearanceMode: AppearanceMode.effective(from: config),
       displayModes: DisplayModes.effective(from: config),
       romajiScope: RomajiScope.effective(from: config),
+      forcedInputSource: config.forcedInputSource,
       updateCheckEnabled: config.updateCheckEnabled ?? false,
       updateChannel: UpdateChannel(rawValue: config.updateChannel ?? "stable") ?? .stable,
       launchAtLogin: config.launchAtLogin ?? false,
@@ -196,6 +199,7 @@ struct SettingsValues: Equatable, Sendable {
     config.fullscreenMode = displayModes.fullscreen
     config.windowlessAppMode = displayModes.windowlessApp
     config.romajiScope = romajiScope
+    config.forcedInputSource = forcedInputSource
     config.launchAtLogin = launchAtLogin
     config.updateCheckEnabled = updateCheckEnabled
     config.updateChannel = updateChannel.rawValue

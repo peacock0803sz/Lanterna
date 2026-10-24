@@ -46,6 +46,11 @@ typealias RomajiScope = "kana"|"kanji"
 @Allowed { values { "kana" "kanji" } }
 romajiScope: RomajiScope? = null
 
+/// The input source ID (such as "com.apple.keylayout.ABC") selected while
+/// the panel is up; the user's own comes back when it goes. Absent means
+/// off. An empty string invalidates the whole file.
+forcedInputSource: String? = null
+
 /// How many characters of a query the shortcut memory covers: a longer
 /// query is neither recorded nor applied. 0 means off. Absent means 5.
 /// Values above 5 invalidate the whole file (mirrored by the Swift
@@ -392,6 +397,8 @@ open class SwitcherMain {
   /// Shared by both switchers; write it at the top level. Ignored here.
   romajiScope: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
+  forcedInputSource: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
   launchAtLogin: Any? = null
   /// Retired. Ignored here.
   logLevel: Any? = null
@@ -495,6 +502,8 @@ open class SwitcherParallel {
   appearanceMode: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   romajiScope: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
+  forcedInputSource: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   launchAtLogin: Any? = null
   /// Retired. Ignored here.
