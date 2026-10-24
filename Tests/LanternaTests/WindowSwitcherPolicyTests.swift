@@ -206,6 +206,28 @@ struct WindowSwitcherPolicyTests {
     #expect(peer.createPIDs.isEmpty)
   }
 
+  /// Both switches engaged, a windowless take still only reopens: the
+  /// raising preparation never runs for such a row.
+  @Test
+  func bothSwitchesEngagedWindowlessTakeStillReopens() {
+    let peer = ScriptedAccessibility(windowCount: 0)
+    let report = peer.switcher().switchTo(application(), policy: both())
+
+    #expect(report == ActivationReport(outcome: .switched, reopen: .requested, raiseAlone: nil))
+    #expect(peer.operationNames == ["activate", "reopen"])
+  }
+
+  /// Both switches engaged, a window take still raises alone through the
+  /// longer order, and the take carries that the procedure held.
+  @Test
+  func bothSwitchesEngagedWindowTakeStillRaisesAlone() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    let report = peer.switcher().switchTo(window(), policy: both())
+
+    #expect(report == ActivationReport(outcome: .switched, reopen: nil, raiseAlone: .held))
+    #expect(peer.operationNames == ["setMain", "raise", "activate", "unminimize", "raise"])
+  }
+
   // MARK: Private
 
   private func engaged() -> ActivationPolicy {
@@ -214,6 +236,10 @@ struct WindowSwitcherPolicyTests {
 
   private func suppression() -> ActivationPolicy {
     ActivationPolicy(reopensWindowlessApps: false, raisesOnlyChosenWindow: true)
+  }
+
+  private func both() -> ActivationPolicy {
+    ActivationPolicy(reopensWindowlessApps: true, raisesOnlyChosenWindow: true)
   }
 
   private func application() -> ActivationTarget {
