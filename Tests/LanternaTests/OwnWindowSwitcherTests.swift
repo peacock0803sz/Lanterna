@@ -92,10 +92,12 @@ struct OwnWindowSwitcherTests {
   func otherProcessHandsThePolicyOver() {
     let script = ScriptedOwn(activateAnswer: true, showAnswer: true)
     let wrapped = FakeWindowSwitcher()
+    let expected = ActivationReport(outcome: .switched, reopen: .requested, raiseAlone: nil)
+    wrapped.reports = [expected]
     let policy = ActivationPolicy(reopensWindowlessApps: true, raisesOnlyChosenWindow: true)
     let report = switcher(script: script, wrapped: wrapped).switchTo(target(pid: 999), policy: policy)
 
-    #expect(report == ActivationReport(outcome: .switched, reopen: nil, raiseAlone: nil))
+    #expect(report == expected)
     #expect(wrapped.policies == [policy])
   }
 
