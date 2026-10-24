@@ -23,6 +23,7 @@ final class ScriptedAccessibility: @unchecked Sendable {
   let windows: [AXUIElement]
 
   private(set) var createPIDs = [pid_t]()
+  private(set) var activatePIDs = [pid_t]()
   /// Every element given a messaging timeout, in order: the application
   /// first, then each window as it is met.
   private(set) var prepared = [ObjectIdentifier]()
@@ -92,8 +93,9 @@ final class ScriptedAccessibility: @unchecked Sendable {
         clock = clock.advanced(by: idCost)
         return idAnswers[index] ?? (.success, CGWindowID(100 + index))
       },
-      activateApplication: { [self] _ in
+      activateApplication: { [self] pid in
         operationNames.append("activate")
+        activatePIDs.append(pid)
         return activateAnswer
       },
       setMinimized: { [self] element, _ in

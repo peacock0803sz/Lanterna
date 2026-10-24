@@ -24,6 +24,7 @@ struct WindowSwitcherPolicyTests {
 
     #expect(report == ActivationReport(outcome: .switched, reopen: .requested, raiseAlone: nil))
     #expect(peer.operationNames == ["activate", "reopen"])
+    #expect(peer.activatePIDs == [4242])
     #expect(peer.reopenPIDs == [4242])
   }
 
@@ -91,6 +92,7 @@ struct WindowSwitcherPolicyTests {
 
     #expect(report == ActivationReport(outcome: .switched, reopen: nil, raiseAlone: .held))
     #expect(peer.operationNames == ["setMain", "raise", "activate", "unminimize", "raise"])
+    #expect(peer.activatePIDs == [4242])
     #expect(peer.createPIDs == [4242])
     #expect(peer.operated == [peer.identity(of: 1), peer.identity(of: 1), peer.identity(of: 1), peer.identity(of: 1)])
   }
