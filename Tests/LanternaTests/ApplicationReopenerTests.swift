@@ -30,6 +30,16 @@ struct ApplicationReopenerTests {
     #expect(script.opened.isEmpty)
   }
 
+  /// A found application without a bundle still opens nothing.
+  @Test
+  func withAnApplicationButNoBundleNothingOpens() {
+    let script = ScriptedReopen(application: ScriptedReopenable(bundleURL: nil))
+    let reopener = script.reopener()
+
+    #expect(reopener.reopen(processIdentifier: 4242) == .skippedNoBundle)
+    #expect(script.opened.isEmpty)
+  }
+
   /// A bundle is opened once, asked to come forward without a new
   /// instance or a recent item, and the take does not wait for it.
   @Test
