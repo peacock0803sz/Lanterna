@@ -25,8 +25,8 @@ extension NSRunningApplication: ReopenableApplication { }
 /// The workspace sends the application the reopen signal; what the
 /// application makes of it — a new window, unhiding, nothing — is the
 /// application's own doing, so nothing here waits or checks. The signal
-/// travels through the workspace rather than as an event from this
-/// process, which is what keeps it from asking for automation approval.
+/// goes out by opening the application through `NSWorkspace` rather than
+/// as an Apple event sent from this process.
 ///
 /// The late answer is a line of its own rather than part of the take's
 /// note: the take returns once the signal is sent, and the answer may
