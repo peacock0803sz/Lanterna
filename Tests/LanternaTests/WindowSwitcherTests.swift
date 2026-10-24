@@ -28,6 +28,7 @@ struct WindowSwitcherTests {
 
     #expect(outcome == .switched)
     #expect(peer.activatePIDs == [4242])
+    #expect(peer.minimizeValues == [false])
     #expect(peer.createPIDs == [4242])
     #expect(peer.operated == [peer.identity(of: 1), peer.identity(of: 1)])
   }

@@ -24,6 +24,7 @@ final class ScriptedAccessibility: @unchecked Sendable {
 
   private(set) var createPIDs = [pid_t]()
   private(set) var activatePIDs = [pid_t]()
+  private(set) var minimizeValues = [Bool]()
   /// Every element given a messaging timeout, in order: the application
   /// first, then each window as it is met.
   private(set) var prepared = [ObjectIdentifier]()
@@ -98,9 +99,10 @@ final class ScriptedAccessibility: @unchecked Sendable {
         activatePIDs.append(pid)
         return activateAnswer
       },
-      setMinimized: { [self] element, _ in
+      setMinimized: { [self] element, minimized in
         operationNames.append("unminimize")
         operated.append(ObjectIdentifier(element))
+        minimizeValues.append(minimized)
         clock = clock.advanced(by: writeCost)
         return writeError
       },
