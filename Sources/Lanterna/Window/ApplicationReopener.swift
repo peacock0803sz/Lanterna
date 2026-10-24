@@ -85,7 +85,12 @@ struct ApplicationReopener: Sendable {
       if let bundle {
         context["bundle"] = .string(bundle)
       }
-      writeLine(LogLine(.notice, .activate, "reopen of \(name) failed (\(reason))", context: context))
+      writeLine(LogLine(
+        .notice,
+        .activate,
+        "reopen of \(PanelExitMeasurement.oneLine(name, fallback: "unknown")) failed (\(reason))",
+        context: context
+      ))
     }
     return .requested
   }

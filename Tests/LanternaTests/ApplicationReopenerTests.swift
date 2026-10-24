@@ -74,6 +74,20 @@ struct ApplicationReopenerTests {
     #expect(script.lines.first?.message == "reopen of Safari failed (first second)")
   }
 
+  /// An application name spanning lines still prints as one line.
+  @Test
+  func aMultilineNamePrintsAsOneLine() {
+    let script = ScriptedReopen(
+      application: ScriptedReopenable(bundleURL: Self.bundleURL, localizedName: "Sa\nfari")
+    )
+    let reopener = script.reopener()
+
+    _ = reopener.reopen(processIdentifier: 4242)
+    script.complete(with: Self.failure("the operation could not be completed"))
+
+    #expect(script.lines.first?.message == "reopen of Sa fari failed (the operation could not be completed)")
+  }
+
   /// A success answers nothing: the take already said what it did.
   @Test
   func aSuccessWritesNothing() {
@@ -102,10 +116,7 @@ struct ApplicationReopenerTests {
 /// way the rows name them.
 private struct ScriptedReopenable: ReopenableApplication {
   let bundleURL: URL?
-
-  var localizedName: String? {
-    "Safari"
-  }
+  var localizedName: String? = "Safari"
 
   var executableURL: URL? {
     nil
