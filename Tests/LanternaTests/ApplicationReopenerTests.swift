@@ -40,6 +40,7 @@ struct ApplicationReopenerTests {
     #expect(reopener.reopen(processIdentifier: 4242) == .requested)
     #expect(script.findPIDs == [4242])
     #expect(script.opened.count == 1)
+    #expect(script.opened.first?.url == Self.bundleURL)
     #expect(script.opened.first?.activates == true)
     #expect(script.opened.first?.createsNewApplicationInstance == false)
     #expect(script.opened.first?.addsToRecentItems == false)
