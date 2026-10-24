@@ -72,6 +72,18 @@ extension AppConfiguration {
     case .failure(let error):
       return .failure(error)
     }
+    switch checkedOptionalBool(dict, key: "reopenWindowlessApps") {
+    case .success(let found):
+      config.reopenWindowlessApps = found
+    case .failure(let error):
+      return .failure(error)
+    }
+    switch checkedOptionalBool(dict, key: "raiseOnlyChosenWindow") {
+    case .success(let found):
+      config.raiseOnlyChosenWindow = found
+    case .failure(let error):
+      return .failure(error)
+    }
     switch checkedOptionalBool(dict, key: "numberJump") {
     case .success(let found):
       config.numberJump = found

@@ -37,6 +37,8 @@ struct ConfigEncodingTests {
     config.saveLogsToDisk = false
     config.hoverSelect = true
     config.scrollSelect = true
+    config.reopenWindowlessApps = true
+    config.raiseOnlyChosenWindow = true
     config.numberJump = true
     config.numberReorder = true
     config.numberScope = .allRows
@@ -57,6 +59,8 @@ struct ConfigEncodingTests {
     #expect(!text.contains("saveLogsToDisk"))
     #expect(!text.contains("hoverSelect"))
     #expect(!text.contains("scrollSelect"))
+    #expect(!text.contains("reopenWindowlessApps"))
+    #expect(!text.contains("raiseOnlyChosenWindow"))
     #expect(!text.contains("numberJump"))
     #expect(!text.contains("numberReorder"))
     #expect(!text.contains("numberScope"))

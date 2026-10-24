@@ -46,6 +46,22 @@ extension SwitchMeasurement {
     if let bundle {
       context["bundle"] = .string(bundle)
     }
+    if let reopen {
+      switch reopen {
+      case .requested:
+        context["reopen"] = .string("requested")
+      case .skippedNoBundle:
+        context["reopen"] = .string("skippedNoBundle")
+      }
+    }
+    if let raiseAlone {
+      switch raiseAlone {
+      case .held:
+        context["raiseAlone"] = .string("held")
+      case .notHeld:
+        context["raiseAlone"] = .string("notHeld")
+      }
+    }
     return context
   }
 

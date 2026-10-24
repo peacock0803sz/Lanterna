@@ -148,6 +148,7 @@ extension AppDelegate {
       switcher: OwnWindowSwitcher(wrapped: LiveWindowSwitcher())
     )
     presenter.windowScope = currentValues.windowScope
+    presenter.activationPolicy = currentValues.activationPolicy
     presenter.grouping = currentValues.grouping
     presenter.parallelSwitcher = currentValues.parallelSwitcher
     presenter.parallelEnabled = currentValues.parallelOverrides.isEnabled
@@ -214,6 +215,7 @@ extension AppDelegate {
     presenter?.parallelEnabled = values.parallelOverrides.isEnabled
     presenter?.hoverSelect = values.hoverSelect
     presenter?.scrollSelect = values.scrollSelect
+    presenter?.activationPolicy = values.activationPolicy
     presenter?.numberJump = values.numberJump
     presenter?.numberReorder = values.numberReorder
     presenter?.numberScope = values.numberScope

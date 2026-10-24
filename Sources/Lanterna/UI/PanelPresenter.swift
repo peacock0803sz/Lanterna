@@ -214,6 +214,10 @@ final class PanelPresenter {
   /// Whether scrolling moves the selection. Same timing as above.
   var scrollSelect = false
 
+  /// The commit switches every switcher shares. Read fresh at each
+  /// take, so a change lands on the next commit without a restart.
+  var activationPolicy = ActivationPolicy.off
+
   /// Where a rearranged row order goes for saving. Set by whoever
   /// owns the file; the key commands report through here.
   var onRowOrderChanged: ((ManualRowOrder) -> Void)?

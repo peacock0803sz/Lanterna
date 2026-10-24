@@ -145,6 +145,16 @@ Show delay in the same tab waits before showing the panel, from 0 to 1000 millis
 
 Hover to select in the same tab moves the selection to the row under the pointer. Off by default; the choice follows the pointer once it is on. The panel never moves under a pointer that has not moved since it opened. Scroll to select moves the selection by scrolling instead of scrolling the view, and the view follows the selection. Off by default. Clicking a row picks it and switches to it with either switch off or on. Number jump in the same tab jumps to a row by its number: hold left or right Command or Option, press the digits in order, and let go to switch. When both Command and Option are held, a `Cmd+Tab` panel switches on releasing Command, and an `Opt+Tab` panel switches on releasing whichever of the two goes up last. Row numbers show while the modifier is held. Off by default. Row numbers names which rows numbers cover: window rows alone, or every row. Reorder rows in the same tab moves the selected row with Shift and arrow keys inside grouped lists, keeping the order across restarts. Off by default.
 
+## Switching to apps and windows
+
+The General tab holds two switches under Switching, both off by default. A change takes effect the next time you switch to an app or window, without a restart.
+
+Open a window when switching to an app that has none does what clicking the app's Dock icon does: the app opens a window, unhides itself, or does nothing, as the app decides. Lanterna never checks which of those happened.
+
+Bring only the chosen window forward tries to keep the application's other windows where they were on every display when a window row is switched to. It is a workaround for macOS bringing another window of the same application forward along with the chosen one. Even with it on, the other windows may briefly come forward before settling back. If switching looks wrong with it on, please [open a bug report](https://github.com/peacock0803sz/Lanterna/issues/new?template=bug_report.yml) using the Bug report template.
+
+In the config file the two switches are `reopenWindowlessApps` and `raiseOnlyChosenWindow`. Both are optional and read as off when absent.
+
 ## Customizing keybindings
 
 Every keybinding below can be changed through the `keybindings` section of the config file or the Keyboard tab of Settings. Keys are physical positions, so they work the same under any input source.

@@ -13,11 +13,20 @@ import Foundation
 // swiftlint:disable:next no_unchecked_sendable - test-only; synchronous use confined to the taking thread
 final class FakeWindowSwitcher: WindowSwitching, @unchecked Sendable {
   private(set) var targets = [ActivationTarget]()
+  /// The switch values each take arrived with, in order.
+  private(set) var policies = [ActivationPolicy]()
   /// Answers in order; an empty script means every take succeeded.
   var outcomes = [ActivationOutcome]()
+  /// Whole reports in order; answers here win over the outcomes above.
+  var reports = [ActivationReport]()
 
-  func switchTo(_ target: ActivationTarget) -> ActivationOutcome {
+  func switchTo(_ target: ActivationTarget, policy: ActivationPolicy) -> ActivationReport {
     targets.append(target)
-    return outcomes.isEmpty ? .switched : outcomes.removeFirst()
+    policies.append(policy)
+    if !reports.isEmpty {
+      return reports.removeFirst()
+    }
+    let outcome = outcomes.isEmpty ? .switched : outcomes.removeFirst()
+    return ActivationReport(outcome: outcome, reopen: nil, raiseAlone: nil)
   }
 }
