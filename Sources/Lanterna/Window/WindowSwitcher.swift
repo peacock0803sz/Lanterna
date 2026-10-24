@@ -41,8 +41,8 @@ enum ActivationOutcome: Equatable, Sendable {
 /// What taking a target came to, beside the outcome itself.
 ///
 /// The notes stay absent unless a switch the commit asked for changed the
-/// taking: with both switches off the report carries the outcome alone,
-/// which is the path the commit always took.
+/// taking: with the commit switches off the report carries the outcome
+/// alone.
 struct ActivationReport: Equatable, Sendable {
   let outcome: ActivationOutcome
   let reopen: ReopenNote?
@@ -72,13 +72,14 @@ enum RaiseAloneNote: Equatable, Sendable {
 
 /// The one entrance the commit paths call. Takes a single target rather than
 /// a list, so resolving off a fresher list at commit time has nowhere to go.
-/// Takes the two switches as one value, read fresh at each take.
+/// Takes the commit switches as one value, which the caller reads fresh at
+/// each take.
 protocol WindowSwitching: Sendable {
   func switchTo(_ target: ActivationTarget, policy: ActivationPolicy) -> ActivationReport
 }
 
 extension WindowSwitching {
-  /// Both switches off: the path before either existed.
+  /// The commit switches off: the default path, with no notes.
   func switchTo(_ target: ActivationTarget) -> ActivationOutcome {
     switchTo(target, policy: .off).outcome
   }
@@ -188,8 +189,8 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
     case .failure(let outcome):
       return ActivationReport(outcome: outcome, reopen: nil, raiseAlone: nil)
     }
-    // Asked to, the chosen window goes first through the suppression
-    // path below, standing in for the rest of this order.
+    // Asked to, the chosen window goes through `switchRaiseAlone`
+    // instead, which stands in for the rest of this order.
     if policy.raisesOnlyChosenWindow {
       return switchRaiseAlone(target, resolved: resolved)
     }
