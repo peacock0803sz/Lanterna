@@ -48,6 +48,8 @@ enum AppConfiguration {
     "showDelayMs",
     "hoverSelect",
     "scrollSelect",
+    "reopenWindowlessApps",
+    "raiseOnlyChosenWindow",
     "numberJump",
     "numberReorder",
     "numberScope",
@@ -109,6 +111,8 @@ struct ValidConfiguration: Equatable, Sendable {
     showDelayMs: Double? = nil,
     hoverSelect: Bool? = nil,
     scrollSelect: Bool? = nil,
+    reopenWindowlessApps: Bool? = nil,
+    raiseOnlyChosenWindow: Bool? = nil,
     numberJump: Bool? = nil,
     numberReorder: Bool? = nil,
     numberScope: NumberScope? = nil,
@@ -152,6 +156,8 @@ struct ValidConfiguration: Equatable, Sendable {
     self.showDelayMs = showDelayMs
     self.hoverSelect = hoverSelect
     self.scrollSelect = scrollSelect
+    self.reopenWindowlessApps = reopenWindowlessApps
+    self.raiseOnlyChosenWindow = raiseOnlyChosenWindow
     self.numberJump = numberJump
     self.numberReorder = numberReorder
     self.numberScope = numberScope
@@ -224,6 +230,12 @@ struct ValidConfiguration: Equatable, Sendable {
   /// Whether scrolling moves the selection. Nil means absent,
   /// which means off.
   var scrollSelect: Bool?
+  /// Whether taking an application row with no open window opens one.
+  /// Nil means absent, which means off.
+  var reopenWindowlessApps: Bool?
+  /// Whether taking a window row brings only that window forward.
+  /// Nil means absent, which means off.
+  var raiseOnlyChosenWindow: Bool?
   /// Whether holding a modifier and pressing a row number jumps to
   /// that row. Nil means absent, which means off.
   var numberJump: Bool?

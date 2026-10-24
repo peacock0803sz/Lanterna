@@ -26,6 +26,8 @@ struct SettingsValues: Equatable, Sendable {
     displayTarget: .primary,
     hoverSelect: false,
     scrollSelect: false,
+    reopenWindowlessApps: false,
+    raiseOnlyChosenWindow: false,
     numberJump: false,
     numberReorder: false,
     numberScope: .windows,
@@ -77,6 +79,13 @@ struct SettingsValues: Equatable, Sendable {
   /// Whether scrolling moves the selection. Absent in the file
   /// means off.
   var scrollSelect: Bool
+  /// Whether taking an application row with no open window opens one.
+  /// Absent in the file means off.
+  var reopenWindowlessApps: Bool
+  /// Whether taking a window row brings only that window forward.
+  /// Absent in the file means off.
+  var raiseOnlyChosenWindow: Bool
+
   /// Whether holding a modifier and pressing a row number jumps to
   /// that row. Absent in the file means off.
   var numberJump: Bool
@@ -117,6 +126,14 @@ struct SettingsValues: Equatable, Sendable {
   /// from an edited table.
   var loadedKeyBindings: KeyBindingTable
 
+  /// The two commit switches as the commit path takes them.
+  var activationPolicy: ActivationPolicy {
+    ActivationPolicy(
+      reopensWindowlessApps: reopenWindowlessApps,
+      raisesOnlyChosenWindow: raiseOnlyChosenWindow
+    )
+  }
+
   /// The main switcher's resolved list settings, read off the top-level
   /// fields above. Computed so the two never drift apart.
   var mainSwitcher: SwitcherSettings {
@@ -151,6 +168,8 @@ struct SettingsValues: Equatable, Sendable {
       displayTarget: DisplayTarget.effective(from: config),
       hoverSelect: config.hoverSelect ?? false,
       scrollSelect: config.scrollSelect ?? false,
+      reopenWindowlessApps: config.reopenWindowlessApps ?? false,
+      raiseOnlyChosenWindow: config.raiseOnlyChosenWindow ?? false,
       numberJump: config.numberJump ?? false,
       numberReorder: config.numberReorder ?? false,
       numberScope: NumberScope.effective(from: config),
@@ -230,6 +249,12 @@ struct SettingsValues: Equatable, Sendable {
     }
     if scrollSelect != defaults.scrollSelect {
       config.scrollSelect = scrollSelect
+    }
+    if reopenWindowlessApps != defaults.reopenWindowlessApps {
+      config.reopenWindowlessApps = reopenWindowlessApps
+    }
+    if raiseOnlyChosenWindow != defaults.raiseOnlyChosenWindow {
+      config.raiseOnlyChosenWindow = raiseOnlyChosenWindow
     }
     if numberJump != defaults.numberJump {
       config.numberJump = numberJump

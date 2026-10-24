@@ -122,6 +122,14 @@
       "description": "Whether scrolling moves the selection. Absent means off.",
       "type": "boolean"
     },
+    "reopenWindowlessApps": {
+      "description": "Whether taking an application row with no open window opens one, doing\nwhat that application's Dock icon does. Absent means off.",
+      "type": "boolean"
+    },
+    "raiseOnlyChosenWindow": {
+      "description": "Whether taking a window row brings only that window forward, leaving the\napplication's other windows where they were on every display. A workaround\nfor the platform bringing a recently used window along. Absent means off.",
+      "type": "boolean"
+    },
     "numberJump": {
       "description": "Whether holding Command or Option and pressing a row number jumps to\nthat row. Absent means off.",
       "type": "boolean"
@@ -1281,6 +1289,14 @@
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },
+            "reopenWindowlessApps": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "raiseOnlyChosenWindow": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
             "fuzzyMatchEnabled": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
@@ -1590,6 +1606,14 @@
               "deprecated": true
             },
             "scrollSelect": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "reopenWindowlessApps": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "raiseOnlyChosenWindow": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },

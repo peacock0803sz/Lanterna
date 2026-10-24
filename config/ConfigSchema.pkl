@@ -117,6 +117,15 @@ hoverSelect: Boolean? = null
 /// Whether scrolling moves the selection. Absent means off.
 scrollSelect: Boolean? = null
 
+/// Whether taking an application row with no open window opens one, doing
+/// what that application's Dock icon does. Absent means off.
+reopenWindowlessApps: Boolean? = null
+
+/// Whether taking a window row brings only that window forward, leaving the
+/// application's other windows where they were on every display. A workaround
+/// for the platform bringing a recently used window along. Absent means off.
+raiseOnlyChosenWindow: Boolean? = null
+
 /// Whether holding Command or Option and pressing a row number jumps to
 /// that row. Absent means off.
 numberJump: Boolean? = null
@@ -386,6 +395,10 @@ open class SwitcherMain {
   /// Shared by both switchers; write it at the top level. Ignored here.
   scrollSelect: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
+  reopenWindowlessApps: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
+  raiseOnlyChosenWindow: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
   fuzzyMatchEnabled: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   appearanceMode: Any? = null
@@ -489,6 +502,10 @@ open class SwitcherParallel {
   hoverSelect: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   scrollSelect: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
+  reopenWindowlessApps: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
+  raiseOnlyChosenWindow: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   fuzzyMatchEnabled: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.

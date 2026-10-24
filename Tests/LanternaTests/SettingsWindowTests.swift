@@ -82,6 +82,34 @@ struct SettingsWindowTests {
   }
 
   @Test
+  func commitSwitchesFollowPresentKeys() {
+    var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(SettingsValues.effective(from: config).reopenWindowlessApps == false)
+    #expect(SettingsValues.effective(from: config).raiseOnlyChosenWindow == false)
+    #expect(SettingsValues.effective(from: config).activationPolicy == .off)
+    config.reopenWindowlessApps = true
+    config.raiseOnlyChosenWindow = true
+    #expect(SettingsValues.effective(from: config).reopenWindowlessApps == true)
+    #expect(SettingsValues.effective(from: config).raiseOnlyChosenWindow == true)
+    #expect(SettingsValues.effective(from: config).activationPolicy == ActivationPolicy(
+      reopensWindowlessApps: true,
+      raisesOnlyChosenWindow: true
+    ))
+    let saved = SettingsValues.effective(from: config)
+      .configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(saved.reopenWindowlessApps == true)
+    #expect(saved.raiseOnlyChosenWindow == true)
+  }
+
+  @Test
+  func offCommitSwitchesStayOmittedOnSave() {
+    let saved = SettingsValues.defaults
+      .configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(saved.reopenWindowlessApps == nil)
+    #expect(saved.raiseOnlyChosenWindow == nil)
+  }
+
+  @Test
   func numberSwitchesFollowPresentKeys() {
     var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
     #expect(SettingsValues.effective(from: config).numberJump == false)
