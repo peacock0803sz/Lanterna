@@ -31,11 +31,7 @@
 
         inputs.git-hooks.flakeModule
       ];
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-        "aarch64-darwin"
-      ];
+      systems = [ "aarch64-darwin" ];
       perSystem =
         {
           config,
