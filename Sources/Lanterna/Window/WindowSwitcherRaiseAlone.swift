@@ -4,16 +4,19 @@ import ApplicationServices
 
 /// Brings only the chosen window forward, ahead of its application.
 ///
-/// The platform brings the application's main window along when an
-/// application comes forward, which on another display can cover a window
-/// being worked in. Making the chosen window the main one first and
-/// raising it ahead of the activation leaves that older window where it
-/// was. Only the chosen element is ever touched: nothing here lists or
+/// Activating an application can bring another of its windows forward
+/// along with the chosen one, which on another display can cover a window
+/// being worked in. Making the chosen window the main one and raising it
+/// ahead of the activation tries to leave the other windows where they
+/// were. Only the chosen element is ever touched: nothing here lists or
 /// addresses any other window.
 ///
-/// The first two writes prepare rather than take, so either may fail and
-/// still leave a switched take: the note then says which half did not
-/// hold. Anything later fails the take itself, in the old words.
+/// The preparing writes, making the chosen window main and raising it
+/// early, prepare rather than take, so a failing one still leaves a
+/// switched take with a note. Only the first failing preparation is
+/// named: a main-window failure hides a raise failure after it, which is
+/// what the `excuse == nil` check keeps. Past the preparations, a failure
+/// fails the take itself, worded as it is with the switch off.
 extension LiveWindowSwitcher {
 
   // MARK: Internal
@@ -44,7 +47,7 @@ extension LiveWindowSwitcher {
   // MARK: Private
 
   /// The failure's own wording, so the note names the step and the cause
-  /// together. Only the first failing preparation is named.
+  /// together.
   private func words(for failure: ActivationFailure) -> String {
     switch failure {
     case .timedOut:
