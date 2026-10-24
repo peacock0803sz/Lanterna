@@ -78,13 +78,6 @@ protocol WindowSwitching: Sendable {
   func switchTo(_ target: ActivationTarget, policy: ActivationPolicy) -> ActivationReport
 }
 
-extension WindowSwitching {
-  /// The commit switches off: the default path, with no notes.
-  func switchTo(_ target: ActivationTarget) -> ActivationOutcome {
-    switchTo(target, policy: .off).outcome
-  }
-}
-
 // MARK: - LiveWindowSwitcher
 
 /// Talks to the real accessibility API, in the order the contract pins down:
