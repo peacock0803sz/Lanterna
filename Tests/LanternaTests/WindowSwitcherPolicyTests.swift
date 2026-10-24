@@ -146,6 +146,7 @@ struct WindowSwitcherPolicyTests {
 
     let stuck = ScriptedAccessibility(windowCount: 2)
     stuck.writeError = .failure
+    stuck.raiseError = .success
     #expect(
       stuck.switcher().switchTo(window(), policy: suppression())
         == ActivationReport(
