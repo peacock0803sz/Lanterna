@@ -215,6 +215,7 @@ extension AppDelegate {
     presenter?.parallelEnabled = values.parallelOverrides.isEnabled
     presenter?.hoverSelect = values.hoverSelect
     presenter?.scrollSelect = values.scrollSelect
+    presenter?.activationPolicy = values.activationPolicy
     presenter?.numberJump = values.numberJump
     presenter?.numberReorder = values.numberReorder
     presenter?.numberScope = values.numberScope
