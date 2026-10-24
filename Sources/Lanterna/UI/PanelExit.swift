@@ -35,6 +35,7 @@ final class PanelExit {
     writeLine: @escaping @MainActor (LogLine) -> Void,
     keyStatusWatchInterval: Duration = KeyStatusWatch.defaultInterval,
     switcher: any WindowSwitching = LiveWindowSwitcher(),
+    activationPolicy: @escaping @MainActor () -> ActivationPolicy = { .off },
     recordCommit: @escaping @MainActor (WindowItem.Identifier, pid_t) -> Void,
     noteSwitchReturned: @escaping @MainActor () -> Void,
     onPanelGone: @escaping @MainActor () -> Void
@@ -44,6 +45,7 @@ final class PanelExit {
     self.writeLine = writeLine
     self.keyStatusWatchInterval = keyStatusWatchInterval
     self.switcher = switcher
+    self.activationPolicy = activationPolicy
     self.recordCommit = recordCommit
     self.noteSwitchReturned = noteSwitchReturned
     self.onPanelGone = onPanelGone
@@ -140,9 +142,9 @@ final class PanelExit {
     switch target {
     case .some(let take):
       recordCommit(take.id, take.ownerProcessIdentifier)
-      let outcome = switcher.switchTo(take)
+      let report = switcher.switchTo(take, policy: activationPolicy())
       noteSwitchReturned()
-      recordCommitPair(take, outcome, by: trigger, elapsed: elapsed, filter: filterSummary)
+      recordCommitPair(take, report, by: trigger, elapsed: elapsed, filter: filterSummary)
 
     case .none:
       record(.nothingToCommit, by: trigger, elapsed: elapsed, filter: filterSummary)
@@ -189,9 +191,9 @@ final class PanelExit {
     case .some(let take):
       // The pair, as above: the take first, then both lines together.
       recordCommit(take.id, take.ownerProcessIdentifier)
-      let outcome = switcher.switchTo(take)
+      let report = switcher.switchTo(take, policy: activationPolicy())
       noteSwitchReturned()
-      recordCommitPair(take, outcome, by: .commitKey(key), elapsed: elapsed, filter: filterSummary)
+      recordCommitPair(take, report, by: .commitKey(key), elapsed: elapsed, filter: filterSummary)
 
     case .none:
       record(.nothingToCommit, by: .commitKey(key), elapsed: elapsed, filter: filterSummary)
@@ -351,6 +353,10 @@ final class PanelExit {
   /// is showing, and both go with the panel.
   private let switcher: any WindowSwitching
 
+  /// The two switches, read fresh at each take so a change lands on the
+  /// next commit without a restart.
+  private let activationPolicy: @MainActor () -> ActivationPolicy
+
   /// Where a commit writes down that it happened, before anything is taken.
   ///
   /// A closure rather than the tracker itself, because this type records
@@ -410,9 +416,9 @@ final class PanelExit {
       // The take happens before either line: the pair is written
       // together, with nothing between the two.
       recordCommit(take.id, take.ownerProcessIdentifier)
-      let outcome = switcher.switchTo(take)
+      let report = switcher.switchTo(take, policy: activationPolicy())
       noteSwitchReturned()
-      recordCommitPair(take, outcome, by: trigger, elapsed: elapsed, filter: filterSummary)
+      recordCommitPair(take, report, by: trigger, elapsed: elapsed, filter: filterSummary)
 
     case .none:
       record(.nothingToCommit, by: trigger, elapsed: elapsed, filter: filterSummary)
@@ -440,7 +446,7 @@ final class PanelExit {
   /// away rather than the taking itself.
   private func recordCommitPair(
     _ take: ActivationTarget,
-    _ outcome: ActivationOutcome,
+    _ report: ActivationReport,
     by trigger: PanelExitMeasurement.Trigger,
     elapsed: Duration,
     filter filterSummary: FilterLogSummary? = nil
@@ -455,9 +461,11 @@ final class PanelExit {
       appName: take.appName,
       displayTitle: take.displayTitle,
       id: take.id,
-      outcome: outcome,
+      outcome: report.outcome,
       trigger: trigger,
-      elapsed: elapsed
+      elapsed: elapsed,
+      reopen: report.reopen,
+      raiseAlone: report.raiseAlone
     )
     writeLine(LogLine(
       .info,

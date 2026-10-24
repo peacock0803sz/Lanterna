@@ -17,6 +17,7 @@ extension PanelPresenter {
       writeLine: writeLine,
       keyStatusWatchInterval: keyStatusWatchInterval,
       switcher: switcher,
+      activationPolicy: { [weak self] in self?.activationPolicy ?? .off },
       recordCommit: { [weak self] id, pid in
         self?.tracker.record(id, ownerProcessIdentifier: pid, origin: .commit)
       },
