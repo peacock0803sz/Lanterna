@@ -43,7 +43,7 @@ struct WindowSwitcherPolicyTests {
   }
 
   /// A take that never came forward opens nothing and notes nothing: the
-  /// failure is the whole answer, in the old words.
+  /// failure is the whole answer, worded as with the switch off.
   @Test(arguments: [
     (LiveWindowSwitcher.ApplicationActivation.missing, ActivationFailure.applicationGone),
     (.refused, .other(reason: "activation refused")),
@@ -61,8 +61,7 @@ struct WindowSwitcherPolicyTests {
     #expect(peer.reopenPIDs.isEmpty)
   }
 
-  /// Disengaged, a windowless take is only brought forward, in the old
-  /// words with no notes.
+  /// Disengaged, a windowless take is only brought forward, with no notes.
   @Test
   func aDisengagedWindowlessTakeOnlyComesForward() {
     let peer = ScriptedAccessibility(windowCount: 0)
@@ -75,7 +74,7 @@ struct WindowSwitcherPolicyTests {
   }
 
   /// An engaged opening switch leaves a window take alone: the order is
-  /// the old activate, unminimize, raise, and no note rides along.
+  /// the default activate, unminimize, raise, and no note rides along.
   @Test
   func anEngagedOpeningSwitchLeavesAWindowTakeAlone() {
     let peer = ScriptedAccessibility(windowCount: 2)
@@ -135,10 +134,10 @@ struct WindowSwitcherPolicyTests {
     #expect(raised.operationNames == ["setMain", "raise", "activate", "unminimize", "raise"])
   }
 
-  /// Past the preparations the old failures stand, worded as before
-  /// and carrying no note.
+  /// Past the preparations a failure fails the take itself, worded as
+  /// with the switch off and carrying no note.
   @Test
-  func pastThePreparationsTheOldFailuresStand() {
+  func pastThePreparationsTheDefaultFailuresStand() {
     let refused = ScriptedAccessibility(windowCount: 2)
     refused.activateAnswer = .refused
     #expect(
@@ -184,9 +183,9 @@ struct WindowSwitcherPolicyTests {
     #expect(peer.operationNames.isEmpty)
   }
 
-  /// Disengaged, a window take runs the old order with no preparation.
+  /// Disengaged, a window take runs the default order with no preparation.
   @Test
-  func aDisengagedWindowTakeRunsTheOldOrder() {
+  func aDisengagedWindowTakeRunsTheDefaultOrder() {
     let peer = ScriptedAccessibility(windowCount: 2)
     let report = peer.switcher().switchTo(window(), policy: .off)
 

@@ -231,8 +231,8 @@ struct PanelExitSwitchTests {
     ])
   }
 
-  /// A silent take carries the switches too: no panel is no excuse for
-  /// an older path.
+  /// A silent take carries the switches too: without a panel it still
+  /// hands the current switches over.
   @Test
   func aSilentCommitHandsTheCurrentSwitchesOver() {
     let surface = FakeSurface()

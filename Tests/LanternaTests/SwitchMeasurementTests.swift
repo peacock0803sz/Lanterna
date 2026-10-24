@@ -73,7 +73,7 @@ struct SwitchMeasurementTests {
   }
 
   /// A note beside the result reads in fixed words, and a line without
-  /// one reads exactly as before. The reasons are flattened to one line
+  /// one reads `switched to <row> <timing>`. The reasons are flattened to one line
   /// like the failure reasons are.
   @Test
   func aNoteReadsBesideTheResultInFixedWords() {
