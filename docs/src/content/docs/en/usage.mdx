@@ -147,11 +147,11 @@ Hover to select in the same tab moves the selection to the row under the pointer
 
 ## Switching to apps and windows
 
-The General tab holds two switches under Switching, both off by default. A change lands on the next switch without a restart.
+The General tab holds two switches under Switching, both off by default. A change takes effect the next time you switch to an app or window, without a restart.
 
 Open a window when switching to an app that has none does what clicking the app's Dock icon does: the app opens a window, unhides itself, or does nothing, as the app decides. Lanterna never checks which of those happened.
 
-Bring only the chosen window forward keeps the application's other windows where they were on every display when a window row is switched to. It is a workaround for macOS bringing a recently used window along with the taken one. Even with it on, the other windows may briefly come forward before settling back. If switching looks wrong with it on, please [open a bug report](https://github.com/peacock0803sz/Lanterna/issues/new?template=bug_report.yml) using the Bug report template.
+Bring only the chosen window forward tries to keep the application's other windows where they were on every display when a window row is switched to. It is a workaround for macOS bringing another window of the same application forward along with the chosen one. Even with it on, the other windows may briefly come forward before settling back. If switching looks wrong with it on, please [open a bug report](https://github.com/peacock0803sz/Lanterna/issues/new?template=bug_report.yml) using the Bug report template.
 
 In the config file the two switches are `reopenWindowlessApps` and `raiseOnlyChosenWindow`. Both are optional and read as off when absent.
 

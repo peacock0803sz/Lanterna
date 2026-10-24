@@ -150,11 +150,11 @@ AppearanceタブのShow Panel onで、パネルを出すディスプレイを選
 
 ## アプリと窓への切り替え
 
-GeneralタブのSwitchingには2つの切り替えがあり、どちらも既定は切です。変更は再起動なしに次の切り替えから効きます。
+GeneralタブのSwitchingには2つの切り替えがあり、どちらも既定は切です。変更は再起動なしに、次にアプリや窓へ切り替えたときから効きます。
 
 Open a window when switching to an app that has noneは、窓のないアプリの列を確定したときに、そのアプリのDockアイコンを押したときと同じ動作をします。窓を開くか、隠れた状態を解くか、何もしないかはアプリが決めます。Lanternaは結果を確かめません。
 
-Bring only the chosen window forwardは、窓の列を確定したときに、選んだ窓だけを前に出し、同じアプリのほかの窓をすべてのディスプレイで今の場所に留めます。最近使った窓が一緒についてきてしまうmacOSの振る舞いへの回避策です。入れていても、ほかの窓が一瞬前に出て見えることがあります。入れた状態の切り替えがおかしいときは、[バグ報告テンプレート](https://github.com/peacock0803sz/Lanterna/issues/new?template=bug_report.yml)で報告してください。
+Bring only the chosen window forwardは、窓の列を確定したときに、選んだ窓だけを前に出し、同じアプリのほかの窓をすべてのディスプレイで今の場所に留めようとします。選んだ窓と一緒に同じアプリの別の窓まで前に出てしまうmacOSの振る舞いへの回避策です。入れていても、ほかの窓が一瞬前に出て見えることがあります。入れた状態の切り替えがおかしいときは、[バグ報告テンプレート](https://github.com/peacock0803sz/Lanterna/issues/new?template=bug_report.yml)で報告してください。
 
 設定ファイルでは2つの切り替えは`reopenWindowlessApps`と`raiseOnlyChosenWindow`です。どちらも省略可能で、無いときは切として読みます。
 

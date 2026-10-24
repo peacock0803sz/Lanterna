@@ -86,7 +86,7 @@ struct SettingsGeneralView: View {
         Toggle(isOn: $values.raiseOnlyChosenWindow) {
           SettingsFormLabel(
             title: "Bring only the chosen window forward",
-            caption: "Keeps other windows of the same app where they were, on every display. "
+            caption: "Tries to keep other windows of the same app where they were, on every display. "
               + "A workaround for macOS; please report problems."
           )
         }

@@ -13,7 +13,7 @@ struct ActivationPolicy: Equatable, Sendable {
   /// Opens a window when the taken row names an application with none,
   /// the way that application's Dock icon does.
   var reopensWindowlessApps: Bool
-  /// Brings only the taken window forward, leaving the application's other
-  /// windows where they were on every display.
+  /// Brings only the taken window forward, trying to leave the
+  /// application's other windows where they were on every display.
   var raisesOnlyChosenWindow: Bool
 }
