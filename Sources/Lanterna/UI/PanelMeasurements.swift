@@ -428,12 +428,41 @@ struct PanelExitMeasurement: Sendable {
 /// so the pair carries one number twice rather than two numbers to tell
 /// apart.
 struct SwitchMeasurement: Sendable {
+
+  // MARK: Lifecycle
+
+  init(
+    appName: String,
+    displayTitle: String,
+    id: WindowItem.Identifier,
+    outcome: ActivationOutcome,
+    trigger: PanelExitMeasurement.Trigger,
+    elapsed: Duration,
+    reopen: ReopenNote? = nil,
+    raiseAlone: RaiseAloneNote? = nil
+  ) {
+    self.appName = appName
+    self.displayTitle = displayTitle
+    self.id = id
+    self.outcome = outcome
+    self.trigger = trigger
+    self.elapsed = elapsed
+    self.reopen = reopen
+    self.raiseAlone = raiseAlone
+  }
+
+  // MARK: Internal
+
   let appName: String
   let displayTitle: String
   let id: WindowItem.Identifier
   let outcome: ActivationOutcome
   let trigger: PanelExitMeasurement.Trigger
   let elapsed: Duration
+  /// What an engaged switch added to the take, or nothing when the take
+  /// ran the path it always ran. Absent reads exactly as before.
+  let reopen: ReopenNote?
+  let raiseAlone: RaiseAloneNote?
 
   var summaryLine: String {
     precondition(trigger.isCommit, "a switch result cannot follow a cancellation")
@@ -441,7 +470,7 @@ struct SwitchMeasurement: Sendable {
     let timing = "\(Diagnostics.millisecondsText(elapsed)) ms after \(trigger.phrase)"
     switch outcome {
     case .switched:
-      return "switched to \(row) \(timing)"
+      return "switched to \(row)\(notes) \(timing)"
     case .failed(.windowGone):
       return "could not switch to \(row) (window gone) \(timing)"
     case .failed(.applicationGone):
@@ -452,4 +481,34 @@ struct SwitchMeasurement: Sendable {
       return "could not switch to \(row) (\(PanelExitMeasurement.oneLine(reason, fallback: "unknown"))) \(timing)"
     }
   }
+
+  // MARK: Private
+
+  /// The engaged switches' parenthesized words, or nothing. Spelled here
+  /// so the wording has one home; empty stays empty so a take that ran
+  /// the old path reads word for word as before.
+  private var notes: String {
+    var words = [String]()
+    switch reopen {
+    case .requested:
+      words.append("(reopen requested)")
+    case .skippedNoBundle:
+      words.append("(reopen skipped (no bundle))")
+    case .none:
+      break
+    }
+    switch raiseAlone {
+    case .held:
+      words.append("(raised alone)")
+
+    case .notHeld(let reason):
+      let flat = PanelExitMeasurement.oneLine(reason, fallback: "unknown")
+      words.append("(raised alone, not held (\(flat)))")
+
+    case .none:
+      break
+    }
+    return words.isEmpty ? "" : " " + words.joined(separator: " ")
+  }
+
 }
