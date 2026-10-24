@@ -58,6 +58,21 @@ struct MeasurementContextTests {
     #expect(plain["result"] == .string("ok"))
   }
 
+  /// The other note words map to their own context words, leaving the
+  /// long-standing keys untouched too.
+  @Test
+  func theOtherNotesMapToTheirOwnContextWords() {
+    let noted = Self.measurement(
+      outcome: .switched,
+      reopen: .skippedNoBundle,
+      raiseAlone: .notHeld(reason: "main window error -25205")
+    ).context(processIdentifier: 1, bundle: nil)
+    #expect(noted["reopen"] == .string("skippedNoBundle"))
+    #expect(noted["raiseAlone"] == .string("notHeld"))
+    #expect(noted["result"] == .string("ok"))
+    #expect(noted["ms"] == .int(1012))
+  }
+
   // MARK: Private
 
   private static func measurement(
