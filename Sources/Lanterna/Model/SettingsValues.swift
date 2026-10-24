@@ -26,6 +26,7 @@ struct SettingsValues: Equatable, Sendable {
     displayTarget: .primary,
     hoverSelect: false,
     scrollSelect: false,
+    autoFocusSingleCandidate: true,
     numberJump: false,
     numberReorder: false,
     numberScope: .windows,
@@ -77,6 +78,9 @@ struct SettingsValues: Equatable, Sendable {
   /// Whether scrolling moves the selection. Absent in the file
   /// means off.
   var scrollSelect: Bool
+  /// Whether a filter that narrows to one row focuses that row.
+  /// Absent in the file means on.
+  var autoFocusSingleCandidate: Bool
   /// Whether holding a modifier and pressing a row number jumps to
   /// that row. Absent in the file means off.
   var numberJump: Bool
@@ -151,6 +155,7 @@ struct SettingsValues: Equatable, Sendable {
       displayTarget: DisplayTarget.effective(from: config),
       hoverSelect: config.hoverSelect ?? false,
       scrollSelect: config.scrollSelect ?? false,
+      autoFocusSingleCandidate: config.autoFocusSingleCandidate ?? true,
       numberJump: config.numberJump ?? false,
       numberReorder: config.numberReorder ?? false,
       numberScope: NumberScope.effective(from: config),
@@ -230,6 +235,9 @@ struct SettingsValues: Equatable, Sendable {
     }
     if scrollSelect != defaults.scrollSelect {
       config.scrollSelect = scrollSelect
+    }
+    if autoFocusSingleCandidate != defaults.autoFocusSingleCandidate {
+      config.autoFocusSingleCandidate = autoFocusSingleCandidate
     }
     if numberJump != defaults.numberJump {
       config.numberJump = numberJump

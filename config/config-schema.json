@@ -122,6 +122,10 @@
       "description": "Whether scrolling moves the selection. Absent means off.",
       "type": "boolean"
     },
+    "autoFocusSingleCandidate": {
+      "description": "Whether a filter that narrows to one row focuses that row and closes\nthe panel. Absent means on.",
+      "type": "boolean"
+    },
     "numberJump": {
       "description": "Whether holding Command or Option and pressing a row number jumps to\nthat row. Absent means off.",
       "type": "boolean"
@@ -1281,6 +1285,10 @@
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },
+            "autoFocusSingleCandidate": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
             "fuzzyMatchEnabled": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
@@ -1590,6 +1598,10 @@
               "deprecated": true
             },
             "scrollSelect": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "autoFocusSingleCandidate": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },

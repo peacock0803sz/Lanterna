@@ -31,6 +31,9 @@ final class PanelFilter {
   init(selection: PanelSelection, surface: any SwitcherSurface) {
     self.selection = selection
     self.surface = surface
+    pendingFocus.onFire = { [weak self] id in
+      self?.onSingleCandidate?(id)
+    }
   }
 
   // MARK: Internal
@@ -80,9 +83,29 @@ final class PanelFilter {
   /// narrowed list renumbers the same rows a jump would name.
   var numberScope = NumberScope.windows
 
+  /// Takes the one row when its wait elapses. Set by the key commands,
+  /// which own the commit.
+  var onSingleCandidate: (@MainActor (WindowItem.Identifier) -> Void)?
+
   /// Whether a query is narrowing the list right now.
   var isFiltering: Bool {
     !state.query.isEmpty
+  }
+
+  /// Whether narrowing to one row focuses that row. On unless the
+  /// setting says otherwise. Turning it off retires a wait already armed.
+  var autoFocusSingleCandidate = true {
+    didSet {
+      if !autoFocusSingleCandidate {
+        pendingFocus.cancel()
+      }
+    }
+  }
+
+  /// How long a one-row narrowing waits. Replaced by tests.
+  var singleCandidateSleep: @MainActor (Duration) async -> Void {
+    get { pendingFocus.sleep }
+    set { pendingFocus.sleep = newValue }
   }
 
   /// The band over a list narrowed to one application, or nil while every
@@ -124,10 +147,13 @@ final class PanelFilter {
   /// Draws nothing: the caller opens the choice and the panel on
   /// `shownWindows`, so the modes narrow the list before either sees it.
   func begin(fullWindows: [WindowItem], filtering: Bool = false, activeApplication: pid_t? = nil) {
+    pendingFocus.cancel()
     self.fullWindows = fullWindows
     state = FilterState()
     scope.begin(target: activeApplication)
     let shown = shownWindows
+    previousQuery = ""
+    previousShownCount = shown.count
     state.previousMatchedIDs = Set(shown.map(\.id))
     lastSummary = FilterLogSummary(query: "", matchedCount: shown.count, totalCount: fullWindows.count)
     isActive = filtering
@@ -188,8 +214,11 @@ final class PanelFilter {
 
   /// Gives the appearance up; the next one starts empty either way.
   func reset() {
+    pendingFocus.cancel()
     fullWindows = []
     state = FilterState()
+    previousQuery = ""
+    previousShownCount = 0
     lastSummary = FilterLogSummary(query: "", matchedCount: 0, totalCount: 0)
     isActive = false
   }
@@ -250,6 +279,12 @@ final class PanelFilter {
     edit(.deleteBackward)
   }
 
+  /// Retires a one-row wait. A commit key, a click, and the panel
+  /// coming down all call here so the wait cannot take the row again.
+  func cancelSingleCandidateFocus() {
+    pendingFocus.cancel()
+  }
+
   /// Clears the query, leaving the panel up over the whole list.
   ///
   /// Answers whether there was a query to clear: an empty query clears
@@ -268,6 +303,12 @@ final class PanelFilter {
 
   private var fullWindows = [WindowItem]()
   private var state = FilterState()
+  /// The query and the shown count before the latest narrowing, so a
+  /// refresh can be told apart from a typed change, and a list that
+  /// opened on one row can be told apart from one that narrowed to it.
+  private var previousQuery = ""
+  private var previousShownCount = 0
+  private let pendingFocus = PendingSingleCandidateFocus()
   /// The shortcut memory, kept across appearances while the process
   /// runs. The query starts over with every appearance; the habits do
   /// not.
@@ -320,11 +361,15 @@ final class PanelFilter {
   /// the first match reads the ranked order, so a grouped list falls
   /// back to the best match rather than to the first group's top row.
   private func apply() {
+    let queryChanged = previousQuery != state.query
+    let priorCount = previousShownCount
     let layout = shownLayout
     let matched = layout.rows
     let matchedList = matched.map(\.id)
     let chosen = state.resolveSelection(matched: layout.rankedRows.map(\.id), incoming: selection.chosenID)
     selection.retarget(to: matchedList, selecting: chosen)
+    previousQuery = state.query
+    previousShownCount = matched.count
     surface.updateList(
       windows: matched,
       selecting: selection.chosenID,
@@ -348,6 +393,17 @@ final class PanelFilter {
       query: state.query,
       matchedCount: matched.count,
       totalCount: fullWindows.count
+    )
+    pendingFocus.note(
+      queryChanged: queryChanged,
+      previousCount: priorCount,
+      next: SingleCandidateFocus.Snapshot(
+        enabled: autoFocusSingleCandidate,
+        filtering: isActive,
+        query: state.query,
+        count: matched.count,
+        chosen: selection.chosenID
+      )
     )
   }
 

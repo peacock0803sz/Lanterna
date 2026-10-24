@@ -117,6 +117,10 @@ hoverSelect: Boolean? = null
 /// Whether scrolling moves the selection. Absent means off.
 scrollSelect: Boolean? = null
 
+/// Whether a filter that narrows to one row focuses that row and closes
+/// the panel. Absent means on.
+autoFocusSingleCandidate: Boolean? = null
+
 /// Whether holding Command or Option and pressing a row number jumps to
 /// that row. Absent means off.
 numberJump: Boolean? = null
@@ -386,6 +390,8 @@ open class SwitcherMain {
   /// Shared by both switchers; write it at the top level. Ignored here.
   scrollSelect: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
+  autoFocusSingleCandidate: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
   fuzzyMatchEnabled: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   appearanceMode: Any? = null
@@ -489,6 +495,8 @@ open class SwitcherParallel {
   hoverSelect: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   scrollSelect: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
+  autoFocusSingleCandidate: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   fuzzyMatchEnabled: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.

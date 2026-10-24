@@ -48,6 +48,7 @@ enum AppConfiguration {
     "showDelayMs",
     "hoverSelect",
     "scrollSelect",
+    "autoFocusSingleCandidate",
     "numberJump",
     "numberReorder",
     "numberScope",
@@ -109,6 +110,7 @@ struct ValidConfiguration: Equatable, Sendable {
     showDelayMs: Double? = nil,
     hoverSelect: Bool? = nil,
     scrollSelect: Bool? = nil,
+    autoFocusSingleCandidate: Bool? = nil,
     numberJump: Bool? = nil,
     numberReorder: Bool? = nil,
     numberScope: NumberScope? = nil,
@@ -152,6 +154,7 @@ struct ValidConfiguration: Equatable, Sendable {
     self.showDelayMs = showDelayMs
     self.hoverSelect = hoverSelect
     self.scrollSelect = scrollSelect
+    self.autoFocusSingleCandidate = autoFocusSingleCandidate
     self.numberJump = numberJump
     self.numberReorder = numberReorder
     self.numberScope = numberScope
@@ -224,6 +227,9 @@ struct ValidConfiguration: Equatable, Sendable {
   /// Whether scrolling moves the selection. Nil means absent,
   /// which means off.
   var scrollSelect: Bool?
+  /// Whether a filter that narrows to one row focuses that row.
+  /// Nil means absent, which means on.
+  var autoFocusSingleCandidate: Bool?
   /// Whether holding a modifier and pressing a row number jumps to
   /// that row. Nil means absent, which means off.
   var numberJump: Bool?
@@ -476,6 +482,7 @@ extension AppConfiguration {
       showDelayMs: ShowDelay.effective(file.showDelayMs).value,
       hoverSelect: file.hoverSelect ?? false,
       scrollSelect: file.scrollSelect ?? false,
+      autoFocusSingleCandidate: file.autoFocusSingleCandidate ?? true,
       numberJump: file.numberJump ?? false,
       numberReorder: file.numberReorder ?? false
     )

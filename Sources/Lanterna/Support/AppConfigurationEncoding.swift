@@ -148,6 +148,10 @@ extension AppConfiguration {
     if config.scrollSelect == true {
       entries.append(encodedBool(key: "scrollSelect", value: true))
     }
+    // Absent means on, so only the off value is written.
+    if config.autoFocusSingleCandidate == false {
+      entries.append(encodedBool(key: "autoFocusSingleCandidate", value: false))
+    }
     return entries
   }
 

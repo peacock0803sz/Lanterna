@@ -114,6 +114,12 @@ struct SettingsAppearanceView: View {
             caption: "Move the selected row with Shift and arrow keys in grouped lists. Off by default."
           )
         }
+        Toggle(isOn: $values.autoFocusSingleCandidate) {
+          SettingsFormLabel(
+            title: "Auto-focus single match",
+            caption: "Focus the only remaining row while filtering, then close the panel. On by default."
+          )
+        }
         Picker(selection: $values.numberScope) {
           Text("Windows only").tag(NumberScope.windows)
           Text("All rows").tag(NumberScope.allRows)
