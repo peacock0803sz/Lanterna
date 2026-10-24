@@ -254,6 +254,9 @@ struct PanelExitSwitchTests {
 
     #expect(switcher.policies == [policy])
     #expect(log.lines.count == 2)
+    #expect(log.lines[0].hasPrefix("committed "))
+    #expect(log.lines[1].hasPrefix("switched to "))
+    #expect(log.logged[1].context["result"] == .string("ok"))
   }
 
   /// The take's notes read on the pair line and ride its context.
