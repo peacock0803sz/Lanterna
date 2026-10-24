@@ -28,7 +28,7 @@ final class ScriptedAccessibility: @unchecked Sendable {
   /// Every element given a messaging timeout, in order: the application
   /// first, then each window as it is met.
   private(set) var prepared = [ObjectIdentifier]()
-  /// Every activating, unminimizing and raising call, in order, by name.
+  /// Every call the switcher made through the script, in order, by name.
   private(set) var operationNames = [String]()
   /// The elements those calls acted upon, in the same order.
   private(set) var operated = [ObjectIdentifier]()
@@ -45,7 +45,7 @@ final class ScriptedAccessibility: @unchecked Sendable {
   /// What making the main window answers.
   var setMainError = AXError.success
   /// What each raising answers, in order; `nil` falls through to
-  /// `raiseError` above. Lets the first and the last raising fail apart.
+  /// `raiseError` below. Lets the first and the last raising fail apart.
   var raiseErrors = [AXError?]()
   var timeoutResult = AXError.success
   /// Answers `nil` to fall through to `.success`, keyed by window index.
