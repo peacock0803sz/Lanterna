@@ -205,6 +205,7 @@ struct WindowEnumerator {
     var windowless = [WindowItem]()
     var skipped = [WindowListSnapshot.SkippedApplication]()
     var droppedWithoutID = 0
+    var otherSpacesCutShort = 0
     // The screens are asked only when there is a layout to name.
     let names = gathered.spaces.layout == nil ? [:] : displayNames()
     let grouping = SpaceGrouping(reading: gathered.spaces, displayNames: names)
@@ -221,6 +222,9 @@ struct WindowEnumerator {
 
       case .success(let read):
         droppedWithoutID += read.droppedWithoutID
+        if read.otherSpacesCutShort {
+          otherSpacesCutShort += 1
+        }
         // Read and found empty, which is not the same as unread: only an
         // answer of no windows at all makes the application a row. A
         // window dropped for want of an id is still a window.
@@ -254,7 +258,8 @@ struct WindowEnumerator {
       skipped: skipped,
       droppedWithoutID: droppedWithoutID,
       gatheredAt: startedAt,
-      spacesUnread: gathered.spaces.displaysUnread && !items.isEmpty
+      spacesUnread: gathered.spaces.displaysUnread && !items.isEmpty,
+      otherSpacesCutShort: otherSpacesCutShort
     )
   }
 

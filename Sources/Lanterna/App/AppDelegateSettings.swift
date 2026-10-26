@@ -117,6 +117,7 @@ extension AppDelegate {
     panel.grouping = currentValues.grouping
     panel.displayTarget = options.displayTarget
     panel.panelWidth = options.panelWidth
+    panel.panelRows = options.panelRows
     panel.hoverSelect = options.hoverSelect
     panel.scrollSelect = options.scrollSelect
     panel.hintsMode = currentValues.hintsMode
@@ -133,6 +134,9 @@ extension AppDelegate {
     }
     composite.refreshPool()
     composite.syncMirrors(from: panel)
+    // One resolver for all three, reading the setting at the time of use:
+    // they are built once and the setting changes live.
+    let resolver = WindowElementResolver(probesOtherSpaces: { [otherSpaces] in otherSpaces.isOn })
     let presenter = PanelPresenter(
       surface: composite,
       store: windowList,
@@ -145,7 +149,9 @@ extension AppDelegate {
         CGEventSource.flagsState(.combinedSessionState).contains(.maskAlternate)
       },
       showDelayMs: options.showDelayMs,
-      switcher: OwnWindowSwitcher(wrapped: LiveWindowSwitcher())
+      switcher: OwnWindowSwitcher(wrapped: LiveWindowSwitcher(resolver: resolver)),
+      closer: LiveWindowCloser(resolver: resolver),
+      minimizer: LiveWindowMinimizer(resolver: resolver)
     )
     presenter.windowScope = currentValues.windowScope
     presenter.activationPolicy = currentValues.activationPolicy
@@ -154,6 +160,8 @@ extension AppDelegate {
     presenter.parallelEnabled = currentValues.parallelOverrides.isEnabled
     presenter.hoverSelect = options.hoverSelect
     presenter.scrollSelect = options.scrollSelect
+    presenter.autoFocusSingleCandidate = options.autoFocusSingleCandidate
+    presenter.inputSourceLock.target = currentValues.forcedInputSource
     presenter.numberJump = options.numberJump
     presenter.numberReorder = options.numberReorder
     presenter.numberScope = currentValues.numberScope
@@ -196,6 +204,7 @@ extension AppDelegate {
     panel?.textScale = values.textScale
     panel?.displayTarget = values.displayTarget
     panel?.panelWidth = values.panelWidth
+    panel?.panelRows = values.panelRows
     panel?.hoverSelect = values.hoverSelect
     panel?.scrollSelect = values.scrollSelect
     panel?.hintsMode = values.hintsMode
@@ -216,6 +225,8 @@ extension AppDelegate {
     presenter?.hoverSelect = values.hoverSelect
     presenter?.scrollSelect = values.scrollSelect
     presenter?.activationPolicy = values.activationPolicy
+    presenter?.autoFocusSingleCandidate = values.autoFocusSingleCandidate
+    presenter?.inputSourceLock.target = values.forcedInputSource
     presenter?.numberJump = values.numberJump
     presenter?.numberReorder = values.numberReorder
     presenter?.numberScope = values.numberScope

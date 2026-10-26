@@ -445,11 +445,13 @@ struct SwitcherSettingsTests {
   private static let sharedPanelKeys: [(key: String, spelled: String)] = [
     ("resultOrder", #""resultOrder": "score""#),
     ("fuzzyMatchEnabled", #""fuzzyMatchEnabled": false"#),
+    ("listWindowsOnAllSpaces", #""listWindowsOnAllSpaces": true"#),
     ("grouping", #""grouping": "manual""#),
     ("groupCount", #""groupCount": 3"#),
     ("groupHeadingStyle", #""groupHeadingStyle": "name""#),
     ("displayTarget", #""displayTarget": "cursor""#),
     ("panelWidth", #""panelWidth": 1.2"#),
+    ("panelRows", #""panelRows": 12"#),
     ("textScale", #""textScale": 1.0"#),
     ("showDelayMs", #""showDelayMs": 0"#),
     ("hintsMode", #""hintsMode": "numbers""#),

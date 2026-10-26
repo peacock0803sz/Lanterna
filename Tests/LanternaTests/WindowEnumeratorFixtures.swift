@@ -78,7 +78,12 @@ func record(
 
 func read(
   _ records: [WindowRecord],
-  droppedWithoutID: Int = 0
+  droppedWithoutID: Int = 0,
+  otherSpacesCutShort: Bool = false
 ) -> Result<ApplicationRead, ReadFailure> {
-  .success(ApplicationRead(records: records, droppedWithoutID: droppedWithoutID))
+  .success(ApplicationRead(
+    records: records,
+    droppedWithoutID: droppedWithoutID,
+    otherSpacesCutShort: otherSpacesCutShort
+  ))
 }

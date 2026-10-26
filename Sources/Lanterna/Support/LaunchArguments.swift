@@ -40,6 +40,9 @@ enum LaunchArguments {
     var displayTarget = DisplayTarget.primary
     /// The panel width step. No flag sets it; the file covers it.
     var panelWidth = PanelWidth.standard
+    /// How many rows the panel shows before the list scrolls. No flag
+    /// sets it; the file covers it.
+    var panelRows = PanelRows.standard
     /// The panel show delay in milliseconds. Nil means off. No flag
     /// sets it; the file covers it.
     var showDelayMs: Double?
@@ -51,6 +54,9 @@ enum LaunchArguments {
     /// the file covers it. The command line cannot set it;
     /// effectiveOptions uses the file value alone.
     var scrollSelect = false
+    /// Whether a filter that narrows to one row focuses that row.
+    /// No flag sets it; the file covers it. Absent means on.
+    var autoFocusSingleCandidate = true
     /// Whether holding a modifier and pressing a row number jumps to
     /// that row. No flag sets it; the file covers it. The command
     /// line cannot set it; effectiveOptions uses the file value alone.

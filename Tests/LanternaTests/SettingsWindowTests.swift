@@ -150,6 +150,19 @@ struct SettingsWindowTests {
   }
 
   @Test
+  func forcedInputSourceIsWrittenOnlyWhenSet() throws {
+    let off = SettingsValues.defaults.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(off.forcedInputSource == nil)
+    let offText = try #require(String(bytes: AppConfiguration.encode(off), encoding: .utf8))
+    #expect(!offText.contains("forcedInputSource"))
+    var values = SettingsValues.defaults
+    values.forcedInputSource = "com.apple.keylayout.ABC"
+    let on = values.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    let decoded = try #require(AppConfiguration.decode(AppConfiguration.encode(on)).successValue)
+    #expect(SettingsValues.effective(from: decoded.config).forcedInputSource == "com.apple.keylayout.ABC")
+  }
+
+  @Test
   func configurationRoundTripKeepsShownAndHiddenKeys() {
     var values = SettingsValues.defaults
     values.appearanceMode = .light

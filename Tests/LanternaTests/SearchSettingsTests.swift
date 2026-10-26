@@ -45,6 +45,8 @@ struct SearchSettingsTests {
       ("{\"version\": 1, \"shortcutMemoryLength\": true}", .invalidValue(key: "shortcutMemoryLength")),
       ("{\"version\": 1, \"fuzzyMatchEnabled\": 1}", .invalidValue(key: "fuzzyMatchEnabled")),
       ("{\"version\": 1, \"fuzzyMatchEnabled\": \"yes\"}", .invalidValue(key: "fuzzyMatchEnabled")),
+      ("{\"version\": 1, \"listWindowsOnAllSpaces\": 1}", .invalidValue(key: "listWindowsOnAllSpaces")),
+      ("{\"version\": 1, \"listWindowsOnAllSpaces\": \"yes\"}", .invalidValue(key: "listWindowsOnAllSpaces")),
       ("{\"version\": 1, \"resultOrder\": \"MRU\"}", .invalidValue(key: "resultOrder")),
       ("{\"version\": 1, \"resultOrder\": \"best\"}", .invalidValue(key: "resultOrder")),
       ("{\"version\": 1, \"resultOrder\": true}", .invalidValue(key: "resultOrder")),
@@ -59,11 +61,13 @@ struct SearchSettingsTests {
     var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
     config.shortcutMemoryLength = 3
     config.fuzzyMatchEnabled = false
+    config.listWindowsOnAllSpaces = true
     config.resultOrder = "score"
     let decoded = AppConfiguration.decode(AppConfiguration.encode(config))
     #expect(decoded.successValue?.config == config)
     let text = try #require(String(bytes: AppConfiguration.encode(config), encoding: .utf8))
     #expect(text.contains("\"fuzzyMatchEnabled\": false"))
+    #expect(text.contains("\"listWindowsOnAllSpaces\": true"))
     #expect(text.contains("\"resultOrder\": \"score\""))
     #expect(text.contains("\"shortcutMemoryLength\": 3"))
   }
@@ -74,6 +78,7 @@ struct SearchSettingsTests {
     let values = SettingsValues.effective(from: decoded.config)
     #expect(values.shortcutMemoryLength == 5)
     #expect(values.fuzzyMatchEnabled == true)
+    #expect(values.listWindowsOnAllSpaces == false)
     #expect(values.resultOrder == .mru)
   }
 

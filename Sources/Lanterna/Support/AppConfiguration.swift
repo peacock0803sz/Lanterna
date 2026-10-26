@@ -32,6 +32,7 @@ enum AppConfiguration {
     "windowlessAppMode",
     "appearanceMode",
     "romajiScope",
+    "forcedInputSource",
     "launchAtLogin",
     "logLevel",
     "saveLogsToDisk",
@@ -40,16 +41,19 @@ enum AppConfiguration {
     "exclusions",
     "shortcutMemoryLength",
     "fuzzyMatchEnabled",
+    "listWindowsOnAllSpaces",
     "resultOrder",
     "keybindings",
     "textScale",
     "displayTarget",
     "panelWidth",
+    "panelRows",
     "showDelayMs",
     "hoverSelect",
     "scrollSelect",
     "reopenWindowlessApps",
     "raiseOnlyChosenWindow",
+    "autoFocusSingleCandidate",
     "numberJump",
     "numberReorder",
     "numberScope",
@@ -104,15 +108,18 @@ struct ValidConfiguration: Equatable, Sendable {
     exclusions: [ExclusionEntry]? = nil,
     shortcutMemoryLength: Int? = nil,
     fuzzyMatchEnabled: Bool? = nil,
+    listWindowsOnAllSpaces: Bool? = nil,
     resultOrder: String? = nil,
     textScale: Double? = nil,
     displayTarget: DisplayTarget? = nil,
     panelWidth: Double? = nil,
+    panelRows: Int? = nil,
     showDelayMs: Double? = nil,
     hoverSelect: Bool? = nil,
     scrollSelect: Bool? = nil,
     reopenWindowlessApps: Bool? = nil,
     raiseOnlyChosenWindow: Bool? = nil,
+    autoFocusSingleCandidate: Bool? = nil,
     numberJump: Bool? = nil,
     numberReorder: Bool? = nil,
     numberScope: NumberScope? = nil,
@@ -149,15 +156,18 @@ struct ValidConfiguration: Equatable, Sendable {
     self.exclusions = exclusions
     self.shortcutMemoryLength = shortcutMemoryLength
     self.fuzzyMatchEnabled = fuzzyMatchEnabled
+    self.listWindowsOnAllSpaces = listWindowsOnAllSpaces
     self.resultOrder = resultOrder
     self.textScale = textScale
     self.displayTarget = displayTarget
     self.panelWidth = panelWidth
+    self.panelRows = panelRows
     self.showDelayMs = showDelayMs
     self.hoverSelect = hoverSelect
     self.scrollSelect = scrollSelect
     self.reopenWindowlessApps = reopenWindowlessApps
     self.raiseOnlyChosenWindow = raiseOnlyChosenWindow
+    self.autoFocusSingleCandidate = autoFocusSingleCandidate
     self.numberJump = numberJump
     self.numberReorder = numberReorder
     self.numberScope = numberScope
@@ -190,6 +200,9 @@ struct ValidConfiguration: Equatable, Sendable {
   var windowlessAppMode: DisplayMode?
   var appearanceMode: AppearanceMode?
   var romajiScope: RomajiScope?
+  /// The input source ID selected while the panel is up. Nil means
+  /// absent, which means off.
+  var forcedInputSource: String?
   var launchAtLogin: Bool?
   /// Whether each launch's log lines are kept on disk. Nil means absent,
   /// which means on.
@@ -204,6 +217,9 @@ struct ValidConfiguration: Equatable, Sendable {
   /// Whether subsequence queries match as well as substrings. Nil means
   /// absent, which means on.
   var fuzzyMatchEnabled: Bool?
+  /// Whether the list also reads windows on desktops no display is
+  /// showing. Nil means absent, which means off.
+  var listWindowsOnAllSpaces: Bool?
   /// The raw ordering word. Nil means absent, which means "mru".
   /// Kept as a string like `updateChannel`; the enum lives with T018.
   var resultOrder: String?
@@ -219,6 +235,10 @@ struct ValidConfiguration: Equatable, Sendable {
   /// count; anything else falls back with a note instead of
   /// invalidating the file.
   var panelWidth: Double?
+  /// How many rows the panel shows before the list scrolls. Nil means
+  /// absent, which means 10. Only counts of 5 to 30 count; anything
+  /// else falls back with a note instead of invalidating the file.
+  var panelRows: Int?
   /// The panel show delay in milliseconds. Nil means absent, which
   /// means off. Zero reads as absent; past the maximum clamps to it
   /// with a note, and anything else unreadable falls back to the
@@ -236,6 +256,9 @@ struct ValidConfiguration: Equatable, Sendable {
   /// Whether taking a window row brings only that window forward.
   /// Nil means absent, which means off.
   var raiseOnlyChosenWindow: Bool?
+  /// Whether a filter that narrows to one row focuses that row.
+  /// Nil means absent, which means on.
+  var autoFocusSingleCandidate: Bool?
   /// Whether holding a modifier and pressing a row number jumps to
   /// that row. Nil means absent, which means off.
   var numberJump: Bool?
@@ -346,6 +369,9 @@ struct DecodedConfiguration: Equatable, Sendable {
   /// The fallback note when the panel width was present but invalid.
   /// Nil means absent or valid, which means nothing to report.
   var panelWidthIssue: String?
+  /// The fallback note when the panel row count was present but invalid.
+  /// Nil means absent or valid, which means nothing to report.
+  var panelRowsIssue: String?
   /// The fallback note when the show delay was present but invalid.
   /// Nil means absent or valid, which means nothing to report.
   var showDelayIssue: String?
@@ -485,9 +511,11 @@ extension AppConfiguration {
       textScale: TextScaleLevel.effective(from: file),
       displayTarget: DisplayTarget.effective(from: file),
       panelWidth: PanelWidth.effective(from: file),
+      panelRows: PanelRows.effective(from: file),
       showDelayMs: ShowDelay.effective(file.showDelayMs).value,
       hoverSelect: file.hoverSelect ?? false,
       scrollSelect: file.scrollSelect ?? false,
+      autoFocusSingleCandidate: file.autoFocusSingleCandidate ?? true,
       numberJump: file.numberJump ?? false,
       numberReorder: file.numberReorder ?? false
     )
@@ -711,6 +739,7 @@ extension AppConfiguration {
     return checkedSearchSettings(dict, into: &config)
       .flatMap { checkedListing(dict, into: &config) }
       .flatMap { checkedDisplayTarget(dict, into: &config) }
+      .flatMap { checkedForcedInputSource(dict, into: &config) }
       .map { _ in config }
   }
 

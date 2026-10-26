@@ -138,7 +138,7 @@ final class HotkeyManager {
 
   // MARK: Lifecycle
 
-  init(onPress: @escaping @MainActor (HotkeyCombination, Duration?) -> Void) {
+  init(onPress: @escaping @MainActor (HotkeyCombination, Duration?, UInt16) -> Void) {
     self.onPress = onPress
   }
 
@@ -212,6 +212,7 @@ final class HotkeyManager {
       UnregisterEventHotKey(reference)
     }
     hotKeys.removeAll()
+    keyCodeByEventID.removeAll()
     refusedDetails = []
     if let eventHandler {
       RemoveEventHandler(eventHandler)
@@ -228,13 +229,24 @@ final class HotkeyManager {
   /// `fileprivate` because the C callback below is a free function — it
   /// cannot be a method, having nowhere to keep a `self` — and free
   /// functions are outside a `private` member's reach.
-  fileprivate let onPress: @MainActor (HotkeyCombination, Duration?) -> Void
+  fileprivate let onPress: @MainActor (HotkeyCombination, Duration?, UInt16) -> Void
+
+  /// The key code stamped for this press, or the combination's usual
+  /// key when the id was not one this manager registered.
+  fileprivate func keyCode(for eventID: UInt32, combination: HotkeyCombination) -> UInt16 {
+    let code = keyCodeByEventID[eventID] ?? combination.keyCode
+    return UInt16(truncatingIfNeeded: code)
+  }
 
   // MARK: Private
 
   private var eventHandler: EventHandlerRef?
   /// Only the ones that were actually taken.
   private var hotKeys = [EventHotKeyRef]()
+  /// The physical key behind each registration. Carbon's press carries
+  /// the event id, not the key code, and a customized invocation is not
+  /// always Tab.
+  private var keyCodeByEventID = [UInt32: UInt32]()
   /// What the first `register()` achieved. Present from that call until
   /// `unregister()`, and the reason a repeat call need attempt nothing.
   private var registrationOutcome: HotkeyRegistrationOutcome?
@@ -265,6 +277,7 @@ final class HotkeyManager {
     )
     if status == noErr, let reference {
       hotKeys.append(reference)
+      keyCodeByEventID[binding.eventID] = binding.keyCode
       taken[binding.combination, default: []].append(binding.name)
     } else {
       refused[binding.combination, default: []].append((binding.name, status))
@@ -416,7 +429,8 @@ private func handleHotkeyEvent(
     return OSStatus(eventNotHandledErr)
   }
   MainActor.assumeIsolated {
-    manager.onPress(combination, delay)
+    let keyCode = manager.keyCode(for: identifier.id, combination: combination)
+    manager.onPress(combination, delay, keyCode)
   }
   return noErr
 }

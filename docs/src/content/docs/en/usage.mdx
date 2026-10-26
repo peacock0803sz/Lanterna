@@ -109,6 +109,12 @@ SKK dictionaries ship in EUC-JP, so the script converts the output to UTF-8. Ent
 A missing or broken dictionary falls back to kana-only matching. To turn kanji matches off, set `"romajiScope": "kana"` in `~/Library/Application Support/Lanterna/config.json`. Absent means `"kanji"`. Development and debug builds keep their own settings in `Lanterna/main/config.json` and `Lanterna/debug/config.json` respectively.
 :::
 
+### Force keyboard input source
+
+Lanterna reads the panel's keys before any input method does, so typing a query never goes through the IME. Tools that rewrite keys based on the selected input source still do, though. A Karabiner-Elements thumb-shift rule active only for a Japanese source, for example, turns `abc` into something else before Lanterna sees it.
+
+To avoid that, choose a source under **Force keyboard** in the Filter settings, or set `"forcedInputSource"` to its ID in `config.json`, such as `"com.apple.keylayout.ABC"`. Lanterna selects that source while the switcher is up and gives yours back when it closes or when Lanterna quits. If the switcher closes on a different source you picked by hand, that source stays. Absent means off.
+
 ## Window actions
 
 While the switcher is up, hold `Cmd` or `Opt` and press one of these keys to act on the chosen row. The switcher stays up and the list updates in place.
@@ -143,7 +149,7 @@ Panel Width in the same tab scales the panel from Narrow to Wide in five steps. 
 
 Show delay in the same tab waits before showing the panel, from 0 to 1000 milliseconds in steps of 50. At 0, shown as Off, the panel appears at once as before. With a wait set, letting go before it runs out switches without showing anything, and holding on opens the panel as usual. A new wait takes effect the next time the panel opens.
 
-Hover to select in the same tab moves the selection to the row under the pointer. Off by default; the choice follows the pointer once it is on. The panel never moves under a pointer that has not moved since it opened. Scroll to select moves the selection by scrolling instead of scrolling the view, and the view follows the selection. Off by default. Clicking a row picks it and switches to it with either switch off or on. Number jump in the same tab jumps to a row by its number: hold left or right Command or Option, press the digits in order, and let go to switch. When both Command and Option are held, a `Cmd+Tab` panel switches on releasing Command, and an `Opt+Tab` panel switches on releasing whichever of the two goes up last. Row numbers show while the modifier is held. Off by default. Row numbers names which rows numbers cover: window rows alone, or every row. Reorder rows in the same tab moves the selected row with Shift and arrow keys inside grouped lists, keeping the order across restarts. Off by default.
+Hover to select in the same tab moves the selection to the row under the pointer. Off by default; the choice follows the pointer once it is on. The panel never moves under a pointer that has not moved since it opened. Scroll to select moves the selection by scrolling instead of scrolling the view, and the view follows the selection. Off by default. Clicking a row picks it and switches to it with either switch off or on. Number jump in the same tab jumps to a row by its number: hold left or right Command or Option, press the digits in order, and let go to switch. When both Command and Option are held, a `Cmd+Tab` panel switches on releasing Command, and an `Opt+Tab` panel switches on releasing whichever of the two goes up last. Row numbers show while the modifier is held. Off by default. Row numbers names which rows numbers cover: window rows alone, or every row. Reorder rows in the same tab moves the selected row with Shift and arrow keys inside grouped lists, keeping the order across restarts. Off by default. Auto-focus single match in the same tab focuses that row and closes the panel when filtering narrows the list to one row, after a short pause. On by default (`autoFocusSingleCandidate`).
 
 ## Switching to apps and windows
 

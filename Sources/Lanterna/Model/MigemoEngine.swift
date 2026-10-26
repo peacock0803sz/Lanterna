@@ -153,8 +153,26 @@ final class MigemoEngine {
     return String(cString: cString)
   }
 
+  /// The compiled pattern for the query, or nil when closed or when the
+  /// pattern cannot be read.
+  ///
+  /// Built once per query: every row, the height and the highlight ask
+  /// with the same query on each keystroke, and with a large dictionary
+  /// one short query costs milliseconds to build.
+  func regex(for query: String) -> NSRegularExpression? {
+    if let cached, cached.query == query {
+      return cached.regex
+    }
+    let regex = pattern(for: query).flatMap {
+      try? NSRegularExpression(pattern: $0, options: [.caseInsensitive])
+    }
+    cached = (query, regex)
+    return regex
+  }
+
   /// Closes the engine, freeing its resources. Safe to call twice.
   func close() {
+    cached = nil
     if let handle {
       migemo_close(handle)
       self.handle = nil
@@ -165,6 +183,9 @@ final class MigemoEngine {
 
   /// An open engine handle, or nil while closed.
   private var handle: OpaquePointer?
+
+  /// The last query asked of `regex(for:)` and its answer.
+  private var cached: (query: String, regex: NSRegularExpression?)?
 
   /// Loads the kana conversion tables, ignoring single failures.
   ///

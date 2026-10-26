@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     self.lanternaDirectory = lanternaDirectory
     self.tableDirectory = tableDirectory
     currentValues = initialValues
+    otherSpaces = OtherSpacesSetting(isOn: initialValues.listWindowsOnAllSpaces)
     self.savedLogs = savedLogs
     super.init()
   }
@@ -71,8 +72,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   let tableDirectory: URL?
   /// This run's saved launches, if their folder resolved at launch.
   let savedLogs: SavedLogs?
-  /// The values this run uses, kept current as the settings change.
-  var currentValues: SettingsValues
+  /// What the switcher, closer and minimizer read the setting through; they
+  /// outlive any one value and are not on the main actor.
+  let otherSpaces: OtherSpacesSetting
   /// The permission answers for this launch, shown in the settings.
   var launchPermissionState = PermissionState(
     accessibilityGranted: false,
@@ -81,6 +83,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   /// Held so the settings window stays up until the user closes it,
   /// the way the guide windows are held.
   var settingsWindow: SettingsWindow?
+
+  /// The values this run uses, kept current as the settings change.
+  var currentValues: SettingsValues {
+    didSet { otherSpaces.isOn = currentValues.listWindowsOnAllSpaces }
+  }
 
   func applicationDidFinishLaunching(_: Notification) {
     // App Nap suspends idle background processes, and this one sits idle
@@ -119,8 +126,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // press handler, and the manager by this delegate.
     let (panel, presenter) = makePanelAndPresenter(windowList: windowList)
     self.panel = panel
-    let hotkeys = HotkeyManager { combination, deliveryDelay in
-      presenter.handleHotkey(combination, deliveryDelay: deliveryDelay)
+    let hotkeys = HotkeyManager { combination, deliveryDelay, keyCode in
+      presenter.handleHotkey(
+        combination,
+        deliveryDelay: deliveryDelay,
+        heldKeyCode: keyCode
+      )
     }
     self.hotkeys = hotkeys
     self.presenter = presenter
@@ -412,8 +423,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     // The live pass appends this process's own windows beside the
     // regular rows. Fixture and permission-empty lists stay as is.
-    let store = WindowListStore(gather: {
-      let snapshot = await WindowEnumerator().enumerateRegularApplicationsOffMainThread()
+    // The setting is read at pass time, so a toggle applies from the next
+    // pass without a relaunch.
+    let store = WindowListStore(gather: { [weak self] in
+      let reader = AXApplicationWindowReader(
+        includesOtherSpaces: self?.currentValues.listWindowsOnAllSpaces ?? false
+      )
+      let snapshot = await WindowEnumerator(reader: reader).enumerateRegularApplicationsOffMainThread()
       return snapshot.includingOwnWindows(OwnWindows.items(
         prospects: OwnWindows.currentProspects(),
         owner: OwnWindows.currentOwner()

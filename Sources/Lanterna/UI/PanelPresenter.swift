@@ -1,6 +1,9 @@
+import AppKit
 import CoreGraphics
 import Darwin
 import Logging
+
+// MARK: - PanelPresenter
 
 /// Decides when the panel goes up, and writes down what each press cost.
 @MainActor
@@ -34,7 +37,21 @@ final class PanelPresenter {
     showDelaySleep: @escaping @MainActor (Duration) async -> Void = { duration in
       try? await Task.sleep(for: duration)
     },
+    invocationKeyIsDown: @escaping @MainActor (UInt16) -> Bool = { keyCode in
+      CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(keyCode))
+    },
+    invocationRepeatTiming: @escaping @MainActor () -> InvocationKeyRepeat.Timing = {
+      InvocationKeyRepeat.timing(
+        initialDelay: .seconds(NSEvent.keyRepeatDelay),
+        interval: .seconds(NSEvent.keyRepeatInterval)
+      )
+    },
+    invocationRepeatSleep: @escaping @MainActor (Duration) async -> Void = { duration in
+      try? await Task.sleep(for: duration)
+    },
     switcher: any WindowSwitching = LiveWindowSwitcher(),
+    closer: any WindowClosing = LiveWindowCloser(),
+    minimizer: any WindowMinimizing = LiveWindowMinimizer(),
     tracker: MRUTracker = MRUTracker()
   ) {
     self.surface = surface
@@ -55,7 +72,12 @@ final class PanelPresenter {
     self.keyStatusWatchInterval = keyStatusWatchInterval
     self.showDelayMs = showDelayMs
     self.showDelaySleep = showDelaySleep
+    self.invocationKeyIsDown = invocationKeyIsDown
+    self.invocationRepeatTiming = invocationRepeatTiming
+    self.invocationRepeatSleep = invocationRepeatSleep
     self.switcher = switcher
+    self.closer = closer
+    self.minimizer = minimizer
     self.tracker = tracker
     keyCommands.onRowOrderChanged = { [weak self] order in self?.didReorderRows(order) }
   }
@@ -111,6 +133,17 @@ final class PanelPresenter {
     }
   )
 
+  /// The hold that walks the selection after Carbon's one press.
+  ///
+  /// `lazy` because the tick reaches back into this object, the way the
+  /// show-delay hold above does.
+  lazy var invocationRepeatClock = InvocationRepeatClock(
+    sleep: invocationRepeatSleep,
+    onTick: { [weak self] in
+      self?.advanceInvocationRepeat()
+    }
+  )
+
   /// How long the key-status watch waits between looks (`KeyStatusWatch`'s
   /// number, injected so a test need not wait a real one out), handed on
   /// to the way out, which is built beside the presenter.
@@ -124,9 +157,29 @@ final class PanelPresenter {
   /// wait a real one out.
   let showDelaySleep: @MainActor (Duration) async -> Void
 
+  /// Whether the invocation key is physically down. Asked on each
+  /// repeat tick. Injected because a test holds no real key.
+  let invocationKeyIsDown: @MainActor (UInt16) -> Bool
+
+  /// The user's key-repeat delay and interval, read when a hold arms.
+  let invocationRepeatTiming: @MainActor () -> InvocationKeyRepeat.Timing
+
+  /// How a hold waits between ticks. Injected so a test opens one tick.
+  let invocationRepeatSleep: @MainActor (Duration) async -> Void
+
+  /// The physical key of the invocation press now being repeated.
+  var invocationRepeatKeyCode: UInt16 = 0
+
+  /// When that key went down. Set with the key code on every press.
+  var invocationRepeatPressedAt = ContinuousClock.now
+
   /// What commits take. Through to the way out, which owns the list the
   /// target is read off and is built beside the presenter.
   let switcher: any WindowSwitching
+
+  /// What the close and minimize keys send, through to the operations.
+  let closer: any WindowClosing
+  let minimizer: any WindowMinimizing
 
   /// What commits and appearances consult for the order rows are drawn in,
   /// owned here so recording and sorting share one memory.
@@ -238,6 +291,24 @@ final class PanelPresenter {
   /// appearance sets it as it goes up.
   private(set) var activeSwitcher = SwitcherIdentity.main
 
+  /// Taken while the panel is up, given back on every way out and at quit.
+  /// The settings set its target; a change lands at the next appearance.
+  let inputSourceLock = InputSourceLock()
+
+  /// Whether a filter that narrows to one row focuses that row.
+  /// On unless the setting says otherwise. A change lands on the
+  /// live filter at once.
+  var autoFocusSingleCandidate = true {
+    didSet { keyCommands.autoFocusSingleCandidate = autoFocusSingleCandidate }
+  }
+
+  /// How long that one row has to stay one row. Tests replace the sleep.
+  var singleCandidateSleep: @MainActor (Duration) async -> Void = { duration in
+    try? await Task.sleep(for: duration)
+  } {
+    didSet { keyCommands.singleCandidateSleep = singleCandidateSleep }
+  }
+
   /// The main switcher's resolved list settings, read off the scope,
   /// display mode, and grouping fields. Computed so they never drift
   /// apart: every staging of a legacy field lands here with it.
@@ -328,19 +399,24 @@ final class PanelPresenter {
   /// which is the keystroke the user reaches for anyway while the key is
   /// still down.
   ///
-  /// Nothing here turns a press away for arriving too soon after the last
-  /// one. Holding the key down does not produce a stream of presses: three
-  /// seconds on Cmd+Tab yielded exactly one. That was measured while this
-  /// method could only put the panel up, so a repeat would have shown as a
-  /// second panel rather than as a flicker, and the reading cannot be a
-  /// toggle racing itself. A suppression window would have nothing to
-  /// suppress, at the price of a stored instant and a threshold.
+  /// Nothing here turns a Carbon press away for arriving too soon after
+  /// the last one. Carbon still delivers one hotkey event per physical
+  /// press. A three-second hold produced exactly one while this method
+  /// could only put the panel up, so the reading cannot be a toggle
+  /// racing itself. The hold is walked by the repeat clock once the
+  /// panel is up, at the system repeat rate. That clock is not a second
+  /// Carbon event, and a suppression window on this method would still
+  /// have nothing to suppress.
   ///
   /// Synchronous on purpose. With a list already held the panel goes up in
   /// the same turn the press arrives, so the reading below starts where the
   /// press does and there is no ordering between a press and its panel to
   /// reason about.
-  func handleHotkey(_ combination: HotkeyCombination, deliveryDelay: Duration?) {
+  func handleHotkey(
+    _ combination: HotkeyCombination,
+    deliveryDelay: Duration?,
+    heldKeyCode: UInt16? = nil
+  ) {
     // Read before anything else, because both questions below are put to
     // the window server rather than answered in this process. A span begun
     // after them would leave out work this process is answerable for, and
@@ -356,7 +432,8 @@ final class PanelPresenter {
       return
     }
     if surface.isPresented {
-      handlePressWhilePresented(combination)
+      rememberInvocationKey(combination, heldKeyCode: heldKeyCode, startedAt: startedAt, deliveryDelay: deliveryDelay)
+      handlePressWhilePresented(combination, at: startedAt)
       return
     }
     // The press comes in through Carbon and the release through the tap,
@@ -397,6 +474,7 @@ final class PanelPresenter {
     } else {
       commitOnCommand = true
     }
+    rememberInvocationKey(combination, heldKeyCode: heldKeyCode, startedAt: startedAt, deliveryDelay: deliveryDelay)
     // A press is already waiting for the first list and is the one that
     // will put the panel up. The panel is not up yet, so without this a
     // second press would take the same path again and two would arrive.
@@ -458,6 +536,7 @@ final class PanelPresenter {
     if !commitOnCommand, lastModifierFlags.contains(.maskAlternate) {
       return
     }
+    disarmInvocationRepeat()
     keyCommands.resetNumberInput()
     guard !keyCommands.isFilteringActive else { return }
     wayOut.commitOnCommandRelease(naming: selection.chosenID, since: startedAt, filter: keyCommands.filterSummary())
@@ -488,6 +567,7 @@ final class PanelPresenter {
       return
     }
     guard !lastModifierFlags.contains(.maskCommand) else { return }
+    disarmInvocationRepeat()
     keyCommands.resetNumberInput()
     guard !keyCommands.isFilteringActive else { return }
     wayOut.commitOnOptionRelease(naming: selection.chosenID, since: startedAt, filter: keyCommands.filterSummary())
@@ -495,8 +575,14 @@ final class PanelPresenter {
 
   /// Switches the presented panel into filtering, stopping the release watch.
   func switchToFiltering() {
+    disarmInvocationRepeat()
     keyCommands.activateFiltering()
     commandWatch.stop()
+  }
+
+  /// Ends the hold. Safe when none is armed.
+  func disarmInvocationRepeat() {
+    invocationRepeatClock.cancel()
   }
 
   // MARK: Private
@@ -564,6 +650,16 @@ final class PanelPresenter {
   /// Whether the delay holds no press back: the ordinary path.
   private var pendingShowHoldIsOff: Bool {
     showDelay == nil
+  }
+
+  /// Whether a tick may still move the selection. The same pair the
+  /// next Carbon press would ask before it moved rather than closed,
+  /// plus the panel still being up and not filtering.
+  private var invocationRepeatStillWalking: Bool {
+    surface.isPresented
+      && !keyCommands.isFilteringActive
+      && closesOnCommandRelease()
+      && commandWatch.isLooking
   }
 
   /// Answers a release for the waits, when the wait's commit key matches
@@ -789,9 +885,13 @@ final class PanelPresenter {
   /// states differ from the first in one of them each, and both are
   /// read again on every press because either can have changed
   /// since the last.
-  private func handlePressWhilePresented(_ combination: HotkeyCombination) {
+  private func handlePressWhilePresented(
+    _ combination: HotkeyCombination,
+    at startedAt: ContinuousClock.Instant
+  ) {
     let pressMovesTheSelection = closesOnCommandRelease() && commandWatch.isLooking
     guard pressMovesTheSelection || combination == .filter else {
+      disarmInvocationRepeat()
       wayOut.takeDown(because: combination.name)
       return
     }
@@ -799,9 +899,13 @@ final class PanelPresenter {
     case .forward,
          .parallelForward:
       selection.moveToNext()
+      armInvocationRepeat(for: combination, at: startedAt)
+
     case .reverse,
          .parallelReverse:
       selection.moveToPrevious()
+      armInvocationRepeat(for: combination, at: startedAt)
+
     case .filter:
       switchToFiltering()
     }
@@ -891,6 +995,9 @@ final class PanelPresenter {
     // next change.
     lastModifierFlags = modifierFlags()
     pushNumberedRows()
+    // Before the keys, so the first keystroke already arrives under the
+    // forced source.
+    inputSourceLock.engage()
     let becameKey = surface.takeKeys()
     wayOut.nowShowing(ordered, startedAt: startedAt)
     let measurement = HotkeyMeasurement(
@@ -912,6 +1019,140 @@ final class PanelPresenter {
     if closesOnCommandRelease(), !keyCommands.isFilteringActive {
       commandWatch.start()
     }
+    // The reading's own figure, not a second clock read: every read
+    // advances an injected clock, and the way out times from the next one.
+    armInvocationRepeat(
+      for: combinationToRepeat(combination, replay: replay),
+      at: startedAt + measurement.elapsed
+    )
   }
 
+  /// Remembers which physical key this press used, so the repeat polls
+  /// that key and not whatever the combination is usually bound to, and
+  /// when it went down, so the hold ages from that keydown.
+  private func rememberInvocationKey(
+    _ combination: HotkeyCombination,
+    heldKeyCode: UInt16?,
+    startedAt: ContinuousClock.Instant,
+    deliveryDelay: Duration?
+  ) {
+    // The keydown happened before Carbon handed the press over.
+    invocationRepeatPressedAt = startedAt - (deliveryDelay ?? .zero)
+    if let heldKeyCode {
+      invocationRepeatKeyCode = heldKeyCode
+    } else {
+      invocationRepeatKeyCode = UInt16(truncatingIfNeeded: combination.keyCode)
+    }
+  }
+
+  /// The invocation a hold should follow. A filter press anywhere in
+  /// the burst leaves the panel filtering, which does not walk.
+  /// Otherwise the last navigation press wins, because that is the key
+  /// still down.
+  private func combinationToRepeat(
+    _ first: HotkeyCombination,
+    replay: [HotkeyCombination]
+  ) -> HotkeyCombination {
+    let sequence = [first] + replay
+    if sequence.contains(where: { $0.repeatRole == .filter }) {
+      return .filter
+    }
+    return sequence.last(where: { $0.repeatRole != .filter }) ?? first
+  }
+
+  /// Arms a hold, or drops one when this press does not walk.
+  private func armInvocationRepeat(
+    for combination: HotkeyCombination,
+    at instant: ContinuousClock.Instant
+  ) {
+    guard
+      InvocationKeyRepeat.shouldArm(
+        role: combination.repeatRole,
+        panelStaysUpWalking: invocationRepeatStillWalking
+      )
+    else {
+      disarmInvocationRepeat()
+      return
+    }
+    let timing = invocationRepeatTiming()
+    // Delivery and any show delay are already inside the time since the
+    // keydown, so the first tick waits only what is left.
+    let remaining = InvocationKeyRepeat.timing(
+      initialDelay: timing.initialDelay - (instant - invocationRepeatPressedAt),
+      interval: timing.interval
+    )
+    invocationRepeatClock.arm(after: remaining.initialDelay, every: remaining.interval)
+  }
+
+  /// One repeat tick. The decision is `InvocationKeyRepeat`. This only
+  /// reads the keyboard and moves the selection, or drops the hold.
+  private func advanceInvocationRepeat() {
+    let flags = modifierFlags()
+    let direction = InvocationKeyRepeat.directionWhileHeld(
+      bindings: invocationRepeatBindings(),
+      keyCode: invocationRepeatKeyCode,
+      held: HeldModifiers(
+        shift: flags.contains(.maskShift),
+        control: flags.contains(.maskControl),
+        option: flags.contains(.maskAlternate),
+        command: flags.contains(.maskCommand)
+      )
+    )
+    switch InvocationKeyRepeat.tick(
+      keyIsDown: invocationKeyIsDown(invocationRepeatKeyCode),
+      panelStillWalking: invocationRepeatStillWalking,
+      direction: direction
+    ) {
+    case .move(.forward):
+      selection.moveToNext()
+    case .move(.backward):
+      selection.moveToPrevious()
+    case .stop:
+      disarmInvocationRepeat()
+    }
+  }
+
+  /// The active switcher's forward and backward invocation keys.
+  private func invocationRepeatBindings() -> [InvocationKeyRepeat.Binding] {
+    let pairs: [(KeyBindingAction, InvocationKeyRepeat.Direction)] =
+      switch activeSwitcher {
+      case .main:
+        [(.show, .forward), (.showReverse, .backward)]
+      case .parallel:
+        [(.showParallel, .forward), (.showParallelReverse, .backward)]
+      }
+    return pairs.flatMap { action, direction in
+      keyBindings[action].map { key in
+        InvocationKeyRepeat.Binding(
+          keyCode: key.keyCode,
+          modifiers: HeldModifiers(
+            shift: key.modifiers.contains(.shift),
+            control: key.modifiers.contains(.control),
+            option: key.modifiers.contains(.option),
+            command: key.modifiers.contains(.command)
+          ),
+          direction: direction
+        )
+      }
+    }
+  }
+
+}
+
+// MARK: - HotkeyCombination + Repeat
+
+extension HotkeyCombination {
+  /// Which way a repeat of this invocation walks, if it walks at all.
+  var repeatRole: InvocationKeyRepeat.Role {
+    switch self {
+    case .forward,
+         .parallelForward:
+      .forward
+    case .reverse,
+         .parallelReverse:
+      .backward
+    case .filter:
+      .filter
+    }
+  }
 }

@@ -11,9 +11,10 @@ struct SampleWindowsTests {
   // MARK: Internal
 
   @Test
-  func fixtureExceedsThePanelHeightCap() {
+  func fixtureExceedsTheStandardRowLimit() {
     #expect(windows.count >= 15)
-    #expect(PanelMetrics.height(rowCount: windows.count) == PanelMetrics.maximumHeight)
+    #expect(windows.count > PanelRows.standard.count)
+    #expect(PanelMetrics.height(rowCount: windows.count) == 372)
   }
 
   @Test

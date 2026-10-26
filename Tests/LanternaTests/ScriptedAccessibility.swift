@@ -34,6 +34,8 @@ final class ScriptedAccessibility: @unchecked Sendable {
   private(set) var operated = [ObjectIdentifier]()
 
   var windowsError = AXError.success
+  /// Windows the list leaves out and the probe answers with.
+  var otherSpaceIndices = Set<Int>()
   /// Answers a list that is not a list.
   var malformedList = false
   /// Answers `nil` to fall through to a successful fetch of `100 + index`.
@@ -69,31 +71,39 @@ final class ScriptedAccessibility: @unchecked Sendable {
 
   func switcher() -> LiveWindowSwitcher {
     LiveWindowSwitcher(
-      createApplication: { [self] pid in
-        createPIDs.append(pid)
-        return application
-      },
-      setMessagingTimeout: { [self] element, _ in
-        prepared.append(ObjectIdentifier(element))
-        if element === application {
-          return timeoutResult
-        }
-        guard let index = windows.firstIndex(where: { $0 === element }) else {
-          return .success
-        }
-        return prepareErrors[index] ?? .success
-      },
-      copyWindows: { [self] _ in
-        clock = clock.advanced(by: listCost)
-        return malformedList ? (windowsError, nil) : (windowsError, windows)
-      },
-      copyWindowID: { [self] element in
-        guard let index = windows.firstIndex(where: { $0 === element }) else {
-          return (.illegalArgument, 0)
-        }
-        clock = clock.advanced(by: idCost)
-        return idAnswers[index] ?? (.success, CGWindowID(100 + index))
-      },
+      resolver: WindowElementResolver(
+        createApplication: { [self] pid in
+          createPIDs.append(pid)
+          return application
+        },
+        setMessagingTimeout: { [self] element, _ in
+          prepared.append(ObjectIdentifier(element))
+          if element === application {
+            return timeoutResult
+          }
+          guard let index = windows.firstIndex(where: { $0 === element }) else {
+            return .success
+          }
+          return prepareErrors[index] ?? .success
+        },
+        copyWindows: { [self] _ in
+          clock = clock.advanced(by: listCost)
+          let listed = windows.indices.filter { !otherSpaceIndices.contains($0) }.map { windows[$0] }
+          return malformedList ? (windowsError, nil) : (windowsError, listed)
+        },
+        copyWindowID: { [self] element in
+          guard let index = windows.firstIndex(where: { $0 === element }) else {
+            return (.illegalArgument, 0)
+          }
+          clock = clock.advanced(by: idCost)
+          return idAnswers[index] ?? (.success, CGWindowID(100 + index))
+        },
+        probesOtherSpaces: { true },
+        probeWindows: { [self] _, _, _ in
+          otherSpaceIndices.sorted().map { ProbedWindow(element: windows[$0], windowID: CGWindowID(100 + $0)) }
+        },
+        now: { [self] in clock }
+      ),
       activateApplication: { [self] pid in
         operationNames.append("activate")
         activatePIDs.append(pid)

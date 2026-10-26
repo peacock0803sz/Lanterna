@@ -21,6 +21,7 @@ struct SettingsValues: Equatable, Sendable {
     exclusions: [],
     shortcutMemoryLength: 5,
     fuzzyMatchEnabled: true,
+    listWindowsOnAllSpaces: false,
     resultOrder: .mru,
     textScale: .standard,
     displayTarget: .primary,
@@ -28,12 +29,14 @@ struct SettingsValues: Equatable, Sendable {
     scrollSelect: false,
     reopenWindowlessApps: false,
     raiseOnlyChosenWindow: false,
+    autoFocusSingleCandidate: true,
     numberJump: false,
     numberReorder: false,
     numberScope: .windows,
     hintsMode: .prefix,
     rowOrder: .none,
     panelWidth: .standard,
+    panelRows: .standard,
     showDelayMs: nil,
     windowScope: .allApps,
     grouping: GroupingPolicy(),
@@ -47,6 +50,8 @@ struct SettingsValues: Equatable, Sendable {
   var appearanceMode: AppearanceMode
   var displayModes: DisplayModes
   var romajiScope: RomajiScope
+  /// The input source ID selected while the panel is up. Nil means off.
+  var forcedInputSource: String?
   /// Whether Lanterna checks for newer releases. Absent in the file means off.
   var updateCheckEnabled: Bool
   /// Which releases the check covers. Absent in the file means stable only.
@@ -64,6 +69,9 @@ struct SettingsValues: Equatable, Sendable {
   /// Whether subsequence queries match as well as substrings. Absent in
   /// the file means on.
   var fuzzyMatchEnabled: Bool
+  /// Whether the list also reads windows on desktops no display is
+  /// showing. Absent in the file means off.
+  var listWindowsOnAllSpaces: Bool
   /// The ordering the narrowed rows draw in. Absent in the file means
   /// recent use first.
   var resultOrder: SearchOrdering
@@ -85,7 +93,9 @@ struct SettingsValues: Equatable, Sendable {
   /// Whether taking a window row brings only that window forward.
   /// Absent in the file means off.
   var raiseOnlyChosenWindow: Bool
-
+  /// Whether a filter that narrows to one row focuses that row.
+  /// Absent in the file means on.
+  var autoFocusSingleCandidate: Bool
   /// Whether holding a modifier and pressing a row number jumps to
   /// that row. Absent in the file means off.
   var numberJump: Bool
@@ -104,6 +114,9 @@ struct SettingsValues: Equatable, Sendable {
   /// The panel width step. Absent in the file means the standard
   /// step, the current width.
   var panelWidth: PanelWidth
+  /// How many rows the panel shows before the list scrolls. Absent in
+  /// the file means the standard limit.
+  var panelRows: PanelRows
   /// The panel show delay in milliseconds. Nil means off.
   var showDelayMs: Double?
   /// Which applications' rows each appearance starts on. Absent in the
@@ -156,6 +169,7 @@ struct SettingsValues: Equatable, Sendable {
       appearanceMode: AppearanceMode.effective(from: config),
       displayModes: DisplayModes.effective(from: config),
       romajiScope: RomajiScope.effective(from: config),
+      forcedInputSource: config.forcedInputSource,
       updateCheckEnabled: config.updateCheckEnabled ?? false,
       updateChannel: UpdateChannel(rawValue: config.updateChannel ?? "stable") ?? .stable,
       launchAtLogin: config.launchAtLogin ?? false,
@@ -163,6 +177,7 @@ struct SettingsValues: Equatable, Sendable {
       exclusions: config.exclusions ?? [],
       shortcutMemoryLength: config.shortcutMemoryLength ?? 5,
       fuzzyMatchEnabled: config.fuzzyMatchEnabled ?? true,
+      listWindowsOnAllSpaces: config.listWindowsOnAllSpaces ?? false,
       resultOrder: SearchOrdering.effective(from: config),
       textScale: TextScaleLevel.effective(from: config),
       displayTarget: DisplayTarget.effective(from: config),
@@ -170,12 +185,14 @@ struct SettingsValues: Equatable, Sendable {
       scrollSelect: config.scrollSelect ?? false,
       reopenWindowlessApps: config.reopenWindowlessApps ?? false,
       raiseOnlyChosenWindow: config.raiseOnlyChosenWindow ?? false,
+      autoFocusSingleCandidate: config.autoFocusSingleCandidate ?? true,
       numberJump: config.numberJump ?? false,
       numberReorder: config.numberReorder ?? false,
       numberScope: NumberScope.effective(from: config),
       hintsMode: HintsMode.effective(from: config),
       rowOrder: ManualRowOrder(entries: config.rowOrder),
       panelWidth: PanelWidth.effective(from: config),
+      panelRows: PanelRows.effective(from: config),
       showDelayMs: ShowDelay.effective(config.showDelayMs).value,
       windowScope: config.windowScope ?? .allApps,
       grouping: GroupingPolicy(
@@ -215,6 +232,7 @@ struct SettingsValues: Equatable, Sendable {
     config.fullscreenMode = displayModes.fullscreen
     config.windowlessAppMode = displayModes.windowlessApp
     config.romajiScope = romajiScope
+    config.forcedInputSource = forcedInputSource
     config.launchAtLogin = launchAtLogin
     config.updateCheckEnabled = updateCheckEnabled
     config.updateChannel = updateChannel.rawValue
@@ -231,6 +249,9 @@ struct SettingsValues: Equatable, Sendable {
     if fuzzyMatchEnabled != defaults.fuzzyMatchEnabled {
       config.fuzzyMatchEnabled = fuzzyMatchEnabled
     }
+    if listWindowsOnAllSpaces != defaults.listWindowsOnAllSpaces {
+      config.listWindowsOnAllSpaces = listWindowsOnAllSpaces
+    }
     if resultOrder != defaults.resultOrder {
       config.resultOrder = resultOrder.rawValue
     }
@@ -244,6 +265,9 @@ struct SettingsValues: Equatable, Sendable {
     if panelWidth != .standard {
       config.panelWidth = panelWidth.factor
     }
+    if panelRows != .standard {
+      config.panelRows = panelRows.count
+    }
     if hoverSelect != defaults.hoverSelect {
       config.hoverSelect = hoverSelect
     }
@@ -255,6 +279,9 @@ struct SettingsValues: Equatable, Sendable {
     }
     if raiseOnlyChosenWindow != defaults.raiseOnlyChosenWindow {
       config.raiseOnlyChosenWindow = raiseOnlyChosenWindow
+    }
+    if autoFocusSingleCandidate != defaults.autoFocusSingleCandidate {
+      config.autoFocusSingleCandidate = autoFocusSingleCandidate
     }
     if numberJump != defaults.numberJump {
       config.numberJump = numberJump

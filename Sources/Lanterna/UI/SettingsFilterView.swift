@@ -28,6 +28,18 @@ struct SettingsFilterView: View {
           )
         }
         .pickerStyle(.menu)
+        Picker(selection: $values.forcedInputSource) {
+          Text("Off").tag(String?.none)
+          ForEach(inputSourceChoices) { choice in
+            Text(choice.name).tag(Optional(choice.id))
+          }
+        } label: {
+          SettingsFormLabel(
+            title: "Force keyboard",
+            caption: "Switch to this input source while the panel is up."
+          )
+        }
+        .pickerStyle(.menu)
         LabeledContent {
           HStack {
             Text(capText)
@@ -92,6 +104,17 @@ struct SettingsFilterView: View {
   }
 
   // MARK: Private
+
+  /// What the input menu offers, plus the stored ID when it no longer
+  /// does, so the picker never shows blank. Read on each pass, which also
+  /// picks up a source enabled while the window is open.
+  private var inputSourceChoices: [InputSourceChoice] {
+    let choices = InputSourceLock.selectableSources()
+    guard let stored = values.forcedInputSource, !choices.contains(where: { $0.id == stored }) else {
+      return choices
+    }
+    return choices + [InputSourceChoice(id: stored, name: stored)]
+  }
 
   /// The cap as the stepper names it: a number, or off at zero.
   private var capText: String {

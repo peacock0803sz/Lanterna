@@ -11,39 +11,9 @@ enum WindowFilter {
 
   // MARK: Internal
 
-  /// The rows matching the query, in the order they arrived.
-  ///
-  /// Filtering keeps the order; it never sorts, so the MRU order the list
-  /// arrived in survives the narrowing. An empty query returns the input
-  /// unchanged, judging not one row, which is what keeps the show path
-  /// free of measurable work.
-  static func matching(_ query: String, against windows: [WindowItem]) -> [WindowItem] {
-    matching(query, against: windows, fuzzy: false)
-  }
-
-  /// The rows matching the query, in the order they arrived.
-  ///
-  /// With fuzzy off this is the legacy substring match; with fuzzy on a
-  /// subsequence match counts too. A substring always counts as a
-  /// subsequence, so fuzzy matching never narrows the legacy result.
-  /// An empty query returns the input unchanged either way.
-  static func matching(_ query: String, against windows: [WindowItem], fuzzy: Bool) -> [WindowItem] {
-    guard !query.isEmpty else { return windows }
-    if fuzzy {
-      return windows.filter { matchesSubsequence(query: query, target: combinedText(of: $0)) }
-    }
-    return windows.filter { matches(query: query, target: combinedText(of: $0)) }
-  }
-
   /// The text one row is judged by: app name, one space, window title.
   static func combinedText(of item: WindowItem) -> String {
     item.appName + " " + item.windowTitle
-  }
-
-  /// The single judgement, kept small so a later widening (such as romaji
-  /// search) only widens this body. Case-insensitive substring match.
-  static func matches(query: String, target: String) -> Bool {
-    target.range(of: query, options: .caseInsensitive) != nil
   }
 
   /// Whether the query's characters appear in the target in order, gaps
@@ -55,14 +25,15 @@ enum WindowFilter {
 
   /// The rows ordered for score mode, keeping the input order otherwise.
   ///
-  /// Contiguous substring matches come before scattered subsequence
-  /// matches; among those, an earlier match start comes first. Ties keep
+  /// Contiguous matches, through the engine when it is open, come before
+  /// scattered subsequence matches; among those, an earlier match start
+  /// comes first. Ties keep
   /// the order they arrived in (a stable sort through the index), so
   /// equal rows never change places. An empty query changes nothing.
-  static func scoreOrdered(_ rows: [WindowItem], query: String) -> [WindowItem] {
+  static func scoreOrdered(_ rows: [WindowItem], query: String, engine: MigemoEngine) -> [WindowItem] {
     rows.enumerated().map { entry in
       let target = combinedText(of: entry.element)
-      return (offset: entry.offset, quality: matchQuality(query: query, target: target), element: entry.element)
+      return (offset: entry.offset, quality: matchQuality(query: query, target: target, engine: engine), element: entry.element)
     }.sorted { left, right in
       if left.quality != right.quality {
         return left.quality < right.quality
@@ -106,15 +77,38 @@ enum WindowFilter {
     return ranges
   }
 
-  /// The rows a romaji query matches through the engine, in order.
+  /// The rows matching the query, in the order they arrived.
   ///
-  /// The single-pattern path: one pattern per query decides every row,
-  /// so conventional queries keep matching exactly when the engine's
-  /// pattern says so (covered by acceptance, not by a first pass). An
-  /// empty query returns the input unchanged, like the legacy path.
-  static func matching(_ query: String, against windows: [WindowItem], engine: MigemoEngine) -> [WindowItem] {
+  /// Filtering keeps the order; it never sorts, so the MRU order the list
+  /// arrived in survives the narrowing. An empty query returns the input
+  /// unchanged, judging not one row, which is what keeps the show path
+  /// free of measurable work. One pattern per query decides every row; a
+  /// closed engine falls back to a case-insensitive substring match. With
+  /// fuzzy on a subsequence match counts too, so fuzzy never narrows.
+  static func matching(
+    _ query: String,
+    against windows: [WindowItem],
+    engine: MigemoEngine,
+    fuzzy: Bool = false
+  ) -> [WindowItem] {
     guard !query.isEmpty else { return windows }
-    return windows.filter { matches(query: query, target: combinedText(of: $0), engine: engine) }
+    return windows.filter {
+      let target = combinedText(of: $0)
+      return matches(query: query, target: target, engine: engine)
+        || (fuzzy && matchesSubsequence(query: query, target: target))
+    }
+  }
+
+  /// The ranges a row highlights: the contiguous matches, or under fuzzy
+  /// each query character in order when nothing matched contiguously.
+  static func highlightRanges(
+    query: String,
+    in text: String,
+    engine: MigemoEngine,
+    fuzzy: Bool
+  ) -> [Range<String.Index>] {
+    let contiguous = matchedRanges(query: query, in: text, engine: engine)
+    return contiguous.isEmpty && fuzzy ? subsequenceRanges(query: query, in: text) : contiguous
   }
 
   /// Whether one row matches a romaji query through the engine.
@@ -130,9 +124,9 @@ enum WindowFilter {
   /// falls back to a literal match and never fails the filter.
   static func matchedRanges(query: String, in text: String, engine: MigemoEngine) -> [Range<String.Index>] {
     guard !query.isEmpty else { return [] }
-    if let pattern = engine.pattern(for: query) {
-      if let ranges = regexRanges(pattern: pattern, in: text) {
-        return ranges
+    if engine.isOpen {
+      if let regex = engine.regex(for: query) {
+        return ranges(of: regex, in: text)
       }
       if let literal = regexRanges(pattern: MigemoEngine.escapedLiteral(query), in: text) {
         return literal
@@ -168,8 +162,8 @@ enum WindowFilter {
 
   /// How one row ranks: contiguous matches before scattered ones, then
   /// by where the match starts. Rows no matcher judges rank last.
-  private static func matchQuality(query: String, target: String) -> (contiguous: Int, start: Int) {
-    if let first = matchedRanges(query: query, in: target).first {
+  private static func matchQuality(query: String, target: String, engine: MigemoEngine) -> (contiguous: Int, start: Int) {
+    if let first = matchedRanges(query: query, in: target, engine: engine).first {
       return (0, target.distance(from: target.startIndex, to: first.lowerBound))
     }
     if let first = subsequenceRanges(query: query, in: target).first {
@@ -185,6 +179,11 @@ enum WindowFilter {
     guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
       return nil
     }
+    return ranges(of: regex, in: text)
+  }
+
+  /// Every range one compiled expression matches in the text.
+  private static func ranges(of regex: NSRegularExpression, in text: String) -> [Range<String.Index>] {
     let full = NSRange(text.startIndex..., in: text)
     return regex.matches(in: text, range: full).compactMap { Range($0.range, in: text) }
   }

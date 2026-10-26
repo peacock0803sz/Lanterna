@@ -84,6 +84,12 @@ extension AppConfiguration {
     case .failure(let error):
       return .failure(error)
     }
+    switch checkedOptionalBool(dict, key: "autoFocusSingleCandidate") {
+    case .success(let found):
+      config.autoFocusSingleCandidate = found
+    case .failure(let error):
+      return .failure(error)
+    }
     switch checkedOptionalBool(dict, key: "numberJump") {
     case .success(let found):
       config.numberJump = found
@@ -197,6 +203,21 @@ extension AppConfiguration {
     return .success(scope)
   }
 
+  /// Reads the optional forced input source. Any non-empty string is an
+  /// ID: whether it is installed is the system's to say at show time.
+  /// Anything else invalidates the whole file, like any other bad value.
+  static func checkedForcedInputSource(
+    _ dict: [String: Any],
+    into config: inout ValidConfiguration
+  ) -> Result<Void, ConfigDecodeError> {
+    guard let rawValue = dict["forcedInputSource"] else { return .success(()) }
+    guard let text = rawValue as? String, !text.isEmpty else {
+      return .failure(.invalidValue(key: "forcedInputSource"))
+    }
+    config.forcedInputSource = text
+    return .success(())
+  }
+
   /// Reads the three search-quality keys together, so the assembly stays
   /// small. The length bound is 0 to 5: the lower bound rides on the
   /// shared reader, the upper bound refuses the whole file, like any
@@ -218,6 +239,12 @@ extension AppConfiguration {
     switch checkedOptionalBool(dict, key: "fuzzyMatchEnabled") {
     case .success(let found):
       config.fuzzyMatchEnabled = found
+    case .failure(let error):
+      return .failure(error)
+    }
+    switch checkedOptionalBool(dict, key: "listWindowsOnAllSpaces") {
+    case .success(let found):
+      config.listWindowsOnAllSpaces = found
     case .failure(let error):
       return .failure(error)
     }
@@ -512,6 +539,8 @@ extension AppConfiguration {
       config.textScale = textScale
       let (panelWidth, panelWidthIssue) = checkedOptionalPanelWidth(dict)
       config.panelWidth = panelWidth
+      let (panelRows, panelRowsIssue) = checkedOptionalPanelRows(dict)
+      config.panelRows = panelRows
       let (showDelayMs, showDelayIssue) = checkedOptionalShowDelayMs(dict)
       config.showDelayMs = showDelayMs
       return .success(DecodedConfiguration(
@@ -520,6 +549,7 @@ extension AppConfiguration {
         keyBindingIssues: decodeIssues + resolveIssues,
         textScaleIssue: textScaleIssue,
         panelWidthIssue: panelWidthIssue,
+        panelRowsIssue: panelRowsIssue,
         showDelayIssue: showDelayIssue,
         deprecatedKeys: deprecatedKeys.filter { dict[$0] != nil }
       ))

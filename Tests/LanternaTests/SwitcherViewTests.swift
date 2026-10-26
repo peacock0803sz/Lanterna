@@ -35,7 +35,7 @@ struct SwitcherViewTests {
       filterActive: false
     ))
     let window = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: PanelMetrics.width, height: PanelMetrics.maximumHeight),
+      contentRect: NSRect(x: 0, y: 0, width: PanelMetrics.width, height: 400),
       styleMask: [],
       backing: .buffered,
       defer: false
@@ -62,7 +62,7 @@ struct SwitcherViewTests {
       textScale: level
     ))
     let window = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: PanelMetrics.width(for: level), height: PanelMetrics.maximumHeight),
+      contentRect: NSRect(x: 0, y: 0, width: PanelMetrics.width(for: level), height: 400),
       styleMask: [],
       backing: .buffered,
       defer: false

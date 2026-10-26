@@ -33,6 +33,18 @@ struct WindowSwitcherTests {
     #expect(peer.operated == [peer.identity(of: 1), peer.identity(of: 1)])
   }
 
+  /// A row for a window on another Space is not in the list, and is
+  /// found through the probe instead.
+  @Test
+  func aWindowOnAnotherSpaceResolvesThroughTheProbe() {
+    let peer = ScriptedAccessibility(windowCount: 2)
+    peer.otherSpaceIndices = [1]
+    let outcome = peer.switcher().switchTo(target())
+
+    #expect(outcome == .switched)
+    #expect(peer.operated == [peer.identity(of: 1), peer.identity(of: 1)])
+  }
+
   /// A missing row ends the take before anything is touched.
   @Test
   func anUnknownIDFailsWithoutTouchingAnything() {

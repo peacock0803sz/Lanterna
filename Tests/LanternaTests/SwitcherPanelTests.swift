@@ -316,6 +316,58 @@ struct SwitcherPanelTests {
     panel.dismiss()
   }
 
+  /// A list longer than the chosen limit stops at the limit's height, then
+  /// is fitted to the display it sits on, like the width.
+  @Test
+  func theRowLimitSetsTheContentHeight() throws {
+    let screen = try #require(NSScreen.screens.first)
+    let panel = panel()
+    let twelve = try #require(PanelRows(count: 12))
+    panel.panelRows = twelve
+    panel.present(windows: SampleWindows.make(count: 40), selecting: nil)
+    let expected = PanelMetrics.fittedHeight(
+      PanelMetrics.height(rowCount: 40, for: .standard, rows: twelve),
+      in: screen.visibleFrame.height
+    )
+    #expect(panel.contentRect(forFrameRect: panel.frame).height == expected)
+    panel.dismiss()
+  }
+
+  /// The limit is frozen at `present`, so changing it while the panel is
+  /// up waits for the next appearance.
+  @Test
+  func aLimitChangedWhileUpKeepsTheHeightThroughNarrowing() throws {
+    let screen = try #require(NSScreen.screens.first)
+    let panel = panel()
+    let twelve = try #require(PanelRows(count: 12))
+    panel.panelRows = twelve
+    let rows = SampleWindows.make(count: 40)
+    panel.present(windows: rows, selecting: nil)
+    panel.panelRows = try #require(PanelRows(count: 5))
+    panel.updateList(windows: rows, selecting: nil, query: "", cursor: 0, filterActive: false)
+    let expected = PanelMetrics.fittedHeight(
+      PanelMetrics.height(rowCount: 40, for: .standard, rows: twelve),
+      in: screen.visibleFrame.height
+    )
+    #expect(panel.contentRect(forFrameRect: panel.frame).height == expected)
+    panel.dismiss()
+  }
+
+  /// However many rows the limit asks for, neither the panel nor the note
+  /// grown onto it is taller than the display leaves room for.
+  @Test
+  func theLongestLimitAndTheNoteStayOnTheDisplay() throws {
+    let screen = try #require(NSScreen.screens.first)
+    let room = PanelMetrics.availableHeight(in: screen.visibleFrame.height)
+    let panel = panel()
+    panel.panelRows = try #require(PanelRows(count: 30))
+    panel.present(windows: SampleWindows.make(count: 40), selecting: nil, filterActive: true)
+    #expect(panel.contentRect(forFrameRect: panel.frame).height <= room)
+    panel.showNotice("Couldn't minimize")
+    #expect(panel.contentRect(forFrameRect: panel.frame).height <= room)
+    panel.dismiss()
+  }
+
   // MARK: Private
 
   private func panel(rowCount: Int = 3) -> SwitcherPanel {

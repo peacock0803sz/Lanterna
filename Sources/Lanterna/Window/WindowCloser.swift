@@ -1,5 +1,4 @@
 import ApplicationServices
-import PrivateAPIs
 
 // MARK: - WindowClosing
 
@@ -20,10 +19,10 @@ protocol WindowClosing: Sendable {
 /// Closes a window by pressing its close button.
 ///
 /// Resolving (row to element) is the shared resolver's: the target is what
-/// the appearance showed, and only the owning application's own window list
-/// is read. The last step is the closer's own — the close button, one level
-/// down, pressed the way a user presses it, so an application with unsaved
-/// changes shows its own dialog instead of being forced.
+/// the appearance showed, never a fresher list. The last step is the
+/// closer's own — the close button, one level down, pressed the way a user
+/// presses it, so an application with unsaved changes shows its own dialog
+/// instead of being forced.
 ///
 /// Every seam is a closure defaulting to the real call, so tests script
 /// answers no live application can be asked to give.
@@ -35,22 +34,7 @@ struct LiveWindowCloser: WindowClosing, Sendable {
   /// because which answer an application gives is precisely the behaviour
   /// being specified and no real application can be asked to give one.
   init(
-    createApplication: @escaping @Sendable (pid_t) -> AXUIElement = {
-      AXUIElementCreateApplication($0)
-    },
-    setMessagingTimeout: @escaping @Sendable (AXUIElement, Float) -> AXError = {
-      AXUIElementSetMessagingTimeout($0, $1)
-    },
-    copyWindows: @escaping @Sendable (AXUIElement) -> (AXError, [AXUIElement]?) = { application in
-      var value: CFTypeRef?
-      let error = AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &value)
-      return (error, value as? [AXUIElement])
-    },
-    copyWindowID: @escaping @Sendable (AXUIElement) -> (AXError, CGWindowID) = { element in
-      var windowID: CGWindowID = 0
-      let error = _AXUIElementGetWindow(element, &windowID)
-      return (error, windowID)
-    },
+    resolver: WindowElementResolver = WindowElementResolver(),
     copyChildren: @escaping @Sendable (AXUIElement) -> (AXError, [AXUIElement]?) = { element in
       var value: CFTypeRef?
       let error = AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &value)
@@ -66,13 +50,7 @@ struct LiveWindowCloser: WindowClosing, Sendable {
     },
     now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
   ) {
-    resolver = WindowElementResolver(
-      createApplication: createApplication,
-      setMessagingTimeout: setMessagingTimeout,
-      copyWindows: copyWindows,
-      copyWindowID: copyWindowID,
-      now: now
-    )
+    self.resolver = resolver
     self.copyChildren = copyChildren
     self.attributeString = attributeString
     self.press = press

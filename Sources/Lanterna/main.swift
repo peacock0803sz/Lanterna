@@ -98,6 +98,14 @@ if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .u
         context: ["path": .string(url.path), "issue": .string("\(panelWidthIssue)")]
       ))
     }
+    if let panelRowsIssue = decoded.panelRowsIssue {
+      Diagnostics.writeLine(LogLine(
+        .warning,
+        .config,
+        "\(panelRowsIssue): \(url.path)",
+        context: ["path": .string(url.path), "issue": .string("\(panelRowsIssue)")]
+      ))
+    }
     if let showDelayIssue = decoded.showDelayIssue {
       Diagnostics.writeLine(LogLine(
         .warning,

@@ -175,6 +175,7 @@ struct PanelExitMeasurement: Sendable {
       case .commitKey(.keypadEnter): "keypad Enter"
       case .commitKey(.custom(let code)): "key \(code)"
       case .commitKey(.click): "Click"
+      case .commitKey(.singleCandidate): "single candidate"
       // Spelled out rather than written `⌘.`: a full stop is a regular
       // expression's wildcard, and one at the end of a line of prose
       // reads as punctuation.

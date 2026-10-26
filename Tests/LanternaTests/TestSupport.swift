@@ -144,6 +144,8 @@ struct Fixture {
     heldModifiers: CGEventFlags = .maskCommand,
     commandWatchInterval: Duration = .milliseconds(1),
     keyStatusWatchInterval: Duration = .milliseconds(1),
+    invocationKeyIsDown: @escaping @MainActor (UInt16) -> Bool = { _ in false },
+    invocationRepeatSleep: @escaping @MainActor (Duration) async -> Void = { _ in },
     switcher: FakeWindowSwitcher = FakeWindowSwitcher()
   ) {
     let windows = SampleWindows.make(count: entryCount)
@@ -157,6 +159,8 @@ struct Fixture {
       heldModifiers: heldModifiers,
       commandWatchInterval: commandWatchInterval,
       keyStatusWatchInterval: keyStatusWatchInterval,
+      invocationKeyIsDown: invocationKeyIsDown,
+      invocationRepeatSleep: invocationRepeatSleep,
       switcher: switcher
     )
   }
@@ -171,6 +175,8 @@ struct Fixture {
     heldModifiers: CGEventFlags = .maskCommand,
     commandWatchInterval: Duration = .milliseconds(1),
     keyStatusWatchInterval: Duration = .milliseconds(1),
+    invocationKeyIsDown: @escaping @MainActor (UInt16) -> Bool = { _ in false },
+    invocationRepeatSleep: @escaping @MainActor (Duration) async -> Void = { _ in },
     switcher: FakeWindowSwitcher = FakeWindowSwitcher()
   ) {
     let surface = FakeSurface()
@@ -199,6 +205,10 @@ struct Fixture {
       // Half a second per look would put every loss past any test's
       // patience. Shortened for the same reason as the watch above.
       keyStatusWatchInterval: keyStatusWatchInterval,
+      // A real repeat delay would move a watched panel after the
+      // assertion, and a real keyboard is not what these tests hold.
+      invocationKeyIsDown: invocationKeyIsDown,
+      invocationRepeatSleep: invocationRepeatSleep,
       switcher: switcher
     )
     self.surface = surface

@@ -49,7 +49,8 @@ final class SwitcherPanel: NSPanel {
       filterActive: content.filterActive,
       notice: false,
       for: textScale,
-      step: panelWidth
+      step: panelWidth,
+      rows: panelRows
     )
     super.init(
       contentRect: NSRect(
@@ -153,6 +154,12 @@ final class SwitcherPanel: NSPanel {
   /// is following.
   var panelWidth = PanelWidth.standard
 
+  /// How many rows the panel shows before the list scrolls, read at
+  /// launch from the config file. A change takes effect on the next
+  /// appearance, never on the one already up, for the reason the width
+  /// step's does.
+  var panelRows = PanelRows.standard
+
   /// Whether hovering a row moves the selection, read at launch from
   /// the config file. A change takes effect on the next appearance,
   /// never on the one already up.
@@ -197,6 +204,10 @@ final class SwitcherPanel: NSPanel {
   /// The width step the appearance on screen opened with. Frozen at
   /// `present` beside the text step, for the same reason.
   var appearanceWidth = PanelWidth.standard
+
+  /// The row limit the appearance on screen opened with. Frozen at
+  /// `present` beside the width step, for the same reason.
+  var appearanceRows = PanelRows.standard
 
   /// The failure note on screen now, if any. Remembered here so the panel
   /// knows whether the note's height is in its frame, and clearing gives
@@ -274,6 +285,25 @@ final class SwitcherPanel: NSPanel {
     false
   }
 
+  /// The visible height of the remembered screen, which the panel's
+  /// height is fitted to. Without a remembered screen it is unbounded;
+  /// the next placement resolves one.
+  var visibleHeight: CGFloat {
+    resolvedVisibleFrame?.height ?? .infinity
+  }
+
+  /// The visible area of the remembered screen, when there is one.
+  var resolvedVisibleFrame: NSRect? {
+    guard let index = resolvedScreenIndex else {
+      return nil
+    }
+    let screens = NSScreen.screens
+    guard screens.indices.contains(index) else {
+      return nil
+    }
+    return screens[index].visibleFrame
+  }
+
   override func scrollWheel(with event: NSEvent) {
     guard scrollSelect else {
       super.scrollWheel(with: event)
@@ -327,6 +357,7 @@ final class SwitcherPanel: NSPanel {
     noticeGrowth = 0
     appearanceScale = textScale
     appearanceWidth = panelWidth
+    appearanceRows = panelRows
     resolvedScreenIndex = assignedScreenIndex ?? resolveFreshIndex()
     hostingView.rootView.query = ""
     hostingView.rootView.cursor = 0
@@ -407,20 +438,17 @@ final class SwitcherPanel: NSPanel {
   func screensChanged() {
     guard assignedScreenIndex == nil, isPresented else { return }
     resolvedScreenIndex = resolveFreshIndex()
-    stayOnResolvedScreen()
+    refitToResolvedScreen()
   }
 
-  /// Holds the panel to one display and puts it there now: the width is
-  /// fitted to that display again from the step the appearance opened
+  /// Holds the panel to one display and puts it there now: the size is
+  /// fitted to that display again from the steps the appearance opened
   /// with, and the panel centres on it. The composite calls this after
   /// the displays have been rearranged.
   func place(onScreen index: Int) {
     assignedScreenIndex = index
     resolvedScreenIndex = index
-    let height = contentRect(forFrameRect: frame).height
-    let width = PanelMetrics.width(for: appearanceScale, step: appearanceWidth)
-    setContentSize(NSSize(width: fittedWidth(width), height: height))
-    stayOnResolvedScreen()
+    refitToResolvedScreen()
   }
 
   // `becomesKeyOnlyIfNeeded` is deliberately left alone. Its default is
@@ -472,14 +500,10 @@ final class SwitcherPanel: NSPanel {
   /// on a narrow display stays on screen. Without a remembered screen
   /// the width passes through; the next placement resolves one.
   func fittedWidth(_ width: CGFloat) -> CGFloat {
-    guard let index = resolvedScreenIndex else {
+    guard let visibleFrame = resolvedVisibleFrame else {
       return width
     }
-    let screens = NSScreen.screens
-    guard screens.indices.contains(index) else {
-      return width
-    }
-    return PanelMetrics.fittedWidth(width, in: screens[index].visibleFrame.width)
+    return PanelMetrics.fittedWidth(width, in: visibleFrame.width)
   }
 
   // MARK: Private

@@ -24,9 +24,11 @@ extension PanelPresenter {
       noteSwitchReturned: { [weak self] in self?.tracker.noteSwitchReturned() },
       onPanelGone: { [weak self] in
         self?.commandWatch.stop()
+        self?.disarmInvocationRepeat()
         self?.selection.end()
         self?.keyCommands.endFiltering()
         self?.operations.end()
+        self?.inputSourceLock.release()
       }
     )
   }
@@ -41,10 +43,10 @@ extension PanelPresenter {
         self?.replacePresentedList(renewed, choosingWhere: anchor)
       },
       refresh: { [weak self] previous in await self?.freshList(carrying: previous) },
-      closer: LiveWindowCloser(),
+      closer: closer,
       quitter: LiveApplicationQuitter(),
       hider: LiveApplicationHider(),
-      minimizer: LiveWindowMinimizer(),
+      minimizer: minimizer,
       ownProcessIdentifier: ownProcessIdentifier,
       writeLine: writeLine,
       closeAfterEmptied: { [weak self] in self?.wayOut.closeAfterEmptiedList(operation: .quitApplication) },

@@ -26,6 +26,11 @@
         "kanji"
       ]
     },
+    "forcedInputSource": {
+      "description": "The input source ID (such as \"com.apple.keylayout.ABC\") selected while\nthe panel is up; the user's own comes back when it goes. Absent means\noff. An empty string invalidates the whole file.",
+      "type": "string",
+      "minLength": 1
+    },
     "shortcutMemoryLength": {
       "description": "How many characters of a query the shortcut memory covers: a longer\nquery is neither recorded nor applied. 0 means off. Absent means 5.\nValues above 5 invalidate the whole file (mirrored by the Swift\nvalidation, which also enforces the upper bound).",
       "type": "integer",
@@ -33,6 +38,10 @@
     },
     "fuzzyMatchEnabled": {
       "description": "Whether the filter also matches subsequence queries, not only\nsubstrings. Absent means on.",
+      "type": "boolean"
+    },
+    "listWindowsOnAllSpaces": {
+      "description": "Whether the list also reads windows on desktops no display is\nshowing, which takes longer. Absent means off.",
       "type": "boolean"
     },
     "resultOrder": {
@@ -128,6 +137,10 @@
     },
     "raiseOnlyChosenWindow": {
       "description": "Whether taking a window row brings only that window forward, trying to\nleave the application's other windows where they were on every display.\nA workaround for the platform bringing another window of the same\napplication forward along with the chosen one. Absent means off.",
+      "type": "boolean"
+    },
+    "autoFocusSingleCandidate": {
+      "description": "Whether a filter that narrows to one row focuses that row and closes\nthe panel. Absent means on.",
       "type": "boolean"
     },
     "numberJump": {
@@ -1014,6 +1027,12 @@
       "description": "The panel width as a multiplier over the text-scaled width: one of\nthe allowed steps. Absent means 1.0 (the text-scaled width\nunchanged). The value allowlist lives in Swift, like `textScale`.",
       "type": "number"
     },
+    "panelRows": {
+      "description": "How many rows the panel shows before the list scrolls, 5 to 30.\nAbsent means 10. Anything else falls back to 10 with a note. The\nrange lives in Swift, like `panelWidth`'s steps.",
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 30
+    },
     "showDelayMs": {
       "description": "The panel show delay in milliseconds before the panel appears.\nAbsent or zero means off. Past 1000 clamps to it with a note, and\nanything else unreadable falls back to 150 with a note. The bounds\nlive in Swift, like `panelWidth`.",
       "type": "number"
@@ -1257,6 +1276,10 @@
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },
+            "panelRows": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
             "textScale": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
@@ -1297,7 +1320,15 @@
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },
+            "autoFocusSingleCandidate": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
             "fuzzyMatchEnabled": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "listWindowsOnAllSpaces": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },
@@ -1306,6 +1337,10 @@
               "deprecated": true
             },
             "romajiScope": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "forcedInputSource": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },
@@ -1577,6 +1612,10 @@
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },
+            "panelRows": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
             "textScale": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
@@ -1617,7 +1656,15 @@
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },
+            "autoFocusSingleCandidate": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
             "fuzzyMatchEnabled": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "listWindowsOnAllSpaces": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },
@@ -1626,6 +1673,10 @@
               "deprecated": true
             },
             "romajiScope": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "forcedInputSource": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },

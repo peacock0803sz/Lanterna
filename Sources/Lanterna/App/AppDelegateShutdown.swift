@@ -19,6 +19,9 @@ extension AppDelegate {
     if let line = SystemSwitcherShortcuts.summaryLine(restoring: restoreFailures) {
       Diagnostics.writeLine(LogLine(.error, .launch, line))
     }
+    // Next to the shortcuts for the same reason: a forced input source
+    // outlives the process that forced it.
+    presenter?.inputSourceLock.release()
     hotkeys?.unregister()
     windowList?.stop()
     // Before the monitor goes, so the last thing done to the tap is taking

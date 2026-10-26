@@ -52,6 +52,21 @@ extension AppConfiguration {
     return (factor, nil)
   }
 
+  /// Reads the optional panel-rows key leniently: absent means the
+  /// standard limit, a non-standard count in range wins, the standard
+  /// count reads as absent so an explicit 10 stays omitted on save, and
+  /// anything else falls back to standard with a note instead of
+  /// failing the file.
+  static func checkedOptionalPanelRows(
+    _ dict: [String: Any]
+  ) -> (value: Int?, issue: String?) {
+    guard let rawValue = dict["panelRows"] else { return (nil, nil) }
+    guard let count = jsonInt(rawValue), let rows = PanelRows(count: count) else {
+      return (nil, "panelRows is not a valid value; using \(PanelRows.standard.count)")
+    }
+    return (rows == .standard ? nil : count, nil)
+  }
+
   /// The lines for the keys read above, in any order: the encoder sorts
   /// every line by its key.
   static func displayEntries(_ config: ValidConfiguration) -> [String] {
@@ -61,6 +76,9 @@ extension AppConfiguration {
     }
     if let panelWidth = config.panelWidth {
       entries.append(encodedDouble(key: "panelWidth", value: panelWidth))
+    }
+    if let panelRows = config.panelRows {
+      entries.append(encodedInt(key: "panelRows", value: panelRows))
     }
     if let showDelayMs = config.showDelayMs {
       entries.append(encodedDouble(key: "showDelayMs", value: showDelayMs))

@@ -72,6 +72,8 @@ enum CommitKey: Equatable, Sendable {
   case custom(UInt16)
   /// A row click: the pointer's explicit choice, not a keystroke.
   case click
+  /// The filter narrowed to one row and the pause elapsed.
+  case singleCandidate
 }
 
 // MARK: - CancelKey

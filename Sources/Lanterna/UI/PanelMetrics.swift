@@ -5,7 +5,6 @@ enum PanelMetrics {
   static let width: CGFloat = 720
   static let rowHeight: CGFloat = 36
   static let verticalPadding: CGFloat = 6
-  static let maximumHeight: CGFloat = 400
 
   /// Extra height for the failure note. An estimate, for the reason the
   /// filter chrome's is.
@@ -14,8 +13,9 @@ enum PanelMetrics {
   /// Extra height for the band over a list narrowed to one application.
   static let scopeBandHeight: CGFloat = 32
 
-  /// The total margin kept clear on the sides, so a wide step on a
-  /// narrow display stays on screen. Mirrors the log window's margin.
+  /// The total margin kept clear on the sides and above and below, so
+  /// a wide or tall panel on a small display stays on screen. Mirrors
+  /// the log window's margin.
   static let screenMargin: CGFloat = 40
 
   /// Extra height for the filter chrome while filtering is on, whether the query
@@ -50,8 +50,9 @@ enum PanelMetrics {
     ).drawnRowCount
   }
 
-  /// Height for a given number of rows. The panel grows with its content until
-  /// the cap, past which the list scrolls instead of the panel growing.
+  /// Height for a given number of rows at the standard row limit. The
+  /// panel grows with its content until the limit, past which the list
+  /// scrolls instead of the panel growing.
   static func height(rowCount: Int) -> CGFloat {
     height(rowCount: rowCount, for: .standard)
   }
@@ -81,12 +82,30 @@ enum PanelMetrics {
     min(width, max(visibleWidth - screenMargin, 0))
   }
 
-  /// Height for a given number of rows at one step. The cap stays put
-  /// while the rows grow, so a large step scrolls sooner rather than
-  /// outgrowing the screen.
-  static func height(rowCount: Int, for scale: TextScaleLevel) -> CGFloat {
+  /// Fits a content height into a visible height, keeping the margin.
+  /// A fitting height passes through; only an overflow is cut. Never
+  /// drops below zero, like `fittedWidth`.
+  static func fittedHeight(_ height: CGFloat, in visibleHeight: CGFloat) -> CGFloat {
+    min(height, availableHeight(in: visibleHeight))
+  }
+
+  /// The most height a panel may take on a display with this visible
+  /// height. An unresolved display passes `.infinity` and so limits
+  /// nothing.
+  static func availableHeight(in visibleHeight: CGFloat) -> CGFloat {
+    max(visibleHeight - screenMargin, 0)
+  }
+
+  /// Height for a given number of rows at one step. The rows shown stop
+  /// at the row limit while the rows drawn grow, so the panel stops
+  /// growing and the list scrolls instead.
+  static func height(
+    rowCount: Int,
+    for scale: TextScaleLevel,
+    rows: PanelRows = .standard
+  ) -> CGFloat {
     precondition(rowCount >= 0, "rowCount must not be negative")
-    return min(CGFloat(rowCount) * rowHeight(for: scale) + verticalPadding * 2, maximumHeight)
+    return CGFloat(min(rowCount, rows.count)) * rowHeight(for: scale) + verticalPadding * 2
   }
 
   /// Extra height for the filter chrome at one step, scaled the way
@@ -109,18 +128,41 @@ enum PanelMetrics {
     (scopeBandHeight * scale.factor).rounded()
   }
 
-  /// The full content height at one step: rows plus chrome plus the
-  /// band and the note when they show, capped as one total so a large
-  /// step never outgrows the screen.
+  /// How far the frame may grow for the failure note: the note's own
+  /// height, less whatever the display has no room for.
+  static func noticeGrowth(
+    from height: CGFloat,
+    in visibleHeight: CGFloat,
+    for scale: TextScaleLevel
+  ) -> CGFloat {
+    min(noticeHeight(for: scale), max(availableHeight(in: visibleHeight) - height, 0))
+  }
+
+  /// Moves a frame up or down just enough to sit inside a visible area,
+  /// half the margin clear of each edge. A frame already inside stays
+  /// where it is; one taller than the room keeps its top on screen.
+  static func keptOnScreen(_ frame: CGRect, in visible: CGRect) -> CGRect {
+    let inset = screenMargin / 2
+    var frame = frame
+    frame.origin.y = max(frame.origin.y, visible.minY + inset)
+    frame.origin.y = min(frame.origin.y, visible.maxY - inset - frame.height)
+    return frame
+  }
+
+  /// The full content height at one step: the rows shown plus chrome
+  /// plus the band and the note when they show, fitted to the display
+  /// as one total so a large step or a long limit never outgrows it.
   static func totalHeight(
     rowCount: Int,
     query: String,
     filterActive: Bool,
     notice: Bool,
     scopeBand: Bool = false,
-    for scale: TextScaleLevel
+    for scale: TextScaleLevel,
+    rows: PanelRows = .standard,
+    visibleHeight: CGFloat = .infinity
   ) -> CGFloat {
-    var total = height(rowCount: rowCount, for: scale)
+    var total = height(rowCount: rowCount, for: scale, rows: rows)
       + filterChromeHeight(query: query, filterActive: filterActive, for: scale)
     if notice {
       total += noticeHeight(for: scale)
@@ -128,7 +170,7 @@ enum PanelMetrics {
     if scopeBand {
       total += scopeBandHeight(for: scale)
     }
-    return min(total, maximumHeight)
+    return fittedHeight(total, in: visibleHeight)
   }
 
   /// The content size for a row count at one step, so the panel and
@@ -140,7 +182,9 @@ enum PanelMetrics {
     notice: Bool,
     scopeBand: Bool = false,
     for scale: TextScaleLevel,
-    step: PanelWidth = .standard
+    step: PanelWidth = .standard,
+    rows: PanelRows = .standard,
+    visibleHeight: CGFloat = .infinity
   ) -> CGSize {
     CGSize(
       width: width(for: scale, step: step),
@@ -150,7 +194,9 @@ enum PanelMetrics {
         filterActive: filterActive,
         notice: notice,
         scopeBand: scopeBand,
-        for: scale
+        for: scale,
+        rows: rows,
+        visibleHeight: visibleHeight
       )
     )
   }

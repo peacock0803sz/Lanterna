@@ -28,6 +28,7 @@ extension PanelPresenter {
   /// the hard way.
   func handleActivation(of processIdentifier: pid_t) {
     guard processIdentifier != ownProcessIdentifier else { return }
+    disarmInvocationRepeat()
     if pendingShow.isWaiting {
       // The wait owned the list wait beside it too: its arrival would
       // otherwise open a panel for a press already answered.

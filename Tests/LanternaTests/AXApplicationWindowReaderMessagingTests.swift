@@ -361,6 +361,100 @@ struct AXApplicationWindowReaderMessagingTests {
     #expect(application.attributesRead == [kAXWindowsAttribute])
   }
 
+  /// Windows on other Spaces join the list, and a window both the list and
+  /// the probe hold is one row, the list's. The probe has read each id
+  /// already, so nothing is asked about them again.
+  @Test
+  func otherSpaceWindowsAreMergedWithoutDuplicates() {
+    let application = FakeApplication(windowCount: 3)
+    application.listedIndices = [0, 1]
+    application.probedIndices = [1, 2, 2]
+
+    let read = try? application.read(includesOtherSpaces: true).get()
+    #expect(read?.records.map(\.windowID) == [100, 101, 102])
+    #expect(application.windowIDReads == [0, 1])
+  }
+
+  /// A probed element goes through the same rule table as a listed one.
+  @Test
+  func anOtherSpaceElementThatIsNotAWindowIsExcluded() {
+    let application = FakeApplication(windowCount: 3)
+    application.listedIndices = [0, 1]
+    application.probedIndices = [2]
+    application.attributeResult = { index, name in
+      index == 2 && name == kAXRoleAttribute ? (.success, kAXScrollAreaRole as CFString) : nil
+    }
+
+    let read = try? application.read(includesOtherSpaces: true).get()
+    #expect(read?.records.map(\.windowID) == [100, 101])
+  }
+
+  /// With the setting off the probe is never asked.
+  @Test
+  func theProbeIsNeverAskedWhileTheSettingIsOff() {
+    let application = FakeApplication(windowCount: 3)
+    application.listedIndices = [0, 1]
+    application.probedIndices = [2]
+
+    let read = try? application.read().get()
+    #expect(read?.records.map(\.windowID) == [100, 101])
+    #expect(read?.otherSpacesCutShort == false)
+    #expect(application.probes.isEmpty)
+  }
+
+  /// The probe is held to the read's own budget, and looks for no window in
+  /// particular.
+  @Test
+  func theProbeIsHandedTheReadsDeadline() {
+    let application = FakeApplication(windowCount: 2)
+    let startedAt = application.clock
+    _ = application.read(includesOtherSpaces: true)
+
+    #expect(application.probes.count == 1)
+    #expect(application.probes.first?.deadline == startedAt + ReadBudget.limit)
+    #expect(application.probes.first?.target == nil)
+  }
+
+  /// The list is a whole answer already, so running out of budget while
+  /// reading a probed window keeps it rather than discarding the application,
+  /// and says so.
+  @Test
+  func aBudgetSpentOnOtherSpacesKeepsTheListedWindows() {
+    let application = FakeApplication(windowCount: 3)
+    application.listedIndices = [0, 1]
+    application.probedIndices = [2]
+    application.costOverride = { index, _ in index == 2 ? .seconds(1) : nil }
+
+    let read = try? application.read(includesOtherSpaces: true).get()
+    #expect(read?.records.map(\.windowID) == [100, 101])
+    #expect(read?.otherSpacesCutShort == true)
+  }
+
+  /// A probe that ran to its deadline found what it could, which is kept,
+  /// and the cut is reported even though no read failed.
+  @Test
+  func aProbeThatRanOutOfTimeIsReportedCutShort() {
+    let application = FakeApplication(windowCount: 3)
+    application.listedIndices = [0, 1]
+    application.probedIndices = [2]
+    application.probeCost = ReadBudget.limit
+
+    let read = try? application.read(includesOtherSpaces: true).get()
+    #expect(read?.otherSpacesCutShort == true)
+    #expect(read?.records.map(\.windowID) == [100, 101])
+  }
+
+  @Test
+  func aProbeThatFinishedInTimeIsNotReportedCutShort() {
+    let application = FakeApplication(windowCount: 3)
+    application.listedIndices = [0, 1]
+    application.probedIndices = [2]
+
+    let read = try? application.read(includesOtherSpaces: true).get()
+    #expect(read?.otherSpacesCutShort == false)
+    #expect(read?.records.map(\.windowID) == [100, 101, 102])
+  }
+
   // MARK: Private
 
   private typealias Reader = AXApplicationWindowReader

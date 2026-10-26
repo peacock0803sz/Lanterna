@@ -1,5 +1,4 @@
 import ApplicationServices
-import PrivateAPIs
 
 // MARK: - WindowMinimizing
 
@@ -33,22 +32,13 @@ struct LiveWindowMinimizer: WindowMinimizing, Sendable {
   /// because which answer an application gives is precisely the behaviour
   /// being specified and no real application can be asked to give one.
   init(
-    copyWindows: @escaping @Sendable (AXUIElement) -> (AXError, [AXUIElement]?) = { application in
-      var value: CFTypeRef?
-      let error = AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &value)
-      return (error, value as? [AXUIElement])
-    },
-    copyWindowID: @escaping @Sendable (AXUIElement) -> (AXError, CGWindowID) = { element in
-      var windowID: CGWindowID = 0
-      let error = _AXUIElementGetWindow(element, &windowID)
-      return (error, windowID)
-    },
+    resolver: WindowElementResolver = WindowElementResolver(),
     setMinimized: @escaping @Sendable (AXUIElement, Bool) -> AXError = {
       AXUIElementSetAttributeValue($0, kAXMinimizedAttribute as CFString, $1 as CFTypeRef)
     },
     now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
   ) {
-    resolver = WindowElementResolver(copyWindows: copyWindows, copyWindowID: copyWindowID, now: now)
+    self.resolver = resolver
     self.setMinimized = setMinimized
     self.now = now
   }

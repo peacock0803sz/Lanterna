@@ -129,7 +129,8 @@ extension WindowListSnapshot {
       gatheringDuration: gatheringDuration,
       skipped: skipped,
       droppedWithoutID: droppedWithoutID,
-      gatheredAt: gatheredAt
+      gatheredAt: gatheredAt,
+      otherSpacesCutShort: otherSpacesCutShort
     )
   }
 }

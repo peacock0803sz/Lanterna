@@ -151,15 +151,7 @@ struct WindowRow: View {
     selected: AnyShapeStyle
   ) -> Text {
     let base = rowStyle(normal: normal, selected: selected)
-    let ranges: [Range<String.Index>]
-    if RomajiMatcher.engine.isOpen {
-      ranges = WindowFilter.matchedRanges(query: query, in: text, engine: RomajiMatcher.engine)
-    } else if fuzzy {
-      let conventional = WindowFilter.matchedRanges(query: query, in: text)
-      ranges = conventional.isEmpty ? WindowFilter.subsequenceRanges(query: query, in: text) : conventional
-    } else {
-      ranges = WindowFilter.matchedRanges(query: query, in: text)
-    }
+    let ranges = WindowFilter.highlightRanges(query: query, in: text, engine: RomajiMatcher.engine, fuzzy: fuzzy)
     guard !ranges.isEmpty else { return Text(text).foregroundStyle(base) }
     var out = Text("")
     var cursor = text.startIndex
