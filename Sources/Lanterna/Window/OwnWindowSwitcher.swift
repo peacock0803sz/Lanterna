@@ -32,9 +32,9 @@ struct OwnWindowSwitcher: WindowSwitching, Sendable {
 
   // MARK: Internal
 
-  func switchTo(_ target: ActivationTarget) -> ActivationOutcome {
+  func switchTo(_ target: ActivationTarget, policy: ActivationPolicy) -> ActivationReport {
     guard target.ownerProcessIdentifier == ownProcessIdentifier else {
-      return wrapped.switchTo(target)
+      return wrapped.switchTo(target, policy: policy)
     }
     // The commit paths that reach this are on the main actor, so this
     // arrives on the main thread and the application object below may
@@ -42,15 +42,15 @@ struct OwnWindowSwitcher: WindowSwitching, Sendable {
     // and verifies it at runtime: assumeIsolated traps if the call ever
     // comes from elsewhere.
     guard MainActor.assumeIsolated({ activateApp(true) }) else {
-      return .failed(.other(reason: "activation refused"))
+      return ActivationReport(outcome: .failed(.other(reason: "activation refused")), reopen: nil, raiseAlone: nil)
     }
     guard
       let windowID = target.id.windowID,
       MainActor.assumeIsolated({ showWindow(windowID) })
     else {
-      return .failed(.windowGone)
+      return ActivationReport(outcome: .failed(.windowGone), reopen: nil, raiseAlone: nil)
     }
-    return .switched
+    return ActivationReport(outcome: .switched, reopen: nil, raiseAlone: nil)
   }
 
   // MARK: Private

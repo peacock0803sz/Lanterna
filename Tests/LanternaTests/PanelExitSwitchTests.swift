@@ -186,6 +186,137 @@ struct PanelExitSwitchTests {
     )
   }
 
+  /// A release commit hands the take the switches then in force.
+  @Test
+  func aReleaseCommitHandsTheCurrentSwitchesOver() {
+    let fixture = released()
+    let policy = ActivationPolicy(reopensWindowlessApps: true, raisesOnlyChosenWindow: true)
+    fixture.presenter.activationPolicy = policy
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleCommandRelease()
+
+    #expect(fixture.switcher.policies == [policy])
+  }
+
+  /// A key commit takes the same switches through the other entrance.
+  @Test
+  func aKeyCommitHandsTheCurrentSwitchesOver() {
+    let fixture = released()
+    let policy = ActivationPolicy(reopensWindowlessApps: true, raisesOnlyChosenWindow: false)
+    fixture.presenter.activationPolicy = policy
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = fixture.presenter.handleKeyStroke(PanelKeystroke(
+      keyCode: UInt16(kVK_Return),
+      modifiers: .command,
+      isARepeat: false
+    ))
+
+    #expect(fixture.switcher.policies == [policy])
+  }
+
+  /// A change between takes lands on the next one without any
+  /// restart: the switches are read fresh at each take.
+  @Test
+  func aSwitchChangeLandsOnTheNextTake() {
+    let fixture = released()
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleCommandRelease()
+    fixture.presenter.activationPolicy = ActivationPolicy(reopensWindowlessApps: true, raisesOnlyChosenWindow: true)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleCommandRelease()
+
+    #expect(fixture.switcher.policies == [
+      .off,
+      ActivationPolicy(reopensWindowlessApps: true, raisesOnlyChosenWindow: true),
+    ])
+  }
+
+  /// A silent take carries the switches too: without a panel it still
+  /// hands the current switches over.
+  @Test
+  func aSilentCommitHandsTheCurrentSwitchesOver() {
+    let surface = FakeSurface()
+    let log = DiagnosticsLog()
+    let switcher = FakeWindowSwitcher()
+    let policy = ActivationPolicy(reopensWindowlessApps: false, raisesOnlyChosenWindow: true)
+    let wayOut = PanelExit(
+      surface: surface,
+      now: { ContinuousClock.now },
+      writeLine: log.write,
+      switcher: switcher,
+      activationPolicy: { policy },
+      recordCommit: { _, _ in },
+      noteSwitchReturned: { },
+      onPanelGone: { }
+    )
+    let rows = SampleWindows.make(count: 3)
+    wayOut.commitSilently(rows, naming: rows[1].id, since: .now)
+
+    #expect(switcher.policies == [policy])
+    #expect(log.lines.count == 2)
+    #expect(log.lines[0].hasPrefix("committed "))
+    #expect(log.lines[1].hasPrefix("switched to "))
+    #expect(log.logged[1].context["result"] == .string("ok"))
+  }
+
+  /// The take's notes read on the pair line and ride its context.
+  @Test
+  func aNotedTakeNamesItsNotesOnThePair() {
+    let fixture = released()
+    fixture.switcher.reports = [ActivationReport(
+      outcome: .switched,
+      reopen: .requested,
+      raiseAlone: nil
+    )]
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleCommandRelease()
+
+    let row = fixture.windows[1]
+    #expect(
+      fixture.log.lines.last
+        == "switched to \(row.appName) — \(row.displayTitle) "
+        + "(\(row.id.logWord)) (reopen requested) 4.8 ms after Command was released"
+    )
+    #expect(fixture.log.logged.last?.context["reopen"] == .string("requested"))
+  }
+
+  /// Each noted take reads on its own pair line across appearances.
+  @Test
+  func notedTakesNameTheirNotesAcrossTakes() {
+    let fixture = released()
+    fixture.switcher.reports = [ActivationReport(
+      outcome: .switched,
+      reopen: .skippedNoBundle,
+      raiseAlone: nil
+    )]
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleCommandRelease()
+    #expect(fixture.log.lines.last?.contains("(reopen skipped (no bundle))") == true)
+    #expect(fixture.log.logged.last?.context["reopen"] == .string("skippedNoBundle"))
+
+    fixture.switcher.reports = [ActivationReport(
+      outcome: .switched,
+      reopen: nil,
+      raiseAlone: .held
+    )]
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleCommandRelease()
+    #expect(fixture.log.lines.last?.contains("(raised alone)") == true)
+    #expect(fixture.log.logged.last?.context["raiseAlone"] == .string("held"))
+
+    fixture.switcher.reports = [ActivationReport(
+      outcome: .switched,
+      reopen: nil,
+      raiseAlone: .notHeld(reason: "main window error -25205")
+    )]
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleCommandRelease()
+    #expect(
+      fixture.log.lines.last?.contains("(raised alone, not held (main window error -25205))") == true
+    )
+    #expect(fixture.log.logged.last?.context["raiseAlone"] == .string("notHeld"))
+  }
+
   // MARK: Private
 
   private func released() -> Fixture {

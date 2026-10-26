@@ -74,6 +74,7 @@ extension AppConfiguration {
     entries.append(contentsOf: textScaleEntries(config))
     entries.append(contentsOf: displayEntries(config))
     entries.append(contentsOf: pointerSelectEntries(config))
+    entries.append(contentsOf: commitSwitchEntries(config))
     entries.append(contentsOf: numberSelectEntries(config))
     entries.append(contentsOf: updateCheckEntries(config))
     entries.append(encodedInt(key: "version", value: config.version))
@@ -154,6 +155,20 @@ extension AppConfiguration {
     // Absent means on, so only the off value is written.
     if config.autoFocusSingleCandidate == false {
       entries.append(encodedBool(key: "autoFocusSingleCandidate", value: false))
+    }
+    return entries
+  }
+
+  /// The commit-switch lines, in canonical order, skipping absent
+  /// values. Only an enabled switch is ever written: off stays absent so
+  /// the default reaches saved files.
+  static func commitSwitchEntries(_ config: ValidConfiguration) -> [String] {
+    var entries = [String]()
+    if config.reopenWindowlessApps == true {
+      entries.append(encodedBool(key: "reopenWindowlessApps", value: true))
+    }
+    if config.raiseOnlyChosenWindow == true {
+      entries.append(encodedBool(key: "raiseOnlyChosenWindow", value: true))
     }
     return entries
   }

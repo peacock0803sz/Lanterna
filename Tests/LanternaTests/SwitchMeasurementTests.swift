@@ -72,11 +72,45 @@ struct SwitchMeasurementTests {
     )
   }
 
+  /// A note beside the result reads in fixed words, and a line without
+  /// one reads `switched to <row> <timing>`. The reasons are flattened to one line
+  /// like the failure reasons are.
+  @Test
+  func aNoteReadsBesideTheResultInFixedWords() {
+    #expect(
+      Self.measurement(.switched, reopen: .requested).summaryLine
+        == "switched to TextEdit — Untitled (window 42) (reopen requested) "
+        + "4.8 ms after Command was released"
+    )
+    #expect(
+      Self.measurement(.switched, reopen: .skippedNoBundle).summaryLine
+        == "switched to TextEdit — Untitled (window 42) (reopen skipped (no bundle)) "
+        + "4.8 ms after Command was released"
+    )
+    #expect(
+      Self.measurement(.switched, raiseAlone: .held).summaryLine
+        == "switched to TextEdit — Untitled (window 42) (raised alone) "
+        + "4.8 ms after Command was released"
+    )
+    #expect(
+      Self.measurement(.switched, raiseAlone: .notHeld(reason: "main window error -25205")).summaryLine
+        == "switched to TextEdit — Untitled (window 42) "
+        + "(raised alone, not held (main window error -25205)) 4.8 ms after Command was released"
+    )
+    #expect(
+      Self.measurement(.switched, raiseAlone: .notHeld(reason: "first\nsecond")).summaryLine
+        == "switched to TextEdit — Untitled (window 42) "
+        + "(raised alone, not held (first second)) 4.8 ms after Command was released"
+    )
+  }
+
   // MARK: Private
 
   private static func measurement(
     _ outcome: ActivationOutcome,
-    by trigger: PanelExitMeasurement.Trigger = .commandRelease
+    by trigger: PanelExitMeasurement.Trigger = .commandRelease,
+    reopen: ReopenNote? = nil,
+    raiseAlone: RaiseAloneNote? = nil
   ) -> SwitchMeasurement {
     SwitchMeasurement(
       appName: "TextEdit",
@@ -84,7 +118,9 @@ struct SwitchMeasurementTests {
       id: WindowItem.Identifier(windowID: 42),
       outcome: outcome,
       trigger: trigger,
-      elapsed: .microseconds(4800)
+      elapsed: .microseconds(4800),
+      reopen: reopen,
+      raiseAlone: raiseAlone
     )
   }
 

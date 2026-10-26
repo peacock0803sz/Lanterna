@@ -27,6 +27,8 @@ struct SettingsValues: Equatable, Sendable {
     displayTarget: .primary,
     hoverSelect: false,
     scrollSelect: false,
+    reopenWindowlessApps: false,
+    raiseOnlyChosenWindow: false,
     autoFocusSingleCandidate: true,
     numberJump: false,
     numberReorder: false,
@@ -85,6 +87,12 @@ struct SettingsValues: Equatable, Sendable {
   /// Whether scrolling moves the selection. Absent in the file
   /// means off.
   var scrollSelect: Bool
+  /// Whether taking an application row with no open window opens one.
+  /// Absent in the file means off.
+  var reopenWindowlessApps: Bool
+  /// Whether taking a window row brings only that window forward.
+  /// Absent in the file means off.
+  var raiseOnlyChosenWindow: Bool
   /// Whether a filter that narrows to one row focuses that row.
   /// Absent in the file means on.
   var autoFocusSingleCandidate: Bool
@@ -131,6 +139,14 @@ struct SettingsValues: Equatable, Sendable {
   /// from an edited table.
   var loadedKeyBindings: KeyBindingTable
 
+  /// The commit switches as the commit path takes them.
+  var activationPolicy: ActivationPolicy {
+    ActivationPolicy(
+      reopensWindowlessApps: reopenWindowlessApps,
+      raisesOnlyChosenWindow: raiseOnlyChosenWindow
+    )
+  }
+
   /// The main switcher's resolved list settings, read off the top-level
   /// fields above. Computed so the two never drift apart.
   var mainSwitcher: SwitcherSettings {
@@ -167,6 +183,8 @@ struct SettingsValues: Equatable, Sendable {
       displayTarget: DisplayTarget.effective(from: config),
       hoverSelect: config.hoverSelect ?? false,
       scrollSelect: config.scrollSelect ?? false,
+      reopenWindowlessApps: config.reopenWindowlessApps ?? false,
+      raiseOnlyChosenWindow: config.raiseOnlyChosenWindow ?? false,
       autoFocusSingleCandidate: config.autoFocusSingleCandidate ?? true,
       numberJump: config.numberJump ?? false,
       numberReorder: config.numberReorder ?? false,
@@ -255,6 +273,12 @@ struct SettingsValues: Equatable, Sendable {
     }
     if scrollSelect != defaults.scrollSelect {
       config.scrollSelect = scrollSelect
+    }
+    if reopenWindowlessApps != defaults.reopenWindowlessApps {
+      config.reopenWindowlessApps = reopenWindowlessApps
+    }
+    if raiseOnlyChosenWindow != defaults.raiseOnlyChosenWindow {
+      config.raiseOnlyChosenWindow = raiseOnlyChosenWindow
     }
     if autoFocusSingleCandidate != defaults.autoFocusSingleCandidate {
       config.autoFocusSingleCandidate = autoFocusSingleCandidate

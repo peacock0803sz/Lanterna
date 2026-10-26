@@ -154,6 +154,7 @@ extension AppDelegate {
       minimizer: LiveWindowMinimizer(resolver: resolver)
     )
     presenter.windowScope = currentValues.windowScope
+    presenter.activationPolicy = currentValues.activationPolicy
     presenter.grouping = currentValues.grouping
     presenter.parallelSwitcher = currentValues.parallelSwitcher
     presenter.parallelEnabled = currentValues.parallelOverrides.isEnabled
@@ -223,6 +224,7 @@ extension AppDelegate {
     presenter?.parallelEnabled = values.parallelOverrides.isEnabled
     presenter?.hoverSelect = values.hoverSelect
     presenter?.scrollSelect = values.scrollSelect
+    presenter?.activationPolicy = values.activationPolicy
     presenter?.autoFocusSingleCandidate = values.autoFocusSingleCandidate
     presenter?.inputSourceLock.target = values.forcedInputSource
     presenter?.numberJump = values.numberJump
