@@ -85,7 +85,8 @@ local sharedSwitcherKeys = new Listing<String> {
   "rowOrder"; "groupNames"; "groupAssignments"; "resultOrder"; "grouping";
   "groupCount"; "groupHeadingStyle"; "displayTarget"; "panelWidth"; "panelRows";
   "textScale"; "showDelayMs"; "hintsMode"; "numberJump"; "numberReorder"; "numberScope";
-  "hoverSelect"; "scrollSelect"; "fuzzyMatchEnabled"; "listWindowsOnAllSpaces"
+  "hoverSelect"; "scrollSelect"; "autoFocusSingleCandidate"; "fuzzyMatchEnabled";
+  "listWindowsOnAllSpaces"
 }
 
 /// The two switcher sections side by side. The main section renders each

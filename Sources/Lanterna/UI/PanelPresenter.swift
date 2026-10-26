@@ -291,6 +291,20 @@ final class PanelPresenter {
   /// The settings set its target; a change lands at the next appearance.
   let inputSourceLock = InputSourceLock()
 
+  /// Whether a filter that narrows to one row focuses that row.
+  /// On unless the setting says otherwise. A change lands on the
+  /// live filter at once.
+  var autoFocusSingleCandidate = true {
+    didSet { keyCommands.autoFocusSingleCandidate = autoFocusSingleCandidate }
+  }
+
+  /// How long that one row has to stay one row. Tests replace the sleep.
+  var singleCandidateSleep: @MainActor (Duration) async -> Void = { duration in
+    try? await Task.sleep(for: duration)
+  } {
+    didSet { keyCommands.singleCandidateSleep = singleCandidateSleep }
+  }
+
   /// The main switcher's resolved list settings, read off the scope,
   /// display mode, and grouping fields. Computed so they never drift
   /// apart: every staging of a legacy field lands here with it.

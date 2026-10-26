@@ -49,6 +49,9 @@ final class PanelKeyCommands {
     self.operate = operate
     self.startFiltering = startFiltering
     self.openSettings = openSettings
+    filter.onSingleCandidate = { [weak self] id in
+      self?.commitSingleCandidate(id)
+    }
   }
 
   // MARK: Internal
@@ -94,6 +97,18 @@ final class PanelKeyCommands {
 
   var shortcutMemoryLimit: Int {
     filter.shortcutMemoryLimit
+  }
+
+  /// Whether a one-row filter focuses that row. On unless told otherwise.
+  var autoFocusSingleCandidate = true {
+    didSet { filter.autoFocusSingleCandidate = autoFocusSingleCandidate }
+  }
+
+  /// How long that one row has to stay one row. Tests replace it.
+  var singleCandidateSleep: @MainActor (Duration) async -> Void = { duration in
+    try? await Task.sleep(for: duration)
+  } {
+    didSet { filter.singleCandidateSleep = singleCandidateSleep }
   }
 
   /// Starts an appearance over the whole ordered list, filtering only
@@ -279,6 +294,8 @@ final class PanelKeyCommands {
       cancelOrClear(keystroke, since: startedAt)
 
     case .commit:
+      // A wait already armed must not take the row again after this key.
+      filter.cancelSingleCandidateFocus()
       // Read before the commit: taking the panel down throws the
       // list away. Recorded after the commit returns, so the write
       // lands outside the measured close interval.
@@ -344,6 +361,27 @@ final class PanelKeyCommands {
     return .absorbed
   }
 
+  /// Commits the one row a filter narrowed to, the same way a commit key
+  /// would. The wait has already elapsed. A panel that is down, or a
+  /// list that is no longer that one row, takes nothing.
+  func commitSingleCandidate(_ id: WindowItem.Identifier) {
+    guard surface.isPresented else { return }
+    guard filter.shownWindows.count == 1, filter.shownWindows.contains(where: { $0.id == id }) else {
+      return
+    }
+    filter.cancelSingleCandidateFocus()
+    let startedAt = now()
+    selection.select(id)
+    let summary = filter.logSummary()
+    wayOut.commit(
+      by: .singleCandidate,
+      naming: id,
+      since: startedAt,
+      filter: summary
+    )
+    recordShortcut(query: summary.query, id: id)
+  }
+
   /// Commits the clicked row the way a commit key would: the row is
   /// chosen first, then the same way out and the same shortcut record
   /// run. The span starts at the click, so the measured close covers
@@ -353,6 +391,7 @@ final class PanelKeyCommands {
     if let id, !filter.shownWindows.contains(where: { $0.id == id }) {
       return
     }
+    filter.cancelSingleCandidateFocus()
     let startedAt = now()
     // Read before the commit: taking the panel down throws the
     // list away. Recorded after the commit returns, so the write

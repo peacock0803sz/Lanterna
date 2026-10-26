@@ -72,6 +72,12 @@ extension AppConfiguration {
     case .failure(let error):
       return .failure(error)
     }
+    switch checkedOptionalBool(dict, key: "autoFocusSingleCandidate") {
+    case .success(let found):
+      config.autoFocusSingleCandidate = found
+    case .failure(let error):
+      return .failure(error)
+    }
     switch checkedOptionalBool(dict, key: "numberJump") {
     case .success(let found):
       config.numberJump = found

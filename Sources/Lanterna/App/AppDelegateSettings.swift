@@ -159,6 +159,7 @@ extension AppDelegate {
     presenter.parallelEnabled = currentValues.parallelOverrides.isEnabled
     presenter.hoverSelect = options.hoverSelect
     presenter.scrollSelect = options.scrollSelect
+    presenter.autoFocusSingleCandidate = options.autoFocusSingleCandidate
     presenter.inputSourceLock.target = currentValues.forcedInputSource
     presenter.numberJump = options.numberJump
     presenter.numberReorder = options.numberReorder
@@ -222,6 +223,7 @@ extension AppDelegate {
     presenter?.parallelEnabled = values.parallelOverrides.isEnabled
     presenter?.hoverSelect = values.hoverSelect
     presenter?.scrollSelect = values.scrollSelect
+    presenter?.autoFocusSingleCandidate = values.autoFocusSingleCandidate
     presenter?.inputSourceLock.target = values.forcedInputSource
     presenter?.numberJump = values.numberJump
     presenter?.numberReorder = values.numberReorder

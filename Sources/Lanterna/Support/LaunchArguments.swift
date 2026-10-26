@@ -54,6 +54,9 @@ enum LaunchArguments {
     /// the file covers it. The command line cannot set it;
     /// effectiveOptions uses the file value alone.
     var scrollSelect = false
+    /// Whether a filter that narrows to one row focuses that row.
+    /// No flag sets it; the file covers it. Absent means on.
+    var autoFocusSingleCandidate = true
     /// Whether holding a modifier and pressing a row number jumps to
     /// that row. No flag sets it; the file covers it. The command
     /// line cannot set it; effectiveOptions uses the file value alone.
