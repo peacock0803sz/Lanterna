@@ -1,3 +1,4 @@
+import AppKit
 import Carbon.HIToolbox
 @testable import Lanterna
 import Testing
@@ -89,6 +90,30 @@ struct PanelPresenterBadgeTests {
       "dock badges unreadable (noDock); rows show no badges until a read succeeds",
     ])
     #expect(warnings.allSatisfy { $0.level == .warning && $0.category == .panel })
+  }
+
+  /// Every row of an application finds the same badge, a window row or
+  /// the row of an application with no window, wherever its section puts
+  /// it: the table is keyed by process, not by row.
+  @Test
+  func everyRowOfAnApplicationFindsItsBadge() throws {
+    let mail = row(.window(1), pid: 42)
+    let windows = [
+      mail,
+      row(.window(2), pid: 42, minimized: true),
+      row(.window(3), pid: 42, hidden: true),
+      row(.application(42), pid: 42),
+      row(.window(5), pid: 7),
+    ]
+    let fixture = Fixture(store: WindowListStore(fixed: windows), windows: windows)
+    let reader = FakeDockBadgeReader()
+    reader.readings = [BadgeReading(badges: AppBadges(byProcess: [42: .count(3)]), outcome: .read, elapsed: .zero)]
+    fixture.presenter.badgeReader = reader
+    fixture.presenter.appIconBadges = true
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+
+    let drawn = try #require(fixture.surface.shownBadges.last?.badges)
+    #expect(windows.map { drawn.badge(for: $0) } == [.count(3), .count(3), .count(3), .count(3), nil])
   }
 
   @Test
@@ -202,6 +227,25 @@ struct PanelPresenterBadgeTests {
     presenter.badgeReader = reader
     presenter.appIconBadges = true
     return (presenter, reader, sleep)
+  }
+
+  private func row(
+    _ id: WindowItem.Identifier,
+    pid: pid_t,
+    minimized: Bool = false,
+    hidden: Bool = false
+  ) -> WindowItem {
+    WindowItem(
+      id: id,
+      ownerProcessIdentifier: pid,
+      appName: pid == 42 ? "Mail" : "Notes",
+      bundleIdentifier: nil,
+      windowTitle: "Inbox",
+      kind: .standard,
+      isMinimized: minimized,
+      isHidden: hidden,
+      icon: NSImage()
+    )
   }
 
   private func letter() -> PanelKeystroke {
