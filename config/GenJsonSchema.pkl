@@ -85,7 +85,7 @@ local sharedSwitcherKeys = new Listing<String> {
   "rowOrder"; "groupNames"; "groupAssignments"; "resultOrder"; "grouping";
   "groupCount"; "groupHeadingStyle"; "displayTarget"; "panelWidth"; "panelRows";
   "textScale"; "showDelayMs"; "hintsMode"; "numberJump"; "numberReorder"; "numberScope";
-  "hoverSelect"; "scrollSelect"; "reopenWindowlessApps"; "raiseOnlyChosenWindow";
+  "hoverSelect"; "scrollSelect"; "reopenWindowlessApps"; "raiseOnlyChosenWindow"; "appIconBadges";
   "autoFocusSingleCandidate"; "fuzzyMatchEnabled"; "listWindowsOnAllSpaces"
 }
 

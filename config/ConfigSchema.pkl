@@ -136,6 +136,10 @@ reopenWindowlessApps: Boolean? = null
 /// application forward along with the chosen one. Absent means off.
 raiseOnlyChosenWindow: Boolean? = null
 
+/// Whether each row's icon carries the badge its application shows on its
+/// Dock icon, as it was when the panel opened. Absent means off.
+appIconBadges: Boolean? = null
+
 /// Whether a filter that narrows to one row focuses that row and closes
 /// the panel. Absent means on.
 autoFocusSingleCandidate: Boolean? = null
@@ -422,6 +426,8 @@ open class SwitcherMain {
   /// Shared by both switchers; write it at the top level. Ignored here.
   raiseOnlyChosenWindow: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
+  appIconBadges: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
   autoFocusSingleCandidate: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   fuzzyMatchEnabled: Any? = null
@@ -537,6 +543,8 @@ open class SwitcherParallel {
   reopenWindowlessApps: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   raiseOnlyChosenWindow: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
+  appIconBadges: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   autoFocusSingleCandidate: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.

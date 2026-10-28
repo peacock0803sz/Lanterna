@@ -139,6 +139,10 @@
       "description": "Whether taking a window row brings only that window forward, trying to\nleave the application's other windows where they were on every display.\nA workaround for the platform bringing another window of the same\napplication forward along with the chosen one. Absent means off.",
       "type": "boolean"
     },
+    "appIconBadges": {
+      "description": "Whether each row's icon carries the badge its application shows on its\nDock icon, as it was when the panel opened. Absent means off.",
+      "type": "boolean"
+    },
     "autoFocusSingleCandidate": {
       "description": "Whether a filter that narrows to one row focuses that row and closes\nthe panel. Absent means on.",
       "type": "boolean"
@@ -1320,6 +1324,10 @@
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },
+            "appIconBadges": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
             "autoFocusSingleCandidate": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
@@ -1653,6 +1661,10 @@
               "deprecated": true
             },
             "raiseOnlyChosenWindow": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "appIconBadges": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },

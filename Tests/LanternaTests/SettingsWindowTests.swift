@@ -102,6 +102,20 @@ struct SettingsWindowTests {
   }
 
   @Test
+  func badgeSwitchFollowsPresentKey() {
+    var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(SettingsValues.effective(from: config).appIconBadges == false)
+    #expect(SettingsValues.defaults
+      .configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+      .appIconBadges == nil)
+    config.appIconBadges = true
+    #expect(SettingsValues.effective(from: config).appIconBadges == true)
+    let saved = SettingsValues.effective(from: config)
+      .configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(saved.appIconBadges == true)
+  }
+
+  @Test
   func offCommitSwitchesStayOmittedOnSave() {
     let saved = SettingsValues.defaults
       .configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
