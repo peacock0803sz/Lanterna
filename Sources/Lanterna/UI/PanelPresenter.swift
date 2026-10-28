@@ -271,6 +271,15 @@ final class PanelPresenter {
   /// take, so a change lands on the next commit without a restart.
   var activationPolicy = ActivationPolicy.off
 
+  /// Whether row icons carry their application's Dock badge. Shared by
+  /// both switchers and read at every appearance, so a change lands on
+  /// the next one without a restart.
+  var appIconBadges = false
+
+  /// Where the Dock's badges are read from. Set by whoever owns the
+  /// window list, which knows whether the rows are real.
+  var badgeReader: any DockBadgeReading = FixedDockBadgeReader(badges: .none)
+
   /// Where a rearranged row order goes for saving. Set by whoever
   /// owns the file; the key commands report through here.
   var onRowOrderChanged: ((ManualRowOrder) -> Void)?
@@ -989,6 +998,8 @@ final class PanelPresenter {
     operations.begin(windows: ordered)
     wirePointerHandlers()
     surface.applyPanelSettings(applied)
+    let badgeReading = readBadgesForAppearance(startedAt: startedAt)
+    surface.showBadges(Self.drawnBadges(of: badgeReading))
     surface.present(windows: shown, selecting: selection.chosenID, filterActive: keyCommands.isFilteringActive)
     // The tap reports changes only, so the modifiers this press
     // opened under would otherwise leave the numbers down until the
@@ -1007,7 +1018,8 @@ final class PanelPresenter {
       deliveryDelay: deliveryDelay,
       gatheredOnDemand: gatheredOnDemand,
       becameKey: becameKey,
-      mru: MRUSummary(firstID: layout.rankedRows.first?.id, source: tracker.newestSource)
+      mru: MRUSummary(firstID: layout.rankedRows.first?.id, source: tracker.newestSource),
+      badgeReading: badgeReading
     )
     writeLine(LogLine(.info, .panel, measurement.summaryLine, context: measurement.context))
 

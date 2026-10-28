@@ -155,6 +155,12 @@ extension AppDelegate {
     )
     presenter.windowScope = currentValues.windowScope
     presenter.activationPolicy = currentValues.activationPolicy
+    presenter.appIconBadges = currentValues.appIconBadges
+    // Sample rows belong to no running process, so the live Dock has
+    // nothing to say about them.
+    if options.sampleCount != nil {
+      presenter.badgeReader = FixedDockBadgeReader(badges: SampleWindows.sampleBadges)
+    }
     presenter.grouping = currentValues.grouping
     presenter.parallelSwitcher = currentValues.parallelSwitcher
     presenter.parallelEnabled = currentValues.parallelOverrides.isEnabled
@@ -225,6 +231,7 @@ extension AppDelegate {
     presenter?.hoverSelect = values.hoverSelect
     presenter?.scrollSelect = values.scrollSelect
     presenter?.activationPolicy = values.activationPolicy
+    presenter?.appIconBadges = values.appIconBadges
     presenter?.autoFocusSingleCandidate = values.autoFocusSingleCandidate
     presenter?.inputSourceLock.target = values.forcedInputSource
     presenter?.numberJump = values.numberJump
