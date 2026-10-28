@@ -432,7 +432,8 @@ struct SwitcherView: View {
       query: query,
       fuzzy: fuzzyMatchEnabled,
       textScale: textScale,
-      isInSubgroup: isInSubgroup
+      isInSubgroup: isInSubgroup,
+      badge: badges.badge(for: window)
     )
     // Vertical insets and separators are removed so the List
     // adds nothing to WindowRow's fixed height; the horizontal

@@ -27,6 +27,9 @@ struct WindowRow: View {
   /// Whether the row sits in a subgroup under a heading, whatever put it
   /// there. Such rows draw dimmed unless they are chosen.
   var isInSubgroup = false
+  /// The Dock badge of the row's application, or nil to draw the icon
+  /// alone as before.
+  var badge: AppBadge?
 
   var body: some View {
     HStack(spacing: 12) {
@@ -55,6 +58,16 @@ struct WindowRow: View {
       Image(nsImage: window.icon)
         .resizable()
         .frame(width: scaled(22), height: scaled(22))
+        // An overlay takes no room in the layout, so the badge moves
+        // neither the name nor the title, and the row keeps its height.
+        // It reaches a little past the icon's corner into the gap before
+        // the title, the way the Dock's sits on its icon.
+        .overlay(alignment: .topTrailing) {
+          if let badge {
+            AppBadgeView(badge: badge, textScale: textScale)
+              .offset(x: scaled(4), y: -scaled(3))
+          }
+        }
 
       if window.isWindowless {
         // Matching reads the name column for this row, so the title
