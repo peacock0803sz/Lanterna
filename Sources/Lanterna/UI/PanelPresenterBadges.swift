@@ -27,7 +27,7 @@ extension PanelPresenter {
   /// may have none left, and then the appearance goes up without badges
   /// rather than late. An appearance the show delay held back was waited
   /// on purpose and is not held to the time from press to panel, so its
-  /// budget starts when the delay ran out, which is now.
+  /// budget starts when the appearance goes up.
   func readBadgesForAppearance(
     startedAt: ContinuousClock.Instant,
     shownFromDelay: Bool
