@@ -344,6 +344,35 @@ struct DockBadgeReaderTests {
   }
 
   @Test
+  func aTileWithANullURLIsSkippedAndKeepsTheOthers() {
+    let dock = DockScript()
+    dock.listChildren.append(910)
+    dock.tiles[910] = DockScript.Tile(url: NSNull(), label: "5")
+    dock.tile(911, url: "/Applications/Mail.app", label: "3")
+    dock.app(42, at: "/Applications/Mail.app")
+
+    let reading = dock.reader.read(deadline: .milliseconds(32))
+
+    #expect(reading.outcome == .read)
+    #expect(reading.badges == AppBadges(byProcess: [42: .count(3)]))
+  }
+
+  @Test
+  func aNullLabelMeansNoBadge() {
+    let dock = DockScript()
+    dock.tile(910, url: "/Applications/Mail.app", label: "3")
+    dock.listChildren.append(911)
+    dock.tiles[911] = DockScript.Tile(url: URL(fileURLWithPath: "/Applications/Slack.app"), label: NSNull())
+    dock.app(42, at: "/Applications/Mail.app")
+    dock.app(43, at: "/Applications/Slack.app")
+
+    let reading = dock.reader.read(deadline: .milliseconds(32))
+
+    #expect(reading.outcome == .read)
+    #expect(reading.badges == AppBadges(byProcess: [42: .count(3)]))
+  }
+
+  @Test
   func aLabelThatIsNotTextFailsTheRead() {
     let dock = DockScript()
     dock.listChildren = [910]

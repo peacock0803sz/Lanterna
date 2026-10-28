@@ -165,10 +165,15 @@ struct LiveDockBadgeReader: DockBadgeReading {
   ///
   /// A tile with no badge answers that its label has no value, and a tile
   /// may lack an attribute altogether, answering that there is no such
-  /// attribute; both mean the value is absent. Any other error, or a value
-  /// of a type the Dock never answers with, fails the read rather than
-  /// passing for a tile without a badge.
+  /// attribute; both mean the value is absent, and so does a null in the
+  /// value's place, which the multiple-value call may give for an
+  /// attribute with nothing in it. Any other error, or a value of a type
+  /// the Dock never answers with, fails the read rather than passing for
+  /// a tile without a badge.
   private static func attribute<Value>(_ value: Any, as _: Value.Type) throws(Stop) -> Value? {
+    if value is NSNull {
+      return nil
+    }
     if let error = attributeError(value) {
       guard error == .noValue || error == .attributeUnsupported else {
         throw failure(error)
