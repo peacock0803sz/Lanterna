@@ -123,6 +123,9 @@ struct LiveDockBadgeReader: DockBadgeReading {
   /// keeps is not ours.
   private static let lateSlack = Duration.milliseconds(2)
 
+  /// A tile answered in a shape the Dock never uses.
+  private static let unexpectedTileAnswer = Stop(outcome: .failed(reason: "unexpectedTileAnswer"))
+
   private let dockProcessIdentifier: @MainActor () -> pid_t?
   private let setMessagingTimeout: @MainActor (AXUIElement, Float) -> AXError
   private let copyChildren: @MainActor (AXUIElement) -> (AXError, [AXUIElement])
@@ -154,6 +157,26 @@ struct LiveDockBadgeReader: DockBadgeReading {
       return nil
     }
     return error
+  }
+
+  /// One value out of a tile's answer, or nil when the tile has none.
+  ///
+  /// A tile with no badge answers that its label has no value, and a tile
+  /// may lack an attribute altogether, answering that there is no such
+  /// attribute; both mean the value is absent. Any other error, or a value
+  /// of a type the Dock never answers with, fails the read rather than
+  /// passing for a tile without a badge.
+  private static func attribute<Value>(_ value: Any, as _: Value.Type) throws(Stop) -> Value? {
+    if let error = attributeError(value) {
+      guard error == .noValue || error == .attributeUnsupported else {
+        throw failure(error)
+      }
+      return nil
+    }
+    guard let typed = value as? Value else {
+      throw unexpectedTileAnswer
+    }
+    return typed
   }
 
   private static func failure(_ error: AXError) -> Stop {
@@ -191,18 +214,15 @@ struct LiveDockBadgeReader: DockBadgeReading {
   /// shows none.
   private func badgedTile(_ tile: AXUIElement, _ clock: Clock) throws(Stop) -> BadgedTile? {
     let values = try ask(tile, clock, copyTileAttributes)
-    guard values.count == 3, values[0] as? String == "AXApplicationDockItem" else {
+    guard values.count == 3 else {
+      throw Self.unexpectedTileAnswer
+    }
+    guard try Self.attribute(values[0], as: String.self) == "AXApplicationDockItem" else {
       return nil
     }
-    let label = values[2]
-    if let error = Self.attributeError(label) {
-      // A tile with no badge answers that the label has no value.
-      guard error == .noValue || error == .attributeUnsupported else {
-        throw Self.failure(error)
-      }
-      return nil
-    }
-    guard let url = values[1] as? URL, let badge = AppBadge(statusLabel: label as? String) else {
+    let url = try Self.attribute(values[1], as: URL.self)
+    let label = try Self.attribute(values[2], as: String.self)
+    guard let url, let badge = AppBadge(statusLabel: label) else {
       return nil
     }
     return BadgedTile(url: url, badge: badge)

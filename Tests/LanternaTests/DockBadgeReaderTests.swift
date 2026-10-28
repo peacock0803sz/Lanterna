@@ -29,6 +29,8 @@ final class DockScript {
   /// Errors to answer instead of a value, by the element asked.
   var failures = [pid_t: AXError]()
   var timeoutFailures = Set<pid_t>()
+  /// Whole answers to give in place of a tile's three values, by tile.
+  var tileAnswers = [pid_t: [Any]]()
   /// How far the clock moves on each call to an element.
   var cost = Duration.zero
   /// An extra jump the clock takes on the call to one element.
@@ -67,6 +69,9 @@ final class DockScript {
         let pid = ask(element)
         if let failure = failures[pid] {
           return (failure, [])
+        }
+        if let answer = tileAnswers[pid] {
+          return (.success, answer)
         }
         let tile = tiles[pid] ?? Tile()
         return (.success, [tile.subrole, tile.url ?? Self.noValue, tile.label ?? Self.noValue])
@@ -300,6 +305,67 @@ struct DockBadgeReaderTests {
     )
 
     #expect(dock.reader.read(deadline: .milliseconds(32)).outcome == .failed(reason: "error -25204"))
+  }
+
+  @Test
+  func aSubroleErrorFailsTheRead() {
+    let dock = DockScript()
+    dock.listChildren = [910]
+    dock.tiles[910] = DockScript.Tile(
+      subrole: DockScript.error(.cannotComplete),
+      url: URL(fileURLWithPath: "/Applications/Mail.app"),
+      label: "3"
+    )
+
+    #expect(dock.reader.read(deadline: .milliseconds(32)).outcome == .failed(reason: "error -25204"))
+  }
+
+  @Test
+  func aURLErrorFailsTheRead() {
+    let dock = DockScript()
+    dock.listChildren = [910]
+    dock.tiles[910] = DockScript.Tile(url: DockScript.error(.failure), label: "3")
+
+    #expect(dock.reader.read(deadline: .milliseconds(32)).outcome == .failed(reason: "error -25200"))
+  }
+
+  @Test
+  func aTileWithoutAURLIsSkippedAndKeepsTheOthers() {
+    let dock = DockScript()
+    dock.listChildren.append(910)
+    dock.tiles[910] = DockScript.Tile(url: DockScript.error(.noValue), label: "5")
+    dock.tile(911, url: "/Applications/Mail.app", label: "3")
+    dock.app(42, at: "/Applications/Mail.app")
+
+    let reading = dock.reader.read(deadline: .milliseconds(32))
+
+    #expect(reading.outcome == .read)
+    #expect(reading.badges == AppBadges(byProcess: [42: .count(3)]))
+  }
+
+  @Test
+  func aLabelThatIsNotTextFailsTheRead() {
+    let dock = DockScript()
+    dock.listChildren = [910]
+    dock.tiles[910] = DockScript.Tile(
+      url: URL(fileURLWithPath: "/Applications/Mail.app"),
+      label: NSNumber(value: 3)
+    )
+    dock.app(42, at: "/Applications/Mail.app")
+
+    let reading = dock.reader.read(deadline: .milliseconds(32))
+
+    #expect(reading.outcome == .failed(reason: "unexpectedTileAnswer"))
+    #expect(reading.badges == .none)
+  }
+
+  @Test
+  func anAnswerWithTheWrongNumberOfValuesFailsTheRead() {
+    let dock = DockScript()
+    dock.listChildren = [910]
+    dock.tileAnswers[910] = ["AXApplicationDockItem", URL(fileURLWithPath: "/Applications/Mail.app")]
+
+    #expect(dock.reader.read(deadline: .milliseconds(32)).outcome == .failed(reason: "unexpectedTileAnswer"))
   }
 
   @Test
