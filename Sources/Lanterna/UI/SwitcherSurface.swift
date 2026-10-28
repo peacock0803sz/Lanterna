@@ -135,6 +135,10 @@ protocol SwitcherSurface: AnyObject {
   /// panel that is up keeps its own until it closes; the next appearance
   /// hands its own again.
   func applyPanelSettings(_ settings: AppliedPanelSettings)
+
+  /// Hands one appearance's Dock badges over before it goes up. The panel
+  /// that is up keeps drawing them until the next appearance hands its own.
+  func showBadges(_ badges: AppBadges)
 }
 
 // MARK: - SwitcherPanel + SwitcherSurface
@@ -143,5 +147,10 @@ extension SwitcherPanel: SwitcherSurface {
   func applyPanelSettings(_ settings: AppliedPanelSettings) {
     displayModes = settings.displayModes
     grouping = settings.grouping
+  }
+
+  func showBadges(_ badges: AppBadges) {
+    self.badges = badges
+    hostingView.rootView.badges = badges
   }
 }

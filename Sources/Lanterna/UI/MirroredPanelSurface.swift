@@ -203,6 +203,12 @@ final class MirroredPanelSurface: SwitcherSurface {
     }
   }
 
+  func showBadges(_ badges: AppBadges) {
+    for panel in panels {
+      panel.showBadges(badges)
+    }
+  }
+
   /// Copies the content-affecting state onto the mirrors, so every
   /// panel sizes and filters alike. Which display each panel sits on is
   /// handed out on `present`, not copied.
@@ -217,6 +223,7 @@ final class MirroredPanelSurface: SwitcherSurface {
       mirror.hoverSelect = primary.hoverSelect
       mirror.scrollSelect = primary.scrollSelect
       mirror.hintsMode = primary.hintsMode
+      mirror.badges = primary.badges
       mirror.onHoverRow = primary.onHoverRow
       mirror.onClickRow = primary.onClickRow
       mirror.onScrollStep = primary.onScrollStep

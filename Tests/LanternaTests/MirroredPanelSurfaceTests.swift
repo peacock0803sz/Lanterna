@@ -28,6 +28,21 @@ struct MirroredPanelSurfaceTests {
   }
 
   @Test
+  func badgesFanOutToEveryPanel() {
+    let first = FakeSurface()
+    let second = FakeSurface()
+    let surface = MirroredPanelSurface(
+      panels: [first, second],
+      keyResolver: resolver(cursor: nil)
+    )
+    let badges = AppBadges(byProcess: [42: .count(3)])
+    surface.showBadges(badges)
+    for fake in [first, second] {
+      #expect(fake.shownBadges.map(\.badges) == [badges])
+    }
+  }
+
+  @Test
   func keysGoToTheCursorDisplayPanelOnly() {
     let first = FakeSurface()
     let second = FakeSurface()

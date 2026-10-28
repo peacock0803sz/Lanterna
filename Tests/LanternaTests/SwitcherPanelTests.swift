@@ -162,6 +162,20 @@ struct SwitcherPanelTests {
     )
   }
 
+  /// Badges handed over before an appearance stay through the view being
+  /// built afresh, both as it goes up and as a filter narrows the list.
+  @Test
+  func badgesSurviveTheSwaps() {
+    let panel = panel(rowCount: 5)
+    let rows = SampleWindows.make(count: 3)
+    let badges = AppBadges(byProcess: [0: .count(3)])
+    panel.showBadges(badges)
+    panel.present(windows: rows, selecting: rows[0].id)
+    #expect((panel.contentView as? NSHostingView<SwitcherView>)?.rootView.badges == badges)
+    panel.updateList(windows: [rows[0]], selecting: rows[0].id, query: "s", cursor: 1, filterActive: true)
+    #expect((panel.contentView as? NSHostingView<SwitcherView>)?.rootView.badges == badges)
+  }
+
   /// Swapping the list must not cost a new hosting view: rebuilding the view
   /// tree on every appearance is exactly what keeping one panel avoids.
   @Test

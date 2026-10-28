@@ -94,6 +94,11 @@ struct SwitcherView: View {
   /// appearance never pick up a change made while the panel is up.
   var hintsMode = HintsMode.prefix
 
+  /// The Dock badges this appearance draws on row icons. Handed down from
+  /// the panel, which takes them once as it goes up, so swaps during the
+  /// appearance redraw the same badges.
+  var badges = AppBadges.none
+
   /// Where a row hover goes. Called only while the hover switch is on.
   var onHoverRow: ((WindowItem.Identifier) -> Void)?
 
