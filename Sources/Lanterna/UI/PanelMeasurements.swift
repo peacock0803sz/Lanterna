@@ -10,8 +10,9 @@ struct HotkeyMeasurement: Sendable {
   // MARK: Lifecycle
 
   /// Every segment spelled out, so no caller can leave one out by
-  /// accident. Only `mru` has a default: the presenter always passes the
-  /// evidence, and the older tests keep the lines they always read.
+  /// accident. Only `mru` and `badgeReading` have defaults: the presenter
+  /// always passes the evidence it has, and the older tests keep the
+  /// lines they always read.
   init(
     combination: HotkeyCombination,
     elapsed: Duration,
@@ -19,7 +20,8 @@ struct HotkeyMeasurement: Sendable {
     deliveryDelay: Duration?,
     gatheredOnDemand: Bool,
     becameKey: Bool,
-    mru: MRUSummary? = nil
+    mru: MRUSummary? = nil,
+    badgeReading: BadgeReading? = nil
   ) {
     self.combination = combination
     self.elapsed = elapsed
@@ -28,6 +30,7 @@ struct HotkeyMeasurement: Sendable {
     self.gatheredOnDemand = gatheredOnDemand
     self.becameKey = becameKey
     self.mru = mru
+    self.badgeReading = badgeReading
   }
 
   // MARK: Internal
@@ -62,6 +65,10 @@ struct HotkeyMeasurement: Sendable {
   /// The presenter always passes one; the older tests pinning other
   /// segments pass none and keep reading the lines they always read.
   let mru: MRUSummary?
+
+  /// How the Dock's badges were read for this appearance, or nothing when
+  /// the badges are off and the Dock was not asked.
+  let badgeReading: BadgeReading?
 
   var summaryLine: String {
     var line = "panel shown \(Diagnostics.millisecondsText(elapsed)) ms "
