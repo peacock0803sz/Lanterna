@@ -22,11 +22,21 @@ struct AppBadgeView: View {
         .fill(Color.red)
         .frame(width: height, height: height)
 
-    case .count:
-      label
-
-    case .text:
-      label.frame(maxWidth: scaled(26))
+    case .count,
+         .text:
+      // Sized to its own wording, not to the icon it sits on: a badge
+      // stretched to whatever room it is offered would centre itself in
+      // that room instead of keeping to the icon's corner.
+      Text(badge.displayText)
+        .font(.system(size: scaled(9), weight: .bold))
+        .foregroundStyle(.white)
+        .lineLimit(1)
+        .truncationMode(.tail)
+        .frame(maxWidth: badge.isCount ? nil : scaled(20))
+        .padding(.horizontal, scaled(3))
+        .frame(minWidth: height, minHeight: height, maxHeight: height)
+        .background(Capsule().fill(Color.red))
+        .fixedSize()
     }
   }
 
@@ -34,18 +44,6 @@ struct AppBadgeView: View {
 
   private var height: Double {
     scaled(12)
-  }
-
-  private var label: some View {
-    Text(badge.displayText)
-      .font(.system(size: scaled(9), weight: .bold))
-      .foregroundStyle(.white)
-      .lineLimit(1)
-      .truncationMode(.tail)
-      .padding(.horizontal, scaled(3))
-      .frame(minWidth: height, minHeight: height, maxHeight: height)
-      .background(Capsule().fill(Color.red))
-      .fixedSize(horizontal: badge.isCount, vertical: true)
   }
 
   /// One scaled point size: the base size times the step, in whole points.
