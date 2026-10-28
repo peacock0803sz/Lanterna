@@ -4,9 +4,8 @@ extension PanelPresenter {
 
   // MARK: Internal
 
-  /// How long one appearance may spend reading the Dock. Twice the slow
-  /// end of what a read took on a warmed connection, so an ordinary read
-  /// fits with room to spare while a wedged Dock still cannot hold the
+  /// How long one appearance may spend reading the Dock: long enough for
+  /// an ordinary read, short enough that a wedged Dock cannot hold the
   /// panel back for long.
   static let badgeReadDeadline = Duration.milliseconds(32)
 
@@ -44,9 +43,9 @@ extension PanelPresenter {
     return badgeReader.read(deadline: deadline)
   }
 
-  /// Writes down a Dock that could not be read, once per reason. A Dock
-  /// that stays down, as while it restarts, would otherwise add a line to
-  /// every appearance. Running out of time is the press's budget, not a
+  /// Writes down a Dock that could not be read, once each time the reason
+  /// changes or follows a good read. A Dock that stays down, as while it
+  /// restarts, would otherwise add a line to every appearance. Running out of time is the press's budget, not a
   /// fault, and stays in the panel line's columns only.
   func noteUnreadableDock(_ reading: BadgeReading?) {
     guard let reading else {

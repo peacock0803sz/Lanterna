@@ -16,8 +16,8 @@ struct RunningDockApplication: Equatable {
 /// Reads the badges off the Dock's application tiles over the
 /// accessibility API, and matches each tile to the process it stands for.
 ///
-/// Runs on the main thread while the panel is going up, so every call is
-/// bounded by what is left of the deadline. Messaging timeouts belong to
+/// Runs on the main thread while the panel is going up, so every
+/// accessibility call is bounded by what is left of the deadline. Messaging timeouts belong to
 /// one element each and a child does not inherit its parent's, so each
 /// element is given the time left right before it is asked; one left out
 /// would wait on the multi-second default.
@@ -119,8 +119,9 @@ struct LiveDockBadgeReader: DockBadgeReading {
   /// trash; then where the application lives and what its badge says.
   private static let tileAttributes = ["AXSubrole", "AXURL", "AXStatusLabel"] as CFArray
 
-  /// Answers a timeout can return a hair before it is due: the clock it
-  /// keeps is not ours.
+  /// A messaging timeout can end slightly before our clock reaches the
+  /// deadline, since the accessibility layer keeps its own clock; a
+  /// failure that close to the deadline still counts as late.
   private static let lateSlack = Duration.milliseconds(2)
 
   /// A tile answered in a shape the Dock never uses.

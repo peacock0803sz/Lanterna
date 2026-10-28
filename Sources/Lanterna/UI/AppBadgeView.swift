@@ -24,9 +24,6 @@ struct AppBadgeView: View {
 
     case .count,
          .text:
-      // Sized to its own wording, not to the icon it sits on: a badge
-      // stretched to whatever room it is offered would centre itself in
-      // that room instead of keeping to the icon's corner.
       Text(badge.displayText)
         .font(.system(size: scaled(9), weight: .bold))
         .foregroundStyle(.white)
@@ -36,6 +33,9 @@ struct AppBadgeView: View {
         .padding(.horizontal, scaled(3))
         .frame(minWidth: height, minHeight: height, maxHeight: height)
         .background(Capsule().fill(Color.red))
+        // Sized to its own wording, not to the icon it sits on: a badge
+        // stretched to whatever room it is offered would centre itself in
+        // that room instead of keeping to the icon's corner.
         .fixedSize()
     }
   }

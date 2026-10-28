@@ -28,7 +28,7 @@ struct WindowRow: View {
   /// there. Such rows draw dimmed unless they are chosen.
   var isInSubgroup = false
   /// The Dock badge of the row's application, or nil to draw the icon
-  /// alone as before.
+  /// alone.
   var badge: AppBadge?
 
   var body: some View {

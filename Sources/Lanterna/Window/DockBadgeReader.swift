@@ -14,8 +14,9 @@ struct BadgeReading: Equatable, Sendable {
     /// drawn, so a row without a badge never means a badge that was not
     /// reached.
     case late
-    /// The Dock answered with an error, named the way the window reader
-    /// names one.
+    /// The Dock could not be read: it answered with an error, named the
+    /// way the window reader names one, or answered in a shape it never
+    /// uses.
     case failed(reason: String)
     /// No Dock process to ask, as while it restarts.
     case noDock
