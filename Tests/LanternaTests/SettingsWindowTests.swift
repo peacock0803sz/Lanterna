@@ -268,6 +268,16 @@ extension SettingsWindowTests {
     #expect(reports == [changed])
   }
 
+  @Test
+  func badgeSwitchChangeReachesCallerOnce() {
+    var reports = [SettingsValues]()
+    let window = makeWindow(onChange: { reports.append($0) })
+    var changed = SettingsValues.defaults
+    changed.appIconBadges = true
+    window.settingsModel.values = changed
+    #expect(reports == [changed])
+  }
+
   /// The content height follows the visible height through one pure function.
   @Test
   func contentHeightFollowsVisibleHeight() {

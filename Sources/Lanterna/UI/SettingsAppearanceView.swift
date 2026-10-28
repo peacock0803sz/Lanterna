@@ -106,6 +106,12 @@ struct SettingsAppearanceView: View {
             caption: "Wait this long before showing the panel. 0 means off."
           )
         }
+        Toggle(isOn: $values.appIconBadges) {
+          SettingsFormLabel(
+            title: "App icon badges",
+            caption: "Show each app's Dock badge on its rows, as it was when the panel opened. Off by default."
+          )
+        }
         Toggle(isOn: $values.hoverSelect) {
           SettingsFormLabel(
             title: "Hover to select",
@@ -190,7 +196,10 @@ struct SettingsAppearanceView: View {
           rowNumber: previewRowNumber(index: index),
           hidesHintFrame: values.hintsMode == .neither,
           query: "",
-          textScale: values.textScale
+          textScale: values.textScale,
+          // Sample rows belong to no running application, so the badges
+          // are a fixed example of how the switch looks, not the Dock's.
+          badge: values.appIconBadges ? SampleWindows.previewBadge(for: window) : nil
         )
       }
     }
