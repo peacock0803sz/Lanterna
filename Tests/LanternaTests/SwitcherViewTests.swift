@@ -13,6 +13,9 @@ private func tables(in view: NSView) -> [NSTableView] {
 
 @MainActor
 struct SwitcherViewTests {
+
+  // MARK: Internal
+
   /// The rows the list draws are the rows the panel's height counts: one
   /// for each window, and one heading row for each non-empty subgroup.
   /// Said of the count alone: an absolute row rect off a window that was
@@ -73,6 +76,26 @@ struct SwitcherViewTests {
     // The ordinary row, then the heading, then the hidden window under it.
     try #require(table.numberOfRows == 3)
     #expect(table.rect(ofRow: 1).height == table.rect(ofRow: 0).height)
+  }
+
+  /// A badge lies over the icon and takes no room, so a row is as tall
+  /// with one as without. Said relative to the same row drawn bare.
+  @Test(arguments: TextScaleLevel.allCases)
+  func aBadgeLeavesTheRowHeightAlone(level: TextScaleLevel) throws {
+    let bare = try firstRowHeight(badges: .none, level: level)
+    let badged = try firstRowHeight(badges: SampleWindows.sampleBadges, level: level)
+    #expect(badged == bare)
+  }
+
+  /// A row is handed the badge of its application out of the table the
+  /// panel was given, and none when the table holds none for it.
+  @Test
+  func aRowIsHandedItsApplicationsBadge() {
+    let windows = SampleWindows.make(count: 2)
+    var view = SwitcherView(windows: windows, selectedID: nil, appearanceToken: 0, query: "", filterActive: false)
+    #expect(view.badge(for: windows[0]) == nil)
+    view.badges = SampleWindows.sampleBadges
+    #expect(windows.map { view.badge(for: $0) } == [.count(3), .count(3)])
   }
 
   /// The view draws whichever row it is told to, and nothing about the list
@@ -155,4 +178,36 @@ struct SwitcherViewTests {
     let lone = DisplayModes.sections(of: [windows[0].settingHidden(true)], modes: .defaults, query: "")
     #expect(SwitcherView.countWording(ordinary: lone.ordinary, subgroups: lone.subgroups) == "1 window")
   }
+
+  // MARK: Private
+
+  /// The view over sample rows, laid out in a window of the panel's width.
+  private func hosted(badges: AppBadges, level: TextScaleLevel) -> NSHostingView<SwitcherView> {
+    var view = SwitcherView(
+      windows: SampleWindows.make(count: 2),
+      selectedID: nil,
+      appearanceToken: 0,
+      query: "",
+      filterActive: false,
+      textScale: level
+    )
+    view.badges = badges
+    let host = NSHostingView(rootView: view)
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: PanelMetrics.width(for: level), height: 400),
+      styleMask: [],
+      backing: .buffered,
+      defer: false
+    )
+    window.contentView = host
+    host.layoutSubtreeIfNeeded()
+    return host
+  }
+
+  private func firstRowHeight(badges: AppBadges, level: TextScaleLevel) throws -> CGFloat {
+    let table = try #require(tables(in: hosted(badges: badges, level: level)).first)
+    try #require(table.numberOfRows > 0)
+    return table.rect(ofRow: 0).height
+  }
+
 }

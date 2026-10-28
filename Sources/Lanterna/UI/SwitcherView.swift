@@ -250,6 +250,12 @@ struct SwitcherView: View {
     wording(count: layout.windowCount)
   }
 
+  /// The badge a row draws over its icon: its application's, out of the
+  /// table this appearance was given.
+  func badge(for window: WindowItem) -> AppBadge? {
+    badges.badge(for: window)
+  }
+
   // MARK: Private
 
   /// The insertion point mark: a still vertical bar the height of the
@@ -433,7 +439,7 @@ struct SwitcherView: View {
       fuzzy: fuzzyMatchEnabled,
       textScale: textScale,
       isInSubgroup: isInSubgroup,
-      badge: badges.badge(for: window)
+      badge: badge(for: window)
     )
     // Vertical insets and separators are removed so the List
     // adds nothing to WindowRow's fixed height; the horizontal
