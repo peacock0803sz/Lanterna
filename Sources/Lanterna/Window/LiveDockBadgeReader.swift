@@ -134,11 +134,12 @@ struct LiveDockBadgeReader: DockBadgeReading {
   private let runningApplications: @MainActor () -> [RunningDockApplication]
   private let now: @MainActor () -> ContinuousClock.Instant
 
-  /// The path a tile and a running application are compared by. The two
-  /// spell one bundle the same way in practice; the trailing slash and
-  /// links are evened out in case they ever do not.
+  /// The path a tile and a running application are compared by, with any
+  /// trailing slash dropped, so one bundle compares equal however each
+  /// side ends it. Links are left alone: resolving them would ask the
+  /// filesystem on the main thread.
   private static func comparablePath(_ url: URL) -> String {
-    var path = url.resolvingSymlinksInPath().standardizedFileURL.path
+    var path = url.standardizedFileURL.path
     while path.count > 1, path.hasSuffix("/") {
       path.removeLast()
     }
