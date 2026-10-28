@@ -278,7 +278,7 @@ final class PanelPresenter {
 
   /// Where the Dock's badges are read from. Set by whoever owns the
   /// window list, which knows whether the rows are real.
-  var badgeReader: any DockBadgeReading = FixedDockBadgeReader(badges: .none)
+  var badgeReader: any DockBadgeReading = LiveDockBadgeReader()
 
   /// Where a rearranged row order goes for saving. Set by whoever
   /// owns the file; the key commands report through here.
