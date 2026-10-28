@@ -280,6 +280,10 @@ final class PanelPresenter {
   /// window list, which knows whether the rows are real.
   var badgeReader: any DockBadgeReading = LiveDockBadgeReader()
 
+  /// Why the last unreadable Dock was written down, so the same reason is
+  /// written once rather than on every appearance. Cleared by a good read.
+  var lastReportedBadgeFailure: String?
+
   /// Where a rearranged row order goes for saving. Set by whoever
   /// owns the file; the key commands report through here.
   var onRowOrderChanged: ((ManualRowOrder) -> Void)?
@@ -1000,6 +1004,7 @@ final class PanelPresenter {
     surface.applyPanelSettings(applied)
     let badgeReading = readBadgesForAppearance(startedAt: startedAt)
     surface.showBadges(Self.drawnBadges(of: badgeReading))
+    noteUnreadableDock(badgeReading)
     surface.present(windows: shown, selecting: selection.chosenID, filterActive: keyCommands.isFilteringActive)
     // The tap reports changes only, so the modifiers this press
     // opened under would otherwise leave the numbers down until the

@@ -39,6 +39,40 @@ extension PanelPresenter {
     return badgeReader.read(deadline: deadline)
   }
 
+  /// Writes down a Dock that could not be read, once per reason. A Dock
+  /// that stays down, as while it restarts, would otherwise add a line to
+  /// every appearance. Running out of time is the press's budget, not a
+  /// fault, and stays in the panel line's columns only.
+  func noteUnreadableDock(_ reading: BadgeReading?) {
+    guard let reading else {
+      return
+    }
+    let reason: String
+    switch reading.outcome {
+    case .read:
+      lastReportedBadgeFailure = nil
+      return
+
+    case .late:
+      return
+
+    case .failed(let failure):
+      reason = failure
+
+    case .noDock:
+      reason = "noDock"
+    }
+    guard reason != lastReportedBadgeFailure else {
+      return
+    }
+    lastReportedBadgeFailure = reason
+    writeLine(LogLine(
+      .warning,
+      .panel,
+      "dock badges unreadable (\(reason)); rows show no badges until a read succeeds"
+    ))
+  }
+
   // MARK: Private
 
   /// The time from press to panel the panel is held to.

@@ -62,6 +62,35 @@ struct PanelPresenterBadgeTests {
     #expect(late.surface.presentedLists.count == 1)
   }
 
+  /// A Dock that keeps failing the same way says so once, not on every
+  /// appearance; a new reason, or the same one after a good read, says so
+  /// again. Running out of time is not a fault and says nothing.
+  @Test
+  func aRepeatedFailureIsWrittenOnce() {
+    let (fixture, reader) = badgeFixture()
+    reader.readings = [
+      reading(.failed(reason: "error -25204")),
+      reading(.failed(reason: "error -25204")),
+      reading(.late),
+      reading(.failed(reason: "error -25204")),
+      reading(.noDock),
+      reading(.read),
+      reading(.noDock),
+    ]
+    for _ in reader.readings.indices {
+      fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+      fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    }
+
+    let warnings = fixture.log.logged.filter { $0.message.hasPrefix("dock badges unreadable") }
+    #expect(warnings.map(\.message) == [
+      "dock badges unreadable (error -25204); rows show no badges until a read succeeds",
+      "dock badges unreadable (noDock); rows show no badges until a read succeeds",
+      "dock badges unreadable (noDock); rows show no badges until a read succeeds",
+    ])
+    #expect(warnings.allSatisfy { $0.level == .warning && $0.category == .panel })
+  }
+
   @Test
   func typingWhileUpReadsNothingMore() {
     let (fixture, reader) = badgeFixture()
