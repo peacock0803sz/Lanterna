@@ -63,6 +63,21 @@ struct PanelPresenterBadgeTests {
     #expect(late.surface.presentedLists.count == 1)
   }
 
+  /// The panel line says how the read went: a finished read, and a press
+  /// that had no time left to ask the Dock at all.
+  @Test
+  func thePanelLineCarriesTheRead() {
+    let (fixture, reader) = badgeFixture()
+    reader.readings = [reading(.read)]
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    #expect(panelLines(fixture).map { $0.context["badges"] } == [.string("read")])
+
+    let (late, lateReader) = badgeFixture(step: .milliseconds(80))
+    late.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    #expect(lateReader.readCount == 0)
+    #expect(panelLines(late).map { $0.context["badges"] } == [.string("late")])
+  }
+
   /// A Dock that keeps failing the same way says so once, not on every
   /// appearance; a new reason, or the same one after a good read, says so
   /// again. Running out of time is not a fault and says nothing.
@@ -170,9 +185,12 @@ struct PanelPresenterBadgeTests {
 
   @Test
   func aReleaseInsideTheShowDelayReadsNothing() async {
-    let (presenter, reader, _) = delayedFixture()
+    let (presenter, reader, sleep) = delayedFixture()
     presenter.handleHotkey(.forward, deliveryDelay: nil)
     presenter.handleCommandRelease()
+    await settle()
+    // The delay running out after the release must still show nothing.
+    sleep.open()
     await settle()
 
     #expect(reader.readCount == 0)
@@ -206,6 +224,11 @@ struct PanelPresenterBadgeTests {
   // MARK: Private
 
   private let table = AppBadges(byProcess: [0: .count(3)])
+
+  /// The lines that say the panel went up.
+  private func panelLines(_ fixture: Fixture) -> [LogLine] {
+    fixture.log.logged.filter { $0.message.hasPrefix("panel shown") }
+  }
 
   private func reading(_ outcome: BadgeReading.Outcome) -> BadgeReading {
     BadgeReading(badges: table, outcome: outcome, elapsed: .milliseconds(2))
