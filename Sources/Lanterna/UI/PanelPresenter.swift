@@ -271,6 +271,19 @@ final class PanelPresenter {
   /// take, so a change lands on the next commit without a restart.
   var activationPolicy = ActivationPolicy.off
 
+  /// Whether row icons carry their application's Dock badge. Shared by
+  /// both switchers and read at every appearance, so a change lands on
+  /// the next one without a restart.
+  var appIconBadges = false
+
+  /// Where the Dock's badges are read from. Set by whoever owns the
+  /// window list, which knows whether the rows are real.
+  var badgeReader: any DockBadgeReading = LiveDockBadgeReader()
+
+  /// Why the last unreadable Dock was written down, so the same reason is
+  /// written once rather than on every appearance. Cleared by a good read.
+  var lastReportedBadgeFailure: String?
+
   /// Where a rearranged row order goes for saving. Set by whoever
   /// owns the file; the key commands report through here.
   var onRowOrderChanged: ((ManualRowOrder) -> Void)?
@@ -783,7 +796,8 @@ final class PanelPresenter {
       startedAt: waiting.startedAt,
       gatheredOnDemand: waiting.gatheredOnDemand,
       replay: Array(waiting.presses.dropFirst()),
-      commitOnCommand: waiting.commitOnCommand
+      commitOnCommand: waiting.commitOnCommand,
+      shownFromDelay: true
     )
   }
 
@@ -948,7 +962,8 @@ final class PanelPresenter {
     startedAt: ContinuousClock.Instant,
     gatheredOnDemand: Bool,
     replay: [HotkeyCombination] = [],
-    commitOnCommand: Bool
+    commitOnCommand: Bool,
+    shownFromDelay: Bool = false
   ) {
     // Kept per appearance for the releases to answer: the press sampled
     // it as it arrived, and a wait kept its first press's answer.
@@ -989,6 +1004,9 @@ final class PanelPresenter {
     operations.begin(windows: ordered)
     wirePointerHandlers()
     surface.applyPanelSettings(applied)
+    let badgeReading = readBadgesForAppearance(startedAt: startedAt, shownFromDelay: shownFromDelay)
+    surface.showBadges(Self.drawnBadges(of: badgeReading))
+    noteUnreadableDock(badgeReading)
     surface.present(windows: shown, selecting: selection.chosenID, filterActive: keyCommands.isFilteringActive)
     // The tap reports changes only, so the modifiers this press
     // opened under would otherwise leave the numbers down until the
@@ -1007,7 +1025,8 @@ final class PanelPresenter {
       deliveryDelay: deliveryDelay,
       gatheredOnDemand: gatheredOnDemand,
       becameKey: becameKey,
-      mru: MRUSummary(firstID: layout.rankedRows.first?.id, source: tracker.newestSource)
+      mru: MRUSummary(firstID: layout.rankedRows.first?.id, source: tracker.newestSource),
+      badgeReading: badgeReading
     )
     writeLine(LogLine(.info, .panel, measurement.summaryLine, context: measurement.context))
 

@@ -53,6 +53,7 @@ enum AppConfiguration {
     "scrollSelect",
     "reopenWindowlessApps",
     "raiseOnlyChosenWindow",
+    "appIconBadges",
     "autoFocusSingleCandidate",
     "numberJump",
     "numberReorder",
@@ -119,6 +120,7 @@ struct ValidConfiguration: Equatable, Sendable {
     scrollSelect: Bool? = nil,
     reopenWindowlessApps: Bool? = nil,
     raiseOnlyChosenWindow: Bool? = nil,
+    appIconBadges: Bool? = nil,
     autoFocusSingleCandidate: Bool? = nil,
     numberJump: Bool? = nil,
     numberReorder: Bool? = nil,
@@ -167,6 +169,7 @@ struct ValidConfiguration: Equatable, Sendable {
     self.scrollSelect = scrollSelect
     self.reopenWindowlessApps = reopenWindowlessApps
     self.raiseOnlyChosenWindow = raiseOnlyChosenWindow
+    self.appIconBadges = appIconBadges
     self.autoFocusSingleCandidate = autoFocusSingleCandidate
     self.numberJump = numberJump
     self.numberReorder = numberReorder
@@ -256,6 +259,9 @@ struct ValidConfiguration: Equatable, Sendable {
   /// Whether taking a window row brings only that window forward.
   /// Nil means absent, which means off.
   var raiseOnlyChosenWindow: Bool?
+  /// Whether row icons carry their application's Dock badge.
+  /// Nil means absent, which means off.
+  var appIconBadges: Bool?
   /// Whether a filter that narrows to one row focuses that row.
   /// Nil means absent, which means on.
   var autoFocusSingleCandidate: Bool?

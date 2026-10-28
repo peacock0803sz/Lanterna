@@ -94,6 +94,11 @@ struct SwitcherView: View {
   /// appearance never pick up a change made while the panel is up.
   var hintsMode = HintsMode.prefix
 
+  /// The Dock badges this appearance draws on row icons. Handed down from
+  /// the panel, which takes them once as it goes up, so swaps during the
+  /// appearance redraw the same badges.
+  var badges = AppBadges.none
+
   /// Where a row hover goes. Called only while the hover switch is on.
   var onHoverRow: ((WindowItem.Identifier) -> Void)?
 
@@ -243,6 +248,12 @@ struct SwitcherView: View {
   /// its headings.
   static func countWording(_ layout: PanelLayout) -> String {
     wording(count: layout.windowCount)
+  }
+
+  /// The badge a row draws over its icon: its application's, out of the
+  /// table this appearance was given.
+  func badge(for window: WindowItem) -> AppBadge? {
+    badges.badge(for: window)
   }
 
   // MARK: Private
@@ -427,7 +438,8 @@ struct SwitcherView: View {
       query: query,
       fuzzy: fuzzyMatchEnabled,
       textScale: textScale,
-      isInSubgroup: isInSubgroup
+      isInSubgroup: isInSubgroup,
+      badge: badge(for: window)
     )
     // Vertical insets and separators are removed so the List
     // adds nothing to WindowRow's fixed height; the horizontal

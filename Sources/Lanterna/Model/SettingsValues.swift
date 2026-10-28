@@ -29,6 +29,7 @@ struct SettingsValues: Equatable, Sendable {
     scrollSelect: false,
     reopenWindowlessApps: false,
     raiseOnlyChosenWindow: false,
+    appIconBadges: false,
     autoFocusSingleCandidate: true,
     numberJump: false,
     numberReorder: false,
@@ -93,6 +94,9 @@ struct SettingsValues: Equatable, Sendable {
   /// Whether taking a window row brings only that window forward.
   /// Absent in the file means off.
   var raiseOnlyChosenWindow: Bool
+  /// Whether row icons carry their application's Dock badge.
+  /// Absent in the file means off.
+  var appIconBadges: Bool
   /// Whether a filter that narrows to one row focuses that row.
   /// Absent in the file means on.
   var autoFocusSingleCandidate: Bool
@@ -185,6 +189,7 @@ struct SettingsValues: Equatable, Sendable {
       scrollSelect: config.scrollSelect ?? false,
       reopenWindowlessApps: config.reopenWindowlessApps ?? false,
       raiseOnlyChosenWindow: config.raiseOnlyChosenWindow ?? false,
+      appIconBadges: config.appIconBadges ?? false,
       autoFocusSingleCandidate: config.autoFocusSingleCandidate ?? true,
       numberJump: config.numberJump ?? false,
       numberReorder: config.numberReorder ?? false,
@@ -279,6 +284,9 @@ struct SettingsValues: Equatable, Sendable {
     }
     if raiseOnlyChosenWindow != defaults.raiseOnlyChosenWindow {
       config.raiseOnlyChosenWindow = raiseOnlyChosenWindow
+    }
+    if appIconBadges != defaults.appIconBadges {
+      config.appIconBadges = appIconBadges
     }
     if autoFocusSingleCandidate != defaults.autoFocusSingleCandidate {
       config.autoFocusSingleCandidate = autoFocusSingleCandidate

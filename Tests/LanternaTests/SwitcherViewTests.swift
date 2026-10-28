@@ -75,6 +75,17 @@ struct SwitcherViewTests {
     #expect(table.rect(ofRow: 1).height == table.rect(ofRow: 0).height)
   }
 
+  /// A row is handed the badge of its application out of the table the
+  /// panel was given, and none when the table holds none for it.
+  @Test
+  func aRowIsHandedItsApplicationsBadge() {
+    let windows = SampleWindows.make(count: 2)
+    var view = SwitcherView(windows: windows, selectedID: nil, appearanceToken: 0, query: "", filterActive: false)
+    #expect(view.badge(for: windows[0]) == nil)
+    view.badges = SampleWindows.sampleBadges
+    #expect(windows.map { view.badge(for: $0) } == [.count(3), .count(3)])
+  }
+
   /// The view draws whichever row it is told to, and nothing about the list
   /// decides that any more. Said by handing in a row that is not the first
   /// one: with the old derivation in place this could only ever have read

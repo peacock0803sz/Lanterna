@@ -20,6 +20,25 @@ enum SampleWindows {
   /// assert the range.
   static let fixtureWindowIDBase: CGWindowID = 1_000_000_000
 
+  /// The badges the sample list draws in place of the Dock's. Every sample
+  /// row carries the same placeholder process number, so they all show
+  /// the same badge.
+  static let sampleBadges = AppBadges(byProcess: [0: .count(3)])
+
+  /// The badge a preview row draws, by application, so rows of one
+  /// application agree the way live rows do: a count on one, other
+  /// wording on another, nothing on the rest.
+  static func previewBadge(for window: WindowItem) -> AppBadge? {
+    switch window.bundleIdentifier {
+    case "com.apple.Safari":
+      .count(3)
+    case "com.apple.finder":
+      .text("!")
+    default:
+      nil
+    }
+  }
+
   static func standard() -> [WindowItem] {
     templates.enumerated().map { index, template in
       item(from: template, index: index)

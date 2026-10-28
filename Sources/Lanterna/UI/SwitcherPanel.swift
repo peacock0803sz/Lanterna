@@ -174,6 +174,11 @@ final class SwitcherPanel: NSPanel {
   /// never on the one already up.
   var hintsMode = HintsMode.prefix
 
+  /// The Dock badges the next appearance draws, held until the one after.
+  /// Kept here rather than only on the view, because every swap builds
+  /// the view afresh from what the panel holds.
+  var badges = AppBadges.none
+
   /// The hint mode the appearance on screen opened with. Frozen at
   /// `present` beside the width step, for the same reason: swaps
   /// during the appearance (narrowing, numbering) must not pick up

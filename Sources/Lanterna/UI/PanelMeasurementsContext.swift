@@ -15,8 +15,29 @@ extension Diagnostics {
 }
 
 extension HotkeyMeasurement {
+  /// The badge read rides along only when the badges are on, so a panel
+  /// shown without them carries only the `ms` column.
   var context: [String: ContextValue] {
-    ["ms": .int(Diagnostics.wholeMilliseconds(elapsed))]
+    var context: [String: ContextValue] = ["ms": .int(Diagnostics.wholeMilliseconds(elapsed))]
+    if let badgeReading {
+      context["badges"] = .string(badgeReading.outcome.word)
+      context["badgeMs"] = .int(Diagnostics.wholeMilliseconds(badgeReading.elapsed))
+    }
+    return context
+  }
+}
+
+extension BadgeReading.Outcome {
+  /// How the log names the outcome. The reason a read failed goes on a
+  /// separate warning line, written when the reason changes, so the
+  /// column stays one of a few words.
+  var word: String {
+    switch self {
+    case .read: "read"
+    case .late: "late"
+    case .failed: "failed"
+    case .noDock: "noDock"
+    }
   }
 }
 

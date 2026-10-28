@@ -84,6 +84,8 @@ final class FakeSurface: SwitcherSurface {
   private(set) var scopeBands = [ScopeBand?]()
   /// Every appearance's panel settings, in order.
   private(set) var appliedSettings = [AppliedPanelSettings]()
+  /// Every badge table handed over, in order.
+  private(set) var shownBadges = [(badges: AppBadges, presentsBefore: Int)]()
 
   /// Every numbered order asked for, in order; empty asked for no numbers.
   private(set) var numberedRowOrders = [[WindowItem.Identifier]]()
@@ -129,6 +131,13 @@ final class FakeSurface: SwitcherSurface {
 
   func applyPanelSettings(_ settings: AppliedPanelSettings) {
     appliedSettings.append(settings)
+  }
+
+  /// Kept out of `calls` for the same reason as the band above. Each
+  /// table is recorded with how many appearances had gone up before it
+  /// arrived, so a test can tell it reached the panel ahead of its own.
+  func showBadges(_ badges: AppBadges) {
+    shownBadges.append((badges, presentsBefore: presentedLists.count))
   }
 
   /// Kept out of `calls` for the same reason as the band above.

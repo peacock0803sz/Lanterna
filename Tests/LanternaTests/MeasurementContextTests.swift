@@ -36,6 +36,26 @@ struct MeasurementContextTests {
   }
 
   @Test
+  func aShownPanelWithoutBadgesCarriesOnlyItsFigure() {
+    #expect(Self.shown(badgeReading: nil).context == ["ms": .int(12)])
+  }
+
+  @Test(arguments: [
+    (BadgeReading.Outcome.read, "read"),
+    (.late, "late"),
+    (.failed(reason: "error -25204"), "failed"),
+    (.noDock, "noDock"),
+  ])
+  func aBadgeReadTravelsAsTwoKeys(outcome: BadgeReading.Outcome, word: String) {
+    let reading = BadgeReading(badges: .none, outcome: outcome, elapsed: .microseconds(3400))
+    #expect(Self.shown(badgeReading: reading).context == [
+      "ms": .int(12),
+      "badges": .string(word),
+      "badgeMs": .int(3),
+    ])
+  }
+
+  @Test
   func millisecondsRoundToTheNearestWhole() {
     #expect(Diagnostics.wholeMilliseconds(.microseconds(1499)) == 1)
     #expect(Diagnostics.wholeMilliseconds(.microseconds(1500)) == 2)
@@ -89,6 +109,18 @@ struct MeasurementContextTests {
       elapsed: .microseconds(1_012_400),
       reopen: reopen,
       raiseAlone: raiseAlone
+    )
+  }
+
+  private static func shown(badgeReading: BadgeReading?) -> HotkeyMeasurement {
+    HotkeyMeasurement(
+      combination: .forward,
+      elapsed: .milliseconds(12),
+      entryCount: 4,
+      deliveryDelay: nil,
+      gatheredOnDemand: false,
+      becameKey: true,
+      badgeReading: badgeReading
     )
   }
 

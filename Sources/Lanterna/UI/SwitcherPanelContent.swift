@@ -64,6 +64,7 @@ extension SwitcherPanel {
       hoverAnchor: hoverAnchor,
       numberedIDs: numberedIDs,
       hintsMode: appearanceHints,
+      badges: badges,
       onHoverRow: onHoverRow,
       onClickRow: onClickRow
     )
