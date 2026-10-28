@@ -189,6 +189,20 @@ struct PanelPresenterBadgeTests {
     #expect(reader.readCount == 1)
   }
 
+  /// The delay is waited on purpose and sits outside the time from press to
+  /// panel, so a slow clock that would leave a press no budget still leaves
+  /// the delayed appearance the whole read.
+  @Test
+  func aDelayedAppearanceReadsWithTheWholeDeadline() async {
+    let (presenter, reader, sleep) = delayedFixture(step: .milliseconds(80))
+    presenter.handleHotkey(.forward, deliveryDelay: nil)
+    sleep.open()
+    await settle()
+
+    #expect(reader.readCount == 1)
+    #expect(reader.deadlines == [PanelPresenter.badgeReadDeadline])
+  }
+
   // MARK: Private
 
   private let table = AppBadges(byProcess: [0: .count(3)])
@@ -208,12 +222,14 @@ struct PanelPresenterBadgeTests {
     return (fixture, reader)
   }
 
-  private func delayedFixture() -> (PanelPresenter, FakeDockBadgeReader, GatedSleep) {
+  private func delayedFixture(
+    step: Duration = .microseconds(4800)
+  ) -> (PanelPresenter, FakeDockBadgeReader, GatedSleep) {
     let sleep = GatedSleep()
     let presenter = PanelPresenter(
       surface: FakeSurface(),
       store: WindowListStore(fixed: SampleWindows.make(count: 4)),
-      now: SteppingClock(step: .microseconds(4800)).read,
+      now: SteppingClock(step: step).read,
       writeLine: { _ in },
       closesOnCommandRelease: { true },
       commandIsHeld: { true },

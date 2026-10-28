@@ -26,12 +26,17 @@ extension PanelPresenter {
   /// The read sits inside the time from press to panel, so it gets only
   /// what is left of that time: a press that already waited for its list
   /// may have none left, and then the appearance goes up without badges
-  /// rather than late.
-  func readBadgesForAppearance(startedAt: ContinuousClock.Instant) -> BadgeReading? {
+  /// rather than late. An appearance the show delay held back was waited
+  /// on purpose and is not held to the time from press to panel, so its
+  /// budget starts when the delay ran out, which is now.
+  func readBadgesForAppearance(
+    startedAt: ContinuousClock.Instant,
+    shownFromDelay: Bool
+  ) -> BadgeReading? {
     guard appIconBadges else {
       return nil
     }
-    let spent = now() - startedAt
+    let spent = shownFromDelay ? .zero : now() - startedAt
     let deadline = min(Self.badgeReadDeadline, Self.showBudget - spent - Self.roomAfterRead)
     guard deadline >= .milliseconds(1) else {
       return BadgeReading(badges: .none, outcome: .late, elapsed: .zero)

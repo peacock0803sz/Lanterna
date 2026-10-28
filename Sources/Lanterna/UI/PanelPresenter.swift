@@ -796,7 +796,8 @@ final class PanelPresenter {
       startedAt: waiting.startedAt,
       gatheredOnDemand: waiting.gatheredOnDemand,
       replay: Array(waiting.presses.dropFirst()),
-      commitOnCommand: waiting.commitOnCommand
+      commitOnCommand: waiting.commitOnCommand,
+      shownFromDelay: true
     )
   }
 
@@ -961,7 +962,8 @@ final class PanelPresenter {
     startedAt: ContinuousClock.Instant,
     gatheredOnDemand: Bool,
     replay: [HotkeyCombination] = [],
-    commitOnCommand: Bool
+    commitOnCommand: Bool,
+    shownFromDelay: Bool = false
   ) {
     // Kept per appearance for the releases to answer: the press sampled
     // it as it arrived, and a wait kept its first press's answer.
@@ -1002,7 +1004,7 @@ final class PanelPresenter {
     operations.begin(windows: ordered)
     wirePointerHandlers()
     surface.applyPanelSettings(applied)
-    let badgeReading = readBadgesForAppearance(startedAt: startedAt)
+    let badgeReading = readBadgesForAppearance(startedAt: startedAt, shownFromDelay: shownFromDelay)
     surface.showBadges(Self.drawnBadges(of: badgeReading))
     noteUnreadableDock(badgeReading)
     surface.present(windows: shown, selecting: selection.chosenID, filterActive: keyCommands.isFilteringActive)
