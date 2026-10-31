@@ -43,8 +43,8 @@ struct SettingsFastSearchSection: View {
 
   // MARK: Private
 
-  /// The toggle grid's rows: Fn and Caps Lock, then each side of Command,
-  /// then Option.
+  /// The toggle grid's rows: Fn and Caps Lock, then left and right
+  /// Command, then left and right Option.
   private static let rows: [[FastSearchModifier]] = [
     [.fn, .capsLock],
     [.leftCommand, .rightCommand],
