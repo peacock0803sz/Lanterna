@@ -217,8 +217,9 @@ final class PanelPresenter {
   /// How often the Fast Search release watch looks. Shortened by tests.
   var fastSearchReleaseWatchInterval = UnreportedReleaseWatch.defaultInterval
 
-  /// Told whenever a switcher panel goes up or comes down, so whoever
-  /// starts Fast Search can stop starting one over a panel.
+  /// Told whenever a switcher panel goes up or comes down, and when a Fast
+  /// Search starts or ends, so whoever starts Fast Search can stop starting
+  /// one over a panel or another search.
   var onSwitcherSessionChanged: (@MainActor () -> Void)?
 
   /// Told when a Fast Search panel comes down, so the search's key can be
@@ -710,8 +711,10 @@ final class PanelPresenter {
     writeLine(LogLine(.info, .panel, measurement.summaryLine, context: measurement.context))
 
     // Only with a monitor is a release expected at all, and starting below
-    // the reading is what keeps the task out of the figure. Filtering starts
-    // no watch, for releases end nothing there. The key-status looking starts
+    // the reading is what keeps the task out of the figure. A panel that
+    // opens filtering starts no watch: an invoked filter stays up when the
+    // key is let go, and a Fast Search watches for its own key's release.
+    // The key-status looking starts
     // with the handover above: it lasts as long as the panel does, and the
     // way out owns both ends of that.
     if closesOnCommandRelease(), !keyCommands.isFilteringActive {
