@@ -86,12 +86,25 @@ struct PanelPresenterFastSearchTests {
     #expect(fixture.presenter.keyCommands.filterSummary().query == "s")
   }
 
-  @Test
-  func passiveReleasesDoNothingDuringASearch() {
-    let fixture = Fixture(closesOnCommandRelease: true)
-    _ = begin(fixture, "s", modifier: .rightCommand)
-    fixture.presenter.handleCommandRelease()
-    fixture.presenter.handleOptionRelease()
+  /// A switcher key's release ends nothing in a search, not even a number
+  /// being typed: the digit after it still extends the number.
+  @Test(arguments: [true, false])
+  func passiveReleasesDoNothingDuringASearch(commandComesUp: Bool) {
+    let fixture = Fixture(entryCount: 40, closesOnCommandRelease: true, heldModifiers: [])
+    fixture.presenter.numberJump = true
+    _ = begin(fixture, "s")
+    let rows = fixture.presenter.keyCommands.numberedRows()
+    #expect(rows.count >= 10)
+
+    fixture.presenter.fastSearchKeystroke(digit(kVK_ANSI_1))
+    if commandComesUp {
+      fixture.presenter.handleCommandRelease()
+    } else {
+      fixture.presenter.handleOptionRelease()
+    }
+    fixture.presenter.fastSearchKeystroke(digit(kVK_ANSI_0))
+
+    #expect(fixture.presenter.selection.chosenID == rows.dropFirst(9).first?.id)
     #expect(fixture.surface.isPresented)
   }
 
@@ -190,6 +203,10 @@ struct PanelPresenterFastSearchTests {
   }
 
   // MARK: Private
+
+  private func digit(_ keyCode: Int) -> PanelKeystroke {
+    PanelKeystroke(keyCode: UInt16(keyCode), modifiers: .command, isARepeat: false)
+  }
 
   private func letter(_ text: String) -> PanelKeystroke {
     let codes: [String: Int] = ["s": kVK_ANSI_S, "a": kVK_ANSI_A, "q": kVK_ANSI_Q, "z": kVK_ANSI_Z]
