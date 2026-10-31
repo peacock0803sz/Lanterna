@@ -73,6 +73,7 @@ struct SettingsFilterView: View {
         }
         .pickerStyle(.menu)
       }
+      SettingsFastSearchSection(values: $values)
       Section {
         ForEach($values.exclusions) { $entry in
           ExclusionRow(entry: $entry) {
