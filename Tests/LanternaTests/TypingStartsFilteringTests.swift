@@ -233,10 +233,17 @@ struct TypingStartsFilteringTests {
   func theOptionSwitcherCommitsATypedFilterToo() {
     let fixture = Fixture(closesOnCommandRelease: true, heldModifiers: .maskAlternate)
     fixture.presenter.typingStartsFiltering = true
+    // The sample rows share one process number; naming it as the front
+    // application keeps them inside the parallel switcher's scope.
+    fixture.presenter.keyCommands.frontmostProcessIdentifier = { fixture.windows[0].ownerProcessIdentifier }
     fixture.presenter.handleHotkey(.parallelForward, deliveryDelay: nil)
     _ = fixture.presenter.handleKeyStroke(press(kVK_ANSI_M, "m", .option))
     fixture.presenter.handleOptionRelease()
     #expect(!fixture.surface.isPresented)
+    let commit = fixture.log.lines.first { $0.hasPrefix("committed ") }
+    #expect(commit?.contains("after Option was released; filter \"m\"") == true)
+    // The commit is remembered for its query, as a commit key's is.
+    #expect(fixture.presenter.keyCommands.shortcutMemoryCount == 1)
   }
 
   // MARK: Private
