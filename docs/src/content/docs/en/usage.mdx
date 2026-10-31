@@ -85,6 +85,8 @@ Without a `switchers` section the file reads as before, and the parallel switche
 
 A `Ctrl` letter with no row above types nothing while filtering: it is dropped.
 
+With **Typing starts filtering in the panel** on in the Filter settings, or `"typingStartsFiltering": true` in `config.json`, typing a letter in a switcher opened with `Cmd+Tab` or `Opt+Tab` starts filtering with that letter, and releasing `Cmd` or `Opt` switches to the chosen window as it always does. <kbd>J</kbd>, <kbd>K</kbd>, <kbd>N</kbd>, <kbd>P</kbd> and <kbd>S</kbd> then type letters. Window actions on letter keys, such as <kbd>⌘</kbd><kbd>W</kbd>, need a press and hold: held past the system's delay before a key repeats, they act; released sooner, or followed by another key, they type their letter. Number jumps answer at once. Absent means off.
+
 :::note
 While Lanterna runs, the Spotlight `Cmd+Space` shortcut is off. It comes back when you quit Lanterna.
 :::
@@ -114,6 +116,27 @@ A missing or broken dictionary falls back to kana-only matching. To turn kanji m
 Lanterna reads the panel's keys before any input method does, so typing a query never goes through the IME. Tools that rewrite keys based on the selected input source still do, though. A Karabiner-Elements thumb-shift rule active only for a Japanese source, for example, turns `abc` into something else before Lanterna sees it.
 
 To avoid that, choose a source under **Force keyboard** in the Filter settings, or set `"forcedInputSource"` to its ID in `config.json`, such as `"com.apple.keylayout.ABC"`. Lanterna selects that source while the switcher is up and gives yours back when it closes or when Lanterna quits. If the switcher closes on a different source you picked by hand, that source stays. Absent means off.
+
+## Fast Search
+
+Fast Search switches windows without opening the switcher first. Hold an enabled key, type a few letters of an app name or window title, and let go: the switcher comes up showing the matches as you type, and letting go switches to the chosen window. If the window you are in is the best match, the next one is chosen, so `sa` from one Safari window goes to another. Letting go with nothing typed, or with nothing matching, switches nowhere. While you hold the key, the arrow keys and <kbd>Tab</kbd> move the selection, <kbd>⌫</kbd> deletes, <kbd>esc</kbd> clears or closes, and <kbd>↩</kbd> switches at once.
+
+Choose the keys under **Fast Search with** in the Filter settings, or list them in `config.json`:
+
+```json
+"fastSearchModifiers": ["fn", "rightCommand"]
+```
+
+The keys are `fn`, `capsLock`, `leftCommand`, `rightCommand`, `leftOption` and `rightOption`. Absent or empty means off, and then nothing of Lanterna sits between your keyboard and your apps. A key this version does not know is skipped with a note in the log.
+
+Each key gives something up while it is enabled:
+
+- Caps Lock works only after System Settings > Keyboard > Keyboard Shortcuts > Modifier Keys sets the Caps Lock key to Escape. The Escape key itself then works the same way. Pressed alone, Escape is sent when you let go of it. A letter typed before you let go starts Fast Search, even when you meant Escape followed by that letter, so a quick `Esc` `:` in Vim needs Escape released first.
+- With a Command or Option key enabled, letters typed while holding that key no longer reach apps as shortcuts or special characters. Enable only the side you do not use for shortcuts, such as the right Command key.
+- With Fn enabled, the Fn combinations the system uses still go to the system when typed first: Fn-A, Fn-Shift-A, Fn-C, Fn-D, Fn-E, Fn-H, Fn-N and Fn-Q. Typed after the first letter, they are part of the query.
+- Letting go of Fn after a search may also trigger the action set for the Globe key. Set "Press 🌐 key to" to "Do Nothing" in System Settings > Keyboard to avoid it.
+
+Fast Search reads the letters from the keyboard layout in use, so the query reads the same under any input source. Tools that rewrite keys based on the input source, such as Karabiner-Elements, still rewrite the first letter before Lanterna sees it.
 
 ## Window actions
 
