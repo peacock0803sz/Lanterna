@@ -75,9 +75,11 @@ struct TypingStartsFilteringTests {
     #expect(made.commands.filterSummary().query == "w")
     #expect(made.operations.isEmpty)
 
-    // The wait the letter ended runs out after all: it must not act.
+    // The release cancelled the wait, so it comes back without `finish`,
+    // which ends only a wait still running. Once it is back, nothing acts.
     await made.sleep.waitUntilWaiting()
     made.sleep.finish()
+    await made.sleep.waitUntilReturned(1)
     await settle()
     #expect(made.operations.isEmpty)
     #expect(made.commands.filterSummary().query == "w")
@@ -111,8 +113,12 @@ struct TypingStartsFilteringTests {
     _ = made.commands.handle(press(kVK_ANSI_I, "i", .command))
     #expect(made.commands.filterSummary().query == "wi")
 
+    // The second press cancelled the wait, so it comes back without
+    // `finish`, which ends only a wait still running. Once it is back,
+    // nothing acts.
     await made.sleep.waitUntilWaiting()
     made.sleep.finish()
+    await made.sleep.waitUntilReturned(1)
     await settle()
     #expect(made.operations.isEmpty)
     #expect(made.commands.filterSummary().query == "wi")
@@ -136,8 +142,8 @@ struct TypingStartsFilteringTests {
     made.commands.longPress.cancel()
   }
 
-  /// A hold whose panel came down is over: a panel opened before its wait
-  /// runs out does not inherit it.
+  /// A hold whose panel came down is over: a panel opened before its delay
+  /// has passed does not inherit it.
   @Test(.timeLimit(.minutes(1)))
   func aHoldEndsWithItsPanel() async {
     let made = makeCommands(typing: true, endsFilteringWithThePanel: true)
@@ -145,8 +151,12 @@ struct TypingStartsFilteringTests {
     made.wayOut.dismissPanel()
     made.surface.isPresented = true
 
+    // The panel going cancelled the wait, so it comes back without
+    // `finish`, which ends only a wait still running. Once it is back,
+    // nothing acts.
     await made.sleep.waitUntilWaiting()
     made.sleep.finish()
+    await made.sleep.waitUntilReturned(1)
     await settle()
     #expect(made.operations.isEmpty)
   }
