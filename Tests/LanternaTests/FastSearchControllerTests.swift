@@ -57,6 +57,19 @@ struct FastSearchControllerTests {
   }
 
   @Test
+  func aModifierTurnedOffWhileRunningStopsStarting() {
+    let kept = make()
+    kept.controller.apply(modifiers: [.rightCommand, .fn])
+    #expect(decide(kept, down: kVK_ANSI_S, flags: rightCommand).verdict == .swallow)
+
+    let made = make()
+    made.controller.apply(modifiers: [.rightCommand, .fn])
+    made.controller.apply(modifiers: [.fn])
+    #expect(made.controller.isRunning)
+    #expect(decide(made, down: kVK_ANSI_S, flags: rightCommand).verdict == .pass)
+  }
+
+  @Test
   func recordingAKeyStopsSearchesFromStarting() {
     let made = make()
     made.controller.apply(modifiers: [.fn])
@@ -147,6 +160,9 @@ struct FastSearchControllerTests {
     return letters[keyCode].map { shift ? $0.uppercased() : $0 }
   }
 
+  /// Command with the right-hand device bit, as the tap reads Right Command.
+  private let rightCommand = CGEventFlags(rawValue: CGEventFlags.maskCommand.rawValue | 0x10)
+
   private func make() -> Made {
     let tap = FakeFastSearchTap()
     let log = DiagnosticsLog()
@@ -166,8 +182,12 @@ struct FastSearchControllerTests {
     PanelKeystroke(keyCode: UInt16(keyCode), modifiers: [], isARepeat: false, characters: text)
   }
 
-  private func decide(_ made: Made, down keyCode: Int) -> (verdict: FastSearchVerdict, effect: FastSearchEffect?) {
-    made.controller.box.decide(FastSearchEvent(kind: .keyDown, keyCode: UInt16(keyCode), flags: .maskSecondaryFn))
+  private func decide(
+    _ made: Made,
+    down keyCode: Int,
+    flags: CGEventFlags = .maskSecondaryFn
+  ) -> (verdict: FastSearchVerdict, effect: FastSearchEffect?) {
+    made.controller.box.decide(FastSearchEvent(kind: .keyDown, keyCode: UInt16(keyCode), flags: flags))
   }
 
 }
