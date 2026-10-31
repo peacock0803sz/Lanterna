@@ -22,7 +22,7 @@ enum FnSystemShortcuts {
 
   // MARK: Private
 
-  /// Fn-A shows the Dock and Fn-Shift-A Launchpad, Fn-C Control Center,
+  /// Fn-A shows the Dock and Fn-Shift-A Apps, Fn-C Control Center,
   /// Fn-D dictation, Fn-E emoji, Fn-H the desktop, Fn-N notifications and
   /// Fn-Q a quick note.
   private static let letters: Set<Character> = ["a", "A", "c", "d", "e", "h", "n", "q"]
