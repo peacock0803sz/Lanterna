@@ -184,6 +184,13 @@ struct PanelPresenterFastSearchTests {
 
     #expect(fixture.surface.isPresented)
     #expect(fixture.presenter.keyCommands.filterSummary().query == "sa")
+
+    let chosen = fixture.presenter.selection.chosenID
+    fixture.presenter.fastSearchRelease(receivedAt: ContinuousClock.now)
+    #expect(!fixture.surface.isPresented)
+    #expect(fixture.switcher.targets.map(\.id) == [chosen].compactMap(\.self))
+    let commit = fixture.log.lines.first { $0.hasPrefix("committed ") }
+    #expect(commit?.contains("after Fn was released; filter \"sa\"") == true)
   }
 
   @Test(.timeLimit(.minutes(1)))
