@@ -714,9 +714,8 @@ final class PanelPresenter {
     // the reading is what keeps the task out of the figure. A panel that
     // opens filtering starts no watch: an invoked filter stays up when the
     // key is let go, and a Fast Search watches for its own key's release.
-    // The key-status looking starts
-    // with the handover above: it lasts as long as the panel does, and the
-    // way out owns both ends of that.
+    // The key-status looking starts with the handover above: it lasts as
+    // long as the panel does, and the way out owns both ends of that.
     if closesOnCommandRelease(), !keyCommands.isFilteringActive {
       commandWatch.start()
     }
