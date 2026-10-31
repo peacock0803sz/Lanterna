@@ -71,6 +71,8 @@ enum AppConfiguration {
     "groupHeadingStyle",
     "groupNames",
     "groupAssignments",
+    "fastSearchModifiers",
+    "typingStartsFiltering",
     "switchers",
   ]
 
@@ -317,6 +319,12 @@ struct ValidConfiguration: Equatable, Sendable {
   /// Keys this build does not know, sorted for stability, kept so saving
   /// writes them back. Empty means none, which means nothing to preserve.
   var unknownFields = [UnknownField]()
+  /// The keys that start Fast Search, in the fixed order with repeats
+  /// and unreadable entries left out. Nil means absent, which means off.
+  var fastSearchModifiers: [FastSearchModifier]?
+  /// Whether typing a letter in a switcher panel starts filtering.
+  /// Nil means absent, which means off.
+  var typingStartsFiltering: Bool?
 
 }
 
@@ -388,6 +396,8 @@ struct DecodedConfiguration: Equatable, Sendable {
   var groupAssignmentIssues = [GroupAssignmentIssue]()
   /// One entry per skipped row-order entry, for the diagnostics lines.
   var rowOrderIssues = [RowOrderIssue]()
+  /// One entry per Fast Search modifier left out, for the diagnostics lines.
+  var fastSearchModifierIssues = [FastSearchModifierIssue]()
   /// One line per switcher-section fallback, for the diagnostics lines.
   var switcherNotes = [String]()
 }
@@ -485,6 +495,7 @@ extension AppConfiguration {
       return resolvedKeyBindings(dict, data: data, config: config, assumed: assumed)
         .flatMap { withGroupAssignments(dict, decoded: $0) }
         .flatMap { withRowOrder(dict, decoded: $0) }
+        .flatMap { withFastSearchModifiers(dict, decoded: $0) }
         .flatMap { withSwitcherSections(dict, decoded: $0) }
         .map { decoded in
           var decoded = decoded

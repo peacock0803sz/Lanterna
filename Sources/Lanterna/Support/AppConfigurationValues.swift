@@ -90,6 +90,12 @@ extension AppConfiguration {
     case .failure(let error):
       return .failure(error)
     }
+    switch checkedOptionalBool(dict, key: "typingStartsFiltering") {
+    case .success(let found):
+      config.typingStartsFiltering = found
+    case .failure(let error):
+      return .failure(error)
+    }
     switch checkedOptionalBool(dict, key: "autoFocusSingleCandidate") {
     case .success(let found):
       config.autoFocusSingleCandidate = found

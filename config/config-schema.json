@@ -143,6 +143,25 @@
       "description": "Whether each row's icon carries the badge its application shows on its\nDock icon, as it was when the panel opened. Absent means off.",
       "type": "boolean"
     },
+    "fastSearchModifiers": {
+      "description": "The keys that start Fast Search: hold one and type a few letters of an\napp name or window title, then let go to switch to the selected window,\nwith no panel opened first. Letters typed while holding an enabled key\nno longer reach apps, so an enabled Command or Option key stops sending\nits shortcuts and special characters for letters. An entry this build\ndoes not know is left out with a note. Absent or empty means off.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "fn",
+          "capsLock",
+          "leftCommand",
+          "rightCommand",
+          "leftOption",
+          "rightOption"
+        ]
+      }
+    },
+    "typingStartsFiltering": {
+      "description": "Whether typing a letter in a panel opened with a switcher key starts\nfiltering, with letting go switching to the selected window. Keys bound\nto window actions then need a press and hold. Absent means off.",
+      "type": "boolean"
+    },
     "autoFocusSingleCandidate": {
       "description": "Whether a filter that narrows to one row focuses that row and closes\nthe panel. Absent means on.",
       "type": "boolean"
@@ -1328,6 +1347,14 @@
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },
+            "fastSearchModifiers": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "typingStartsFiltering": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
             "autoFocusSingleCandidate": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
@@ -1665,6 +1692,14 @@
               "deprecated": true
             },
             "appIconBadges": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "fastSearchModifiers": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "typingStartsFiltering": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },

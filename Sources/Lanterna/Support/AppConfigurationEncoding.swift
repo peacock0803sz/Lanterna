@@ -78,6 +78,10 @@ extension AppConfiguration {
     if config.appIconBadges == true {
       entries.append(encodedBool(key: "appIconBadges", value: true))
     }
+    entries.append(contentsOf: fastSearchModifierEntries(config))
+    if config.typingStartsFiltering == true {
+      entries.append(encodedBool(key: "typingStartsFiltering", value: true))
+    }
     entries.append(contentsOf: numberSelectEntries(config))
     entries.append(contentsOf: updateCheckEntries(config))
     entries.append(encodedInt(key: "version", value: config.version))

@@ -142,6 +142,12 @@ struct SettingsValues: Equatable, Sendable {
   /// The table as loaded, for telling an untouched round trip apart
   /// from an edited table.
   var loadedKeyBindings: KeyBindingTable
+  /// The keys that start Fast Search while held. Absent in the file
+  /// means none, which leaves Fast Search off.
+  var fastSearchModifiers = Set<FastSearchModifier>()
+  /// Whether typing a letter in a switcher panel starts filtering.
+  /// Absent in the file means off.
+  var typingStartsFiltering = false
 
   /// The commit switches as the commit path takes them.
   var activationPolicy: ActivationPolicy {
@@ -212,7 +218,9 @@ struct SettingsValues: Equatable, Sendable {
       hasSwitchersSection: config.hasSwitchersSection,
       keyBindings: config.keyBindings,
       keyBindingSection: config.keyBindingSection,
-      loadedKeyBindings: config.keyBindings
+      loadedKeyBindings: config.keyBindings,
+      fastSearchModifiers: Set(config.fastSearchModifiers ?? []),
+      typingStartsFiltering: config.typingStartsFiltering ?? false
     )
   }
 
@@ -287,6 +295,12 @@ struct SettingsValues: Equatable, Sendable {
     }
     if appIconBadges != defaults.appIconBadges {
       config.appIconBadges = appIconBadges
+    }
+    if !fastSearchModifiers.isEmpty {
+      config.fastSearchModifiers = FastSearchModifier.allCases.filter(fastSearchModifiers.contains)
+    }
+    if typingStartsFiltering != defaults.typingStartsFiltering {
+      config.typingStartsFiltering = typingStartsFiltering
     }
     if autoFocusSingleCandidate != defaults.autoFocusSingleCandidate {
       config.autoFocusSingleCandidate = autoFocusSingleCandidate

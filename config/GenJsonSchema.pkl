@@ -35,6 +35,9 @@ local function isBoolean(prop: reflect.Property): Boolean =
 /// shapes.
 local function isExclusions(prop: reflect.Property): Boolean = prop.name == "exclusions"
 
+/// Whether the property is the Fast Search modifier list.
+local function isFastSearchModifiers(prop: reflect.Property): Boolean = prop.name == "fastSearchModifiers"
+
 /// Whether the property is the group assignment list.
 local function isGroupAssignments(prop: reflect.Property): Boolean = prop.name == "groupAssignments"
 
@@ -86,7 +89,8 @@ local sharedSwitcherKeys = new Listing<String> {
   "groupCount"; "groupHeadingStyle"; "displayTarget"; "panelWidth"; "panelRows";
   "textScale"; "showDelayMs"; "hintsMode"; "numberJump"; "numberReorder"; "numberScope";
   "hoverSelect"; "scrollSelect"; "reopenWindowlessApps"; "raiseOnlyChosenWindow"; "appIconBadges";
-  "autoFocusSingleCandidate"; "fuzzyMatchEnabled"; "listWindowsOnAllSpaces"
+  "autoFocusSingleCandidate"; "fuzzyMatchEnabled"; "listWindowsOnAllSpaces";
+  "fastSearchModifiers"; "typingStartsFiltering"
 }
 
 /// The two switcher sections side by side. The main section renders each
@@ -221,6 +225,17 @@ local function fragment(prop: reflect.Property): Dynamic =
         }
         ["required"] = new Listing<String> { "app"; "titlePattern" }
         ["additionalProperties"] = false
+      }
+    }
+  else if (isFastSearchModifiers(prop))
+    new {
+      ["type"] = "array"
+      description = prop.docComment
+      ["items"] = new {
+        ["type"] = "string"
+        ["enum"] = new Listing<String> {
+          "fn"; "capsLock"; "leftCommand"; "rightCommand"; "leftOption"; "rightOption"
+        }
       }
     }
   else if (isGroupAssignments(prop))
