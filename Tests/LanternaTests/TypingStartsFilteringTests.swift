@@ -215,6 +215,20 @@ struct TypingStartsFilteringTests {
     #expect(commit?.contains("filter \"w\"") == true)
   }
 
+  /// The presenter's own panel going ends a hold under way.
+  @Test
+  func thePresenterEndsAHoldWhenThePanelGoes() {
+    let fixture = Fixture()
+    fixture.presenter.typingStartsFiltering = true
+    fixture.presenter.keyCommands.longPress = LongPressHold(sleep: HeldSleep().sleep)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    _ = fixture.presenter.handleKeyStroke(press(kVK_ANSI_W, "w", .command))
+    #expect(fixture.presenter.keyCommands.longPress.pending != nil)
+
+    fixture.presenter.wayOut.dismissPanel()
+    #expect(fixture.presenter.keyCommands.longPress.pending == nil)
+  }
+
   @Test
   func theOptionSwitcherCommitsATypedFilterToo() {
     let fixture = Fixture(closesOnCommandRelease: true, heldModifiers: .maskAlternate)
