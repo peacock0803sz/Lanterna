@@ -37,6 +37,10 @@ extension AppDelegate {
     // that switched it off. So nothing that could fail is allowed to stand
     // between a launch and that shortcut coming back.
     monitor?.stop()
+    // An active tap left running would go on holding up every keystroke
+    // in the session until the process is gone.
+    fastSearch?.shutdown()
+    fastSearch = nil
     statusMenu?.remove()
     statusMenu = nil
     // Last of the three claims this process makes on the keyboard — the

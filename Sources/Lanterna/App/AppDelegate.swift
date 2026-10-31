@@ -65,6 +65,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   /// handle to update is a change that waits for a restart.
   var panel: SwitcherPanel?
   var presenter: PanelPresenter?
+  /// Held so a settings change can make or take down the Fast Search tap,
+  /// and so quitting can take it down.
+  var fastSearch: FastSearchController?
   /// Where the settings file lives, if the directory resolved at launch.
   let configFileURL: URL?
   /// What the matcher reads beside the config file, if it resolved.
