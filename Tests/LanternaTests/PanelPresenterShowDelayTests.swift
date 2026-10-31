@@ -77,7 +77,8 @@ struct PanelPresenterShowDelayTests {
   }
 
   /// A press that never shows after a Fast Search is not written down as
-  /// one: the search's mark goes with the search.
+  /// one: the search leaves its mark behind, and answering the press
+  /// without a panel clears it.
   @Test
   func aSilentCommitAfterAFastSearchIsNotMarkedAsOne() {
     let fixture = waitingFixture()
