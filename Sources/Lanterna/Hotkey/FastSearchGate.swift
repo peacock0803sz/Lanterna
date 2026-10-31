@@ -3,7 +3,8 @@ import CoreGraphics
 
 // MARK: - FastSearchConditions
 
-/// What the main actor tells the tap's thread, replaced whole on every change.
+/// What the main actor tells the tap's thread. Changed in place under a
+/// lock; each decision reads a copy.
 struct FastSearchConditions: Equatable, Sendable {
   /// The modifiers the user turned on.
   var enabled = Set<FastSearchModifier>()
@@ -227,8 +228,8 @@ struct FastSearchGate: Equatable, Sendable {
   /// Turns a press during a search into what the panel should see.
   ///
   /// A letter typed with the starting key alone becomes the bare letter,
-  /// so the key does not turn it into a shortcut. Fn's arrows and forward
-  /// delete come back as the keys Fn turned them into, and Fn itself is
+  /// so the key does not turn it into a shortcut. What Fn makes of the
+  /// arrows and Delete is mapped back to the plain keys, and Fn itself is
   /// dropped. Tab with the starting key moves the selection, since the
   /// panel binds nothing to a bare Tab. Anything else keeps its modifiers,
   /// so Command-Period still cancels.
