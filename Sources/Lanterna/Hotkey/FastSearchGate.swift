@@ -136,6 +136,23 @@ struct FastSearchGate: Equatable, Sendable {
     return false
   }
 
+  /// Whether deciding the next event needs to know if Escape is still down:
+  /// a state waiting on Caps Lock, where a missed release shows only there.
+  var waitsOnEscape: Bool {
+    switch state {
+    case .escapeHeld,
+         .escapeSpent:
+      true
+    case .passedThrough(let modifier):
+      modifier == .capsLock
+    case .awaitingRelease(let run):
+      run.modifier == .capsLock
+    case .idle,
+         .running:
+      false
+    }
+  }
+
   /// Decides one event.
   mutating func handle(
     _ event: FastSearchEvent,

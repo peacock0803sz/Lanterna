@@ -264,6 +264,21 @@ struct FastSearchGateTests {
   }
 
   @Test
+  func onlyCapsLockStatesAskWhetherEscapeIsDown() {
+    #expect(!FastSearchGate().waitsOnEscape)
+    #expect(!running(.fn).waitsOnEscape)
+    #expect(escapeHeld().waitsOnEscape)
+    var closed = running(.fn)
+    closed.panelClosed()
+    #expect(!closed.waitsOnEscape)
+    var capsClosed = escapeHeld()
+    _ = capsClosed.handle(down(s, [], escapeDown: true), conditions: conditions([.capsLock]))
+    #expect(!capsClosed.waitsOnEscape)
+    capsClosed.panelClosed()
+    #expect(capsClosed.waitsOnEscape)
+  }
+
+  @Test
   func escapeReadAsUpMeansItsReleaseWasMissed() {
     var spent = escapeHeld()
     _ = spent.handle(down(semicolon, [], escapeDown: true), conditions: conditions([.capsLock]))
