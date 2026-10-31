@@ -4,9 +4,10 @@ import Testing
 
 // MARK: - FastSearchConfigTests
 
-/// The two Fast Search keys in the settings file: absent means off, only
-/// what differs from the default is written, an unknown modifier is left
-/// out on its own, and the switcher sections leave both alone.
+/// The settings-file keys for Fast Search and typing to filter: absent
+/// means off, only what differs from the default is written, an unknown
+/// modifier is left out on its own, and the switcher sections leave them
+/// alone.
 @MainActor
 struct FastSearchConfigTests {
 
