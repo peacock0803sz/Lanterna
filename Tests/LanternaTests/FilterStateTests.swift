@@ -93,6 +93,19 @@ struct FilterStateTests {
     #expect(chosen == second)
   }
 
+  /// A filter that commits on release steps past the front row, takes it
+  /// when nothing else matches, and ignores both the incoming choice and
+  /// the remembered row.
+  @Test
+  func leavingFrontStepsPastTheFrontRow() {
+    var state = FilterState(rememberedID: third, frontID: first)
+    #expect(state.resolveLeavingFront(matched: [first, second, third]) == second)
+    #expect(state.resolveLeavingFront(matched: [first]) == first)
+    #expect(state.resolveLeavingFront(matched: [third, first]) == third)
+    #expect(state.resolveLeavingFront(matched: []) == nil)
+    #expect(state.previousMatchedIDs.isEmpty)
+  }
+
   // MARK: Private
 
   private let first = WindowItem.Identifier(windowID: 1)

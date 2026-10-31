@@ -47,6 +47,8 @@ final class PanelFilter {
   /// shown any other way leaves it off, and typing is swallowed as before
   /// unless a bare binding answers while not filtering.
   private(set) var isActive = false
+  /// How this appearance's filter was started. Meaningful while active.
+  private(set) var origin = FilterOrigin.invoked
   /// How the special kinds show. Read at launch from the config file;
   /// the panel keeps the rows and this decides which reach the screen.
   var displayModes = DisplayModes.defaults
@@ -146,11 +148,18 @@ final class PanelFilter {
   /// Filtering answers keystrokes only when the appearance asked for it.
   /// Draws nothing: the caller opens the choice and the panel on
   /// `shownWindows`, so the modes narrow the list before either sees it.
-  func begin(fullWindows: [WindowItem], filtering: Bool = false, activeApplication: pid_t? = nil) {
+  func begin(
+    fullWindows: [WindowItem],
+    filtering: Bool = false,
+    origin: FilterOrigin = .invoked,
+    activeApplication: pid_t? = nil
+  ) {
     pendingFocus.cancel()
     self.fullWindows = fullWindows
     state = FilterState()
     scope.begin(target: activeApplication)
+    self.origin = origin
+    state.frontID = shownLayout.rankedRows.first?.id
     let shown = shownWindows
     previousQuery = ""
     previousShownCount = shown.count
@@ -167,9 +176,10 @@ final class PanelFilter {
   /// chrome appears with the activation rather than with the next keystroke.
   /// A panel switched over mid-appearance starts on an empty query with
   /// the point at the start, the way a fresh appearance does.
-  func activate() {
+  func activate(origin: FilterOrigin = .invoked) {
     guard !isActive else { return }
     state.line = QueryText()
+    self.origin = origin
     isActive = true
     apply()
   }
@@ -221,6 +231,7 @@ final class PanelFilter {
     previousShownCount = 0
     lastSummary = FilterLogSummary(query: "", matchedCount: 0, totalCount: 0)
     isActive = false
+    origin = .invoked
   }
 
   /// Records one commit under the query it committed with. Movements
@@ -366,7 +377,10 @@ final class PanelFilter {
     let layout = shownLayout
     let matched = layout.rows
     let matchedList = matched.map(\.id)
-    let chosen = state.resolveSelection(matched: layout.rankedRows.map(\.id), incoming: selection.chosenID)
+    let ranked = layout.rankedRows.map(\.id)
+    let chosen = origin.commitsOnRelease && queryChanged
+      ? state.resolveLeavingFront(matched: ranked)
+      : state.resolveSelection(matched: ranked, incoming: selection.chosenID)
     selection.retarget(to: matchedList, selecting: chosen)
     previousQuery = state.query
     previousShownCount = matched.count

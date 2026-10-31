@@ -15,6 +15,10 @@ struct FilterState: Equatable, Sendable {
   var rememberedID: WindowItem.Identifier?
   /// What matched last, for telling a renewed match apart from a kept one.
   var previousMatchedIDs = Set<WindowItem.Identifier>()
+  /// The row first in use order when the appearance began, which is the
+  /// window already in front. A filter that commits on release steps
+  /// past it, since switching to it would change nothing.
+  var frontID: WindowItem.Identifier?
 
   /// The current query. Empty means the whole list. Read off the line:
   /// the insertion point lives there, not here.
@@ -65,5 +69,17 @@ struct FilterState: Equatable, Sendable {
       return incoming
     }
     return matched.first
+  }
+
+  /// Resolves the choice for a filter that commits on release, after the
+  /// query changed: the best match other than the front row, or the front
+  /// row when nothing else matches.
+  ///
+  /// Neither a choice moved by hand nor the remembered row survives a
+  /// change of query. Letting go commits, so the row chosen is the one
+  /// the query asks for now, not one picked for an earlier query.
+  mutating func resolveLeavingFront(matched: [WindowItem.Identifier]) -> WindowItem.Identifier? {
+    previousMatchedIDs = Set(matched)
+    return matched.first { $0 != frontID } ?? matched.first
   }
 }
