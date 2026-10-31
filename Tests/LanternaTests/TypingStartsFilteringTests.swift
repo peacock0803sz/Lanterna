@@ -171,6 +171,8 @@ struct TypingStartsFilteringTests {
     #expect(!fixture.surface.isPresented)
     let commit = fixture.log.lines.first { $0.hasPrefix("committed ") }
     #expect(commit?.contains("after Command was released; filter \"m\"") == true)
+    // The commit is remembered for its query, as a commit key's is.
+    #expect(fixture.presenter.keyCommands.shortcutMemoryCount == 1)
   }
 
   @Test
