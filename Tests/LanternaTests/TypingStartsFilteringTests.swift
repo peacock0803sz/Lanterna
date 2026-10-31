@@ -118,6 +118,24 @@ struct TypingStartsFilteringTests {
     #expect(made.commands.filterSummary().query == "wi")
   }
 
+  /// A hold another window action replaced is over: its wait, ended by the
+  /// new press, does not act when it comes back.
+  @Test(.timeLimit(.minutes(1)))
+  func aReplacedHoldDoesNotAct() async {
+    let made = makeCommands(typing: true)
+    _ = made.commands.handle(press(kVK_ANSI_W, "w", .command))
+    _ = made.commands.handle(press(kVK_ANSI_M, "m", .command))
+    #expect(made.commands.longPress.pending?.keyCode == UInt16(kVK_ANSI_M))
+
+    // The first wait comes back while the second hold is still pending.
+    await made.sleep.waitUntilReturned(1)
+    await settle()
+    #expect(made.operations.isEmpty)
+    #expect(made.commands.longPress.pending?.keyCode == UInt16(kVK_ANSI_M))
+    #expect(made.commands.filterSummary().query == "w")
+    made.commands.longPress.cancel()
+  }
+
   /// A hold whose panel came down is over: a panel opened before its wait
   /// runs out does not inherit it.
   @Test(.timeLimit(.minutes(1)))
@@ -289,33 +307,90 @@ struct TypingStartsFilteringTests {
 
 // MARK: - HeldSleep
 
-/// A sleep that ends when the test says so.
+/// A sleep that ends when the test says so, or early when its task is
+/// cancelled, as `Task.sleep` does. Every sleep keeps its own place, so a
+/// second one does not strand the first.
 @MainActor
 final class HeldSleep {
 
   // MARK: Internal
 
+  /// Sleeps begun so far, whether they have ended or not.
+  private(set) var started = 0
+  /// Sleeps that have come back, by `finish` or by cancellation.
+  private(set) var returned = 0
+
   func sleep(_: Duration) async {
-    await withCheckedContinuation { continuation in
-      waiting = continuation
-      started?.resume()
-      started = nil
+    let id = nextID
+    nextID += 1
+    await withTaskCancellationHandler {
+      await withCheckedContinuation { continuation in
+        // Either order ends the sleep: this sees the flag, or the
+        // handler below finds the continuation.
+        if Task.isCancelled {
+          continuation.resume()
+        } else {
+          sleepers[id] = continuation
+        }
+        started += 1
+        resumeSatisfiedWatchers()
+      }
+    } onCancel: {
+      Task { @MainActor in self.wake(id) }
     }
+    returned += 1
+    resumeSatisfiedWatchers()
   }
 
   func waitUntilWaiting() async {
-    guard waiting == nil else { return }
-    await withCheckedContinuation { started = $0 }
+    await waitUntil { $0.started > 0 }
   }
 
+  func waitUntilReturned(_ count: Int) async {
+    await waitUntil { $0.returned >= count }
+  }
+
+  /// Ends every sleep still under way.
   func finish() {
-    waiting?.resume()
-    waiting = nil
+    for id in sleepers.keys {
+      wake(id)
+    }
   }
 
   // MARK: Private
 
-  private var waiting: CheckedContinuation<Void, Never>?
-  private var started: CheckedContinuation<Void, Never>?
+  private var nextID = 0
+  private var sleepers = [Int: CheckedContinuation<Void, Never>]()
+  private var watchers = [Int: (condition: @MainActor (HeldSleep) -> Bool, continuation: CheckedContinuation<Void, Never>)]()
+
+  private func wake(_ id: Int) {
+    sleepers.removeValue(forKey: id)?.resume()
+  }
+
+  /// Gives the wait up when the task is cancelled, so a time limit on the
+  /// test ends it rather than leaving it hanging.
+  private func waitUntil(_ condition: @escaping @MainActor (HeldSleep) -> Bool) async {
+    guard !condition(self) else { return }
+    let id = nextID
+    nextID += 1
+    await withTaskCancellationHandler {
+      await withCheckedContinuation { continuation in
+        if Task.isCancelled {
+          continuation.resume()
+        } else {
+          watchers[id] = (condition, continuation)
+        }
+      }
+    } onCancel: {
+      Task { @MainActor in self.watchers.removeValue(forKey: id)?.continuation.resume() }
+    }
+  }
+
+  private func resumeSatisfiedWatchers() {
+    for (id, watcher) in watchers where watcher.condition(self) {
+      watchers.removeValue(forKey: id)
+      watcher.continuation.resume()
+    }
+  }
 
 }
