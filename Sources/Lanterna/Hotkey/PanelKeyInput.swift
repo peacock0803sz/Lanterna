@@ -179,6 +179,11 @@ protocol PanelKeyChannel {
 
   /// Stops delivering.
   func stop()
+
+  /// Delivers key releases as well, or stops delivering them with nil.
+  /// Only typing that starts a filter needs releases, to tell a held
+  /// action from a letter, so with it off nothing is read on the way up.
+  func watchReleases(_ handler: (@MainActor (UInt16) -> PanelKeyDisposition)?)
 }
 
 // MARK: - LocalKeyEventChannel
@@ -294,12 +299,29 @@ final class LocalKeyEventChannel: PanelKeyChannel {
     // same one twice is asking it to remove a monitor it no longer knows
     // about.
     monitor = nil
+    watchReleases(nil)
+  }
+
+  func watchReleases(_ handler: (@MainActor (UInt16) -> PanelKeyDisposition)?) {
+    if let releaseMonitor {
+      removeMonitor(releaseMonitor)
+    }
+    releaseMonitor = nil
+    guard let handler else { return }
+    releaseMonitor = installMonitor(.keyUp) { event in
+      let keyCode = event.keyCode
+      let disposition = MainActor.assumeIsolated { handler(keyCode) }
+      return disposition == .absorbed ? nil : event
+    }
   }
 
   // MARK: Private
 
   private let installMonitor: InstallMonitor
   private let removeMonitor: RemoveMonitor
+
+  /// The release monitor's token, present only while releases are watched.
+  private var releaseMonitor: Any?
 
   /// AppKit hands back an opaque token, and it is the only way to take the
   /// monitor off again.
