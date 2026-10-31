@@ -819,6 +819,9 @@ final class PanelPresenter {
       guard let waiting = pendingShow.take() else { return true }
       pendingPress.callOff()
       wayOut.switcherIdentity = waiting.presses.first?.switcher ?? .main
+      // Never a Fast Search: those skip the waits. Cleared here because
+      // no showing comes to reset what the last panel left behind.
+      wayOut.fastSearch = nil
       guard let items = waiting.items else {
         wayOut.recordPressCalledOff(since: startedAt, trigger: trigger(forCommitOnCommand: key))
         return true
@@ -837,6 +840,7 @@ final class PanelPresenter {
     if pendingPress.isWaiting {
       guard pendingPress.waitingCommitOnCommand == key else { return true }
       wayOut.switcherIdentity = pendingPress.waitingSwitcher ?? .main
+      wayOut.fastSearch = nil
       pendingPress.callOff()
       wayOut.recordPressCalledOff(since: startedAt, trigger: trigger(forCommitOnCommand: key))
       return true
