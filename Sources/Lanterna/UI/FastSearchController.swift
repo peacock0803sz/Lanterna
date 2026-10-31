@@ -179,8 +179,9 @@ final class FastSearchController {
     receivedAt: ContinuousClock.Instant,
     deliveryDelay: Duration?
   ) {
-    // A letter that got past the tap before the conditions caught up: the
-    // recording or the panel takes it, and the search stands down.
+    // A letter that got past the tap before the conditions caught up. The
+    // tap has already swallowed it, so the search stands down and the
+    // letter is lost, unless a switcher panel is already up to take it.
     guard let presenter, !capture.isCapturing else {
       box.standDown()
       return
