@@ -43,8 +43,8 @@ extension AppDelegate {
     fastSearch = nil
     statusMenu?.remove()
     statusMenu = nil
-    // Last of the three claims this process makes on the keyboard — the
-    // Carbon registration, the tap, and this monitor — and it can be: it
+    // Last of the claims this process makes on the keyboard, after the
+    // Carbon registration and the taps above, and it can be: it
     // is handed events the system had already decided were this
     // process's, so it holds nothing back from anything else and leaves
     // nothing behind if the process goes without it. It is taken off all
