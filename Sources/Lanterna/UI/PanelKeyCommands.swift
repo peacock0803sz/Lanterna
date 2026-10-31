@@ -60,6 +60,18 @@ final class PanelKeyCommands {
   /// when settings change, the way the exclusion rules are.
   private(set) var keyBindings: KeyBindingTable
 
+  /// Whether typing a letter in a switcher panel starts filtering. Off
+  /// keeps every press meaning what it always did.
+  var typingStartsFiltering = false
+
+  /// Run when typing starts a filter, so the presenter can stop walking
+  /// the list for a held switcher key.
+  var onTypedFilterStart: (@MainActor () -> Void)?
+
+  /// The press waiting to show whether it is a letter or an action.
+  /// Replaced by tests, which stand in for the system delay.
+  var longPress = LongPressHold()
+
   /// Which application is in front as a panel opens. The panel never
   /// activates this process, so the answer is the application the user
   /// was in. Injected so tests name it without a window server.
@@ -217,6 +229,7 @@ final class PanelKeyCommands {
 
   /// Gives the appearance up; the next one starts empty either way.
   func endFiltering() {
+    longPress.cancel()
     filter.reset()
     numberInput.reset()
     repeatSwallow.reset()
@@ -284,95 +297,48 @@ final class PanelKeyCommands {
     if repeatSwallow.swallows(keystroke) {
       return .absorbed
     }
+    if let held = longPress.pending {
+      // The held key repeating is still the one hold.
+      if held.keyCode == keystroke.keyCode, keystroke.isARepeat {
+        return .absorbed
+      }
+      flushLongPress()
+    }
     // A new press answers the old failure: the note goes before
     // anything the press means is done.
     surface.clearNotice()
+    let typing = typingStartsFilteringHere
     let resolved = PanelKeyInput.action(
       for: keystroke,
       table: keyBindings,
       numberJumpEnabled: numberJumpEnabled,
       reorderEnabled: reorderEnabled,
-      filtering: filter.isActive
+      // Typing that starts a filter turns letters into the query before a
+      // filter exists, so the bare letter bindings yield as they do while
+      // filtering.
+      filtering: filter.isActive || typing
     )
-    // Only consecutive digit presses gather into a number: anything
-    // else hands the pending digits back before it is answered.
-    if resolved != .numberDigit {
-      numberInput.reset()
+    if typing, Self.waitsForAHold(keystroke, resolved) {
+      longPress.begin(keystroke) { [weak self] in self?.longPressHeld(resolved) }
+      return .absorbed
     }
-    switch resolved {
-    case .selectNext:
-      selection.moveToNext()
+    perform(resolved, for: keystroke, since: startedAt)
+    return .absorbed
+  }
 
-    case .selectPrevious:
-      selection.moveToPrevious()
+  /// Reads a held press as the letter it types, now: the key came up,
+  /// another key went down, or the key that opened the panel was let go.
+  func flushLongPress() {
+    guard let held = longPress.take(), let text = WindowFilter.allowedText(held.characters) else { return }
+    startTypedFilterIfNeeded(for: held)
+    filter.append(text)
+  }
 
-    case .cancel:
-      cancelOrClear(keystroke, since: startedAt)
-
-    case .commit:
-      // A wait already armed must not take the row again after this key.
-      filter.cancelSingleCandidateFocus()
-      // Read before the commit: taking the panel down throws the
-      // list away. Recorded after the commit returns, so the write
-      // lands outside the measured close interval.
-      let committedID = selection.chosenID
-      let committedQuery = filter.logSummary().query
-      wayOut.commit(
-        by: PanelKeyInput.commitKey(for: keystroke),
-        naming: committedID,
-        since: startedAt,
-        filter: filter.logSummary()
-      )
-      recordShortcut(query: committedQuery, id: committedID)
-
-    case .clearQuery:
-      // Clearing an empty query changes nothing, and the panel
-      // stays up either way: there is nothing to cancel here.
-      _ = filter.clear()
-
-    case .windowOperation(let operation):
-      operate?(operation, selection.chosenID)
-
-    case .toggleScope:
-      filter.toggleScope()
-
-    case .startFiltering:
-      repeatSwallow.hold(keystroke.keyCode)
-      startFiltering?()
-
-    case .openSettings:
-      let summary = filter.logSummary()
-      wayOut.leaveForSettings(
-        by: PanelKeyInput.settingsKey(for: keystroke),
-        since: startedAt,
-        filter: summary
-      )
-      openSettings?()
-
-    case .filterText(let text):
-      filter.append(text)
-
-    case .editQuery(let edit):
-      filter.edit(edit)
-
-    case .numberDigit:
-      guard numberJumpEnabled, let digit = PanelKeyInput.digitValue(for: keystroke.keyCode) else {
-        break
-      }
-      numberInput.append(digit)
-      guard let number = numberInput.number else { break }
-      let rows = numberedRows()
-      guard rows.indices.contains(number - 1) else { break }
-      selection.select(rows[number - 1].id)
-
-    case .moveRowUp:
-      moveSelectedRow(by: -1)
-
-    case .moveRowDown:
-      moveSelectedRow(by: 1)
-
-    case .absorb:
-      break
+  /// A key came up. Only a held press listens: its release means a letter.
+  func handleKeyRelease(_ keyCode: UInt16) -> PanelKeyDisposition {
+    guard surface.isPresented else { return .passedThrough }
+    if longPress.pending?.keyCode == keyCode {
+      flushLongPress()
     }
     return .absorbed
   }
@@ -456,6 +422,145 @@ final class PanelKeyCommands {
   private let startFiltering: (@MainActor () -> Void)?
   /// Opens the settings, through the presenter.
   private let openSettings: (@MainActor () -> Void)?
+
+  /// Whether typing starts a filter in the panel that is up. A Fast Search
+  /// panel is already filtering, and its letters arrive by another way.
+  private var typingStartsFilteringHere: Bool {
+    typingStartsFiltering && !(filter.isActive && filter.origin == .fastSearch)
+  }
+
+  /// Whether a press must wait to show whether it is a letter: Command or
+  /// Option without Control, on a letter or digit key, bound to something
+  /// other than typing. A number jump answers at once, as it always has.
+  private static func waitsForAHold(_ keystroke: PanelKeystroke, _ resolved: PanelKeyAction) -> Bool {
+    guard
+      keystroke.modifiers.contains(.command) || keystroke.modifiers.contains(.option),
+      !keystroke.modifiers.contains(.control),
+      typesALetterOrDigit(keystroke)
+    else {
+      return false
+    }
+    switch resolved {
+    case .filterText,
+         .numberDigit,
+         .absorb:
+      return false
+    default:
+      return true
+    }
+  }
+
+  private static func typesALetterOrDigit(_ keystroke: PanelKeystroke) -> Bool {
+    let scalars = keystroke.characters.unicodeScalars
+    guard scalars.count == 1, let scalar = scalars.first, scalar.isASCII else { return false }
+    return scalar.properties.isAlphabetic || ("0" ... "9").contains(scalar)
+  }
+
+  /// The hold outlasted the system's delay: the press is its action.
+  private func longPressHeld(_ resolved: PanelKeyAction) {
+    guard surface.isPresented, let held = longPress.take() else { return }
+    perform(resolved, for: held, since: now())
+  }
+
+  /// Starts a typed filter for a letter typed into a panel that is not
+  /// filtering yet, when typing is allowed to.
+  private func startTypedFilterIfNeeded(for keystroke: PanelKeystroke) {
+    guard
+      !filter.isActive,
+      typingStartsFiltering,
+      !keystroke.modifiers.contains(.control),
+      Self.typesALetterOrDigit(keystroke)
+    else {
+      return
+    }
+    filter.activate(origin: .typed)
+    onTypedFilterStart?()
+  }
+
+  /// Carries out what a press means.
+  private func perform(_ resolved: PanelKeyAction, for keystroke: PanelKeystroke, since startedAt: ContinuousClock.Instant) {
+    // Only consecutive digit presses gather into a number: anything
+    // else hands the pending digits back before it is answered.
+    if resolved != .numberDigit {
+      numberInput.reset()
+    }
+    switch resolved {
+    case .selectNext:
+      selection.moveToNext()
+
+    case .selectPrevious:
+      selection.moveToPrevious()
+
+    case .cancel:
+      cancelOrClear(keystroke, since: startedAt)
+
+    case .commit:
+      // A wait already armed must not take the row again after this key.
+      filter.cancelSingleCandidateFocus()
+      // Read before the commit: taking the panel down throws the
+      // list away. Recorded after the commit returns, so the write
+      // lands outside the measured close interval.
+      let committedID = selection.chosenID
+      let committedQuery = filter.logSummary().query
+      wayOut.commit(
+        by: PanelKeyInput.commitKey(for: keystroke),
+        naming: committedID,
+        since: startedAt,
+        filter: filter.logSummary()
+      )
+      recordShortcut(query: committedQuery, id: committedID)
+
+    case .clearQuery:
+      // Clearing an empty query changes nothing, and the panel
+      // stays up either way: there is nothing to cancel here.
+      _ = filter.clear()
+
+    case .windowOperation(let operation):
+      operate?(operation, selection.chosenID)
+
+    case .toggleScope:
+      filter.toggleScope()
+
+    case .startFiltering:
+      repeatSwallow.hold(keystroke.keyCode)
+      startFiltering?()
+
+    case .openSettings:
+      let summary = filter.logSummary()
+      wayOut.leaveForSettings(
+        by: PanelKeyInput.settingsKey(for: keystroke),
+        since: startedAt,
+        filter: summary
+      )
+      openSettings?()
+
+    case .filterText(let text):
+      startTypedFilterIfNeeded(for: keystroke)
+      filter.append(text)
+
+    case .editQuery(let edit):
+      filter.edit(edit)
+
+    case .numberDigit:
+      guard numberJumpEnabled, let digit = PanelKeyInput.digitValue(for: keystroke.keyCode) else {
+        break
+      }
+      numberInput.append(digit)
+      guard let number = numberInput.number else { break }
+      let rows = numberedRows()
+      guard rows.indices.contains(number - 1) else { break }
+      selection.select(rows[number - 1].id)
+
+    case .moveRowUp:
+      moveSelectedRow(by: -1)
+
+    case .moveRowDown:
+      moveSelectedRow(by: 1)
+
+    case .absorb:
+      break
+    }
+  }
 
   /// Moves the chosen row one step inside its manual group, saving the
   /// rearranged order through the handler above. Anything outside a

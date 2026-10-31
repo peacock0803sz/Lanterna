@@ -174,6 +174,7 @@ extension AppDelegate {
     presenter.rowOrder = currentValues.rowOrder
     presenter.onRowOrderChanged = { [weak self] order in self?.saveRowOrder(order) }
     presenter.onOpenSettings = { [weak self] in self?.openSettings() }
+    presenter.typingStartsFiltering = currentValues.typingStartsFiltering
     let fastSearch = FastSearchController()
     fastSearch.presenter = presenter
     fastSearch.apply(modifiers: currentValues.fastSearchModifiers)
@@ -237,6 +238,10 @@ extension AppDelegate {
     presenter?.activationPolicy = values.activationPolicy
     presenter?.appIconBadges = values.appIconBadges
     fastSearch?.apply(modifiers: values.fastSearchModifiers)
+    if presenter?.typingStartsFiltering != values.typingStartsFiltering {
+      presenter?.typingStartsFiltering = values.typingStartsFiltering
+      watchPanelKeyReleases()
+    }
     presenter?.autoFocusSingleCandidate = values.autoFocusSingleCandidate
     presenter?.inputSourceLock.target = values.forcedInputSource
     presenter?.numberJump = values.numberJump

@@ -420,6 +420,15 @@ final class PanelPresenter {
     didSet { keyCommands.updateKeyBindings(keyBindings) }
   }
 
+  /// Whether typing a letter in a switcher panel starts filtering.
+  var typingStartsFiltering: Bool {
+    get { keyCommands.typingStartsFiltering }
+    set {
+      keyCommands.typingStartsFiltering = newValue
+      keyCommands.onTypedFilterStart = { [weak self] in self?.disarmInvocationRepeat() }
+    }
+  }
+
   /// Puts the panel up for a press, and takes it down again if the press
   /// found one already up and letting go of Command is not what will close
   /// it. That is three of the four states enumerated below, not only the
@@ -551,6 +560,12 @@ final class PanelPresenter {
     keyCommands.handle(keystroke)
   }
 
+  /// Hands a key release to the key commands, which listen for one only
+  /// while a press waits to show whether it is a letter.
+  func handleKeyRelease(_ keyCode: UInt16) -> PanelKeyDisposition {
+    keyCommands.handleKeyRelease(keyCode)
+  }
+
   /// Acts on Command having been let go.
   ///
   /// The press waiting for its first list is asked about first, and the
@@ -566,6 +581,9 @@ final class PanelPresenter {
     // A Fast Search ends on its own key, read by side by its own tap; this
     // release may be the other Command key.
     guard fastSearchSession == nil else { return }
+    // A press still waiting to show whether it is a letter is one: it
+    // came before the release, and may be what starts the filter.
+    keyCommands.flushLongPress()
     // An Option-keyed appearance ends on Command only once Option is
     // already up; while Option stays held the numbers carry on for the
     // Option release to settle.
@@ -574,7 +592,8 @@ final class PanelPresenter {
     }
     disarmInvocationRepeat()
     keyCommands.resetNumberInput()
-    guard !keyCommands.isFilteringActive else { return }
+    guard releaseCommitsHere else { return }
+    recordTypedCommit()
     wayOut.commitOnCommandRelease(naming: selection.chosenID, since: startedAt, filter: keyCommands.filterSummary())
   }
 
@@ -603,10 +622,12 @@ final class PanelPresenter {
       return
     }
     guard fastSearchSession == nil else { return }
+    keyCommands.flushLongPress()
     guard !lastModifierFlags.contains(.maskCommand) else { return }
     disarmInvocationRepeat()
     keyCommands.resetNumberInput()
-    guard !keyCommands.isFilteringActive else { return }
+    guard releaseCommitsHere else { return }
+    recordTypedCommit()
     wayOut.commitOnOptionRelease(naming: selection.chosenID, since: startedAt, filter: keyCommands.filterSummary())
   }
 
@@ -781,6 +802,13 @@ final class PanelPresenter {
   /// releases to answer, while a wait keeps its first press's answer.
   private var commitOnCommand = true
 
+  /// Whether letting go of the switcher key commits: always while not
+  /// filtering, and for a filter started by typing, since the key that
+  /// opened the panel is still the one being held.
+  private var releaseCommitsHere: Bool {
+    !keyCommands.isFilteringActive || keyCommands.filterOrigin == .typed
+  }
+
   /// The wait one press is owed, or nothing when the delay is off.
   ///
   /// Shared by both switchers. Read at every press rather than settled
@@ -804,6 +832,12 @@ final class PanelPresenter {
       && !keyCommands.isFilteringActive
       && closesOnCommandRelease()
       && commandWatch.isLooking
+  }
+
+  /// A typed filter's commit is remembered for its query, like a commit key's.
+  private func recordTypedCommit() {
+    guard keyCommands.isFilteringActive, keyCommands.filterOrigin == .typed else { return }
+    keyCommands.recordReleaseCommit(naming: selection.chosenID)
   }
 
   /// Answers a release for the waits, when the wait's commit key matches

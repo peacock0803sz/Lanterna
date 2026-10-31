@@ -186,6 +186,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     shutDown()
   }
 
+  /// Listens for key releases while typing starts the filter, and only
+  /// then: a held window action is told from a letter by its release.
+  func watchPanelKeyReleases() {
+    guard let presenter, presenter.typingStartsFiltering else {
+      panelKeys?.watchReleases(nil)
+      return
+    }
+    panelKeys?.watchReleases { [weak presenter] keyCode in
+      presenter?.handleKeyRelease(keyCode) ?? .passedThrough
+    }
+  }
+
   // MARK: Private
 
   private let options: LaunchArguments.Options
@@ -230,6 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           + "even while a panel is up"
     ))
     panelKeys = channel
+    watchPanelKeyReleases()
   }
 
   /// Puts the modifier tap up and writes down what that achieved.
