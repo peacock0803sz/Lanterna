@@ -64,8 +64,8 @@ struct TypingStartsFilteringTests {
     #expect(!made.commands.isFilteringActive)
   }
 
-  @Test
-  func aWindowActionWaitsAndALetGoTypesItsLetter() {
+  @Test(.timeLimit(.minutes(1)))
+  func aWindowActionWaitsAndALetGoTypesItsLetter() async {
     let made = makeCommands(typing: true)
     _ = made.commands.handle(press(kVK_ANSI_W, "w", .command))
     #expect(made.commands.longPress.pending != nil)
@@ -74,6 +74,13 @@ struct TypingStartsFilteringTests {
     _ = made.commands.handleKeyRelease(UInt16(kVK_ANSI_W))
     #expect(made.commands.filterSummary().query == "w")
     #expect(made.operations.isEmpty)
+
+    // The wait the letter ended runs out after all: it must not act.
+    await made.sleep.waitUntilWaiting()
+    made.sleep.finish()
+    await settle()
+    #expect(made.operations.isEmpty)
+    #expect(made.commands.filterSummary().query == "w")
   }
 
   @Test(.timeLimit(.minutes(1)))
@@ -97,11 +104,17 @@ struct TypingStartsFilteringTests {
     #expect(made.commands.filterSummary().query.isEmpty)
   }
 
-  @Test
-  func anotherKeyTypesTheHeldLetterFirst() {
+  @Test(.timeLimit(.minutes(1)))
+  func anotherKeyTypesTheHeldLetterFirst() async {
     let made = makeCommands(typing: true)
     _ = made.commands.handle(press(kVK_ANSI_W, "w", .command))
     _ = made.commands.handle(press(kVK_ANSI_I, "i", .command))
+    #expect(made.commands.filterSummary().query == "wi")
+
+    await made.sleep.waitUntilWaiting()
+    made.sleep.finish()
+    await settle()
+    #expect(made.operations.isEmpty)
     #expect(made.commands.filterSummary().query == "wi")
   }
 
