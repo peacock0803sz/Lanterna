@@ -118,6 +118,35 @@ struct TypingStartsFilteringTests {
     #expect(made.commands.filterSummary().query == "wi")
   }
 
+  /// A hold whose panel came down is over: a panel opened before its wait
+  /// runs out does not inherit it.
+  @Test(.timeLimit(.minutes(1)))
+  func aHoldEndsWithItsPanel() async {
+    let made = makeCommands(typing: true, endsFilteringWithThePanel: true)
+    _ = made.commands.handle(press(kVK_ANSI_W, "w", .command))
+    made.wayOut.dismissPanel()
+    made.surface.isPresented = true
+
+    await made.sleep.waitUntilWaiting()
+    made.sleep.finish()
+    await settle()
+    #expect(made.operations.isEmpty)
+  }
+
+  /// A wait that runs out with no panel up does nothing, even when nothing
+  /// ended it first.
+  @Test(.timeLimit(.minutes(1)))
+  func aHoldOverNoPanelDoesNothing() async {
+    let made = makeCommands(typing: true)
+    _ = made.commands.handle(press(kVK_ANSI_W, "w", .command))
+    made.wayOut.dismissPanel()
+
+    await made.sleep.waitUntilWaiting()
+    made.sleep.finish()
+    await settle()
+    #expect(made.operations.isEmpty)
+  }
+
   @Test
   func theThresholdIsReadAsTheKeyGoesDown() {
     var reads = 0
@@ -195,6 +224,8 @@ struct TypingStartsFilteringTests {
     let selection: PanelSelection
     let sleep: HeldSleep
     let box: OperationBox
+    let surface: FakeSurface
+    let wayOut: PanelExit
 
     var operations: [WindowOperation] {
       box.operations
@@ -209,6 +240,7 @@ struct TypingStartsFilteringTests {
   private final class OperationBox {
     var operations = [WindowOperation]()
     var typedStarts = 0
+    var onPanelGone: (@MainActor () -> Void)?
   }
 
   private func press(
@@ -220,10 +252,17 @@ struct TypingStartsFilteringTests {
     PanelKeystroke(keyCode: UInt16(keyCode), modifiers: modifiers, isARepeat: isRepeat, characters: characters)
   }
 
-  private func makeCommands(typing: Bool, numberJump: Bool = false) -> Made {
+  /// `endsFilteringWithThePanel` wires the panel going to the commands the
+  /// way the presenter does; left off, the panel goes with nothing told.
+  private func makeCommands(
+    typing: Bool,
+    numberJump: Bool = false,
+    endsFilteringWithThePanel: Bool = false
+  ) -> Made {
     let surface = FakeSurface()
     surface.isPresented = true
     let selection = PanelSelection(surface: surface)
+    let box = OperationBox()
     let wayOut = PanelExit(
       surface: surface,
       now: { ContinuousClock.now },
@@ -231,9 +270,8 @@ struct TypingStartsFilteringTests {
       switcher: FakeWindowSwitcher(),
       recordCommit: { _, _ in },
       noteSwitchReturned: { },
-      onPanelGone: { }
+      onPanelGone: { box.onPanelGone?() }
     )
-    let box = OperationBox()
     let commands = PanelKeyCommands(
       surface: surface,
       selection: selection,
@@ -250,7 +288,10 @@ struct TypingStartsFilteringTests {
     commands.beginFiltering(fullWindows: windows)
     selection.beginSecond(windows.map(\.id))
     wayOut.nowShowing(windows, startedAt: ContinuousClock.now)
-    return Made(commands: commands, selection: selection, sleep: sleep, box: box)
+    if endsFilteringWithThePanel {
+      box.onPanelGone = { [weak commands] in commands?.endFiltering() }
+    }
+    return Made(commands: commands, selection: selection, sleep: sleep, box: box, surface: surface, wayOut: wayOut)
   }
 
 }
