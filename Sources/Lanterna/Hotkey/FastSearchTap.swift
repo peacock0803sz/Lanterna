@@ -11,8 +11,8 @@ import Synchronization
 ///
 /// The tap's thread asks about every key event and must never wait on the
 /// main actor, so the two meet here behind locks rather than through it.
-/// The main actor only replaces the conditions and tells the gate a panel
-/// closed or a search stood down.
+/// Deciding events is the tap's thread's alone; the main actor only changes
+/// the conditions and reads or moves the gate's state, under the same locks.
 final class FastSearchGateBox: Sendable {
 
   // MARK: Internal
