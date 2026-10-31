@@ -76,6 +76,32 @@ struct PanelPresenterShowDelayTests {
     #expect(!fixture.presenter.pendingShow.isWaiting)
   }
 
+  /// A press that never shows after a Fast Search is not written down as
+  /// one: the search leaves its mark behind, and answering the press
+  /// without a panel clears it.
+  @Test
+  func aSilentCommitAfterAFastSearchIsNotMarkedAsOne() {
+    let fixture = waitingFixture()
+    let started = fixture.presenter.beginFastSearch(
+      PanelKeystroke(keyCode: 1, modifiers: [], isARepeat: false, characters: "s"),
+      modifier: .fn,
+      receivedAt: ContinuousClock.now,
+      deliveryDelay: nil,
+      gateIsRunning: { true }
+    )
+    #expect(started == .started)
+    fixture.presenter.fastSearchRelease(receivedAt: ContinuousClock.now)
+
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleCommandRelease()
+
+    #expect(fixture.surface.presentedLists.count == 1)
+    let commits = fixture.log.lines.filter { $0.hasPrefix("committed ") }
+    #expect(commits.count == 2)
+    #expect(commits.first?.hasSuffix("after Fn was released; filter \"s\" (3 of 4); fast search; main switcher") == true)
+    #expect(commits.last?.hasSuffix("after Command was released; main switcher") == true)
+  }
+
   /// A release with no list yet has nothing to take: the press is called
   /// off the way a press waiting for its first list is.
   @Test

@@ -460,6 +460,8 @@ struct SwitcherSettingsTests {
     ("numberScope", #""numberScope": "allRows""#),
     ("hoverSelect", #""hoverSelect": true"#),
     ("scrollSelect", #""scrollSelect": true"#),
+    ("fastSearchModifiers", #""fastSearchModifiers": ["fn"]"#),
+    ("typingStartsFiltering", #""typingStartsFiltering": true"#),
   ]
 
   private func decode(_ text: String) -> Result<DecodedConfiguration, ConfigDecodeError> {

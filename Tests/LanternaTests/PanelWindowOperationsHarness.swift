@@ -230,6 +230,9 @@ func makeOperations(
 ) -> OperationHarness {
   let surface = FakeSurface()
   surface.isPresented = true
+  // A panel on screen holds the keyboard, so the key-status watch has
+  // nothing to take back however late its look comes.
+  surface.isTakingKeys = true
   let log = DiagnosticsLog()
   let switcher = FakeWindowSwitcher()
   let stack = makeStack(surface: surface, log: log, switcher: switcher)

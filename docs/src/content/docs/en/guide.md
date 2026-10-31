@@ -75,5 +75,5 @@ On first launch, Lanterna asks for these two permissions. Grant both.
 - Input Monitoring
 
 :::note
-Lanterna lists and switches windows through accessibility information. It does not need Screen Recording.
+Lanterna lists and switches windows through accessibility information. It does not need Screen Recording. While Fast Search has a key enabled, Lanterna also receives your key presses under the Accessibility permission, so it can keep a search's letters from the app in front.
 :::

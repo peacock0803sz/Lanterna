@@ -269,6 +269,30 @@ extension SettingsWindowTests {
   }
 
   @Test
+  func fastSearchSettingsFollowPresentKeys() {
+    var config = ValidConfiguration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(SettingsValues.effective(from: config).fastSearchModifiers.isEmpty)
+    #expect(SettingsValues.effective(from: config).typingStartsFiltering == false)
+    config.fastSearchModifiers = [.fn, .rightCommand]
+    config.typingStartsFiltering = true
+    let saved = SettingsValues.effective(from: config)
+      .configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(saved.fastSearchModifiers == [.fn, .rightCommand])
+    #expect(saved.typingStartsFiltering == true)
+  }
+
+  @Test
+  func fastSearchSettingsChangeReachesCallerOnce() {
+    var reports = [SettingsValues]()
+    let window = makeWindow(onChange: { reports.append($0) })
+    var changed = SettingsValues.defaults
+    changed.fastSearchModifiers = [.capsLock]
+    changed.typingStartsFiltering = true
+    window.settingsModel.values = changed
+    #expect(reports == [changed])
+  }
+
+  @Test
   func badgeSwitchChangeReachesCallerOnce() {
     var reports = [SettingsValues]()
     let window = makeWindow(onChange: { reports.append($0) })

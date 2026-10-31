@@ -140,6 +140,23 @@ raiseOnlyChosenWindow: Boolean? = null
 /// Dock icon, as it was when the panel opened. Absent means off.
 appIconBadges: Boolean? = null
 
+/// A key that starts Fast Search while held. Caps Lock counts only once
+/// System Settings remaps it to Escape, and Escape itself then counts too.
+typealias FastSearchModifier = "fn"|"capsLock"|"leftCommand"|"rightCommand"|"leftOption"|"rightOption"
+
+/// The keys that start Fast Search: hold one and type a few letters of an
+/// app name or window title, then let go to switch to the selected window,
+/// with no panel opened first. Letters typed while holding an enabled key
+/// no longer reach apps, so an enabled Command or Option key stops sending
+/// its shortcuts and special characters for letters. An entry this build
+/// does not know is left out with a note. Absent or empty means off.
+fastSearchModifiers: Listing<FastSearchModifier>? = null
+
+/// Whether typing a letter in a panel opened with a switcher key starts
+/// filtering, with letting go switching to the selected window. Keys bound
+/// to window actions then need a press and hold. Absent means off.
+typingStartsFiltering: Boolean? = null
+
 /// Whether a filter that narrows to one row focuses that row and closes
 /// the panel. Absent means on.
 autoFocusSingleCandidate: Boolean? = null
@@ -428,6 +445,10 @@ open class SwitcherMain {
   /// Shared by both switchers; write it at the top level. Ignored here.
   appIconBadges: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
+  fastSearchModifiers: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
+  typingStartsFiltering: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
   autoFocusSingleCandidate: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   fuzzyMatchEnabled: Any? = null
@@ -545,6 +566,10 @@ open class SwitcherParallel {
   raiseOnlyChosenWindow: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   appIconBadges: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
+  fastSearchModifiers: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
+  typingStartsFiltering: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   autoFocusSingleCandidate: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.

@@ -206,6 +206,26 @@ final class PanelPresenter {
     }
   )
 
+  /// The Fast Search on screen or waiting for its first list, if any.
+  /// Its own steps live in `PanelPresenterFastSearch.swift`.
+  var fastSearchSession: FastSearchSession?
+
+  /// Whether a Fast Search key is down, for the release watch. Replaced
+  /// by tests, which have no keyboard to read.
+  var fastSearchKeyIsHeld: @MainActor (FastSearchModifier) -> Bool = { FastSearchReleaseWatch.liveIsHeld($0) }
+
+  /// How often the Fast Search release watch looks. Shortened by tests.
+  var fastSearchReleaseWatchInterval = UnreportedReleaseWatch.defaultInterval
+
+  /// Told whenever a switcher panel goes up or comes down, and when a Fast
+  /// Search starts or ends, so whoever starts Fast Search can stop starting
+  /// one over a panel or another search.
+  var onSwitcherSessionChanged: (@MainActor () -> Void)?
+
+  /// Told when a Fast Search panel comes down, so the search's key can be
+  /// held on without its letters reaching the application.
+  var onFastSearchClosed: (@MainActor () -> Void)?
+
   /// Which row of the list on screen is chosen.
   ///
   /// Kept apart from the list it indexes, and the line is drawn where it is
@@ -400,6 +420,15 @@ final class PanelPresenter {
     didSet { keyCommands.updateKeyBindings(keyBindings) }
   }
 
+  /// Whether typing a letter in a switcher panel starts filtering.
+  var typingStartsFiltering: Bool {
+    get { keyCommands.typingStartsFiltering }
+    set {
+      keyCommands.typingStartsFiltering = newValue
+      keyCommands.onTypedFilterStart = { [weak self] in self?.disarmInvocationRepeat() }
+    }
+  }
+
   /// Puts the panel up for a press, and takes it down again if the press
   /// found one already up and letting go of Command is not what will close
   /// it. That is three of the four states enumerated below, not only the
@@ -531,6 +560,12 @@ final class PanelPresenter {
     keyCommands.handle(keystroke)
   }
 
+  /// Hands a key release to the key commands, which listen for one only
+  /// while a press waits to show whether it is a letter.
+  func handleKeyRelease(_ keyCode: UInt16) -> PanelKeyDisposition {
+    keyCommands.handleKeyRelease(keyCode)
+  }
+
   /// Acts on Command having been let go.
   ///
   /// The press waiting for its first list is asked about first, and the
@@ -543,6 +578,12 @@ final class PanelPresenter {
     if answerWaitingPress(forCommitOnCommand: true, since: startedAt) {
       return
     }
+    // A Fast Search ends on its own key, read by side by its own tap; this
+    // release may be the other Command key.
+    guard fastSearchSession == nil else { return }
+    // A press still waiting to show whether it is a letter is one: it
+    // came before the release, and may be what starts the filter.
+    keyCommands.flushLongPress()
     // An Option-keyed appearance ends on Command only once Option is
     // already up; while Option stays held the numbers carry on for the
     // Option release to settle.
@@ -551,7 +592,8 @@ final class PanelPresenter {
     }
     disarmInvocationRepeat()
     keyCommands.resetNumberInput()
-    guard !keyCommands.isFilteringActive else { return }
+    guard releaseCommitsHere else { return }
+    recordTypedCommit()
     wayOut.commitOnCommandRelease(naming: selection.chosenID, since: startedAt, filter: keyCommands.filterSummary())
   }
 
@@ -579,10 +621,13 @@ final class PanelPresenter {
     if answerWaitingPress(forCommitOnCommand: false, since: startedAt) {
       return
     }
+    guard fastSearchSession == nil else { return }
+    keyCommands.flushLongPress()
     guard !lastModifierFlags.contains(.maskCommand) else { return }
     disarmInvocationRepeat()
     keyCommands.resetNumberInput()
-    guard !keyCommands.isFilteringActive else { return }
+    guard releaseCommitsHere else { return }
+    recordTypedCommit()
     wayOut.commitOnOptionRelease(naming: selection.chosenID, since: startedAt, filter: keyCommands.filterSummary())
   }
 
@@ -596,6 +641,113 @@ final class PanelPresenter {
   /// Ends the hold. Safe when none is armed.
   func disarmInvocationRepeat() {
     invocationRepeatClock.cancel()
+  }
+
+  /// The one place the panel goes up, so every appearance is measured and
+  /// every measurement describes an appearance.
+  ///
+  /// A Fast Search comes up through here as well, on the main switcher
+  /// and already filtering, with no repeat of the switcher keys behind it.
+  func show(
+    _ windows: [WindowItem],
+    for combination: HotkeyCombination,
+    deliveryDelay: Duration?,
+    startedAt: ContinuousClock.Instant,
+    gatheredOnDemand: Bool,
+    replay: [HotkeyCombination] = [],
+    commitOnCommand: Bool,
+    shownFromDelay: Bool = false,
+    fastSearch: FastSearchModifier? = nil
+  ) {
+    // Kept per appearance for the releases to answer: the press sampled
+    // it as it arrived, and a wait kept its first press's answer.
+    self.commitOnCommand = commitOnCommand
+    // The orderings below are load-bearing, and the statements they
+    // hold apart are named one pair at a time.
+    //
+    // The list is ordered first, so everything this appearance shows,
+    // names, and measures reads off one value no later refresh can move.
+    //
+    // The filter starts next, over the whole ordered list, and the
+    // cursor and the panel open on the rows it shows: the display modes
+    // narrow the list before either is fed, and the first keystroke
+    // narrows what the panel was shown. What the panel is told to draw
+    // is read off the cursor.
+    //
+    // Keys are asked for after the panel is up and before the reading:
+    // a window that is not on screen cannot become the key window, and
+    // a press the keyboard never reached did not finish its work.
+    //
+    // Handing the list to the way out is the one statement here whose
+    // position is free: it has to happen before the panel can go.
+    tracker.noteSnapshotObserved(store.snapshot?.gatheredAt ?? now())
+    let ordered = tracker.ordered(windows, skipping: store.snapshot?.skippedOwners ?? [])
+    // Each appearance reads its own switcher's list settings: the scope,
+    // the display modes, and the parked-section placements seed this
+    // showing alone, and the identity stays for the commit and the
+    // diagnostics to name. A panel that is up keeps its own until it
+    // closes; the next appearance seeds again.
+    let applied = seedSwitcher(combination.switcher)
+    keyCommands.beginFiltering(
+      fullWindows: ordered,
+      filtering: combination == .filter || fastSearch != nil,
+      origin: fastSearch == nil ? .invoked : .fastSearch
+    )
+    let layout = keyCommands.shownLayout
+    let shown = layout.rows
+    selection.beginSecond(layout.rowIDs, ranking: layout.rankedRows.map(\.id))
+    // Presses the delay held past the first one walk here, after the
+    // choice exists to walk and before the panel reads it off.
+    replayDelayedPresses(replay)
+    operations.begin(windows: ordered)
+    wirePointerHandlers()
+    surface.applyPanelSettings(applied)
+    let badgeReading = readBadgesForAppearance(startedAt: startedAt, shownFromDelay: shownFromDelay)
+    surface.showBadges(Self.drawnBadges(of: badgeReading))
+    noteUnreadableDock(badgeReading)
+    surface.present(windows: shown, selecting: selection.chosenID, filterActive: keyCommands.isFilteringActive)
+    // The tap reports changes only, so the modifiers this press
+    // opened under would otherwise leave the numbers down until the
+    // next change.
+    lastModifierFlags = modifierFlags()
+    pushNumberedRows()
+    // Before the keys, so the first keystroke already arrives under the
+    // forced source.
+    inputSourceLock.engage()
+    let becameKey = surface.takeKeys()
+    wayOut.fastSearch = fastSearch
+    wayOut.nowShowing(ordered, startedAt: startedAt)
+    onSwitcherSessionChanged?()
+    let measurement = HotkeyMeasurement(
+      combination: combination,
+      elapsed: now() - startedAt,
+      entryCount: shown.count,
+      deliveryDelay: deliveryDelay,
+      gatheredOnDemand: gatheredOnDemand,
+      becameKey: becameKey,
+      mru: MRUSummary(firstID: layout.rankedRows.first?.id, source: tracker.newestSource),
+      badgeReading: badgeReading,
+      fastSearch: fastSearch
+    )
+    writeLine(LogLine(.info, .panel, measurement.summaryLine, context: measurement.context))
+
+    // Only with a monitor is a release expected at all, and starting below
+    // the reading is what keeps the task out of the figure. A panel that
+    // opens filtering starts no watch: an invoked filter stays up when the
+    // key is let go, and a Fast Search watches for its own key's release.
+    // The key-status looking starts with the handover above: it lasts as
+    // long as the panel does, and the way out owns both ends of that.
+    if closesOnCommandRelease(), !keyCommands.isFilteringActive {
+      commandWatch.start()
+    }
+    // No switcher key is held behind a Fast Search, so nothing repeats.
+    guard fastSearch == nil else { return }
+    // The reading's own figure, not a second clock read: every read
+    // advances an injected clock, and the way out times from the next one.
+    armInvocationRepeat(
+      for: combinationToRepeat(combination, replay: replay),
+      at: startedAt + measurement.elapsed
+    )
   }
 
   // MARK: Private
@@ -650,6 +802,13 @@ final class PanelPresenter {
   /// releases to answer, while a wait keeps its first press's answer.
   private var commitOnCommand = true
 
+  /// Whether letting go of the switcher key commits: always while not
+  /// filtering, and for a filter started by typing, since the key that
+  /// opened the panel is still the one being held.
+  private var releaseCommitsHere: Bool {
+    !keyCommands.isFilteringActive || keyCommands.filterOrigin == .typed
+  }
+
   /// The wait one press is owed, or nothing when the delay is off.
   ///
   /// Shared by both switchers. Read at every press rather than settled
@@ -675,6 +834,12 @@ final class PanelPresenter {
       && commandWatch.isLooking
   }
 
+  /// A typed filter's commit is remembered for its query, like a commit key's.
+  private func recordTypedCommit() {
+    guard keyCommands.isFilteringActive, keyCommands.filterOrigin == .typed else { return }
+    keyCommands.recordReleaseCommit(naming: selection.chosenID)
+  }
+
   /// Answers a release for the waits, when the wait's commit key matches
   /// the release. A wait of the other key is left for its own release,
   /// and no wait at all falls through to the panel.
@@ -687,6 +852,10 @@ final class PanelPresenter {
       guard let waiting = pendingShow.take() else { return true }
       pendingPress.callOff()
       wayOut.switcherIdentity = waiting.presses.first?.switcher ?? .main
+      // Never a Fast Search: those skip the waits. Cleared here because
+      // no showing comes to reset what the last panel or a called-off
+      // search left behind.
+      wayOut.fastSearch = nil
       guard let items = waiting.items else {
         wayOut.recordPressCalledOff(since: startedAt, trigger: trigger(forCommitOnCommand: key))
         return true
@@ -705,6 +874,7 @@ final class PanelPresenter {
     if pendingPress.isWaiting {
       guard pendingPress.waitingCommitOnCommand == key else { return true }
       wayOut.switcherIdentity = pendingPress.waitingSwitcher ?? .main
+      wayOut.fastSearch = nil
       pendingPress.callOff()
       wayOut.recordPressCalledOff(since: startedAt, trigger: trigger(forCommitOnCommand: key))
       return true
@@ -939,7 +1109,9 @@ final class PanelPresenter {
       surface.showNumberedRows(keyCommands.numberedRows().map(\.id))
       return
     }
-    guard numberJump else {
+    // A search held on Command or Option types its digits into the query,
+    // so the numbers a held modifier brings up would name nothing.
+    guard numberJump, fastSearchSession?.modifier.isCommandOrOption != true else {
       surface.showNumberedRows([])
       return
     }
@@ -951,99 +1123,6 @@ final class PanelPresenter {
   /// Hands the search settings to the live key commands.
   private func pushSearchSettings() {
     keyCommands.updateSearchSettings(searchSettings)
-  }
-
-  /// The one place the panel goes up, so every appearance is measured and
-  /// every measurement describes an appearance.
-  private func show(
-    _ windows: [WindowItem],
-    for combination: HotkeyCombination,
-    deliveryDelay: Duration?,
-    startedAt: ContinuousClock.Instant,
-    gatheredOnDemand: Bool,
-    replay: [HotkeyCombination] = [],
-    commitOnCommand: Bool,
-    shownFromDelay: Bool = false
-  ) {
-    // Kept per appearance for the releases to answer: the press sampled
-    // it as it arrived, and a wait kept its first press's answer.
-    self.commitOnCommand = commitOnCommand
-    // The orderings below are load-bearing, and the statements they
-    // hold apart are named one pair at a time.
-    //
-    // The list is ordered first, so everything this appearance shows,
-    // names, and measures reads off one value no later refresh can move.
-    //
-    // The filter starts next, over the whole ordered list, and the
-    // cursor and the panel open on the rows it shows: the display modes
-    // narrow the list before either is fed, and the first keystroke
-    // narrows what the panel was shown. What the panel is told to draw
-    // is read off the cursor.
-    //
-    // Keys are asked for after the panel is up and before the reading:
-    // a window that is not on screen cannot become the key window, and
-    // a press the keyboard never reached did not finish its work.
-    //
-    // Handing the list to the way out is the one statement here whose
-    // position is free: it has to happen before the panel can go.
-    tracker.noteSnapshotObserved(store.snapshot?.gatheredAt ?? now())
-    let ordered = tracker.ordered(windows, skipping: store.snapshot?.skippedOwners ?? [])
-    // Each appearance reads its own switcher's list settings: the scope,
-    // the display modes, and the parked-section placements seed this
-    // showing alone, and the identity stays for the commit and the
-    // diagnostics to name. A panel that is up keeps its own until it
-    // closes; the next appearance seeds again.
-    let applied = seedSwitcher(combination.switcher)
-    keyCommands.beginFiltering(fullWindows: ordered, filtering: combination == .filter)
-    let layout = keyCommands.shownLayout
-    let shown = layout.rows
-    selection.beginSecond(layout.rowIDs, ranking: layout.rankedRows.map(\.id))
-    // Presses the delay held past the first one walk here, after the
-    // choice exists to walk and before the panel reads it off.
-    replayDelayedPresses(replay)
-    operations.begin(windows: ordered)
-    wirePointerHandlers()
-    surface.applyPanelSettings(applied)
-    let badgeReading = readBadgesForAppearance(startedAt: startedAt, shownFromDelay: shownFromDelay)
-    surface.showBadges(Self.drawnBadges(of: badgeReading))
-    noteUnreadableDock(badgeReading)
-    surface.present(windows: shown, selecting: selection.chosenID, filterActive: keyCommands.isFilteringActive)
-    // The tap reports changes only, so the modifiers this press
-    // opened under would otherwise leave the numbers down until the
-    // next change.
-    lastModifierFlags = modifierFlags()
-    pushNumberedRows()
-    // Before the keys, so the first keystroke already arrives under the
-    // forced source.
-    inputSourceLock.engage()
-    let becameKey = surface.takeKeys()
-    wayOut.nowShowing(ordered, startedAt: startedAt)
-    let measurement = HotkeyMeasurement(
-      combination: combination,
-      elapsed: now() - startedAt,
-      entryCount: shown.count,
-      deliveryDelay: deliveryDelay,
-      gatheredOnDemand: gatheredOnDemand,
-      becameKey: becameKey,
-      mru: MRUSummary(firstID: layout.rankedRows.first?.id, source: tracker.newestSource),
-      badgeReading: badgeReading
-    )
-    writeLine(LogLine(.info, .panel, measurement.summaryLine, context: measurement.context))
-
-    // Only with a monitor is a release expected at all, and starting below
-    // the reading is what keeps the task out of the figure. Filtering starts
-    // no watch, for releases end nothing there. The key-status looking starts
-    // with the handover above: it lasts as long as the panel does, and the
-    // way out owns both ends of that.
-    if closesOnCommandRelease(), !keyCommands.isFilteringActive {
-      commandWatch.start()
-    }
-    // The reading's own figure, not a second clock read: every read
-    // advances an injected clock, and the way out times from the next one.
-    armInvocationRepeat(
-      for: combinationToRepeat(combination, replay: replay),
-      at: startedAt + measurement.elapsed
-    )
   }
 
   /// Remembers which physical key this press used, so the repeat polls

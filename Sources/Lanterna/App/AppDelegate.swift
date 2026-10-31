@@ -65,6 +65,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   /// handle to update is a change that waits for a restart.
   var panel: SwitcherPanel?
   var presenter: PanelPresenter?
+  /// Held so a settings change can make or take down the Fast Search tap,
+  /// and so quitting can take it down.
+  var fastSearch: FastSearchController?
   /// Where the settings file lives, if the directory resolved at launch.
   let configFileURL: URL?
   /// What the matcher reads beside the config file, if it resolved.
@@ -183,6 +186,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     shutDown()
   }
 
+  /// Listens for key releases while typing starts the filter, and only
+  /// then: a held window action is told from a letter by its release.
+  func watchPanelKeyReleases() {
+    guard let presenter, presenter.typingStartsFiltering else {
+      panelKeys?.watchReleases(nil)
+      return
+    }
+    panelKeys?.watchReleases { [weak presenter] keyCode in
+      presenter?.handleKeyRelease(keyCode) ?? .passedThrough
+    }
+  }
+
   // MARK: Private
 
   private let options: LaunchArguments.Options
@@ -227,6 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           + "even while a panel is up"
     ))
     panelKeys = channel
+    watchPanelKeyReleases()
   }
 
   /// Puts the modifier tap up and writes down what that achieved.

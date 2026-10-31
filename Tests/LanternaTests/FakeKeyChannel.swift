@@ -57,6 +57,16 @@ final class FakeKeyChannel: PanelKeyChannel {
   func stop() {
     stopCount += 1
     handler = nil
+    releaseHandler = nil
+  }
+
+  func watchReleases(_ handler: (@MainActor (UInt16) -> PanelKeyDisposition)?) {
+    releaseHandler = handler
+  }
+
+  @discardableResult
+  func sendRelease(_ keyCode: UInt16) -> PanelKeyDisposition? {
+    releaseHandler?(keyCode)
   }
 
   /// Delivers a press and answers as the real monitor would.
@@ -72,5 +82,6 @@ final class FakeKeyChannel: PanelKeyChannel {
   // MARK: Private
 
   private var handler: (@MainActor (PanelKeystroke) -> PanelKeyDisposition)?
+  private var releaseHandler: (@MainActor (UInt16) -> PanelKeyDisposition)?
 
 }

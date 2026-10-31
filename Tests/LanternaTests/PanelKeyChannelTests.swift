@@ -343,3 +343,44 @@ struct FilterKeyMeaningTests {
     )
   }
 }
+
+// MARK: - PanelKeyReleaseChannelTests
+
+/// Releases are read only while asked for, and the release monitor comes
+/// off with the channel.
+@MainActor
+struct PanelKeyReleaseChannelTests {
+
+  @Test
+  func theReleaseMonitorIsInstalledOnlyWhenAskedAndReplacedWhenAskedAgain() {
+    var masks = [NSEvent.EventTypeMask]()
+    var removed = 0
+    let channel = LocalKeyEventChannel(
+      installMonitor: { mask, _ in
+        masks.append(mask)
+        return NSObject()
+      },
+      removeMonitor: { _ in removed += 1 }
+    )
+    _ = channel.start { _ in .absorbed }
+    #expect(masks == [.keyDown])
+
+    channel.watchReleases { _ in .absorbed }
+    channel.watchReleases { _ in .absorbed }
+    #expect(masks == [.keyDown, .keyUp, .keyUp])
+    #expect(removed == 1)
+
+    channel.stop()
+    #expect(removed == 3)
+  }
+
+  @Test
+  func turningReleasesOffRemovesTheirMonitor() {
+    var removed = 0
+    let channel = LocalKeyEventChannel(installMonitor: { _, _ in NSObject() }, removeMonitor: { _ in removed += 1 })
+    channel.watchReleases { _ in .absorbed }
+    channel.watchReleases(nil)
+    #expect(removed == 1)
+  }
+
+}

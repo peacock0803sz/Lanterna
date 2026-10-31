@@ -1,5 +1,33 @@
 import AppKit
 
+// MARK: - KeyCaptureActivity
+
+/// Whether some settings row is waiting for a key press to bind.
+///
+/// Read outside the settings window: a Fast Search started by the press
+/// being recorded would take the press the user meant to bind. One for the
+/// process, because the monitors that report here live in SwiftUI state
+/// that nothing outside the view can reach.
+@MainActor
+final class KeyCaptureActivity {
+
+  static let shared = KeyCaptureActivity()
+
+  private(set) var isCapturing = false
+
+  /// Told on every change, with the new answer.
+  var onChange: (@MainActor (Bool) -> Void)?
+
+  func set(_ capturing: Bool) {
+    guard capturing != isCapturing else { return }
+    isCapturing = capturing
+    onChange?(capturing)
+  }
+
+}
+
+// MARK: - KeyCaptureMonitor
+
 /// The key-down monitor behind a Keyboard tab capture, tied to one window.
 ///
 /// The monitor is app-wide, so it takes only presses aimed at the window
@@ -8,6 +36,12 @@ import AppKit
 /// view alone would leave the monitor behind.
 @MainActor
 final class KeyCaptureMonitor {
+
+  // MARK: Lifecycle
+
+  init(activity: KeyCaptureActivity = .shared) {
+    self.activity = activity
+  }
 
   // MARK: Internal
 
@@ -36,6 +70,7 @@ final class KeyCaptureMonitor {
         self?.disarm()
       }
     }
+    activity.set(true)
   }
 
   /// Stops waiting. A press already handed over stays handled.
@@ -50,6 +85,7 @@ final class KeyCaptureMonitor {
     closeObserver = nil
     host = nil
     onKey = nil
+    activity.set(false)
   }
 
   /// Takes a press aimed at the armed window and swallows it; anything
@@ -62,6 +98,7 @@ final class KeyCaptureMonitor {
 
   // MARK: Private
 
+  private let activity: KeyCaptureActivity
   private var monitor: Any?
   private var closeObserver: NSObjectProtocol?
   private weak var host: NSWindow?

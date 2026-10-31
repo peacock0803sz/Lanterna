@@ -21,9 +21,11 @@ struct HotkeyMeasurement: Sendable {
     gatheredOnDemand: Bool,
     becameKey: Bool,
     mru: MRUSummary? = nil,
-    badgeReading: BadgeReading? = nil
+    badgeReading: BadgeReading? = nil,
+    fastSearch: FastSearchModifier? = nil
   ) {
     self.combination = combination
+    self.fastSearch = fastSearch
     self.elapsed = elapsed
     self.entryCount = entryCount
     self.deliveryDelay = deliveryDelay
@@ -36,6 +38,10 @@ struct HotkeyMeasurement: Sendable {
   // MARK: Internal
 
   let combination: HotkeyCombination
+  /// The key a Fast Search started from, or nil for a switcher key. The
+  /// line names this in place of the combination, which stands for the
+  /// main switcher only.
+  let fastSearch: FastSearchModifier?
   /// From the press arriving to the panel being up and having been asked for
   /// the keyboard. Asking is a call of its own, separate from the one that
   /// puts the panel up, and it goes to the window server — so it is inside
@@ -72,7 +78,7 @@ struct HotkeyMeasurement: Sendable {
 
   var summaryLine: String {
     var line = "panel shown \(Diagnostics.millisecondsText(elapsed)) ms "
-      + "after \(combination.name) (\(entryCount) entries)"
+      + "after \(fastSearch.map { "fast search with \($0.displayName)" } ?? combination.name) (\(entryCount) entries)"
     if let deliveryDelay {
       line += "; delivery \(Diagnostics.millisecondsText(deliveryDelay)) ms"
     }
@@ -166,6 +172,8 @@ struct PanelExitMeasurement: Sendable {
     case commitKey(CommitKey)
     case cancelKey(CancelKey)
     case settingsKey(SettingsKey)
+    /// The key a Fast Search started from came up.
+    case fastSearchRelease(FastSearchModifier)
 
     // MARK: Internal
 
@@ -192,6 +200,7 @@ struct PanelExitMeasurement: Sendable {
       case .settingsKey(.commandComma): "Cmd+Comma"
       case .settingsKey(.optionComma): "Opt+Comma"
       case .settingsKey(.custom(let code)): "key \(code)"
+      case .fastSearchRelease(let modifier): "\(modifier.displayName) was released"
       }
     }
 
@@ -201,7 +210,8 @@ struct PanelExitMeasurement: Sendable {
       switch self {
       case .commandRelease,
            .optionRelease,
-           .commitKey:
+           .commitKey,
+           .fastSearchRelease:
         true
       case .cancelKey,
            .settingsKey:
@@ -266,23 +276,30 @@ struct PanelExitMeasurement: Sendable {
     switch (outcome, trigger) {
     case (.committed(let appName, let displayTitle, let id), .commandRelease),
          (.committed(let appName, let displayTitle, let id), .optionRelease),
-         (.committed(let appName, let displayTitle, let id), .commitKey):
+         (.committed(let appName, let displayTitle, let id), .commitKey),
+         (.committed(let appName, let displayTitle, let id), .fastSearchRelease):
       let row = Self.rowDescription(appName: appName, displayTitle: displayTitle, id: id)
       return "committed \(row) \(timing)" + filterSuffix
 
     case (.nothingToCommit, .commandRelease),
          (.nothingToCommit, .optionRelease),
-         (.nothingToCommit, .commitKey):
+         (.nothingToCommit, .commitKey),
+         (.nothingToCommit, .fastSearchRelease):
       return "committed nothing \(timing) (the list was empty)" + filterSuffix
 
     case (.pressCalledOff, .commandRelease),
-         (.pressCalledOff, .optionRelease):
+         (.pressCalledOff, .optionRelease),
+         (.pressCalledOff, .fastSearchRelease):
       return "press called off \(timing), before the panel appeared" + filterSuffix
 
     // Shares no word with any of the commit wordings, so one pattern tells
     // the two apart with nothing to disambiguate.
     case (.cancelled, .cancelKey):
       return "cancelled \(timing)" + filterSuffix
+
+    // A Fast Search let go of before any letter stayed in the query.
+    case (.cancelled, .fastSearchRelease):
+      return "cancelled \(timing) with nothing typed" + filterSuffix
 
     case (.leftForSettings, .settingsKey):
       return "left for settings \(timing)" + filterSuffix
@@ -306,7 +323,8 @@ struct PanelExitMeasurement: Sendable {
          (.leftForSettings, .commandRelease),
          (.leftForSettings, .optionRelease),
          (.leftForSettings, .commitKey),
-         (.leftForSettings, .cancelKey):
+         (.leftForSettings, .cancelKey),
+         (.leftForSettings, .fastSearchRelease):
       preconditionFailure("\(outcome) cannot have been brought about by \(trigger)")
     }
   }

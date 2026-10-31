@@ -37,10 +37,14 @@ extension AppDelegate {
     // that switched it off. So nothing that could fail is allowed to stand
     // between a launch and that shortcut coming back.
     monitor?.stop()
+    // An active tap left running would go on holding up every keystroke
+    // in the session until the process is gone.
+    fastSearch?.shutdown()
+    fastSearch = nil
     statusMenu?.remove()
     statusMenu = nil
-    // Last of the three claims this process makes on the keyboard — the
-    // Carbon registration, the tap, and this monitor — and it can be: it
+    // Last of the claims this process makes on the keyboard, after the
+    // Carbon registration and the taps above, and it can be: it
     // is handed events the system had already decided were this
     // process's, so it holds nothing back from anything else and leaves
     // nothing behind if the process goes without it. It is taken off all
