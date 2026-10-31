@@ -17,10 +17,10 @@ enum FilterOrigin: Equatable, Sendable {
 
   // MARK: Internal
 
-  /// Whether letting go of the held key takes the selected row.
-  ///
-  /// Such a filter also starts each new query from the best match other
-  /// than the window already in front, since the user is on the way out.
+  /// Whether each new query starts from the best match other than the
+  /// window already in front, since a key held on the way out is behind
+  /// such a filter. Whether a release takes the row is decided where the
+  /// release is answered, not here.
   var commitsOnRelease: Bool {
     self != .invoked
   }
