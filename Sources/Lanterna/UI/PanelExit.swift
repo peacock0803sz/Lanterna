@@ -72,6 +72,57 @@ final class PanelExit {
   /// the waiting press — so a customized key still says whose panel it was.
   var switcherIdentity = SwitcherIdentity.main
 
+  /// The key the appearance on screen was started from by Fast Search, or
+  /// nil for one opened with a switcher key. Set beside the switcher, so
+  /// the lines can say how the panel came up.
+  var fastSearch: FastSearchModifier?
+
+  /// Commits on the Fast Search key coming up over a panel that is up.
+  func commitOnFastSearchRelease(
+    _ modifier: FastSearchModifier,
+    naming id: WindowItem.Identifier?,
+    since startedAt: ContinuousClock.Instant,
+    filter filterSummary: FilterLogSummary?
+  ) {
+    commitOnRelease(naming: id, since: startedAt, filter: filterSummary, trigger: .fastSearchRelease(modifier))
+  }
+
+  /// Takes the panel down for a Fast Search let go of with nothing typed.
+  /// Nothing was asked for, so nothing is taken.
+  func cancelOnFastSearchRelease(
+    _ modifier: FastSearchModifier,
+    since startedAt: ContinuousClock.Instant
+  ) {
+    guard surface.isPresented, commitIsStillOpen else { return }
+    commitIsStillOpen = false
+    dismissPanel()
+    record(.cancelled, by: .fastSearchRelease(modifier), since: startedAt)
+  }
+
+  /// Takes a Fast Search panel down for a release the tap never reported,
+  /// worded like the switcher keys' own line for the reason given there.
+  func closeForAnUnreportedFastSearchRelease(_ modifier: FastSearchModifier, naming id: WindowItem.Identifier?) {
+    let named = namedRow(id)
+    dismissPanel()
+    writeLine(LogLine(
+      .info,
+      .activate,
+      "closed the panel showing \(named); \(modifier.displayName) was let go and the fast search tap never said so"
+    ))
+  }
+
+  /// Takes a Fast Search panel down because the tap stopped mid-search:
+  /// whether the key came up meanwhile cannot be known, so nothing is taken.
+  func closeForAStoppedFastSearchTap(naming id: WindowItem.Identifier?) {
+    let named = namedRow(id)
+    dismissPanel()
+    writeLine(LogLine(
+      .warning,
+      .activate,
+      "closed the panel showing \(named); the fast search tap stopped during the search"
+    ))
+  }
+
   /// Takes down the list an appearance is showing.
   ///
   /// `startedAt` is the clock read the appearance began with, handed in
@@ -256,19 +307,13 @@ final class PanelExit {
   /// two ways and a window titled across two lines cannot print this event
   /// as two.
   func closeForAnUnreportedRelease(naming id: WindowItem.Identifier?, commitOnCommand: Bool) {
-    let named = row(for: id).map {
-      PanelExitMeasurement.rowDescription(
-        appName: $0.appName,
-        displayTitle: $0.displayTitle,
-        id: $0.id
-      )
-    }
+    let named = namedRow(id)
     dismissPanel()
     let key = commitOnCommand ? "Command" : "Option"
     writeLine(LogLine(
       .info,
       .activate,
-      "closed the panel showing \(named ?? "nothing"); "
+      "closed the panel showing \(named); "
         + "\(key) was let go and the tap never said so"
     ))
   }
@@ -396,6 +441,18 @@ final class PanelExit {
     )
   }
 
+  /// The row a closing line names, flattened by the same code a commit's
+  /// is, or "nothing".
+  private func namedRow(_ id: WindowItem.Identifier?) -> String {
+    row(for: id).map {
+      PanelExitMeasurement.rowDescription(
+        appName: $0.appName,
+        displayTitle: $0.displayTitle,
+        id: $0.id
+      )
+    } ?? "nothing"
+  }
+
   /// The shared release close, worded by the trigger it answers.
   private func commitOnRelease(
     naming id: WindowItem.Identifier?,
@@ -503,7 +560,8 @@ final class PanelExit {
       elapsed: elapsed,
       filterSummary: filterSummary
     )
-    let line = measurement.summaryLine + "; \(switcherIdentity.diagnosticsName) switcher"
+    let fastSearchNote = fastSearch == nil ? "" : "; fast search"
+    let line = measurement.summaryLine + fastSearchNote + "; \(switcherIdentity.diagnosticsName) switcher"
     var context = measurement.context
     context["switcher"] = .string(switcherIdentity.diagnosticsName)
     writeLine(LogLine(.info, .panel, line, context: context))

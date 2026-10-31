@@ -30,6 +30,19 @@ enum FastSearchModifier: String, CaseIterable, Sendable {
     }
   }
 
+  /// Whether this is one side of Command or Option, the keys that also
+  /// bring up the row numbers while held.
+  var isCommandOrOption: Bool {
+    switch self {
+    case .leftCommand,
+         .rightCommand,
+         .leftOption,
+         .rightOption: true
+    case .fn,
+         .capsLock: false
+    }
+  }
+
   /// The one modifier held with nothing else but Shift, or nil.
   ///
   /// Control, a second modifier, or the other side's Command or Option

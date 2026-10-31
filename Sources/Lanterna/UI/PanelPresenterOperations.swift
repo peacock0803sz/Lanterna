@@ -29,6 +29,8 @@ extension PanelPresenter {
         self?.keyCommands.endFiltering()
         self?.operations.end()
         self?.inputSourceLock.release()
+        self?.endFastSearchSession()
+        self?.onSwitcherSessionChanged?()
       }
     )
   }

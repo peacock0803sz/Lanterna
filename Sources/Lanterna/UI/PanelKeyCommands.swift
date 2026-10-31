@@ -111,15 +111,31 @@ final class PanelKeyCommands {
     didSet { filter.singleCandidateSleep = singleCandidateSleep }
   }
 
+  /// How the filter of the panel that is up was started.
+  var filterOrigin: FilterOrigin {
+    filter.origin
+  }
+
   /// Starts an appearance over the whole ordered list, filtering only
   /// when the appearance asked for it, on the configured scope. The band
   /// is handed over before the panel goes up, so the panel sizes for it.
-  func beginFiltering(fullWindows: [WindowItem], filtering: Bool = false) {
+  func beginFiltering(fullWindows: [WindowItem], filtering: Bool = false, origin: FilterOrigin = .invoked) {
     filter.scopeToggleKey = keyBindings[.toggleScope].first?.displayName
     numberInput.reset()
     repeatSwallow.reset()
-    filter.begin(fullWindows: fullWindows, filtering: filtering, activeApplication: frontmostProcessIdentifier())
+    filter.begin(
+      fullWindows: fullWindows,
+      filtering: filtering,
+      origin: origin,
+      activeApplication: frontmostProcessIdentifier()
+    )
     surface.showScope(filter.scopeBand)
+  }
+
+  /// Records a commit made by letting go of the held key, the way a
+  /// commit key records one, so the query finds the row first next time.
+  func recordReleaseCommit(naming id: WindowItem.Identifier?) {
+    recordShortcut(query: filter.logSummary().query, id: id)
   }
 
   /// Hands a changed scope setting to the live filter. The panel that is
