@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@12.15.0",
   "engines": {
-    "node": "24.22.1",
+    "node": "26.13.0",
     "pnpm": "12.15.0"
   },
   "scripts": {
@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
-    "@types/node": "^24.19.2",
+    "@types/node": "^26.6.5",
     "prettier": "^3.9.10",
     "prettier-plugin-astro": "^1.1.1",
     "textlint": "^15.8.0",
