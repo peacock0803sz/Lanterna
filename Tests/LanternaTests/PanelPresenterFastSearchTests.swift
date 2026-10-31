@@ -32,6 +32,7 @@ struct PanelPresenterFastSearchTests {
     _ = begin(fixture, "s")
     fixture.presenter.fastSearchKeystroke(letter("a"))
     let chosen = fixture.presenter.selection.chosenID
+    #expect(fixture.presenter.keyCommands.shortcutMemoryCount == 0)
     fixture.presenter.fastSearchRelease(receivedAt: ContinuousClock.now)
 
     #expect(!fixture.surface.isPresented)
@@ -39,6 +40,8 @@ struct PanelPresenterFastSearchTests {
     let commit = fixture.log.lines.first { $0.hasPrefix("committed ") }
     #expect(commit?.contains("after Fn was released; filter \"sa\"") == true)
     #expect(commit?.hasSuffix("; fast search; main switcher") == true)
+    // The commit is remembered for its query, as a commit key's is.
+    #expect(fixture.presenter.keyCommands.shortcutMemoryCount == 1)
   }
 
   @Test
