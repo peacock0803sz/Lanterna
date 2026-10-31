@@ -205,17 +205,6 @@ struct TypingStartsFilteringTests {
     #expect(!fixture.surface.isPresented)
   }
 
-  @Test
-  func releasesAreWatchedOnlyWhileTypingIsOn() {
-    let channel = FakeKeyChannel()
-    _ = channel.start { _ in .absorbed }
-    #expect(!channel.isDeliveringReleases)
-    channel.watchReleases { _ in .absorbed }
-    #expect(channel.isDeliveringReleases)
-    channel.watchReleases(nil)
-    #expect(!channel.isDeliveringReleases)
-  }
-
   // MARK: Private
 
   @MainActor

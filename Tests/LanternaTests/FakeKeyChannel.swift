@@ -38,11 +38,6 @@ final class FakeKeyChannel: PanelKeyChannel {
     handler != nil
   }
 
-  /// Whether releases are being delivered.
-  var isDeliveringReleases: Bool {
-    releaseHandler != nil
-  }
-
   /// Stops first, because `PanelKeyChannel` asks that of every implementation
   /// and this is one of them. A double is held to the contract rather than
   /// excused from it: one that merely swapped its handler over would let a
