@@ -419,8 +419,8 @@ struct SwitcherPanelTests {
     panel.dismiss()
   }
 
-  /// Growing with the filter chrome and the note on screen still leaves
-  /// the whole panel inside the room the display has.
+  /// Growing with the filter chrome fills the room the display has, and
+  /// the note grown onto it still leaves the whole panel inside it.
   @Test
   func growingToTheDisplayKeepsTheChromeAndTheNoteOnTheDisplay() throws {
     let screen = try #require(NSScreen.screens.first)
@@ -428,7 +428,7 @@ struct SwitcherPanelTests {
     let panel = panel()
     panel.panelGrowsToDisplay = true
     panel.present(windows: SampleWindows.make(count: 200), selecting: nil, filterActive: true)
-    #expect(panel.contentRect(forFrameRect: panel.frame).height <= room)
+    #expect(panel.contentRect(forFrameRect: panel.frame).height == room)
     panel.showNotice("Couldn't minimize")
     #expect(panel.contentRect(forFrameRect: panel.frame).height <= room)
     panel.dismiss()
