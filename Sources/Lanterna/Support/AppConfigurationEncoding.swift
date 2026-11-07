@@ -78,6 +78,9 @@ extension AppConfiguration {
     if config.appIconBadges == true {
       entries.append(encodedBool(key: "appIconBadges", value: true))
     }
+    if config.panelGrowsToDisplay == true {
+      entries.append(encodedBool(key: "panelGrowsToDisplay", value: true))
+    }
     entries.append(contentsOf: fastSearchModifierEntries(config))
     if config.typingStartsFiltering == true {
       entries.append(encodedBool(key: "typingStartsFiltering", value: true))

@@ -38,6 +38,7 @@ struct SettingsValues: Equatable, Sendable {
     rowOrder: .none,
     panelWidth: .standard,
     panelRows: .standard,
+    panelGrowsToDisplay: false,
     showDelayMs: nil,
     windowScope: .allApps,
     grouping: GroupingPolicy(),
@@ -121,6 +122,10 @@ struct SettingsValues: Equatable, Sendable {
   /// How many rows the panel shows before the list scrolls. Absent in
   /// the file means the standard limit.
   var panelRows: PanelRows
+  /// Whether the panel grows with its rows until the display stops it,
+  /// instead of stopping at the row limit. Absent in the file means off.
+  /// The limit is kept while it is on, and applies again when it is off.
+  var panelGrowsToDisplay: Bool
   /// The panel show delay in milliseconds. Nil means off.
   var showDelayMs: Double?
   /// Which applications' rows each appearance starts on. Absent in the
@@ -204,6 +209,7 @@ struct SettingsValues: Equatable, Sendable {
       rowOrder: ManualRowOrder(entries: config.rowOrder),
       panelWidth: PanelWidth.effective(from: config),
       panelRows: PanelRows.effective(from: config),
+      panelGrowsToDisplay: config.panelGrowsToDisplay ?? false,
       showDelayMs: ShowDelay.effective(config.showDelayMs).value,
       windowScope: config.windowScope ?? .allApps,
       grouping: GroupingPolicy(
@@ -280,6 +286,9 @@ struct SettingsValues: Equatable, Sendable {
     }
     if panelRows != .standard {
       config.panelRows = panelRows.count
+    }
+    if panelGrowsToDisplay != defaults.panelGrowsToDisplay {
+      config.panelGrowsToDisplay = panelGrowsToDisplay
     }
     if hoverSelect != defaults.hoverSelect {
       config.hoverSelect = hoverSelect

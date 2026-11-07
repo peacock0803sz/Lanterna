@@ -283,6 +283,11 @@ panelWidth: Number? = null
 @Maximum { value = 30 }
 panelRows: Int? = null
 
+/// Whether the panel grows with its rows until it reaches the display's
+/// visible height, less the screen margin, instead of stopping at
+/// `panelRows`. Absent means off. While on, `panelRows` is kept but unused.
+panelGrowsToDisplay: Boolean? = null
+
 /// The panel show delay in milliseconds before the panel appears.
 /// Absent or zero means off. Past 1000 clamps to it with a note, and
 /// anything else unreadable falls back to 150 with a note. The bounds
@@ -423,6 +428,8 @@ open class SwitcherMain {
   /// Shared by both switchers; write it at the top level. Ignored here.
   panelRows: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
+  panelGrowsToDisplay: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
   textScale: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   showDelayMs: Any? = null
@@ -544,6 +551,8 @@ open class SwitcherParallel {
   panelWidth: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   panelRows: Any? = null
+  /// Shared by both switchers; write it at the top level. Ignored here.
+  panelGrowsToDisplay: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
   textScale: Any? = null
   /// Shared by both switchers; write it at the top level. Ignored here.
