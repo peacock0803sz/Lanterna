@@ -1051,7 +1051,7 @@
       "type": "number"
     },
     "panelRows": {
-      "description": "How many rows the panel shows before the list scrolls, 5 to 60.\nUnused while panelGrowsToDisplay is on. Absent means 10. Anything\nelse falls back to 10 with a note. The range lives in Swift, like\n`panelWidth`'s steps.",
+      "description": "How many rows the panel shows before the list scrolls, 5 to 60.\nUnused while `panelGrowsToDisplay` is on. Absent means 10. Anything\nelse falls back to 10 with a note. The range lives in Swift, like\n`panelWidth`'s steps.",
       "type": "integer",
       "minimum": 5,
       "maximum": 60

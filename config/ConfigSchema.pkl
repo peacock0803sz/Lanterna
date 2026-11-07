@@ -277,7 +277,7 @@ textScale: Number? = null
 panelWidth: Number? = null
 
 /// How many rows the panel shows before the list scrolls, 5 to 60.
-/// Unused while panelGrowsToDisplay is on. Absent means 10. Anything
+/// Unused while `panelGrowsToDisplay` is on. Absent means 10. Anything
 /// else falls back to 10 with a note. The range lives in Swift, like
 /// `panelWidth`'s steps.
 @Minimum { value = 5 }
