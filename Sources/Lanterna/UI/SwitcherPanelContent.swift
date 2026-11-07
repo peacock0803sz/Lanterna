@@ -31,6 +31,7 @@ extension SwitcherPanel {
       for: appearanceScale,
       step: appearanceWidth,
       rows: appearanceRows,
+      growsToDisplay: appearanceGrowsToDisplay,
       visibleHeight: visibleHeight
     )
   }
