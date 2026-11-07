@@ -115,6 +115,32 @@ struct SettingsWindowTests {
     #expect(saved.appIconBadges == true)
   }
 
+  /// Growing to the display and the row limit are saved side by side, so
+  /// the limit survives the switch being on and is there when it goes off.
+  @Test
+  func growToDisplaySwitchSavesBesideTheRowLimit() throws {
+    var values = SettingsValues.defaults
+    #expect(values.panelGrowsToDisplay == false)
+    #expect(values
+      .configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+      .panelGrowsToDisplay == nil)
+    values.panelRows = try #require(PanelRows(count: 12))
+    values.panelGrowsToDisplay = true
+    let saved = values.configuration(version: 1, sampleCount: nil, stopMonitorEverySeconds: nil)
+    #expect(saved.panelGrowsToDisplay == true)
+    #expect(saved.panelRows == 12)
+  }
+
+  @Test
+  func growToDisplayChangeReachesCallerOnce() {
+    var reports = [SettingsValues]()
+    let window = makeWindow(onChange: { reports.append($0) })
+    var changed = SettingsValues.defaults
+    changed.panelGrowsToDisplay = true
+    window.settingsModel.values = changed
+    #expect(reports == [changed])
+  }
+
   @Test
   func offCommitSwitchesStayOmittedOnSave() {
     let saved = SettingsValues.defaults
