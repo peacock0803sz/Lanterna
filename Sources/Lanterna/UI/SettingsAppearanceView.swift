@@ -83,8 +83,8 @@ struct SettingsAppearanceView: View {
             )
             .labelsHidden()
           }
-          // The limit is kept while the switch below is on, so it is greyed
-          // rather than hidden: turning the switch off finds it unchanged.
+          // Greyed rather than hidden so the kept limit stays in view: it is
+          // the count that returns when the switch goes off.
           .disabled(values.panelGrowsToDisplay)
         } label: {
           SettingsFormLabel(
@@ -95,7 +95,7 @@ struct SettingsAppearanceView: View {
         Toggle(isOn: $values.panelGrowsToDisplay) {
           SettingsFormLabel(
             title: "Grow to display height",
-            caption: "Show rows until the panel reaches the display's height, then scroll. Visible rows is ignored while on."
+            caption: "Show rows until the panel nearly fills the display, then scroll. Visible rows is ignored while on."
           )
         }
         LabeledContent {
