@@ -419,6 +419,24 @@ struct SwitcherPanelTests {
     panel.dismiss()
   }
 
+  /// Turning the switch on while the panel is up keeps the limited
+  /// height too, since the switch only takes effect at `present`.
+  @Test
+  func theSwitchTurnedOnWhileUpKeepsTheLimitedHeight() throws {
+    let screen = try #require(NSScreen.screens.first)
+    let panel = panel()
+    let rows = SampleWindows.make(count: 40)
+    panel.present(windows: rows, selecting: nil)
+    panel.panelGrowsToDisplay = true
+    panel.updateList(windows: rows, selecting: nil, query: "", cursor: 0, filterActive: false)
+    let expected = PanelMetrics.fittedHeight(
+      PanelMetrics.height(rowCount: 40, for: .standard),
+      in: screen.visibleFrame.height
+    )
+    #expect(panel.contentRect(forFrameRect: panel.frame).height == expected)
+    panel.dismiss()
+  }
+
   /// Growing with the filter chrome fills the room the display has, and
   /// the note grown onto it still leaves the whole panel inside it.
   @Test
