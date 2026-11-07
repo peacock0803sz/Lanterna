@@ -367,6 +367,91 @@ struct SwitcherPanelTests {
     panel.dismiss()
   }
 
+  /// Growing to the display ignores the row limit: a list longer than the
+  /// limit takes the display's height instead of stopping at the limit.
+  @Test
+  func growingToTheDisplayTakesTheDisplaysHeightPastTheLimit() throws {
+    let screen = try #require(NSScreen.screens.first)
+    let panel = panel()
+    panel.panelRows = .standard
+    panel.panelGrowsToDisplay = true
+    panel.present(windows: SampleWindows.make(count: 40), selecting: nil)
+    let expected = PanelMetrics.fittedHeight(
+      PanelMetrics.height(rowCount: 40, for: .standard, growsToDisplay: true),
+      in: screen.visibleFrame.height
+    )
+    #expect(panel.contentRect(forFrameRect: panel.frame).height == expected)
+    #expect(expected > PanelMetrics.height(rowCount: 40, for: .standard))
+    panel.dismiss()
+  }
+
+  /// A few windows leave the panel at its content, not at the display.
+  @Test
+  func growingToTheDisplayStopsAtTheContentForFewWindows() {
+    let panel = panel()
+    panel.panelGrowsToDisplay = true
+    panel.present(windows: SampleWindows.make(count: 3), selecting: nil)
+    #expect(
+      panel.contentRect(forFrameRect: panel.frame).height
+        == PanelMetrics.height(rowCount: 3, for: .standard)
+    )
+    panel.dismiss()
+  }
+
+  /// The switch is frozen at `present`, so turning it off while the panel
+  /// is up keeps the height through narrowing and through a display change.
+  @Test
+  func theSwitchChangedWhileUpKeepsTheHeight() throws {
+    let screen = try #require(NSScreen.screens.first)
+    let panel = panel()
+    panel.panelGrowsToDisplay = true
+    let rows = SampleWindows.make(count: 40)
+    panel.present(windows: rows, selecting: nil)
+    panel.panelGrowsToDisplay = false
+    panel.updateList(windows: rows, selecting: nil, query: "", cursor: 0, filterActive: false)
+    let expected = PanelMetrics.fittedHeight(
+      PanelMetrics.height(rowCount: 40, for: .standard, growsToDisplay: true),
+      in: screen.visibleFrame.height
+    )
+    #expect(panel.contentRect(forFrameRect: panel.frame).height == expected)
+    panel.place(onScreen: 0)
+    #expect(panel.contentRect(forFrameRect: panel.frame).height == expected)
+    panel.dismiss()
+  }
+
+  /// Turning the switch on while the panel is up keeps the limited
+  /// height too, since the switch only takes effect at `present`.
+  @Test
+  func theSwitchTurnedOnWhileUpKeepsTheLimitedHeight() throws {
+    let screen = try #require(NSScreen.screens.first)
+    let panel = panel()
+    let rows = SampleWindows.make(count: 40)
+    panel.present(windows: rows, selecting: nil)
+    panel.panelGrowsToDisplay = true
+    panel.updateList(windows: rows, selecting: nil, query: "", cursor: 0, filterActive: false)
+    let expected = PanelMetrics.fittedHeight(
+      PanelMetrics.height(rowCount: 40, for: .standard),
+      in: screen.visibleFrame.height
+    )
+    #expect(panel.contentRect(forFrameRect: panel.frame).height == expected)
+    panel.dismiss()
+  }
+
+  /// Growing with the filter chrome fills the room the display has, and
+  /// the note grown onto it still leaves the whole panel inside it.
+  @Test
+  func growingToTheDisplayKeepsTheChromeAndTheNoteOnTheDisplay() throws {
+    let screen = try #require(NSScreen.screens.first)
+    let room = PanelMetrics.availableHeight(in: screen.visibleFrame.height)
+    let panel = panel()
+    panel.panelGrowsToDisplay = true
+    panel.present(windows: SampleWindows.make(count: 200), selecting: nil, filterActive: true)
+    #expect(panel.contentRect(forFrameRect: panel.frame).height == room)
+    panel.showNotice("Couldn't minimize")
+    #expect(panel.contentRect(forFrameRect: panel.frame).height <= room)
+    panel.dismiss()
+  }
+
   /// However many rows the limit asks for, neither the panel nor the note
   /// grown onto it is taller than the display leaves room for.
   @Test
@@ -374,8 +459,8 @@ struct SwitcherPanelTests {
     let screen = try #require(NSScreen.screens.first)
     let room = PanelMetrics.availableHeight(in: screen.visibleFrame.height)
     let panel = panel()
-    panel.panelRows = try #require(PanelRows(count: 30))
-    panel.present(windows: SampleWindows.make(count: 40), selecting: nil, filterActive: true)
+    panel.panelRows = try #require(PanelRows(count: PanelRows.range.upperBound))
+    panel.present(windows: SampleWindows.make(count: 80), selecting: nil, filterActive: true)
     #expect(panel.contentRect(forFrameRect: panel.frame).height <= room)
     panel.showNotice("Couldn't minimize")
     #expect(panel.contentRect(forFrameRect: panel.frame).height <= room)

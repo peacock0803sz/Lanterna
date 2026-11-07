@@ -220,6 +220,7 @@ final class MirroredPanelSurface: SwitcherSurface {
       mirror.textScale = primary.textScale
       mirror.panelWidth = primary.panelWidth
       mirror.panelRows = primary.panelRows
+      mirror.panelGrowsToDisplay = primary.panelGrowsToDisplay
       mirror.hoverSelect = primary.hoverSelect
       mirror.scrollSelect = primary.scrollSelect
       mirror.hintsMode = primary.hintsMode

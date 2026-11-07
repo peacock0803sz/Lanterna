@@ -118,6 +118,7 @@ extension AppDelegate {
     panel.displayTarget = options.displayTarget
     panel.panelWidth = options.panelWidth
     panel.panelRows = options.panelRows
+    panel.panelGrowsToDisplay = options.panelGrowsToDisplay
     panel.hoverSelect = options.hoverSelect
     panel.scrollSelect = options.scrollSelect
     panel.hintsMode = currentValues.hintsMode
@@ -216,6 +217,7 @@ extension AppDelegate {
     panel?.displayTarget = values.displayTarget
     panel?.panelWidth = values.panelWidth
     panel?.panelRows = values.panelRows
+    panel?.panelGrowsToDisplay = values.panelGrowsToDisplay
     panel?.hoverSelect = values.hoverSelect
     panel?.scrollSelect = values.scrollSelect
     panel?.hintsMode = values.hintsMode

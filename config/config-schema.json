@@ -1051,10 +1051,14 @@
       "type": "number"
     },
     "panelRows": {
-      "description": "How many rows the panel shows before the list scrolls, 5 to 30.\nAbsent means 10. Anything else falls back to 10 with a note. The\nrange lives in Swift, like `panelWidth`'s steps.",
+      "description": "How many rows the panel shows before the list scrolls, 5 to 60.\nUnused while `panelGrowsToDisplay` is on. Absent means 10. Anything\nelse falls back to 10 with a note. The range lives in Swift, like\n`panelWidth`'s steps.",
       "type": "integer",
       "minimum": 5,
-      "maximum": 30
+      "maximum": 60
+    },
+    "panelGrowsToDisplay": {
+      "description": "Whether the panel grows with its rows until it nearly fills the\ndisplay's visible height, instead of stopping at `panelRows`. Absent\nmeans off. While on, `panelRows` is ignored but left as written.",
+      "type": "boolean"
     },
     "showDelayMs": {
       "description": "The panel show delay in milliseconds before the panel appears.\nAbsent or zero means off. Past 1000 clamps to it with a note, and\nanything else unreadable falls back to 150 with a note. The bounds\nlive in Swift, like `panelWidth`.",
@@ -1300,6 +1304,10 @@
               "deprecated": true
             },
             "panelRows": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "panelGrowsToDisplay": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },
@@ -1648,6 +1656,10 @@
               "deprecated": true
             },
             "panelRows": {
+              "description": "Shared by both switchers; write it at the top level. Ignored here.",
+              "deprecated": true
+            },
+            "panelGrowsToDisplay": {
               "description": "Shared by both switchers; write it at the top level. Ignored here.",
               "deprecated": true
             },

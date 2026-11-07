@@ -452,6 +452,7 @@ struct SwitcherSettingsTests {
     ("displayTarget", #""displayTarget": "cursor""#),
     ("panelWidth", #""panelWidth": 1.2"#),
     ("panelRows", #""panelRows": 12"#),
+    ("panelGrowsToDisplay", #""panelGrowsToDisplay": true"#),
     ("textScale", #""textScale": 1.0"#),
     ("showDelayMs", #""showDelayMs": 0"#),
     ("hintsMode", #""hintsMode": "numbers""#),

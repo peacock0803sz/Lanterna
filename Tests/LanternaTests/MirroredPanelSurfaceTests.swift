@@ -179,6 +179,30 @@ struct MirroredPanelSurfaceTests {
     surface.dismiss()
   }
 
+  /// A mirror sizes with the primary panel's switch, so each display grows
+  /// its own panel to its own height. Mirrors exist only with a second
+  /// display, so a one-display machine has nothing to look at.
+  @Test(.enabled(if: NSScreen.screens.count > 1))
+  func mirrorsTakeTheGrowToDisplaySwitchFromThePrimaryPanel() {
+    let primary = SwitcherPanel()
+    primary.panelGrowsToDisplay = true
+    let surface = MirroredPanelSurface(panels: [primary], keyResolver: resolver(cursor: nil))
+    surface.makeMirror = { SwitcherPanel() }
+    surface.refreshPool()
+    // Without a mirror the comparisons below would pass over nothing.
+    #expect(!surface.mirrors.isEmpty)
+    primary.panelGrowsToDisplay = false
+    surface.syncMirrors(from: primary)
+    for mirror in surface.mirrors {
+      #expect(mirror.panelGrowsToDisplay == false)
+    }
+    primary.panelGrowsToDisplay = true
+    surface.syncMirrors(from: primary)
+    for mirror in surface.mirrors {
+      #expect(mirror.panelGrowsToDisplay == true)
+    }
+  }
+
   @Test
   func singleTargetLeavesThePrimaryPanelToResolveItself() {
     let panel = SwitcherPanel()

@@ -7,8 +7,9 @@ import SwiftUI
 /// here.
 extension SwitcherPanel {
   /// The content size for a list under this appearance: its text step,
-  /// width step, row limit, and the display it sits on. Every swap and
-  /// the scope band take their size from here, so they cannot disagree.
+  /// width step, row limit or growing to the display, and the display it
+  /// sits on. Every swap and the scope band take their size from here, so
+  /// they cannot disagree.
   func contentSize(
     windows: [WindowItem],
     query: String,
@@ -31,6 +32,7 @@ extension SwitcherPanel {
       for: appearanceScale,
       step: appearanceWidth,
       rows: appearanceRows,
+      growsToDisplay: appearanceGrowsToDisplay,
       visibleHeight: visibleHeight
     )
   }

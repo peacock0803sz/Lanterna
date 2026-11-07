@@ -160,6 +160,11 @@ final class SwitcherPanel: NSPanel {
   /// step's does.
   var panelRows = PanelRows.standard
 
+  /// Whether the panel grows with its rows until the display stops it
+  /// instead of stopping at the row limit, read at launch from the config
+  /// file. Same timing as the row limit above.
+  var panelGrowsToDisplay = false
+
   /// Whether hovering a row moves the selection, read at launch from
   /// the config file. A change takes effect on the next appearance,
   /// never on the one already up.
@@ -213,6 +218,10 @@ final class SwitcherPanel: NSPanel {
   /// The row limit the appearance on screen opened with. Frozen at
   /// `present` beside the width step, for the same reason.
   var appearanceRows = PanelRows.standard
+
+  /// Whether the appearance on screen opened growing to the display.
+  /// Frozen at `present` beside the row limit, for the same reason.
+  var appearanceGrowsToDisplay = false
 
   /// The failure note on screen now, if any. Remembered here so the panel
   /// knows whether the note's height is in its frame, and clearing gives
@@ -363,6 +372,7 @@ final class SwitcherPanel: NSPanel {
     appearanceScale = textScale
     appearanceWidth = panelWidth
     appearanceRows = panelRows
+    appearanceGrowsToDisplay = panelGrowsToDisplay
     resolvedScreenIndex = assignedScreenIndex ?? resolveFreshIndex()
     hostingView.rootView.query = ""
     hostingView.rootView.cursor = 0

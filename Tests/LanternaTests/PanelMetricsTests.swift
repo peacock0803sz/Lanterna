@@ -348,6 +348,64 @@ extension PanelMetricsTests {
     #expect(PanelMetrics.fittedWidth(720, in: 30) == 0)
   }
 
+  /// Growing to the display drops the row limit, so the rows drawn all
+  /// take height and only the display stops the panel.
+  @Test
+  func growingToTheDisplayDropsTheRowLimit() {
+    let limited = PanelMetrics.height(rowCount: 40, for: .standard)
+    let grown = PanelMetrics.height(rowCount: 40, for: .standard, growsToDisplay: true)
+    #expect(limited == 10 * PanelMetrics.rowHeight + 2 * PanelMetrics.verticalPadding)
+    #expect(grown == 40 * PanelMetrics.rowHeight + 2 * PanelMetrics.verticalPadding)
+  }
+
+  /// A list shorter than the limit is no taller grown than not, so a few
+  /// windows never open an empty panel.
+  @Test
+  func growingToTheDisplayStopsAtTheContentWhenRowsAreFew() {
+    #expect(
+      PanelMetrics.height(rowCount: 3, for: .standard, growsToDisplay: true)
+        == PanelMetrics.height(rowCount: 3, for: .standard)
+    )
+  }
+
+  /// The display is the only cap once the row limit is gone, and the
+  /// filter chrome, the band and the note count inside it.
+  @Test
+  func growingToTheDisplayStopsAtTheDisplayWithTheChromeInside() {
+    let room = PanelMetrics.availableHeight(in: 800)
+    let plain = PanelMetrics.panelSize(
+      rowCount: 100,
+      query: "",
+      filterActive: false,
+      notice: false,
+      for: .standard,
+      growsToDisplay: true,
+      visibleHeight: 800
+    )
+    #expect(plain.height == room)
+    let crowded = PanelMetrics.panelSize(
+      rowCount: 100,
+      query: "sa",
+      filterActive: true,
+      notice: true,
+      scopeBand: true,
+      for: .standard,
+      growsToDisplay: true,
+      visibleHeight: 800
+    )
+    #expect(crowded.height == room)
+  }
+
+  /// Not growing keeps the height the limit gave before the switch existed.
+  @Test
+  func notGrowingToTheDisplayKeepsTheLimitedHeight() throws {
+    let twelve = try #require(PanelRows(count: 12))
+    #expect(
+      PanelMetrics.height(rowCount: 40, for: .standard, rows: twelve, growsToDisplay: false)
+        == PanelMetrics.height(rowCount: 40, for: .standard, rows: twelve)
+    )
+  }
+
   /// The padding stays put while the rows grow with the step.
   @Test
   func paddingStaysFixedAcrossSteps() {

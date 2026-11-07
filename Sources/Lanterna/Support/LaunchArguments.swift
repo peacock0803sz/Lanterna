@@ -43,6 +43,9 @@ enum LaunchArguments {
     /// How many rows the panel shows before the list scrolls. No flag
     /// sets it; the file covers it.
     var panelRows = PanelRows.standard
+    /// Whether the panel grows with its rows until the display stops it.
+    /// No flag sets it; the file covers it.
+    var panelGrowsToDisplay = false
     /// The panel show delay in milliseconds. Nil means off. No flag
     /// sets it; the file covers it.
     var showDelayMs: Double?
