@@ -276,11 +276,11 @@ textScale: Number? = null
 /// unchanged). The value allowlist lives in Swift, like `textScale`.
 panelWidth: Number? = null
 
-/// How many rows the panel shows before the list scrolls, 5 to 30.
+/// How many rows the panel shows before the list scrolls, 5 to 60.
 /// Absent means 10. Anything else falls back to 10 with a note. The
 /// range lives in Swift, like `panelWidth`'s steps.
 @Minimum { value = 5 }
-@Maximum { value = 30 }
+@Maximum { value = 60 }
 panelRows: Int? = null
 
 /// Whether the panel grows with its rows until it reaches the display's

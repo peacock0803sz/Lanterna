@@ -24,10 +24,10 @@ struct PanelRows: Equatable, Sendable {
 
   // MARK: Internal
 
-  /// The counts a limit may take. Five keeps the list readable; thirty
-  /// is more than most displays hold at the standard text size, and the
-  /// display fit cuts the panel short of that anyway.
-  static let range = 5 ... 30
+  /// The counts a limit may take. Five keeps the list readable. The top
+  /// is past what most displays hold at the standard text size, and the
+  /// display fit cuts the panel short of a count the display cannot show.
+  static let range = 5 ... 60
 
   /// The limit when nothing is spelled.
   static let standard = PanelRows(uncheckedCount: 10)

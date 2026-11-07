@@ -28,7 +28,7 @@ struct PanelRowsConfigTests {
 
   @Test
   func countsOutOfRangeFallBackWithANote() throws {
-    for text in ["4", "31", "0", "-3"] {
+    for text in ["4", "61", "0", "-3"] {
       let decoded = try #require(decode(#"{"version": 1, "panelRows": \#(text)}"#).successValue)
       #expect(decoded.config.panelRows == nil, "for \(text)")
       #expect(decoded.panelRowsIssue == "panelRows is not a valid value; using 10", "for \(text)")
@@ -91,7 +91,9 @@ struct PanelRowsConfigTests {
     #expect(PanelRows(count: 4) == nil)
     #expect(PanelRows(count: 5)?.count == 5)
     #expect(PanelRows(count: 30)?.count == 30)
-    #expect(PanelRows(count: 31) == nil)
+    #expect(PanelRows(count: 31)?.count == 31)
+    #expect(PanelRows(count: 60)?.count == 60)
+    #expect(PanelRows(count: 61) == nil)
   }
 
   // MARK: Private

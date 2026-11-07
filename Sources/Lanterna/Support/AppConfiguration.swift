@@ -244,7 +244,7 @@ struct ValidConfiguration: Equatable, Sendable {
   /// invalidating the file.
   var panelWidth: Double?
   /// How many rows the panel shows before the list scrolls. Nil means
-  /// absent, which means 10. Only counts of 5 to 30 count; anything
+  /// absent, which means 10. Only counts of 5 to 60 count; anything
   /// else falls back with a note instead of invalidating the file.
   var panelRows: Int?
   /// Whether the panel grows with its rows until the display stops it
