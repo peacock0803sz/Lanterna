@@ -156,7 +156,8 @@ enum PanelMetrics {
 
   /// The full content height at one step: the rows shown plus chrome
   /// plus the band and the note when they show, fitted to the display
-  /// as one total so a large step or a long limit never outgrows it.
+  /// as one total so a large step, a long limit, or growing to the
+  /// display never outgrows it.
   static func totalHeight(
     rowCount: Int,
     query: String,
