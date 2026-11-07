@@ -99,13 +99,18 @@ enum PanelMetrics {
   /// Height for a given number of rows at one step. The rows shown stop
   /// at the row limit while the rows drawn grow, so the panel stops
   /// growing and the list scrolls instead.
+  ///
+  /// Growing to the display drops the limit: every row drawn takes
+  /// height, and the display cut in `totalHeight` is what stops the panel.
   static func height(
     rowCount: Int,
     for scale: TextScaleLevel,
-    rows: PanelRows = .standard
+    rows: PanelRows = .standard,
+    growsToDisplay: Bool = false
   ) -> CGFloat {
     precondition(rowCount >= 0, "rowCount must not be negative")
-    return CGFloat(min(rowCount, rows.count)) * rowHeight(for: scale) + verticalPadding * 2
+    let shown = growsToDisplay ? rowCount : min(rowCount, rows.count)
+    return CGFloat(shown) * rowHeight(for: scale) + verticalPadding * 2
   }
 
   /// Extra height for the filter chrome at one step, scaled the way
@@ -160,9 +165,10 @@ enum PanelMetrics {
     scopeBand: Bool = false,
     for scale: TextScaleLevel,
     rows: PanelRows = .standard,
+    growsToDisplay: Bool = false,
     visibleHeight: CGFloat = .infinity
   ) -> CGFloat {
-    var total = height(rowCount: rowCount, for: scale, rows: rows)
+    var total = height(rowCount: rowCount, for: scale, rows: rows, growsToDisplay: growsToDisplay)
       + filterChromeHeight(query: query, filterActive: filterActive, for: scale)
     if notice {
       total += noticeHeight(for: scale)
@@ -184,6 +190,7 @@ enum PanelMetrics {
     for scale: TextScaleLevel,
     step: PanelWidth = .standard,
     rows: PanelRows = .standard,
+    growsToDisplay: Bool = false,
     visibleHeight: CGFloat = .infinity
   ) -> CGSize {
     CGSize(
@@ -196,6 +203,7 @@ enum PanelMetrics {
         scopeBand: scopeBand,
         for: scale,
         rows: rows,
+        growsToDisplay: growsToDisplay,
         visibleHeight: visibleHeight
       )
     )
