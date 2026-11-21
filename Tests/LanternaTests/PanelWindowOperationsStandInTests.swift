@@ -52,6 +52,25 @@ struct PanelWindowOperationsStandInTests {
   }
 
   @Test
+  func hidingReachesTheApplication() async {
+    let row = standInRow(pid: 654)
+    let hidden = SentCount()
+    let made = makeOperations(
+      rows: [row],
+      refreshed: [],
+      hide: { pid in
+        if pid == 654 {
+          hidden.add()
+        }
+        return nil
+      }
+    )
+    await made.operations.operate(.hideApplication, naming: row.id)
+    #expect(hidden.value == 1)
+    #expect(made.surface.notices.isEmpty)
+  }
+
+  @Test
   func quittingReachesTheApplication() async {
     let row = standInRow(pid: 654)
     let quit = SentCount()
