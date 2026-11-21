@@ -104,6 +104,37 @@ struct WindowListSnapshotTests {
       + "; other Spaces cut short in 2 applications")
   }
 
+  /// Windows on hidden Spaces a read could not settle are named by
+  /// application with a count, in process order, last on the line.
+  @Test
+  func summaryNamesTheApplicationsWithWindowsElsewhereNotFound() {
+    let line = snapshot(missing: [
+      WindowListSnapshot.MissingOtherSpace(name: "Preview", processIdentifier: 7, windowIDs: [10, 11]),
+      WindowListSnapshot.MissingOtherSpace(name: "Slack", processIdentifier: 9, windowIDs: [20]),
+    ]).summaryLine
+    #expect(line == "listed 9 windows from 11 applications in 71.2 ms"
+      + "; not found on other Spaces: Preview (2), Slack (1)")
+  }
+
+  /// The new clause comes after every clause that was already there, so a
+  /// grep for any of those reads the same.
+  @Test
+  func theNotFoundClauseComesAfterEveryOtherClause() {
+    let line = snapshot(
+      skipped: [
+        WindowListSnapshot.SkippedApplication(name: "TextEdit", reason: .timedOut, processIdentifier: 101)
+      ],
+      droppedWithoutID: 1,
+      otherSpacesCutShort: 1,
+      missing: [WindowListSnapshot.MissingOtherSpace(name: "Preview", processIdentifier: 7, windowIDs: [10])]
+    ).summaryLine
+    #expect(line == "listed 9 windows from 11 applications in 71.2 ms"
+      + "; skipped TextEdit (timed out)"
+      + "; dropped 1 elements without a window id"
+      + "; other Spaces cut short in 1 applications"
+      + "; not found on other Spaces: Preview (1)")
+  }
+
   /// The live pass appends this process's own windows by rebuilding the
   /// snapshot, and the summary line and the held list are both read from
   /// the rebuilt one, so windows left missing must survive it.
@@ -165,7 +196,8 @@ struct WindowListSnapshotTests {
     duration: Duration = .milliseconds(71.2),
     skipped: [WindowListSnapshot.SkippedApplication] = [],
     droppedWithoutID: Int = 0,
-    otherSpacesCutShort: Int = 0
+    otherSpacesCutShort: Int = 0,
+    missing: [WindowListSnapshot.MissingOtherSpace] = []
   ) -> WindowListSnapshot {
     WindowListSnapshot(
       items: (0 ..< windowCount).map { item(CGWindowID($0), isOnOtherSpace: $0 < onOtherSpace) },
@@ -174,7 +206,8 @@ struct WindowListSnapshotTests {
       skipped: skipped,
       droppedWithoutID: droppedWithoutID,
       gatheredAt: .now,
-      otherSpacesCutShort: otherSpacesCutShort
+      otherSpacesCutShort: otherSpacesCutShort,
+      missingOtherSpaceWindows: missing
     )
   }
 

@@ -91,8 +91,9 @@ struct WindowListSnapshot {
     Set(skipped.map(\.processIdentifier))
   }
 
-  /// The one line written after a pass. Counts, timings and skipped
-  /// application names only — never a window title. Rows on another
+  /// The one line written after a pass. Counts, timings, and the names of
+  /// applications skipped or with windows elsewhere not found — never a
+  /// window title. Rows on another
   /// Space are counted only when there are some, so a pass with every
   /// window in view reads as it always has.
   var summaryLine: String {
@@ -114,6 +115,11 @@ struct WindowListSnapshot {
     }
     if otherSpacesCutShort > 0 {
       line += "; other Spaces cut short in \(otherSpacesCutShort) applications"
+    }
+    // Last, so the clauses before it read as they always have.
+    if !missingOtherSpaceWindows.isEmpty {
+      let counts = missingOtherSpaceWindows.map { "\($0.name) (\($0.windowIDs.count))" }
+      line += "; not found on other Spaces: " + counts.joined(separator: ", ")
     }
     return line
   }
