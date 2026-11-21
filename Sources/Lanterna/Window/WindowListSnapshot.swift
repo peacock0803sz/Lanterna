@@ -91,6 +91,17 @@ struct WindowListSnapshot {
     Set(skipped.map(\.processIdentifier))
   }
 
+  /// The windows left missing on hidden Spaces, keyed as recent-use records.
+  /// Their rows are absent because the look did not reach them, not because
+  /// they closed, so the sweep keeps their records for the pass that does.
+  var sparedRecords: Set<MRUKey> {
+    Set(missingOtherSpaceWindows.flatMap { missing in
+      missing.windowIDs.map {
+        MRUKey(id: WindowItem.Identifier(windowID: $0), ownerProcessIdentifier: missing.processIdentifier)
+      }
+    })
+  }
+
   /// The one line written after a pass. Counts, timings, and the names of
   /// applications skipped or with windows elsewhere not found — never a
   /// window title. Rows on another

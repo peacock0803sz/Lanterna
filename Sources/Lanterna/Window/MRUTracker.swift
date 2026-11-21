@@ -194,10 +194,15 @@ final class MRUTracker {
   /// the snapshot that appearance was given. Rows with no record keep the
   /// input order behind every recorded row; the input arrives in the
   /// store's fixed order, so that is the fixed order kept. Records owned
-  /// by skipped applications stay put whatever their age: their rows are
-  /// missing because the look missed, not because the windows closed.
-  func ordered(_ items: [WindowItem], skipping skippedOwners: Set<pid_t> = []) -> [WindowItem] {
-    prune(to: items, sparing: skippedOwners)
+  /// by skipped applications, and the records in `sparedRecords`, stay put
+  /// whatever their age: their rows are missing because the look missed,
+  /// not because the windows closed.
+  func ordered(
+    _ items: [WindowItem],
+    skipping skippedOwners: Set<pid_t> = [],
+    sparingRecords sparedRecords: Set<MRUKey> = []
+  ) -> [WindowItem] {
+    prune(to: items, sparing: skippedOwners, sparingRecords: sparedRecords)
     return arranged(items)
   }
 
@@ -266,10 +271,15 @@ final class MRUTracker {
   /// The list and not the panel: what counts as gone is decided against the
   /// snapshot one appearance was given, so a record written while that
   /// appearance is up is never swept by it — the next appearance sweeps
-  /// against its own, newer snapshot. Two stays of execution: records
-  /// owned by skipped applications, and records younger than the sweep
-  /// grace period, which may postdate a stale snapshot.
-  private func prune(to items: [WindowItem], sparing skippedOwners: Set<pid_t>) {
+  /// against its own, newer snapshot. Stays of execution: records owned by
+  /// skipped applications, records the caller names as spared, and records
+  /// younger than the sweep grace period, which may postdate a stale
+  /// snapshot.
+  private func prune(
+    to items: [WindowItem],
+    sparing skippedOwners: Set<pid_t>,
+    sparingRecords sparedRecords: Set<MRUKey>
+  ) {
     let sweptAt = now()
     var live = Set<MRUKey>()
     live.reserveCapacity(items.count)
@@ -284,6 +294,7 @@ final class MRUTracker {
     records = records.filter { entry in
       live.contains(entry.key)
         || skippedOwners.contains(entry.key.ownerProcessIdentifier)
+        || sparedRecords.contains(entry.key)
         || lastSweptAsOf.map { entry.value.recordedAt > $0 } ?? false
         || sweptAt - entry.value.recordedAt < Self.sweepGracePeriod
     }
