@@ -152,6 +152,16 @@ final class PanelWindowOperations {
       surface.showNotice(operation == .closeWindow ? "No window to close" : "No window to minimize")
       return nil
     }
+    // A row standing for windows on other desktops names none it could
+    // reach. Saying there is no window would be wrong: there is, elsewhere.
+    if row.standsForWindowsElsewhere, operation == .closeWindow || operation == .minimizeWindow {
+      surface.showNotice(
+        operation == .closeWindow
+          ? "Can't close a window on another desktop"
+          : "Can't minimize a window on another desktop"
+      )
+      return nil
+    }
     if row.isParked, operation == .hideApplication || operation == .minimizeWindow {
       return nil
     }
