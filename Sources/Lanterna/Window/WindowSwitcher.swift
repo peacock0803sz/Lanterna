@@ -14,6 +14,10 @@ struct ActivationTarget: Equatable, Sendable {
   let ownerProcessIdentifier: pid_t
   let appName: String
   let displayTitle: String
+  /// Whether the row stood for the application's windows on other
+  /// desktops. A `var` with a default, so the memberwise initializer takes
+  /// it and every target built without it reads false.
+  var standsForWindowsElsewhere = false
 }
 
 // MARK: - ActivationFailure
@@ -134,13 +138,16 @@ struct LiveWindowSwitcher: WindowSwitching, Sendable {
   let setMain: @Sendable (AXUIElement) -> AXError
 
   func switchTo(_ target: ActivationTarget, policy: ActivationPolicy) -> ActivationReport {
-    // An application with no window has nothing to resolve or raise:
-    // bringing it forward is the whole switch. Asked to, the workspace
-    // is then told to reopen it, the way its Dock icon would.
+    // An application row has no window to resolve or raise: bringing it
+    // forward is the whole switch. Asked to, the workspace is then told to
+    // reopen an application with no window, the way its Dock icon would.
+    // One standing for windows on other desktops has windows; reopening it
+    // could open yet another one, so it is only brought forward.
     guard target.id.windowID != nil else {
       switch activate(target) {
       case .none:
-        let reopen: ReopenNote? = policy.reopensWindowlessApps ? reopenApplication(target.ownerProcessIdentifier) : nil
+        let reopens = policy.reopensWindowlessApps && !target.standsForWindowsElsewhere
+        let reopen: ReopenNote? = reopens ? reopenApplication(target.ownerProcessIdentifier) : nil
         return ActivationReport(outcome: .switched, reopen: reopen, raiseAlone: nil)
 
       case .some(let failure):
