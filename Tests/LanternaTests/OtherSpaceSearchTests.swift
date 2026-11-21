@@ -72,6 +72,47 @@ struct OtherSpaceSearchTests {
     #expect(read?.missingOtherSpaceWindows == [103])
   }
 
+  /// A window the probe turns up that the window server keeps on no hidden
+  /// Space is an unselected tab, a closed window the application keeps, or
+  /// a panel it is not showing. It is not listed, and it is not missing.
+  @Test
+  func aFoundWindowNotKeptElsewhereIsNotListed() {
+    let application = FakeApplication(windowCount: 4)
+    application.listedIndices = [0, 1]
+    application.probedIndices = [2, 3]
+
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [102]).get()
+    #expect(read?.records.map(\.windowID) == [100, 101, 102])
+    #expect(read?.missingOtherSpaceWindows == [])
+  }
+
+  /// Whether a minimized window keeps its Space is not known, so a found
+  /// one stays listed rather than disappearing.
+  @Test
+  func aFoundMinimizedWindowIsListedEvenIfNotKeptElsewhere() {
+    let application = FakeApplication(windowCount: 4)
+    application.listedIndices = [0, 1]
+    application.probedIndices = [2, 3]
+    application.attributeResult = { index, name in
+      index == 3 && name == kAXMinimizedAttribute ? (.success, kCFBooleanTrue) : nil
+    }
+
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [102]).get()
+    #expect(read?.records.map(\.windowID) == [100, 101, 102, 103])
+    #expect(read?.records.last?.isMinimized == true)
+  }
+
+  /// The same holds for the windows of a hidden application.
+  @Test
+  func aHiddenApplicationsFoundWindowsAreListedEvenIfNotKeptElsewhere() {
+    let application = FakeApplication(windowCount: 4)
+    application.listedIndices = [0, 1]
+    application.probedIndices = [2, 3]
+
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [102], isHidden: true).get()
+    #expect(read?.records.map(\.windowID) == [100, 101, 102, 103])
+  }
+
   /// With the setting off nothing is looked for and nothing is reported
   /// missing, whatever the window server keeps elsewhere.
   @Test

@@ -264,10 +264,14 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
   func read(
     processIdentifier: pid_t,
     otherSpaceWindows: Set<CGWindowID>,
-    isHidden _: Bool
+    isHidden: Bool
   ) -> Result<ApplicationRead, ReadFailure> {
     do {
-      return try .success(applicationRead(of: processIdentifier, otherSpaceWindows: otherSpaceWindows))
+      return try .success(applicationRead(
+        of: processIdentifier,
+        otherSpaceWindows: otherSpaceWindows,
+        isHidden: isHidden
+      ))
     } catch {
       // Half of a wedged application's windows is a worse list than none
       // of them, so whatever was read so far goes with it.
@@ -318,7 +322,8 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
 
   private func applicationRead(
     of processIdentifier: pid_t,
-    otherSpaceWindows: Set<CGWindowID>
+    otherSpaceWindows: Set<CGWindowID>,
+    isHidden: Bool
   ) throws(ReadFailure) -> ApplicationRead {
     let budget = ReadBudget(startedAt: now())
     let application = AXUIElementCreateApplication(processIdentifier)
@@ -338,7 +343,13 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
       }
     }
     let otherSpaces = includesOtherSpaces
-      ? appendOtherSpaceRecords(to: &records, of: processIdentifier, expecting: otherSpaceWindows, within: budget)
+      ? appendOtherSpaceRecords(
+        to: &records,
+        of: processIdentifier,
+        expecting: otherSpaceWindows,
+        isHidden: isHidden,
+        within: budget
+      )
       : OtherSpaceLook()
     return ApplicationRead(
       records: records,
