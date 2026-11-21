@@ -37,29 +37,47 @@ enum WindowProbe {
     return token
   }
 
-  /// The windows found by id, ending the pass at `deadline` or, when `target`
-  /// is given, once a window with that id has been found.
+  /// The windows found by id, ending the pass at `deadline` or once every
+  /// window in `targets` has been found. An empty `targets` looks through
+  /// the whole range.
   ///
   /// A nonexistent id answers an error at once. That is the common case and
   /// says nothing about the application, so it is skipped silently. Untitled
   /// helper windows the accessibility server never exposes are not found.
   static func windows(
     of pid: pid_t,
-    stoppingAt target: CGWindowID?,
+    stoppingAfter targets: Set<CGWindowID>,
     until deadline: ContinuousClock.Instant
   ) -> [ProbedWindow] {
-    var found = [ProbedWindow]()
-    for id in elementIDs {
-      if ContinuousClock.now >= deadline {
-        break
-      }
+    search(ids: elementIDs, stoppingAfter: targets, until: deadline, now: { .now }) { id in
       guard
         let element = _AXUIElementCreateWithRemoteToken(token(pid: pid, elementID: id) as CFData),
         AXUIElementSetMessagingTimeout(element, probeTimeout) == .success,
         let windowID = windowID(ifWindow: element)
-      else { continue }
-      found.append(ProbedWindow(element: element, windowID: windowID))
-      if windowID == target {
+      else { return nil }
+      return ProbedWindow(element: element, windowID: windowID)
+    }
+  }
+
+  /// The loop behind `windows(of:stoppingAfter:until:)`, apart from the
+  /// accessibility calls so when it stops can be tested. `look` answers
+  /// one id: the window there, or nil.
+  static func search(
+    ids: Range<UInt64>,
+    stoppingAfter targets: Set<CGWindowID>,
+    until deadline: ContinuousClock.Instant,
+    now: () -> ContinuousClock.Instant,
+    look: (UInt64) -> ProbedWindow?
+  ) -> [ProbedWindow] {
+    var found = [ProbedWindow]()
+    var remaining = targets
+    for id in ids {
+      if now() >= deadline {
+        break
+      }
+      guard let window = look(id) else { continue }
+      found.append(window)
+      if remaining.remove(window.windowID) != nil, remaining.isEmpty {
         break
       }
     }

@@ -412,7 +412,7 @@ struct AXApplicationWindowReaderMessagingTests {
 
     #expect(application.probes.count == 1)
     #expect(application.probes.first?.deadline == startedAt + ReadBudget.limit)
-    #expect(application.probes.first?.target == nil)
+    #expect(application.probes.first?.targets == [])
   }
 
   /// The list is a whole answer already, so running out of budget while

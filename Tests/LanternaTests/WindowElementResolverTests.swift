@@ -56,7 +56,7 @@ struct WindowElementResolverTests {
 
     #expect(peer.calls.count == 1)
     #expect(peer.calls.first?.pid == 321)
-    #expect(peer.calls.first?.target == 7)
+    #expect(peer.calls.first?.targets == [7])
     #expect(peer.calls.first?.deadline == peer.startedAt + WindowElementResolver.otherSpaceProbeLimit)
   }
 
@@ -136,7 +136,7 @@ private final class ScriptedProbe: @unchecked Sendable {
   )
   /// What the probe answers with.
   var probed: [ProbedWindow]
-  private(set) var calls = [(pid: pid_t, target: CGWindowID?, deadline: ContinuousClock.Instant)]()
+  private(set) var calls = [(pid: pid_t, targets: Set<CGWindowID>, deadline: ContinuousClock.Instant)]()
 
   /// The element named `element`, reporting `id` as its window id.
   func window(_ element: CGWindowID, as id: CGWindowID) -> ProbedWindow {
@@ -157,8 +157,8 @@ private final class ScriptedProbe: @unchecked Sendable {
         return (.success, id)
       },
       probesOtherSpaces: probing,
-      probeWindows: { [self] pid, target, deadline in
-        calls.append((pid, target, deadline))
+      probeWindows: { [self] pid, targets, deadline in
+        calls.append((pid, targets, deadline))
         return probed
       },
       now: { [startedAt] in startedAt }

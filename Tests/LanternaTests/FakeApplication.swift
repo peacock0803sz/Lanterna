@@ -59,7 +59,7 @@ final class FakeApplication: @unchecked Sendable {
   /// Time the probe takes, so its deadline can pass without waiting.
   var probeCost = Duration.zero
   /// The deadline and target each probe was handed.
-  private(set) var probes = [(target: CGWindowID?, deadline: ContinuousClock.Instant)]()
+  private(set) var probes = [(targets: Set<CGWindowID>, deadline: ContinuousClock.Instant)]()
   /// The fake clock; a test reads it to say when the read began.
   private(set) var clock = ContinuousClock.now
 
@@ -92,8 +92,8 @@ final class FakeApplication: @unchecked Sendable {
         windowIDReads.append(index)
         return windowIDResult(index) ?? (.success, CGWindowID(100 + index))
       },
-      probeWindows: { [self] _, target, deadline in
-        probes.append((target, deadline))
+      probeWindows: { [self] _, targets, deadline in
+        probes.append((targets, deadline))
         clock = clock.advanced(by: probeCost)
         return probedIndices.map { ProbedWindow(element: windows[$0], windowID: CGWindowID(100 + $0)) }
       },

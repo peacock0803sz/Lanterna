@@ -168,8 +168,8 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
       let error = _AXUIElementGetWindow(element, &windowID)
       return (error, windowID)
     },
-    probeWindows: @escaping @Sendable (pid_t, CGWindowID?, ContinuousClock.Instant) -> [ProbedWindow] = {
-      WindowProbe.windows(of: $0, stoppingAt: $1, until: $2)
+    probeWindows: @escaping @Sendable (pid_t, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow] = {
+      WindowProbe.windows(of: $0, stoppingAfter: $1, until: $2)
     },
     includesOtherSpaces: Bool = false,
     now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
@@ -258,7 +258,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
   private let setMessagingTimeout: @Sendable (AXUIElement, Float) -> AXError
   private let copyAttribute: @Sendable (AXUIElement, String) -> (AXError, CFTypeRef?)
   private let copyWindowID: @Sendable (AXUIElement) -> (AXError, CGWindowID)
-  private let probeWindows: @Sendable (pid_t, CGWindowID?, ContinuousClock.Instant) -> [ProbedWindow]
+  private let probeWindows: @Sendable (pid_t, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow]
   private let includesOtherSpaces: Bool
   private let now: @Sendable () -> ContinuousClock.Instant
 
@@ -307,7 +307,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     within budget: ReadBudget
   ) -> Bool {
     var known = Set(records.map(\.windowID))
-    let probed = probeWindows(processIdentifier, nil, budget.deadline)
+    let probed = probeWindows(processIdentifier, [], budget.deadline)
     do throws(ReadFailure) {
       for window in probed where known.insert(window.windowID).inserted {
         if case .record(let record) = try outcome(for: window.element, windowID: window.windowID, within: budget) {
