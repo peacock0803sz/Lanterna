@@ -222,7 +222,7 @@ final class MRUTracker {
       let key = MRUKey(id: item.id, ownerProcessIdentifier: item.ownerProcessIdentifier)
       if let record = records[key] {
         recorded.append((item, record.sequence))
-      } else if item.isWindowless, let sequence = applicationSequences[item.ownerProcessIdentifier] {
+      } else if item.id.windowID == nil, let sequence = applicationSequences[item.ownerProcessIdentifier] {
         recorded.append((item, sequence))
       } else {
         unrecorded.append(item)

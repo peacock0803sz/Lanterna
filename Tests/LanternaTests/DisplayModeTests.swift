@@ -148,7 +148,52 @@ struct DisplayModeTests {
     #expect(ordered.map(\.id.windowID) == [2, 4, 3, 1])
   }
 
+  /// A row standing for windows elsewhere goes where other-Space rows go,
+  /// whatever the mode for applications with no window says.
+  @Test
+  func aStandInFollowsTheOtherSpaceModeNotTheWindowlessOne() {
+    for windowless in [DisplayMode.show, .hide, .separateAtBottom] {
+      var shown = modes(otherSpace: .show)
+      shown.windowlessApp = windowless
+      var parked = modes(otherSpace: .separateAtBottom)
+      parked.windowlessApp = windowless
+      var hidden = modes(otherSpace: .hide)
+      hidden.windowlessApp = windowless
+
+      #expect(placement(of: standIn(), modes: shown) == .ordinary)
+      #expect(placement(of: standIn(), modes: parked) == .separated(.otherSpace))
+      #expect(placement(of: standIn(), modes: hidden) == .hidden)
+      #expect(
+        placement(of: standIn(), modes: hidden, queryIsEmpty: false, matchesQuery: true)
+          == .separated(.otherSpace)
+      )
+    }
+  }
+
+  /// A hidden application's stand-in is a hidden-application row too.
+  @Test
+  func aHiddenApplicationsStandInIsAlsoAHiddenApplicationRow() {
+    let row = standIn(isHidden: true)
+    #expect(placement(of: row, modes: modes(otherSpace: .show)) == .separated(.hiddenApp))
+  }
+
   // MARK: Private
+
+  private func standIn(isHidden: Bool = false) -> WindowItem {
+    WindowItem(
+      id: .application(1),
+      ownerProcessIdentifier: 1,
+      appName: "Preview",
+      bundleIdentifier: nil,
+      windowTitle: "",
+      kind: .standard,
+      isMinimized: false,
+      isHidden: isHidden,
+      isOnOtherSpace: true,
+      windowsElsewhere: 2,
+      icon: NSImage()
+    )
+  }
 
   private func modes(
     otherSpace: DisplayMode = .show,

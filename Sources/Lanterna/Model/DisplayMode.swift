@@ -197,7 +197,9 @@ struct DisplayModes: Equatable, Sendable {
   /// The kinds one row is, each with its mode, in drawing order. A row
   /// with no window is that kind and nothing else: an application hidden
   /// with no window is still an application with no window, and only that
-  /// kind's mode says where it goes.
+  /// kind's mode says where it goes. A row standing for windows on hidden
+  /// Spaces is not one of those; it takes the kinds its flags give, like
+  /// a window row.
   private static func applicableKinds(
     of row: WindowItem,
     modes: DisplayModes

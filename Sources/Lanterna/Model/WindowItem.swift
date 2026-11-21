@@ -22,10 +22,12 @@ struct WindowItem: Identifiable {
     isHidden: Bool = false,
     isOnOtherSpace: Bool = false,
     isFullscreen: Bool = false,
+    windowsElsewhere: Int = 0,
     spaceGroup: SpaceGroup? = nil,
     icon: NSImage
   ) {
     precondition(!appName.isEmpty, "appName must not be empty")
+    precondition(windowsElsewhere == 0 || id.windowID == nil, "only an application row stands for windows elsewhere")
     self.id = id
     self.ownerProcessIdentifier = ownerProcessIdentifier
     self.appName = appName
@@ -36,6 +38,7 @@ struct WindowItem: Identifiable {
     self.isHidden = isHidden
     self.isOnOtherSpace = isOnOtherSpace
     self.isFullscreen = isFullscreen
+    self.windowsElsewhere = windowsElsewhere
     self.spaceGroup = spaceGroup
     self.icon = icon
   }
@@ -103,6 +106,10 @@ struct WindowItem: Identifiable {
   /// Whether the window is natively fullscreen. Read as one AX attribute;
   /// a manually zoomed window is not fullscreen.
   let isFullscreen: Bool
+  /// How many windows on hidden Spaces an application row stands for: ones
+  /// the window server keeps there but the read could not reach. Zero for a
+  /// window row and for an application with no window.
+  let windowsElsewhere: Int
   /// The Space group the row joins when the list groups by Space. Nil
   /// when the Spaces could not be read, which leaves every row in one
   /// group.
@@ -117,8 +124,21 @@ struct WindowItem: Identifiable {
   }
 
   /// Whether the row stands for a running application with no window.
+  /// An application row standing for windows elsewhere is not one: those
+  /// windows exist, they just could not be reached.
   var isWindowless: Bool {
-    id.windowID == nil
+    id.windowID == nil && windowsElsewhere == 0
+  }
+
+  /// Whether the row stands for an application's windows on hidden Spaces
+  /// that the read could not reach, there being no window row to show.
+  var standsForWindowsElsewhere: Bool {
+    id.windowID == nil && windowsElsewhere > 0
+  }
+
+  /// What a stand-in row shows where a window row shows its title.
+  var elsewhereCaption: String {
+    windowsElsewhere == 1 ? "1 window on another desktop" : "\(windowsElsewhere) windows on other desktops"
   }
 
   /// Title to draw. Trimming decides emptiness only: a title that has any
@@ -152,6 +172,7 @@ struct WindowItem: Identifiable {
       isHidden: isHidden,
       isOnOtherSpace: isOnOtherSpace,
       isFullscreen: isFullscreen,
+      windowsElsewhere: windowsElsewhere,
       spaceGroup: spaceGroup,
       icon: icon
     )
@@ -171,6 +192,7 @@ struct WindowItem: Identifiable {
       isHidden: hidden,
       isOnOtherSpace: isOnOtherSpace,
       isFullscreen: isFullscreen,
+      windowsElsewhere: windowsElsewhere,
       spaceGroup: spaceGroup,
       icon: icon
     )
@@ -189,6 +211,7 @@ struct WindowItem: Identifiable {
       isHidden: isHidden,
       isOnOtherSpace: isOnOtherSpace,
       isFullscreen: fullscreen,
+      windowsElsewhere: windowsElsewhere,
       spaceGroup: spaceGroup,
       icon: icon
     )
