@@ -162,8 +162,13 @@ struct WindowEnumerator {
     autoreleasepool {
       let otherSpace = request.readsOtherSpaces ? locator.otherSpaceWindows() : OtherSpaceWindows()
       let results = read(request, expecting: otherSpace, using: reader)
-      let windowIDs = results.flatMap { result in
-        (try? result.get())?.records.map(\.windowID) ?? []
+      // The windows left missing are asked about too: a row standing for
+      // them takes its group and fullscreen look from their Spaces.
+      let windowIDs = results.flatMap { result -> [CGWindowID] in
+        guard let read = try? result.get() else {
+          return []
+        }
+        return read.records.map(\.windowID) + read.missingOtherSpaceWindows.sorted()
       }
       return Gathered(results: results, spaces: locator.reading(among: windowIDs))
     }
@@ -265,11 +270,8 @@ struct WindowEnumerator {
             windowIDs: read.missingOtherSpaceWindows
           ))
         }
-        // Read and found empty, which is not the same as unread: only an
-        // answer of no windows at all makes the application a row. A
-        // window dropped for want of an id is still a window.
-        if read.records.isEmpty, read.droppedWithoutID == 0 {
-          windowless.append(row(standingFor: application))
+        if let row = applicationRow(for: read, of: application, spaces: gathered.spaces, grouping: grouping) {
+          windowless.append(row)
           continue
         }
         items.append(
@@ -301,6 +303,58 @@ struct WindowEnumerator {
       spacesUnread: gathered.spaces.displaysUnread && !items.isEmpty,
       otherSpacesCutShort: otherSpacesCutShort,
       missingOtherSpaceWindows: missing
+    )
+  }
+
+  /// The row standing for the application itself when it has no window
+  /// row, or nil when it has window rows.
+  ///
+  /// Windows on hidden Spaces the read could not reach make it a row
+  /// standing for those, whatever else was dropped: without it the
+  /// application would have no row at all. Otherwise, read and found empty,
+  /// which is not the same as unread: only an answer of no windows at all
+  /// makes the application a row. A window dropped for want of an id is
+  /// still a window.
+  private func applicationRow(
+    for read: ApplicationRead,
+    of application: RunningApplicationInfo,
+    spaces: SpaceReading,
+    grouping: SpaceGrouping
+  ) -> WindowItem? {
+    guard read.records.isEmpty else {
+      return nil
+    }
+    if !read.missingOtherSpaceWindows.isEmpty {
+      return row(standingFor: application, windowsElsewhere: read.missingOtherSpaceWindows, spaces: spaces, grouping: grouping)
+    }
+    return read.droppedWithoutID == 0 ? row(standingFor: application) : nil
+  }
+
+  /// The row standing for windows on hidden Spaces: on another Space by
+  /// definition, fullscreen only if every one of them is, and in the group
+  /// of the first of their Spaces in drawing order.
+  private func row(
+    standingFor application: RunningApplicationInfo,
+    windowsElsewhere windowIDs: Set<CGWindowID>,
+    spaces: SpaceReading,
+    grouping: SpaceGrouping
+  ) -> WindowItem {
+    WindowItem(
+      id: .application(application.processIdentifier),
+      ownerProcessIdentifier: application.processIdentifier,
+      appName: application.name,
+      bundleIdentifier: application.bundleIdentifier,
+      windowTitle: "",
+      kind: .standard,
+      isMinimized: false,
+      isHidden: application.isHidden,
+      isOnOtherSpace: true,
+      isFullscreen: windowIDs.allSatisfy(spaces.fullscreen.contains),
+      windowsElsewhere: windowIDs.count,
+      spaceGroup: windowIDs
+        .compactMap { grouping.group(of: $0, appName: application.name) }
+        .min { $0.order < $1.order },
+      icon: application.icon
     )
   }
 
