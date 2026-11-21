@@ -7,7 +7,9 @@ import PrivateAPIs
 /// Says which windows sit on a Space that no display is showing.
 ///
 /// The enumerator asks once per pass, after the accessibility reading and
-/// on the same thread, with every window id that reading produced.
+/// on the same thread, with every window id that reading produced or left
+/// missing. With the all-desktops setting on it also asks, once and before
+/// the reading, which windows every process keeps on hidden Spaces.
 protocol SpaceLocating: Sendable {
   /// The ids among `windowIDs` known to be on another Space. A window the
   /// answer says nothing about is left out: unknown never hides.

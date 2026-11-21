@@ -19,7 +19,8 @@ struct ProbedWindow {
 /// nothing public reaches them, so this is the only source of their elements:
 /// listing them and switching to them agree on what exists. It returns every
 /// window it finds, those the list holds too; callers subtract what they
-/// already have. A full pass costs tens to a couple of hundred milliseconds
+/// already have and name the windows they want, so the pass ends once those
+/// have turned up. A full pass costs tens to a couple of hundred milliseconds
 /// on an ordinary application, which is why every call carries a deadline.
 enum WindowProbe {
 
@@ -89,7 +90,8 @@ enum WindowProbe {
   /// Measured on one machine (macOS 26, about 20 regular applications): every
   /// titled window of another Space answered within this range, and widening
   /// it to 20000 found nothing more. Beyond that machine it is a guess; an
-  /// application that numbers its elements higher loses those windows.
+  /// application that numbers its elements higher loses those windows, and
+  /// the pass's summary line names it among the windows not found.
   private static let elementIDs: Range<UInt64> = 0..<1000
   private static let probeTimeout: Float = 0.1
 
