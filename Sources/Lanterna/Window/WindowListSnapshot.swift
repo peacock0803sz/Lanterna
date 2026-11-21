@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// The result of one pass over every listable application.
@@ -22,11 +23,13 @@ struct WindowListSnapshot {
     droppedWithoutID: Int,
     gatheredAt: ContinuousClock.Instant,
     spacesUnread: Bool = false,
-    otherSpacesCutShort: Int = 0
+    otherSpacesCutShort: Int = 0,
+    missingOtherSpaceWindows: [MissingOtherSpace] = []
   ) {
     assert(Set(items.map(\.id)).count == items.count, "window ids must be unique")
     self.spacesUnread = spacesUnread
     self.otherSpacesCutShort = otherSpacesCutShort
+    self.missingOtherSpaceWindows = missingOtherSpaceWindows
     self.items = items
     self.applicationCount = applicationCount
     self.gatheringDuration = gatheringDuration
@@ -45,6 +48,14 @@ struct WindowListSnapshot {
     let name: String
     let reason: ReadFailure
     let processIdentifier: pid_t
+  }
+
+  /// Windows the window server keeps on a hidden Space for one application
+  /// that the read did not settle. The name is the one the panel shows.
+  struct MissingOtherSpace: Equatable {
+    let name: String
+    let processIdentifier: pid_t
+    let windowIDs: Set<CGWindowID>
   }
 
   /// Grouped by application in process-identifier order, and within an
@@ -66,6 +77,9 @@ struct WindowListSnapshot {
   /// How many applications ended their look for windows on other Spaces
   /// early, so a missing row there is explained.
   let otherSpacesCutShort: Int
+  /// The applications whose windows on hidden Spaces were not all settled,
+  /// in process order.
+  let missingOtherSpaceWindows: [MissingOtherSpace]
 
   // When this pass finished assembling. The sweep spares records newer
   // than this: a snapshot that predates a use could not have observed it.

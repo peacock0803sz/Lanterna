@@ -52,6 +52,33 @@ struct WindowEnumeratorOtherSpaceTests {
     #expect(reader.calls.byProcess[2]?.isHidden == false)
   }
 
+  /// Windows a read could not settle are kept on the snapshot by
+  /// application, in process order, named the way the panel names it.
+  @Test
+  func windowsLeftMissingAreKeptByApplication() {
+    let reader = FakeReader([
+      1: .success(ApplicationRead(records: [], droppedWithoutID: 0, missingOtherSpaceWindows: [10, 11])),
+      2: .success(ApplicationRead(records: [record(20)], droppedWithoutID: 0)),
+      3: .success(ApplicationRead(records: [record(30)], droppedWithoutID: 0, missingOtherSpaceWindows: [31])),
+      4: .failure(.timedOut),
+    ])
+
+    let snapshot = WindowEnumerator(reader: reader, locator: FakeSpaceLocator(), readsOtherSpaces: true)
+      .enumerate(
+        applications: [
+          application(3, name: "Mail"),
+          application(1, name: "Preview"),
+          application(2, name: "Safari"),
+          application(4, name: "Notes"),
+        ],
+        startedAt: .now
+      )
+
+    #expect(snapshot.missingOtherSpaceWindows.map(\.name) == ["Preview", "Mail"])
+    #expect(snapshot.missingOtherSpaceWindows.map(\.processIdentifier) == [1, 3])
+    #expect(snapshot.missingOtherSpaceWindows.map(\.windowIDs) == [[10, 11], [31]])
+  }
+
   /// The off-main-thread path hands over the same arguments.
   @Test
   func theOffMainThreadPassHandsOverTheSame() async {

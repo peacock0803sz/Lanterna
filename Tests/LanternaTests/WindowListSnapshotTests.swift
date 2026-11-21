@@ -104,6 +104,27 @@ struct WindowListSnapshotTests {
       + "; other Spaces cut short in 2 applications")
   }
 
+  /// The live pass appends this process's own windows by rebuilding the
+  /// snapshot, and the summary line and the held list are both read from
+  /// the rebuilt one, so windows left missing must survive it.
+  @Test
+  func appendingOwnWindowsKeepsTheWindowsLeftMissing() {
+    let missing = [
+      WindowListSnapshot.MissingOtherSpace(name: "Preview", processIdentifier: 7, windowIDs: [10, 11])
+    ]
+    let base = WindowListSnapshot(
+      items: [item(1)],
+      applicationCount: 1,
+      gatheringDuration: .milliseconds(10),
+      skipped: [],
+      droppedWithoutID: 0,
+      gatheredAt: .now,
+      missingOtherSpaceWindows: missing
+    )
+
+    #expect(base.includingOwnWindows([item(2)]).missingOtherSpaceWindows == missing)
+  }
+
   /// A title never reaches the log, whatever went wrong.
   @Test
   func summaryNeverCarriesAWindowTitle() {

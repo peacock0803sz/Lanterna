@@ -238,6 +238,7 @@ struct WindowEnumerator {
     var skipped = [WindowListSnapshot.SkippedApplication]()
     var droppedWithoutID = 0
     var otherSpacesCutShort = 0
+    var missing = [WindowListSnapshot.MissingOtherSpace]()
     // The screens are asked only when there is a layout to name.
     let names = gathered.spaces.layout == nil ? [:] : displayNames()
     let grouping = SpaceGrouping(reading: gathered.spaces, displayNames: names)
@@ -256,6 +257,13 @@ struct WindowEnumerator {
         droppedWithoutID += read.droppedWithoutID
         if read.otherSpacesCutShort {
           otherSpacesCutShort += 1
+        }
+        if !read.missingOtherSpaceWindows.isEmpty {
+          missing.append(WindowListSnapshot.MissingOtherSpace(
+            name: application.name,
+            processIdentifier: application.processIdentifier,
+            windowIDs: read.missingOtherSpaceWindows
+          ))
         }
         // Read and found empty, which is not the same as unread: only an
         // answer of no windows at all makes the application a row. A
@@ -291,7 +299,8 @@ struct WindowEnumerator {
       droppedWithoutID: droppedWithoutID,
       gatheredAt: startedAt,
       spacesUnread: gathered.spaces.displaysUnread && !items.isEmpty,
-      otherSpacesCutShort: otherSpacesCutShort
+      otherSpacesCutShort: otherSpacesCutShort,
+      missingOtherSpaceWindows: missing
     )
   }
 
