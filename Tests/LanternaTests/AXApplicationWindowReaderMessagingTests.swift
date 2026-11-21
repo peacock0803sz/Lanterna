@@ -370,7 +370,7 @@ struct AXApplicationWindowReaderMessagingTests {
     application.listedIndices = [0, 1]
     application.probedIndices = [1, 2, 2]
 
-    let read = try? application.read(includesOtherSpaces: true).get()
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [102]).get()
     #expect(read?.records.map(\.windowID) == [100, 101, 102])
     #expect(application.windowIDReads == [0, 1])
   }
@@ -385,7 +385,7 @@ struct AXApplicationWindowReaderMessagingTests {
       index == 2 && name == kAXRoleAttribute ? (.success, kAXScrollAreaRole as CFString) : nil
     }
 
-    let read = try? application.read(includesOtherSpaces: true).get()
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [102]).get()
     #expect(read?.records.map(\.windowID) == [100, 101])
   }
 
@@ -396,23 +396,24 @@ struct AXApplicationWindowReaderMessagingTests {
     application.listedIndices = [0, 1]
     application.probedIndices = [2]
 
-    let read = try? application.read().get()
+    let read = try? application.read(otherSpaceWindows: [102]).get()
     #expect(read?.records.map(\.windowID) == [100, 101])
     #expect(read?.otherSpacesCutShort == false)
+    #expect(read?.missingOtherSpaceWindows == [])
     #expect(application.probes.isEmpty)
   }
 
-  /// The probe is held to the read's own budget, and looks for no window in
-  /// particular.
+  /// The probe is held to the read's own budget, and is sent for the
+  /// windows on other Spaces the list lacks, not the ones it holds.
   @Test
-  func theProbeIsHandedTheReadsDeadline() {
+  func theProbeIsHandedTheReadsDeadlineAndTheMissingWindows() {
     let application = FakeApplication(windowCount: 2)
     let startedAt = application.clock
-    _ = application.read(includesOtherSpaces: true)
+    _ = application.read(includesOtherSpaces: true, otherSpaceWindows: [101, 150])
 
     #expect(application.probes.count == 1)
     #expect(application.probes.first?.deadline == startedAt + ReadBudget.limit)
-    #expect(application.probes.first?.targets == [])
+    #expect(application.probes.first?.targets == [150])
   }
 
   /// The list is a whole answer already, so running out of budget while
@@ -425,7 +426,7 @@ struct AXApplicationWindowReaderMessagingTests {
     application.probedIndices = [2]
     application.costOverride = { index, _ in index == 2 ? .seconds(1) : nil }
 
-    let read = try? application.read(includesOtherSpaces: true).get()
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [102]).get()
     #expect(read?.records.map(\.windowID) == [100, 101])
     #expect(read?.otherSpacesCutShort == true)
   }
@@ -439,7 +440,7 @@ struct AXApplicationWindowReaderMessagingTests {
     application.probedIndices = [2]
     application.probeCost = ReadBudget.limit
 
-    let read = try? application.read(includesOtherSpaces: true).get()
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [102]).get()
     #expect(read?.otherSpacesCutShort == true)
     #expect(read?.records.map(\.windowID) == [100, 101])
   }
@@ -450,7 +451,7 @@ struct AXApplicationWindowReaderMessagingTests {
     application.listedIndices = [0, 1]
     application.probedIndices = [2]
 
-    let read = try? application.read(includesOtherSpaces: true).get()
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [102]).get()
     #expect(read?.otherSpacesCutShort == false)
     #expect(read?.records.map(\.windowID) == [100, 101, 102])
   }

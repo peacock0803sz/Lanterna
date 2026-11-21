@@ -15,14 +15,19 @@ struct WindowEnumerator {
 
   // MARK: Lifecycle
 
+  /// `readsOtherSpaces` asks the window server, once per pass, which windows
+  /// each application keeps on Spaces no display shows, and hands each read
+  /// its own. It goes with the reader's own setting for the same pass.
   init(
     reader: any ApplicationWindowReading = AXApplicationWindowReader(),
     locator: any SpaceLocating = WindowServerSpaceLocator(),
-    displayNames: @escaping @MainActor () -> [String: String] = Self.screenNames
+    displayNames: @escaping @MainActor () -> [String: String] = Self.screenNames,
+    readsOtherSpaces: Bool = false
   ) {
     self.reader = reader
     self.locator = locator
     self.displayNames = displayNames
+    self.readsOtherSpaces = readsOtherSpaces
   }
 
   // MARK: Internal
@@ -43,7 +48,7 @@ struct WindowEnumerator {
     let ordered = applications.sorted { $0.processIdentifier < $1.processIdentifier }
     return assemble(
       ordered,
-      Self.gather(ordered.map(\.processIdentifier), using: reader, locator: locator),
+      Self.gather(request(for: ordered), using: reader, locator: locator),
       startedAt: startedAt
     )
   }
@@ -71,12 +76,12 @@ struct WindowEnumerator {
     startedAt: ContinuousClock.Instant
   ) async -> WindowListSnapshot {
     let ordered = applications.sorted { $0.processIdentifier < $1.processIdentifier }
-    let identifiers = ordered.map(\.processIdentifier)
+    let request = request(for: ordered)
     let reader = reader
     let locator = locator
     let gathered = await withCheckedContinuation { continuation in
       DispatchQueue.global(qos: .userInitiated).async {
-        continuation.resume(returning: Self.gather(identifiers, using: reader, locator: locator))
+        continuation.resume(returning: Self.gather(request, using: reader, locator: locator))
       }
     }
     return assemble(ordered, gathered, startedAt: startedAt)
@@ -110,8 +115,18 @@ struct WindowEnumerator {
     let spaces: SpaceReading
   }
 
+  /// What crosses to the worker side: the applications in order, which of
+  /// them are hidden, and whether to ask about other Spaces. Plain values,
+  /// so the main-actor application infos stay behind.
+  private struct ReadRequest: Sendable {
+    let identifiers: [pid_t]
+    let hiddenOwners: Set<pid_t>
+    let readsOtherSpaces: Bool
+  }
+
   private let reader: any ApplicationWindowReading
   private let locator: any SpaceLocating
+  private let readsOtherSpaces: Bool
   /// Each display's name by its identifier, read on the main thread where
   /// the screens live.
   private let displayNames: @MainActor () -> [String: String]
@@ -133,19 +148,20 @@ struct WindowEnumerator {
     return names
   }
 
-  /// The blocking half of a pass: the reads, then one Space query for
-  /// every window they found. Shared by both paths, and run wherever the
-  /// reading runs, so the window-server calls stay off the main thread
-  /// whenever the reading does.
+  /// The blocking half of a pass: the windows kept on other Spaces when
+  /// asked for, the reads, then one Space query for every window they
+  /// found. Shared by both paths, and run wherever the reading runs, so the
+  /// window-server calls stay off the main thread whenever the reading does.
   private nonisolated static func gather(
-    _ identifiers: [pid_t],
+    _ request: ReadRequest,
     using reader: any ApplicationWindowReading,
     locator: any SpaceLocating
   ) -> Gathered {
     // The pool frees this pass's Objective-C temporaries as it ends,
     // rather than whenever the pool around the caller next drains.
     autoreleasepool {
-      let results = read(identifiers, using: reader)
+      let otherSpace = request.readsOtherSpaces ? locator.otherSpaceWindows() : OtherSpaceWindows()
+      let results = read(request, expecting: otherSpace, using: reader)
       let windowIDs = results.flatMap { result in
         (try? result.get())?.records.map(\.windowID) ?? []
       }
@@ -168,9 +184,11 @@ struct WindowEnumerator {
   /// total, but more of them wedged at once than that width serialise into
   /// waves of about a second each.
   private nonisolated static func read(
-    _ identifiers: [pid_t],
+    _ request: ReadRequest,
+    expecting otherSpace: OtherSpaceWindows,
     using reader: any ApplicationWindowReading
   ) -> [Result<ApplicationRead, ReadFailure>] {
+    let identifiers = request.identifiers
     guard !identifiers.isEmpty else {
       return []
     }
@@ -178,7 +196,12 @@ struct WindowEnumerator {
       Array(repeating: nil, count: identifiers.count)
     )
     DispatchQueue.concurrentPerform(iterations: identifiers.count) { index in
-      let result = reader.read(processIdentifier: identifiers[index])
+      let processIdentifier = identifiers[index]
+      let result = reader.read(
+        processIdentifier: processIdentifier,
+        otherSpaceWindows: otherSpace.windowIDs(of: processIdentifier),
+        isHidden: request.hiddenOwners.contains(processIdentifier)
+      )
       slots.withLock { $0[index] = result }
     }
     // Every iteration fills its own slot. Dropping an unwritten one instead
@@ -189,6 +212,15 @@ struct WindowEnumerator {
       }
       return result
     }
+  }
+
+  /// The worker side's arguments for applications already in order.
+  private func request(for ordered: [RunningApplicationInfo]) -> ReadRequest {
+    ReadRequest(
+      identifiers: ordered.map(\.processIdentifier),
+      hiddenOwners: Set(ordered.filter(\.isHidden).map(\.processIdentifier)),
+      readsOtherSpaces: readsOtherSpaces
+    )
   }
 
   /// Joins each application to its answer and lays the rows out.

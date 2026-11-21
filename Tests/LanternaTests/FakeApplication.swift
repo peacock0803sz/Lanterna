@@ -102,8 +102,13 @@ final class FakeApplication: @unchecked Sendable {
     )
   }
 
-  func read(includesOtherSpaces: Bool = false) -> Result<ApplicationRead, ReadFailure> {
-    reader(includesOtherSpaces: includesOtherSpaces).read(processIdentifier: 42)
+  func read(
+    includesOtherSpaces: Bool = false,
+    otherSpaceWindows: Set<CGWindowID> = [],
+    isHidden: Bool = false
+  ) -> Result<ApplicationRead, ReadFailure> {
+    reader(includesOtherSpaces: includesOtherSpaces)
+      .read(processIdentifier: 42, otherSpaceWindows: otherSpaceWindows, isHidden: isHidden)
   }
 
   /// The attributes read from one window, in order.

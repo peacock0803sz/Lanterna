@@ -54,6 +54,11 @@ struct ApplicationRead: Sendable, Equatable {
   /// or on a failed read. The windows listed are all kept; only some of those
   /// on other Spaces may be missing, which the diagnostics line says.
   var otherSpacesCutShort = false
+  /// Windows the window server keeps on a hidden Space for this application
+  /// that neither its list nor the look for windows elsewhere settled: not
+  /// listed, and not found and judged by the rule table before the look
+  /// ended. Disjoint from `records`.
+  var missingOtherSpaceWindows = Set<CGWindowID>()
 }
 
 // MARK: - ReadFailure
@@ -110,7 +115,15 @@ extension ReadFailure: CustomStringConvertible {
 /// A protocol because the enumerator's assembly rules — ordering, skipping,
 /// fallbacks — are worth testing without a live accessibility connection.
 protocol ApplicationWindowReading: Sendable {
-  func read(processIdentifier: pid_t) -> Result<ApplicationRead, ReadFailure>
+  /// `otherSpaceWindows` are the application's windows the window server
+  /// keeps on Spaces no display shows, empty when that was not read.
+  /// `isHidden` is whether the application is hidden, read on the main
+  /// thread before the reading started.
+  func read(
+    processIdentifier: pid_t,
+    otherSpaceWindows: Set<CGWindowID>,
+    isHidden: Bool
+  ) -> Result<ApplicationRead, ReadFailure>
 }
 
 // MARK: - ReadBudget
@@ -209,6 +222,11 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
   /// Half the timeout leaves a wide margin on both sides.
   static let unreachableAnswerCeiling = Duration.seconds(Double(messagingTimeout) / 2)
 
+  /// Internal rather than private, like `now` and the element `outcome`:
+  /// the look for windows on other Spaces lives in its own file.
+  let probeWindows: @Sendable (pid_t, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow]
+  let now: @Sendable () -> ContinuousClock.Instant
+
   /// Decides what one element of a window list becomes.
   ///
   /// Pure, so the whole rule table is testable. The order matters: an element
@@ -243,9 +261,13 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     )
   }
 
-  func read(processIdentifier: pid_t) -> Result<ApplicationRead, ReadFailure> {
+  func read(
+    processIdentifier: pid_t,
+    otherSpaceWindows: Set<CGWindowID>,
+    isHidden _: Bool
+  ) -> Result<ApplicationRead, ReadFailure> {
     do {
-      return try .success(applicationRead(of: processIdentifier))
+      return try .success(applicationRead(of: processIdentifier, otherSpaceWindows: otherSpaceWindows))
     } catch {
       // Half of a wedged application's windows is a worse list than none
       // of them, so whatever was read so far goes with it.
@@ -253,14 +275,40 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     }
   }
 
+  /// `windowID` is passed when the caller already read it, which saves the
+  /// round trip.
+  func outcome(
+    for window: AXUIElement,
+    windowID knownID: CGWindowID? = nil,
+    within budget: ReadBudget
+  ) throws(ReadFailure) -> ElementOutcome {
+    try prepare(window)
+    let role = try attribute(window, kAXRoleAttribute, within: budget) as? String
+    let subrole = try attribute(window, kAXSubroleAttribute, within: budget) as? String
+    // The rule table's first check, applied as soon as it can be: every
+    // message is a round trip, and a failing one discards the whole
+    // application, so an element that will not become a row is asked
+    // nothing more.
+    guard WindowKind.classify(role: role, subrole: subrole) != nil else {
+      return .excluded
+    }
+    return try Self.outcome(
+      role: role,
+      subrole: subrole,
+      title: attribute(window, kAXTitleAttribute, within: budget) as? String ?? "",
+      isMinimized: attribute(window, kAXMinimizedAttribute, within: budget) as? Bool ?? false,
+      isFullscreen: attribute(window, fullscreenAttributeName, within: budget) as? Bool ?? false,
+      windowID: knownID != nil ? knownID : windowID(of: window, within: budget)
+    )
+  }
+
   // MARK: Private
 
   private let setMessagingTimeout: @Sendable (AXUIElement, Float) -> AXError
   private let copyAttribute: @Sendable (AXUIElement, String) -> (AXError, CFTypeRef?)
   private let copyWindowID: @Sendable (AXUIElement) -> (AXError, CGWindowID)
-  private let probeWindows: @Sendable (pid_t, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow]
+
   private let includesOtherSpaces: Bool
-  private let now: @Sendable () -> ContinuousClock.Instant
 
   /// What a `kAXErrorCannotComplete` that took `elapsed` to come back means:
   /// a wait that ran out, or a refusal that never waited.
@@ -268,7 +316,10 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     elapsed >= unreachableAnswerCeiling ? .timedOut : .unavailable(.cannotComplete)
   }
 
-  private func applicationRead(of processIdentifier: pid_t) throws(ReadFailure) -> ApplicationRead {
+  private func applicationRead(
+    of processIdentifier: pid_t,
+    otherSpaceWindows: Set<CGWindowID>
+  ) throws(ReadFailure) -> ApplicationRead {
     let budget = ReadBudget(startedAt: now())
     let application = AXUIElementCreateApplication(processIdentifier)
     try prepare(application)
@@ -286,40 +337,15 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
         droppedWithoutID += 1
       }
     }
-    let cutShort = includesOtherSpaces
-      && appendOtherSpaceRecords(to: &records, of: processIdentifier, within: budget)
+    let otherSpaces = includesOtherSpaces
+      ? appendOtherSpaceRecords(to: &records, of: processIdentifier, expecting: otherSpaceWindows, within: budget)
+      : OtherSpaceLook()
     return ApplicationRead(
       records: records,
       droppedWithoutID: droppedWithoutID,
-      otherSpacesCutShort: cutShort
+      otherSpacesCutShort: otherSpaces.cutShort,
+      missingOtherSpaceWindows: otherSpaces.missing
     )
-  }
-
-  /// Adds the windows the application's list left out, those on Spaces no
-  /// display is showing. Answers whether the look ended early.
-  ///
-  /// Best effort: the list already read is a complete answer, so a budget
-  /// spent or a failure while probing keeps it instead of discarding the
-  /// application for a bonus.
-  private func appendOtherSpaceRecords(
-    to records: inout [WindowRecord],
-    of processIdentifier: pid_t,
-    within budget: ReadBudget
-  ) -> Bool {
-    var known = Set(records.map(\.windowID))
-    let probed = probeWindows(processIdentifier, [], budget.deadline)
-    do throws(ReadFailure) {
-      for window in probed where known.insert(window.windowID).inserted {
-        if case .record(let record) = try outcome(for: window.element, windowID: window.windowID, within: budget) {
-          records.append(record)
-        }
-      }
-    } catch {
-      return true
-    }
-    // The probe answers with what it found by the deadline and does not say
-    // whether it stopped there.
-    return budget.isExpired(at: now())
   }
 
   /// The application's window list, empty when nothing is open.
@@ -352,33 +378,6 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
       // since without the list there is nothing to read.
       throw .unavailable(error)
     }
-  }
-
-  /// `windowID` is passed when the caller already read it, which saves the
-  /// round trip.
-  private func outcome(
-    for window: AXUIElement,
-    windowID knownID: CGWindowID? = nil,
-    within budget: ReadBudget
-  ) throws(ReadFailure) -> ElementOutcome {
-    try prepare(window)
-    let role = try attribute(window, kAXRoleAttribute, within: budget) as? String
-    let subrole = try attribute(window, kAXSubroleAttribute, within: budget) as? String
-    // The rule table's first check, applied as soon as it can be: every
-    // message is a round trip, and a failing one discards the whole
-    // application, so an element that will not become a row is asked
-    // nothing more.
-    guard WindowKind.classify(role: role, subrole: subrole) != nil else {
-      return .excluded
-    }
-    return try Self.outcome(
-      role: role,
-      subrole: subrole,
-      title: attribute(window, kAXTitleAttribute, within: budget) as? String ?? "",
-      isMinimized: attribute(window, kAXMinimizedAttribute, within: budget) as? Bool ?? false,
-      isFullscreen: attribute(window, fullscreenAttributeName, within: budget) as? Bool ?? false,
-      windowID: knownID != nil ? knownID : windowID(of: window, within: budget)
-    )
   }
 
   /// Sets the client-side timeout before anything is sent to an element.
