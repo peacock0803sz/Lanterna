@@ -20,6 +20,11 @@ protocol SpaceLocating: Sendable {
   /// displays' Spaces. The default asks the two questions above and knows
   /// no layout, so fakes naming only those keep working.
   func reading(among windowIDs: [CGWindowID]) -> SpaceReading
+  /// The windows of every process kept on a Space no display is showing,
+  /// read before the accessibility reading so it knows which windows its
+  /// lists left out. Default empty so fakes that never name such windows
+  /// keep working.
+  func otherSpaceWindows() -> OtherSpaceWindows
 }
 
 // MARK: - SpaceReading
@@ -47,6 +52,10 @@ extension SpaceLocating {
       onOtherSpace: windowsOnOtherSpaces(among: windowIDs),
       fullscreen: fullscreenWindows(among: windowIDs)
     )
+  }
+
+  func otherSpaceWindows() -> OtherSpaceWindows {
+    OtherSpaceWindows()
   }
 }
 
@@ -117,7 +126,14 @@ enum SpacePlacement {
 /// message.
 struct WindowServerSpaceLocator: SpaceLocating {
 
-  // MARK: Internal
+  /// The Spaces one window is on. Internal rather than private because the
+  /// other-Space window list reads it from its own file.
+  static func spaces(of windowID: CGWindowID, connection: CGSConnectionID) -> [CGSSpaceID] {
+    let windowIDs = [NSNumber(value: windowID)] as CFArray
+    let answer: CFArray? = CGSCopySpacesForWindows(connection, Int32(kCGSSpaceMaskAll), windowIDs)
+    let spaces = answer as? [NSNumber] ?? []
+    return spaces.map(\.uint64Value)
+  }
 
   func windowsOnOtherSpaces(among windowIDs: [CGWindowID]) -> Set<CGWindowID> {
     reading(among: windowIDs).onOtherSpace
@@ -151,15 +167,6 @@ struct WindowServerSpaceLocator: SpaceLocating {
       }
     }
     return reading
-  }
-
-  // MARK: Private
-
-  private static func spaces(of windowID: CGWindowID, connection: CGSConnectionID) -> [CGSSpaceID] {
-    let windowIDs = [NSNumber(value: windowID)] as CFArray
-    let answer: CFArray? = CGSCopySpacesForWindows(connection, Int32(kCGSSpaceMaskAll), windowIDs)
-    let spaces = answer as? [NSNumber] ?? []
-    return spaces.map(\.uint64Value)
   }
 
 }
