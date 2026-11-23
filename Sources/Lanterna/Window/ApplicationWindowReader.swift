@@ -307,6 +307,68 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     )
   }
 
+  /// Sets the client-side timeout before anything is sent to an element.
+  ///
+  /// Costs no round trip, so it is not charged to the budget. A failure is
+  /// not recoverable: sending anyway would fall back to the multi-second
+  /// default and blow the per-application budget.
+  func prepare(_ element: AXUIElement) throws(ReadFailure) {
+    let error = setMessagingTimeout(element, Self.messagingTimeout)
+    guard error == .success else {
+      throw .unavailable(error)
+    }
+  }
+
+  /// Reads one attribute, or `nil` when the element has no such value. An
+  /// absent value is an answer: an untitled window reports no title. So is a
+  /// refused one: the window of a Chromium web app shim answers its title
+  /// with `failure` while the rest of it reads normally.
+  ///
+  /// Internal rather than private, like `outcome`: the look for windows on
+  /// other Spaces asks the application for its main window.
+  func attribute(
+    _ element: AXUIElement,
+    _ name: String,
+    within budget: ReadBudget
+  ) throws(ReadFailure) -> CFTypeRef? {
+    let (error, value) = try send(name, to: element, within: budget)
+    return error == .success ? value : nil
+  }
+
+  /// The window-server id, or `nil` when the fetch fails.
+  ///
+  /// The one call whose failure is expected rather than exceptional: an error
+  /// here is treated as "no id" — an element that is not a window worth
+  /// listing (`illegalArgument`, in practice) — rather than as a verdict on
+  /// the application that owns it; `outcome` reads a zero id the same way.
+  /// Two answers are about the application, not the element, and end the
+  /// read like they would anywhere else: `apiDisabled`, because permission
+  /// was revoked, and `cannotComplete`, because the fetch is a round trip
+  /// like any attribute read and reading its timeout as "no id" would turn a
+  /// hung application's last window into a dropped element and the rest into
+  /// the partial list that discarding the whole application exists to avoid.
+  /// Spending the budget ends the read for the same reason.
+  func windowID(
+    of element: AXUIElement,
+    within budget: ReadBudget
+  ) throws(ReadFailure) -> CGWindowID? {
+    let sentAt = now()
+    guard !budget.isExpired(at: sentAt) else {
+      throw .timedOut
+    }
+    let (error, windowID) = copyWindowID(element)
+    switch error {
+    case .success:
+      return windowID
+    case .apiDisabled:
+      throw .permissionMissing
+    case .cannotComplete:
+      throw Self.failure(forCannotCompleteAfter: now() - sentAt)
+    default:
+      return nil
+    }
+  }
+
   // MARK: Private
 
   private let setMessagingTimeout: @Sendable (AXUIElement, Float) -> AXError
@@ -347,6 +409,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
       ? appendOtherSpaceRecords(
         to: &records,
         of: processIdentifier,
+        through: application,
         expecting: otherSpaceWindows,
         isHidden: isHidden,
         within: budget
@@ -392,31 +455,6 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     }
   }
 
-  /// Sets the client-side timeout before anything is sent to an element.
-  ///
-  /// Costs no round trip, so it is not charged to the budget. A failure is
-  /// not recoverable: sending anyway would fall back to the multi-second
-  /// default and blow the per-application budget.
-  private func prepare(_ element: AXUIElement) throws(ReadFailure) {
-    let error = setMessagingTimeout(element, Self.messagingTimeout)
-    guard error == .success else {
-      throw .unavailable(error)
-    }
-  }
-
-  /// Reads one attribute, or `nil` when the element has no such value. An
-  /// absent value is an answer: an untitled window reports no title. So is a
-  /// refused one: the window of a Chromium web app shim answers its title
-  /// with `failure` while the rest of it reads normally.
-  private func attribute(
-    _ element: AXUIElement,
-    _ name: String,
-    within budget: ReadBudget
-  ) throws(ReadFailure) -> CFTypeRef? {
-    let (error, value) = try send(name, to: element, within: budget)
-    return error == .success ? value : nil
-  }
-
   /// Sends one attribute read, separating the answers that are about the
   /// attribute from the failures that are about the application.
   ///
@@ -449,40 +487,6 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
       throw Self.failure(forCannotCompleteAfter: now() - sentAt)
     default:
       throw .unavailable(error)
-    }
-  }
-
-  /// The window-server id, or `nil` when the fetch fails.
-  ///
-  /// The one call whose failure is expected rather than exceptional: an error
-  /// here is treated as "no id" — an element that is not a window worth
-  /// listing (`illegalArgument`, in practice) — rather than as a verdict on
-  /// the application that owns it; `outcome` reads a zero id the same way.
-  /// Two answers are about the application, not the element, and end the
-  /// read like they would anywhere else: `apiDisabled`, because permission
-  /// was revoked, and `cannotComplete`, because the fetch is a round trip
-  /// like any attribute read and reading its timeout as "no id" would turn a
-  /// hung application's last window into a dropped element and the rest into
-  /// the partial list that discarding the whole application exists to avoid.
-  /// Spending the budget ends the read for the same reason.
-  private func windowID(
-    of element: AXUIElement,
-    within budget: ReadBudget
-  ) throws(ReadFailure) -> CGWindowID? {
-    let sentAt = now()
-    guard !budget.isExpired(at: sentAt) else {
-      throw .timedOut
-    }
-    let (error, windowID) = copyWindowID(element)
-    switch error {
-    case .success:
-      return windowID
-    case .apiDisabled:
-      throw .permissionMissing
-    case .cannotComplete:
-      throw Self.failure(forCannotCompleteAfter: now() - sentAt)
-    default:
-      return nil
     }
   }
 
