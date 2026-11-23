@@ -19,7 +19,10 @@ extension AXApplicationWindowReader {
   /// Only the windows the window server keeps on a hidden Space and the list
   /// lacks are looked for, and the look stops once all of them have turned
   /// up: an application with every window in its list costs no probe at
-  /// all. A window counts as settled once the rule table has judged it,
+  /// all. An application the usual ids leave without a single row looks
+  /// through the widened ids as well, within the same budget, because
+  /// otherwise it has no row to reach those windows by but the stand-in.
+  /// A window counts as settled once the rule table has judged it,
   /// whether it became a record or was excluded; one the probe returned but
   /// the look ran out of time or failed before judging is still missing.
   ///
@@ -47,10 +50,11 @@ extension AXApplicationWindowReader {
     guard !wanted.isEmpty else {
       return OtherSpaceLook()
     }
-    let probed = probeWindows(processIdentifier, WindowProbe.elementIDs, wanted, budget.deadline)
     var settled = Set<CGWindowID>()
-    do throws(ReadFailure) {
-      for window in probed where known.insert(window.windowID).inserted {
+    func judge(_ ids: Range<UInt64>, for targets: Set<CGWindowID>) throws(ReadFailure) {
+      for window in probeWindows(processIdentifier, ids, targets, budget.deadline)
+        where known.insert(window.windowID).inserted
+      {
         if
           case .record(let record) = try outcome(for: window.element, windowID: window.windowID, within: budget),
           otherSpaceWindows.contains(record.windowID) || record.isMinimized || isHidden
@@ -58,6 +62,16 @@ extension AXApplicationWindowReader {
           records.append(record)
         }
         settled.insert(window.windowID)
+      }
+    }
+    do throws(ReadFailure) {
+      try judge(WindowProbe.elementIDs, for: wanted)
+      let remaining = wanted.subtracting(settled)
+      // Only an application left without a row looks further. One with a
+      // row may keep a helper window on a hidden Space, which no id
+      // answers, and would search to the end on every pass for it.
+      if records.isEmpty, !remaining.isEmpty, !budget.isExpired(at: now()) {
+        try judge(WindowProbe.widenedElementIDs, for: remaining)
       }
     } catch {
       return OtherSpaceLook(cutShort: true, missing: wanted.subtracting(settled))

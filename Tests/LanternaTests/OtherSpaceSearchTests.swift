@@ -113,6 +113,97 @@ struct OtherSpaceSearchTests {
     #expect(read?.records.map(\.windowID) == [100, 101, 102, 103])
   }
 
+  /// An application left without a single window row looks past the usual
+  /// ids, for the windows still missing only, within the same deadline.
+  @Test
+  func anApplicationWithoutARowLooksBeyondTheUsualIDs() {
+    let application = FakeApplication(windowCount: 2)
+    application.listedIndices = []
+    application.probedIndices = [0]
+    application.widenedIndices = [1]
+    application.attributeResult = { index, name in
+      index == 0 && name == kAXRoleAttribute ? (.success, kAXScrollAreaRole as CFString) : nil
+    }
+    let startedAt = application.clock
+
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [100, 101, 150]).get()
+    #expect(application.probes.map(\.ids) == [WindowProbe.elementIDs, WindowProbe.widenedElementIDs])
+    #expect(application.probes.last?.targets == [101, 150])
+    #expect(application.probes.last?.deadline == startedAt + ReadBudget.limit)
+    #expect(read?.records.map(\.windowID) == [101])
+    #expect(read?.missingOtherSpaceWindows == [150])
+    #expect(read?.otherSpacesCutShort == false)
+  }
+
+  /// A row from the list keeps the look to the usual ids: an application
+  /// with a window in view may also keep a helper window on a hidden Space,
+  /// and widening for that would search to the end on every pass.
+  @Test
+  func aListedRowKeepsTheLookToTheUsualIDs() {
+    let application = FakeApplication(windowCount: 2)
+    application.listedIndices = [0]
+    application.widenedIndices = [1]
+
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [101]).get()
+    #expect(application.probes.map(\.ids) == [WindowProbe.elementIDs])
+    #expect(read?.records.map(\.windowID) == [100])
+    #expect(read?.missingOtherSpaceWindows == [101])
+  }
+
+  /// So does a row the usual ids turned up.
+  @Test
+  func aProbedRowKeepsTheLookToTheUsualIDs() {
+    let application = FakeApplication(windowCount: 2)
+    application.listedIndices = []
+    application.probedIndices = [0]
+    application.widenedIndices = [1]
+
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [100, 101]).get()
+    #expect(application.probes.map(\.ids) == [WindowProbe.elementIDs])
+    #expect(read?.records.map(\.windowID) == [100])
+    #expect(read?.missingOtherSpaceWindows == [101])
+  }
+
+  /// A read already out of time does not look further, and says it was cut.
+  @Test
+  func aReadOutOfTimeDoesNotLookBeyondTheUsualIDs() {
+    let application = FakeApplication(windowCount: 2)
+    application.listedIndices = []
+    application.widenedIndices = [1]
+    application.probeCost = ReadBudget.limit
+
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [101]).get()
+    #expect(application.probes.map(\.ids) == [WindowProbe.elementIDs])
+    #expect(read?.otherSpacesCutShort == true)
+    #expect(read?.missingOtherSpaceWindows == [101])
+  }
+
+  /// The widened ids end before the deadline does, so a look that went
+  /// through them all and found nothing was not cut short: the window is
+  /// missing, and the summary line says so in its own words.
+  @Test
+  func aLookBeyondThatFindsNothingInTimeIsNotCutShort() {
+    let application = FakeApplication(windowCount: 2)
+    application.listedIndices = []
+
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [101]).get()
+    #expect(application.probes.count == 2)
+    #expect(read?.otherSpacesCutShort == false)
+    #expect(read?.missingOtherSpaceWindows == [101])
+  }
+
+  @Test
+  func aLookBeyondThatRunsOutOfTimeIsCutShort() {
+    let application = FakeApplication(windowCount: 2)
+    application.listedIndices = []
+    application.widenedProbeCost = ReadBudget.limit
+
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [101]).get()
+    #expect(application.probes.count == 2)
+    #expect(read?.otherSpacesCutShort == true)
+    #expect(read?.missingOtherSpaceWindows == [101])
+  }
+
   /// With the setting off nothing is looked for and nothing is reported
   /// missing, whatever the window server keeps elsewhere.
   @Test

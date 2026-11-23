@@ -54,10 +54,16 @@ final class FakeApplication: @unchecked Sendable {
   /// Positions the application's window list answers with. `nil` is every
   /// window.
   var listedIndices: [Int]?
-  /// Positions the probe answers with, whatever the list holds.
+  /// Positions the probe answers with over the usual ids, whatever the list
+  /// holds.
   var probedIndices = [Int]()
-  /// Time the probe takes, so its deadline can pass without waiting.
+  /// Positions the probe answers with over the widened ids.
+  var widenedIndices = [Int]()
+  /// Time the probe takes over the usual ids, so its deadline can pass
+  /// without waiting.
   var probeCost = Duration.zero
+  /// Time the probe takes over the widened ids.
+  var widenedProbeCost = Duration.zero
   /// The ids, targets and deadline each probe was handed.
   private(set) var probes = [(ids: Range<UInt64>, targets: Set<CGWindowID>, deadline: ContinuousClock.Instant)]()
   /// The fake clock; a test reads it to say when the read began.
@@ -94,8 +100,10 @@ final class FakeApplication: @unchecked Sendable {
       },
       probeWindows: { [self] _, ids, targets, deadline in
         probes.append((ids, targets, deadline))
-        clock = clock.advanced(by: probeCost)
-        return probedIndices.map { ProbedWindow(element: windows[$0], windowID: CGWindowID(100 + $0)) }
+        let widened = ids == WindowProbe.widenedElementIDs
+        clock = clock.advanced(by: widened ? widenedProbeCost : probeCost)
+        return (widened ? widenedIndices : probedIndices)
+          .map { ProbedWindow(element: windows[$0], windowID: CGWindowID(100 + $0)) }
       },
       includesOtherSpaces: includesOtherSpaces,
       now: { [self] in clock }
