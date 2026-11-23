@@ -20,8 +20,8 @@ struct ProbedWindow {
 /// listing them and switching to them agree on what exists. It returns every
 /// window it finds, those the list holds too; callers subtract what they
 /// already have and name the windows they want, so the pass ends once those
-/// have turned up. A full pass costs tens to a couple of hundred milliseconds
-/// on an ordinary application, which is why every call carries a deadline.
+/// have turned up. How long a pass takes depends on the application and on
+/// how many ids it is handed, which is why every call carries a deadline.
 enum WindowProbe {
 
   // MARK: Internal
