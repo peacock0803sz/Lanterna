@@ -181,9 +181,10 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
       let error = _AXUIElementGetWindow(element, &windowID)
       return (error, windowID)
     },
-    probeWindows: @escaping @Sendable (pid_t, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow] = {
-      WindowProbe.windows(of: $0, stoppingAfter: $1, until: $2)
-    },
+    probeWindows: @escaping @Sendable (pid_t, Range<UInt64>, Set<CGWindowID>, ContinuousClock.Instant)
+      -> [ProbedWindow] = {
+        WindowProbe.windows(of: $0, ids: $1, stoppingAfter: $2, until: $3)
+      },
     includesOtherSpaces: Bool = false,
     now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
   ) {
@@ -224,7 +225,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
 
   /// Internal rather than private, like `now` and the element `outcome`:
   /// the look for windows on other Spaces lives in its own file.
-  let probeWindows: @Sendable (pid_t, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow]
+  let probeWindows: @Sendable (pid_t, Range<UInt64>, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow]
   let now: @Sendable () -> ContinuousClock.Instant
 
   /// Decides what one element of a window list becomes.

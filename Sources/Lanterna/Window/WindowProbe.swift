@@ -26,6 +26,13 @@ enum WindowProbe {
 
   // MARK: Internal
 
+  /// Measured on one machine (macOS 26, about 20 regular applications): every
+  /// titled window of another Space answered within this range, and widening
+  /// it to 20000 found nothing more. Beyond that machine it is a guess; an
+  /// application that numbers its elements higher loses those windows, and
+  /// the pass's summary line names it among the windows not found.
+  static let elementIDs: Range<UInt64> = 0..<1000
+
   /// The 20-byte token naming one element of one process: the process id
   /// (`Int32`), `Int32` 0, `Int32` 0x636F636F, then the element id (`UInt64`),
   /// all in native byte order.
@@ -38,19 +45,20 @@ enum WindowProbe {
     return token
   }
 
-  /// The windows found by id, ending the pass at `deadline` or once every
-  /// window in `targets` has been found. An empty `targets` looks through
-  /// the whole range.
+  /// The windows found among `ids`, ending the pass at `deadline` or once
+  /// every window in `targets` has been found. An empty `targets` looks
+  /// through the whole range.
   ///
   /// A nonexistent id answers an error at once. That is the common case and
   /// says nothing about the application, so it is skipped silently. Untitled
   /// helper windows the accessibility server never exposes are not found.
   static func windows(
     of pid: pid_t,
+    ids: Range<UInt64>,
     stoppingAfter targets: Set<CGWindowID>,
     until deadline: ContinuousClock.Instant
   ) -> [ProbedWindow] {
-    search(ids: elementIDs, stoppingAfter: targets, until: deadline, now: { .now }) { id in
+    search(ids: ids, stoppingAfter: targets, until: deadline, now: { .now }) { id in
       guard
         let element = _AXUIElementCreateWithRemoteToken(token(pid: pid, elementID: id) as CFData),
         AXUIElementSetMessagingTimeout(element, probeTimeout) == .success,
@@ -60,7 +68,7 @@ enum WindowProbe {
     }
   }
 
-  /// The loop behind `windows(of:stoppingAfter:until:)`, apart from the
+  /// The loop behind `windows(of:ids:stoppingAfter:until:)`, apart from the
   /// accessibility calls so when it stops can be tested. `look` answers
   /// one id: the window there, or nil.
   static func search(
@@ -87,12 +95,6 @@ enum WindowProbe {
 
   // MARK: Private
 
-  /// Measured on one machine (macOS 26, about 20 regular applications): every
-  /// titled window of another Space answered within this range, and widening
-  /// it to 20000 found nothing more. Beyond that machine it is a guess; an
-  /// application that numbers its elements higher loses those windows, and
-  /// the pass's summary line names it among the windows not found.
-  private static let elementIDs: Range<UInt64> = 0..<1000
   private static let probeTimeout: Float = 0.1
 
   private static func windowID(ifWindow element: AXUIElement) -> CGWindowID? {

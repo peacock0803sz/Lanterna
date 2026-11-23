@@ -47,7 +47,7 @@ extension AXApplicationWindowReader {
     guard !wanted.isEmpty else {
       return OtherSpaceLook()
     }
-    let probed = probeWindows(processIdentifier, wanted, budget.deadline)
+    let probed = probeWindows(processIdentifier, WindowProbe.elementIDs, wanted, budget.deadline)
     var settled = Set<CGWindowID>()
     do throws(ReadFailure) {
       for window in probed where known.insert(window.windowID).inserted {

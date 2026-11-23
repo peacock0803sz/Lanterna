@@ -40,9 +40,10 @@ struct WindowElementResolver: Sendable {
       return (error, windowID)
     },
     probesOtherSpaces: @escaping @Sendable () -> Bool = { false },
-    probeWindows: @escaping @Sendable (pid_t, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow] = {
-      WindowProbe.windows(of: $0, stoppingAfter: $1, until: $2)
-    },
+    probeWindows: @escaping @Sendable (pid_t, Range<UInt64>, Set<CGWindowID>, ContinuousClock.Instant)
+      -> [ProbedWindow] = {
+        WindowProbe.windows(of: $0, ids: $1, stoppingAfter: $2, until: $3)
+      },
     now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
   ) {
     self.createApplication = createApplication
@@ -142,7 +143,8 @@ struct WindowElementResolver: Sendable {
   private let copyWindows: @Sendable (AXUIElement) -> (AXError, [AXUIElement]?)
   private let copyWindowID: @Sendable (AXUIElement) -> (AXError, CGWindowID)
   private let probesOtherSpaces: @Sendable () -> Bool
-  private let probeWindows: @Sendable (pid_t, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow]
+  private let probeWindows: @Sendable (pid_t, Range<UInt64>, Set<CGWindowID>, ContinuousClock.Instant)
+    -> [ProbedWindow]
   private let now: @Sendable () -> ContinuousClock.Instant
 
   /// The target's element when it is on a Space no display is showing. The
@@ -153,7 +155,7 @@ struct WindowElementResolver: Sendable {
       return nil
     }
     let deadline = now() + Self.otherSpaceProbeLimit
-    let found = probeWindows(target.ownerProcessIdentifier, [windowID], deadline)
+    let found = probeWindows(target.ownerProcessIdentifier, WindowProbe.elementIDs, [windowID], deadline)
       .first { $0.windowID == windowID && prepare($0.element) }
     return found.map { .element($0.element) }
   }

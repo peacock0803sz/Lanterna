@@ -136,7 +136,12 @@ private final class ScriptedProbe: @unchecked Sendable {
   )
   /// What the probe answers with.
   var probed: [ProbedWindow]
-  private(set) var calls = [(pid: pid_t, targets: Set<CGWindowID>, deadline: ContinuousClock.Instant)]()
+  private(set) var calls = [(
+    pid: pid_t,
+    ids: Range<UInt64>,
+    targets: Set<CGWindowID>,
+    deadline: ContinuousClock.Instant
+  )]()
 
   /// The element named `element`, reporting `id` as its window id.
   func window(_ element: CGWindowID, as id: CGWindowID) -> ProbedWindow {
@@ -157,8 +162,8 @@ private final class ScriptedProbe: @unchecked Sendable {
         return (.success, id)
       },
       probesOtherSpaces: probing,
-      probeWindows: { [self] pid, targets, deadline in
-        calls.append((pid, targets, deadline))
+      probeWindows: { [self] pid, ids, targets, deadline in
+        calls.append((pid, ids, targets, deadline))
         return probed
       },
       now: { [startedAt] in startedAt }
