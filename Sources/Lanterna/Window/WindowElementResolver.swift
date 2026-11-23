@@ -150,12 +150,17 @@ struct WindowElementResolver: Sendable {
   /// The target's element when it is on a Space no display is showing. The
   /// list leaves such windows out, and a row for one may be on screen.
   /// Nil with the setting off, which leaves the list's answer as it was.
+  ///
+  /// The look reaches every id the read could have found the row at, since
+  /// nothing says which pass of the read found it. A target that is gone
+  /// therefore costs the whole range, or the limit, before the press gives
+  /// up on it.
   private func otherSpaceElement(for target: ActivationTarget) -> Resolution? {
     guard probesOtherSpaces(), let windowID = target.id.windowID else {
       return nil
     }
     let deadline = now() + Self.otherSpaceProbeLimit
-    let found = probeWindows(target.ownerProcessIdentifier, WindowProbe.elementIDs, [windowID], deadline)
+    let found = probeWindows(target.ownerProcessIdentifier, WindowProbe.everyElementID, [windowID], deadline)
       .first { $0.windowID == windowID && prepare($0.element) }
     return found.map { .element($0.element) }
   }

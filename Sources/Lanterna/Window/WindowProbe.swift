@@ -40,6 +40,10 @@ enum WindowProbe {
   /// summary line names its application among the windows not found.
   static let widenedElementIDs: Range<UInt64> = elementIDs.upperBound..<20000
 
+  /// Every id the read can find a window at, for a look that has to reach
+  /// whatever the read listed.
+  static let everyElementID: Range<UInt64> = elementIDs.lowerBound..<widenedElementIDs.upperBound
+
   /// The 20-byte token naming one element of one process: the process id
   /// (`Int32`), `Int32` 0, `Int32` 0x636F636F, then the element id (`UInt64`),
   /// all in native byte order.

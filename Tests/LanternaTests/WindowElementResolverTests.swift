@@ -48,14 +48,18 @@ struct WindowElementResolverTests {
   }
 
   /// The probe is told whom to look for and when to stop, so a press never
-  /// waits longer than the limit on the main actor.
+  /// waits longer than the limit on the main actor. A row may stand for a
+  /// window the read found past the usual ids, so the look goes as far as
+  /// the read can, in one go: it stops on the target, so splitting the
+  /// range would do the same work.
   @Test
-  func theProbeIsHandedTheTargetAndAShortDeadline() {
+  func theProbeIsHandedTheTargetEveryIDAndAShortDeadline() {
     let peer = ScriptedProbe(probed: [7])
     _ = peer.resolver(probing: true).resolve(target(windowID: 7, pid: 321))
 
     #expect(peer.calls.count == 1)
     #expect(peer.calls.first?.pid == 321)
+    #expect(peer.calls.first?.ids == WindowProbe.everyElementID)
     #expect(peer.calls.first?.targets == [7])
     #expect(peer.calls.first?.deadline == peer.startedAt + WindowElementResolver.otherSpaceProbeLimit)
   }
