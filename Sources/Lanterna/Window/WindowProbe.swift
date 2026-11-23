@@ -29,20 +29,10 @@ enum WindowProbe {
   /// The ids looked through for every application with a window the list
   /// lacks. Where measured, the windows of most applications answered near
   /// the bottom of it, but a Chromium-based browser numbered its window past
-  /// the end.
+  /// the end; callers reach such a window through the application's main
+  /// window instead. Trying further cost each pass up to its whole budget
+  /// whenever the window was never going to answer.
   static let elementIDs: Range<UInt64> = 0..<1000
-
-  /// The ids looked through after `elementIDs`, only for an application left
-  /// without a single window row. Bounded rather than left to the deadline,
-  /// so a search that finds nothing ends early and reads as windows not
-  /// found instead of a read cut short; sized to fit well inside a read's
-  /// budget where measured. A window numbered past it is not found, and the
-  /// summary line names its application among the windows not found.
-  static let widenedElementIDs: Range<UInt64> = elementIDs.upperBound..<20000
-
-  /// Every id the read can find a window at, for a look that has to reach
-  /// whatever the read listed.
-  static let everyElementID: Range<UInt64> = elementIDs.lowerBound..<widenedElementIDs.upperBound
 
   /// The 20-byte token naming one element of one process: the process id
   /// (`Int32`), `Int32` 0, `Int32` 0x636F636F, then the element id (`UInt64`),

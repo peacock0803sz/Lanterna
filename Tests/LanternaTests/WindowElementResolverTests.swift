@@ -47,19 +47,48 @@ struct WindowElementResolverTests {
     #expect(peer.calls.count == 1)
   }
 
-  /// The probe is told whom to look for and when to stop, so a press never
-  /// waits longer than the limit on the main actor. A row may stand for a
-  /// window the read found past the usual ids, so the look goes as far as
-  /// the read can, in one go: it stops on the target, so splitting the
-  /// range would do the same work.
+  /// The read may have reached a row through the application's main or
+  /// focused window, at an element id the probe never tries, so those are
+  /// asked first. Each costs one message, where the probe costs a range.
+  @Test(arguments: [kAXMainWindowAttribute, kAXFocusedWindowAttribute])
+  func aTargetTheApplicationNamesIsResolvedWithoutProbing(attribute: String) {
+    let peer = ScriptedProbe(probed: [7])
+    peer.named = [attribute: 7]
+    let resolution = peer.resolver(probing: true).resolve(target(windowID: 7))
+
+    #expect(element(of: resolution).map { CFEqual($0, peer.elements[7]) } == true)
+    #expect(peer.calls.isEmpty)
+  }
+
   @Test
-  func theProbeIsHandedTheTargetEveryIDAndAShortDeadline() {
+  func aNamedWindowThatIsNotTheTargetLeavesItToTheProbe() {
+    let peer = ScriptedProbe(probed: [7])
+    peer.named = [kAXMainWindowAttribute: 5]
+    let resolution = peer.resolver(probing: true).resolve(target(windowID: 7))
+
+    #expect(element(of: resolution).map { CFEqual($0, peer.elements[7]) } == true)
+    #expect(peer.calls.count == 1)
+  }
+
+  @Test
+  func withTheSettingOffTheApplicationIsNotAskedForItsWindows() {
+    let peer = ScriptedProbe(probed: [])
+    peer.named = [kAXMainWindowAttribute: 7]
+    _ = peer.resolver(probing: false).resolve(target(windowID: 7))
+
+    #expect(peer.namesAsked.isEmpty)
+  }
+
+  /// The probe is told whom to look for and when to stop, so a press never
+  /// waits longer than the limit on the main actor.
+  @Test
+  func theProbeIsHandedTheTargetTheUsualIDsAndAShortDeadline() {
     let peer = ScriptedProbe(probed: [7])
     _ = peer.resolver(probing: true).resolve(target(windowID: 7, pid: 321))
 
     #expect(peer.calls.count == 1)
     #expect(peer.calls.first?.pid == 321)
-    #expect(peer.calls.first?.ids == WindowProbe.everyElementID)
+    #expect(peer.calls.first?.ids == WindowProbe.elementIDs)
     #expect(peer.calls.first?.targets == [7])
     #expect(peer.calls.first?.deadline == peer.startedAt + WindowElementResolver.otherSpaceProbeLimit)
   }
@@ -140,6 +169,10 @@ private final class ScriptedProbe: @unchecked Sendable {
   )
   /// What the probe answers with.
   var probed: [ProbedWindow]
+  /// The windows the application names, by attribute.
+  var named = [String: CGWindowID]()
+  /// The attributes the application was asked for its windows by.
+  private(set) var namesAsked = [String]()
   private(set) var calls = [(
     pid: pid_t,
     ids: Range<UInt64>,
@@ -164,6 +197,10 @@ private final class ScriptedProbe: @unchecked Sendable {
           return (.illegalArgument, 0)
         }
         return (.success, id)
+      },
+      copyNamedWindow: { [self] _, name in
+        namesAsked.append(name)
+        return named[name].flatMap { elements[$0] }
       },
       probesOtherSpaces: probing,
       probeWindows: { [self] pid, ids, targets, deadline in

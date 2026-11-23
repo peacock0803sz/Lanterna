@@ -39,6 +39,15 @@ struct WindowElementResolver: Sendable {
       let error = _AXUIElementGetWindow(element, &windowID)
       return (error, windowID)
     },
+    copyNamedWindow: @escaping @Sendable (AXUIElement, String) -> AXUIElement? = { application, name in
+      var value: CFTypeRef?
+      guard
+        AXUIElementCopyAttributeValue(application, name as CFString, &value) == .success,
+        let value,
+        CFGetTypeID(value) == AXUIElementGetTypeID()
+      else { return nil }
+      return unsafeDowncast(value, to: AXUIElement.self)
+    },
     probesOtherSpaces: @escaping @Sendable () -> Bool = { false },
     probeWindows: @escaping @Sendable (pid_t, Range<UInt64>, Set<CGWindowID>, ContinuousClock.Instant)
       -> [ProbedWindow] = {
@@ -50,6 +59,7 @@ struct WindowElementResolver: Sendable {
     self.setMessagingTimeout = setMessagingTimeout
     self.copyWindows = copyWindows
     self.copyWindowID = copyWindowID
+    self.copyNamedWindow = copyNamedWindow
     self.probesOtherSpaces = probesOtherSpaces
     self.probeWindows = probeWindows
     self.now = now
@@ -112,7 +122,7 @@ struct WindowElementResolver: Sendable {
     if let found = firstMatch(in: elements, for: target) {
       return found
     }
-    return otherSpaceElement(for: target) ?? .failure(.windowGone)
+    return otherSpaceElement(for: target, of: application) ?? .failure(.windowGone)
   }
 
   /// What a failed list read means. Apart so resolving stays readable:
@@ -142,6 +152,7 @@ struct WindowElementResolver: Sendable {
   private let setMessagingTimeout: @Sendable (AXUIElement, Float) -> AXError
   private let copyWindows: @Sendable (AXUIElement) -> (AXError, [AXUIElement]?)
   private let copyWindowID: @Sendable (AXUIElement) -> (AXError, CGWindowID)
+  private let copyNamedWindow: @Sendable (AXUIElement, String) -> AXUIElement?
   private let probesOtherSpaces: @Sendable () -> Bool
   private let probeWindows: @Sendable (pid_t, Range<UInt64>, Set<CGWindowID>, ContinuousClock.Instant)
     -> [ProbedWindow]
@@ -151,16 +162,20 @@ struct WindowElementResolver: Sendable {
   /// list leaves such windows out, and a row for one may be on screen.
   /// Nil with the setting off, which leaves the list's answer as it was.
   ///
-  /// The look reaches every id the read could have found the row at, since
-  /// nothing says which pass of the read found it. A target that is gone
-  /// therefore costs the whole range, or the limit, before the press gives
-  /// up on it.
-  private func otherSpaceElement(for target: ActivationTarget) -> Resolution? {
+  /// The application's main and focused windows come first, as in the read:
+  /// they reach a window at an element id the probe never tries, and cost a
+  /// message each.
+  private func otherSpaceElement(for target: ActivationTarget, of application: AXUIElement) -> Resolution? {
     guard probesOtherSpaces(), let windowID = target.id.windowID else {
       return nil
     }
+    for name in [kAXMainWindowAttribute, kAXFocusedWindowAttribute] {
+      if let element = copyNamedWindow(application, name), prepare(element), copyWindowID(element) == (.success, windowID) {
+        return .element(element)
+      }
+    }
     let deadline = now() + Self.otherSpaceProbeLimit
-    let found = probeWindows(target.ownerProcessIdentifier, WindowProbe.everyElementID, [windowID], deadline)
+    let found = probeWindows(target.ownerProcessIdentifier, WindowProbe.elementIDs, [windowID], deadline)
       .first { $0.windowID == windowID && prepare($0.element) }
     return found.map { .element($0.element) }
   }
