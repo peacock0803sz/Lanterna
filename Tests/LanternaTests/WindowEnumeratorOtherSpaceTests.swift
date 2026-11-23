@@ -95,6 +95,26 @@ struct WindowEnumeratorOtherSpaceTests {
     #expect(row?.standsForWindowsElsewhere == true)
   }
 
+  /// An application that names no window keeps only a closed window
+  /// elsewhere, as far as can be told: it is an application with no
+  /// window, as without the setting, and the summary line still names
+  /// what was not found.
+  @Test
+  func anApplicationNamingNoWindowGetsNoStandIn() {
+    let snapshot = WindowEnumerator(
+      reader: FakeReader([
+        1: .success(ApplicationRead(records: [], droppedWithoutID: 0, missingOtherSpaceWindows: [10], namesNoWindow: true))
+      ]),
+      locator: FakeSpaceLocator(),
+      readsOtherSpaces: true
+    ).enumerate(applications: [application(1, name: "Preview")], startedAt: .now)
+
+    #expect(snapshot.items.map(\.id) == [.application(1)])
+    #expect(snapshot.items.first?.standsForWindowsElsewhere == false)
+    #expect(snapshot.items.first?.isWindowless == true)
+    #expect(snapshot.missingOtherSpaceWindows.map(\.windowIDs) == [[10]])
+  }
+
   /// A window dropped for want of an id leaves no row of its own, so it
   /// must not keep the stand-in away either, or the application vanishes.
   @Test

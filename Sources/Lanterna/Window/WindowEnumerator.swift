@@ -310,8 +310,8 @@ struct WindowEnumerator {
   /// row, or nil when it has window rows.
   ///
   /// Windows on hidden Spaces the read could not reach make it a row
-  /// standing for those, whatever else was dropped: without it the
-  /// application would have no row at all. Otherwise, read and found empty,
+  /// standing for those, whatever else was dropped, unless the application
+  /// named no window. Otherwise, read and found empty,
   /// which is not the same as unread: only an answer of no windows at all
   /// makes the application a row. A window dropped for want of an id is
   /// still a window.
@@ -324,7 +324,7 @@ struct WindowEnumerator {
     guard read.records.isEmpty else {
       return nil
     }
-    if !read.missingOtherSpaceWindows.isEmpty {
+    if !read.missingOtherSpaceWindows.isEmpty, !read.namesNoWindow {
       return row(standingFor: application, windowsElsewhere: read.missingOtherSpaceWindows, spaces: spaces, grouping: grouping)
     }
     return read.droppedWithoutID == 0 ? row(standingFor: application) : nil

@@ -197,6 +197,45 @@ struct OtherSpaceSearchTests {
     #expect(!application.attributesRead.contains(kAXFocusedWindowAttribute))
   }
 
+  /// An application that names neither a main nor a focused window while
+  /// the window server keeps one elsewhere is said to: a window it closed
+  /// but kept was seen to answer just so, where every application with a
+  /// real window there named it.
+  @Test
+  func anApplicationNamingNoWindowIsSaidTo() {
+    let application = FakeApplication(windowCount: 1)
+    application.listedIndices = []
+
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [150]).get()
+    #expect(read?.namesNoWindow == true)
+    #expect(read?.missingOtherSpaceWindows == [150])
+  }
+
+  /// Naming any window, even one not missing, is not naming none.
+  @Test
+  func anApplicationNamingAnotherWindowIsNotSaidToNameNone() {
+    let application = FakeApplication(windowCount: 1)
+    application.listedIndices = []
+    application.mainWindowIndex = 0
+
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [150]).get()
+    #expect(read?.namesNoWindow == false)
+  }
+
+  /// Not asked, or asked without an answer, says nothing either way.
+  @Test
+  func anApplicationNotAskedOrNotAnsweringIsNotSaidToNameNone() {
+    let unasked = FakeApplication(windowCount: 1)
+    let failing = FakeApplication(windowCount: 1)
+    failing.listedIndices = []
+    failing.attributeResult = { index, name in
+      index == nil && name == kAXMainWindowAttribute ? (.cannotComplete, nil) : nil
+    }
+
+    #expect((try? unasked.read(includesOtherSpaces: true, otherSpaceWindows: [100]).get())?.namesNoWindow == false)
+    #expect((try? failing.read(includesOtherSpaces: true, otherSpaceWindows: [150]).get())?.namesNoWindow == false)
+  }
+
   /// A read already out of time asks nothing more, and says it was cut.
   @Test
   func aReadOutOfTimeAsksNothingMore() {

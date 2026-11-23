@@ -8,6 +8,9 @@ struct OtherSpaceLook: Equatable {
   var cutShort = false
   /// The windows it was sent for that it did not settle.
   var missing = Set<CGWindowID>()
+  /// Whether the application, asked after the missing windows, named no
+  /// window at all.
+  var namesNoWindow = false
 }
 
 // MARK: - AXApplicationWindowReader + other Spaces
@@ -30,7 +33,10 @@ extension AXApplicationWindowReader {
   /// application's main and focused windows reach a window on a hidden Space
   /// at any element id, where the probe only tries a range of them. A
   /// Chromium-based browser numbered its window past that range. Only the
-  /// windows still missing are taken from those answers.
+  /// windows still missing are taken from those answers. An application
+  /// that names no window at all is said to: one that closed a window but
+  /// kept it on a hidden Space answered so, where every application seen
+  /// with a real window there named it.
   ///
   /// The probe also turns up windows the window server keeps on no hidden
   /// Space: an unselected tab, a closed window the application keeps, a
@@ -68,33 +74,38 @@ extension AXApplicationWindowReader {
       }
       settled.insert(window.windowID)
     }
+    var namesNoWindow = false
     do throws(ReadFailure) {
       for window in probeWindows(processIdentifier, WindowProbe.elementIDs, wanted, budget.deadline) {
         try judge(window)
       }
-      for window in try namedWindows(of: application, among: wanted.subtracting(settled), within: budget) {
-        try judge(window)
+      let remaining = wanted.subtracting(settled)
+      if !remaining.isEmpty {
+        let named = try namedWindows(of: application, within: budget)
+        namesNoWindow = named.isEmpty
+        for window in named where remaining.contains(window.windowID) {
+          try judge(window)
+        }
       }
     } catch {
       return OtherSpaceLook(cutShort: true, missing: wanted.subtracting(settled))
     }
     // The probe answers with what it found by the deadline and does not say
     // whether it stopped there.
-    return OtherSpaceLook(cutShort: budget.isExpired(at: now()), missing: wanted.subtracting(settled))
+    return OtherSpaceLook(
+      cutShort: budget.isExpired(at: now()),
+      missing: wanted.subtracting(settled),
+      namesNoWindow: namesNoWindow
+    )
   }
 
   // MARK: Private
 
-  /// The application's main and focused windows that are among `missing`,
-  /// each once.
+  /// The application's main and focused windows, each once.
   private func namedWindows(
     of application: AXUIElement,
-    among missing: Set<CGWindowID>,
     within budget: ReadBudget
   ) throws(ReadFailure) -> [ProbedWindow] {
-    guard !missing.isEmpty else {
-      return []
-    }
     var named = [ProbedWindow]()
     for name in [kAXMainWindowAttribute, kAXFocusedWindowAttribute] {
       guard
@@ -105,7 +116,6 @@ extension AXApplicationWindowReader {
       try prepare(element)
       guard
         let windowID = try windowID(of: element, within: budget),
-        missing.contains(windowID),
         !named.contains(where: { $0.windowID == windowID })
       else { continue }
       named.append(ProbedWindow(element: element, windowID: windowID))
