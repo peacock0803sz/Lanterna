@@ -59,10 +59,11 @@ struct ApplicationRead: Sendable, Equatable {
   /// listed, and not found and judged by the rule table before the look
   /// ended. Disjoint from `records`.
   var missingOtherSpaceWindows = Set<CGWindowID>()
-  /// Whether the application, asked after those windows, named neither a
-  /// main nor a focused window. A window it closed but kept on a hidden
-  /// Space was seen to leave it answering so, so the missing windows are
-  /// then not taken as windows it has.
+  /// Whether the application, asked after those windows, answered both its
+  /// main and its focused window with an explicit "no value". A refusal is
+  /// not that answer and leaves this false. A window it closed but kept on
+  /// a hidden Space was seen to leave it answering so, so the missing
+  /// windows are then not taken as windows it has.
   var namesNoWindow = false
 }
 

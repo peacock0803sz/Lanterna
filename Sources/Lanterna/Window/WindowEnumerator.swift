@@ -150,8 +150,9 @@ struct WindowEnumerator {
 
   /// The blocking half of a pass: the windows kept on other Spaces when
   /// asked for, the reads, then one Space query for every window they
-  /// found. Shared by both paths, and run wherever the reading runs, so the
-  /// window-server calls stay off the main thread whenever the reading does.
+  /// found or left missing. Shared by both paths, and run wherever the
+  /// reading runs, so the window-server calls stay off the main thread
+  /// whenever the reading does.
   private nonisolated static func gather(
     _ request: ReadRequest,
     using reader: any ApplicationWindowReading,
@@ -307,14 +308,19 @@ struct WindowEnumerator {
   }
 
   /// The row standing for the application itself when it has no window
-  /// row, or nil when it has window rows.
+  /// row, or nil when it has window rows or only windows dropped for want
+  /// of an id.
   ///
   /// Windows on hidden Spaces the read could not reach make it a row
   /// standing for those, whatever else was dropped, unless the application
-  /// named no window. Otherwise, read and found empty,
-  /// which is not the same as unread: only an answer of no windows at all
-  /// makes the application a row. A window dropped for want of an id is
-  /// still a window.
+  /// answered both its main and its focused window with an explicit "no
+  /// value". Otherwise, read and found empty, which is not the same as
+  /// unread: only an answer of no windows at all makes the application a
+  /// row. A window dropped for want of an id is still a window.
+  ///
+  /// An application with a window row gets no row standing for the rest:
+  /// its windows elsewhere that the read could not reach have no row, and
+  /// only the diagnostics line names them.
   private func applicationRow(
     for read: ApplicationRead,
     of application: RunningApplicationInfo,

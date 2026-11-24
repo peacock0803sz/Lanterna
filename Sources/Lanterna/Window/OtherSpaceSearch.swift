@@ -8,8 +8,8 @@ struct OtherSpaceLook: Equatable {
   var cutShort = false
   /// The windows it was sent for that it did not settle.
   var missing = Set<CGWindowID>()
-  /// Whether the application, asked after the missing windows, named no
-  /// window at all.
+  /// Whether the application, asked after the missing windows, answered
+  /// both its main and its focused window with an explicit "no value".
   var namesNoWindow = false
 }
 
@@ -34,9 +34,10 @@ extension AXApplicationWindowReader {
   /// at any element id, where the probe only tries a range of them. A
   /// Chromium-based browser numbered its window past that range. Only the
   /// windows still missing are taken from those answers. An application
-  /// that names no window at all is said to: one that closed a window but
-  /// kept it on a hidden Space answered so, where every application seen
-  /// with a real window there named it.
+  /// that answers both with an explicit "no value" is said to name no
+  /// window: one that closed a window but kept it on a hidden Space
+  /// answered so, where every application seen with a real window there
+  /// named it. A refusal is not that answer.
   ///
   /// The probe also turns up windows the window server keeps on no hidden
   /// Space: an unselected tab, a closed window the application keeps, a
