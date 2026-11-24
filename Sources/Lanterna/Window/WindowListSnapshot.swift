@@ -92,8 +92,10 @@ struct WindowListSnapshot {
   }
 
   /// The windows left missing on hidden Spaces, keyed as recent-use records.
-  /// Their rows are absent because the look did not reach them, not because
-  /// they closed, so the sweep keeps their records for the pass that does.
+  /// The look did not reach them, so their rows being absent says nothing
+  /// about whether they closed, and the sweep keeps their records for the
+  /// pass that does reach them. A window an application closed but kept on
+  /// a hidden Space is spared too, for as long as it stays there.
   var sparedRecords: Set<MRUKey> {
     Set(missingOtherSpaceWindows.flatMap { missing in
       missing.windowIDs.map {
@@ -104,9 +106,8 @@ struct WindowListSnapshot {
 
   /// The one line written after a pass. Counts, timings, and the names of
   /// applications skipped or with windows elsewhere not found — never a
-  /// window title. Rows on another
-  /// Space are counted only when there are some, so a pass with every
-  /// window in view reads as it always has.
+  /// window title. Rows on another Space are counted only when there are
+  /// some, so a pass with every window in view reads as it always has.
   var summaryLine: String {
     var line = "listed \(items.count) windows from \(applicationCount) applications "
       + "in \(Diagnostics.millisecondsText(gatheringDuration)) ms"

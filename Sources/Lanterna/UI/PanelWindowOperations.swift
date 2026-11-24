@@ -146,8 +146,8 @@ final class PanelWindowOperations {
     guard row.ownerProcessIdentifier != ownProcessIdentifier else {
       return nil
     }
-    // An application row has no window to close or minimize. Saying so
-    // keeps the press from reading as ignored.
+    // A row for an application with no window has none to close or
+    // minimize. Saying so keeps the press from reading as ignored.
     if row.isWindowless, operation == .closeWindow || operation == .minimizeWindow {
       surface.showNotice(operation == .closeWindow ? "No window to close" : "No window to minimize")
       return nil

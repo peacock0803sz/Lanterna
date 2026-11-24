@@ -11,8 +11,8 @@ import Darwin
 /// forward is a commit naming a row, window or application, and an
 /// activation from outside the panel. A use of a row arrives through
 /// `record(_:ownerProcessIdentifier:origin:)`; an outside activation also
-/// arrives through `recordApplicationUse(_:)`, which orders the row of an
-/// application with no window even when no window of it can be read.
+/// arrives through `recordApplicationUse(_:)`, which orders the row standing
+/// for the application itself even when no window of it can be read.
 ///
 /// Identity is the row's identifier together with its owner, because the
 /// identifier alone does not survive reuse: a window id handed out again
@@ -195,8 +195,8 @@ final class MRUTracker {
   /// input order behind every recorded row; the input arrives in the
   /// store's fixed order, so that is the fixed order kept. Records owned
   /// by skipped applications, and the records in `sparedRecords`, stay put
-  /// whatever their age: their rows are missing because the look missed,
-  /// not because the windows closed.
+  /// whatever their age: the look missed their rows, so the rows being
+  /// absent says nothing about whether the windows closed.
   func ordered(
     _ items: [WindowItem],
     skipping skippedOwners: Set<pid_t> = [],
@@ -211,8 +211,9 @@ final class MRUTracker {
   /// Where a list read from the store is put into recent-use order. The
   /// filter then places the rows by the display modes as it draws, and
   /// each section keeps this order. Used directly for a list read while
-  /// an appearance is up — reconciling an operation — and through `ordered(_:skipping:)` for the list an
-  /// appearance opens on. What counts as gone is decided against the
+  /// an appearance is up — reconciling an operation — and through
+  /// `ordered(_:skipping:sparingRecords:)` for the list an appearance
+  /// opens on. What counts as gone is decided against the
   /// snapshot the appearance was given, so a list read in the middle of
   /// one sorts without sweeping.
   func arranged(_ items: [WindowItem]) -> [WindowItem] {
@@ -234,7 +235,8 @@ final class MRUTracker {
 
   /// Writes down that an application was brought forward, whether or not
   /// a window of it could be read. Orders only the row standing for the
-  /// application when it has no window.
+  /// application itself: one with no window, or one for its windows on
+  /// other Spaces.
   func recordApplicationUse(_ ownerProcessIdentifier: pid_t) {
     applicationSequences[ownerProcessIdentifier] = nextSequence
     nextSequence += 1
@@ -245,7 +247,7 @@ final class MRUTracker {
   private var records = [MRUKey: UsageRecord]()
   /// When each application was last brought forward, numbered from the
   /// same counter as the records so the two compare. Read only for rows
-  /// standing for an application with no window, and kept apart from the
+  /// standing for the application itself, and kept apart from the
   /// records so an outside activation of an application with no readable
   /// window never becomes a record of its own.
   private var applicationSequences = [pid_t: UInt64]()
