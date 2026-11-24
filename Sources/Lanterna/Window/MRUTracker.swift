@@ -239,7 +239,7 @@ final class MRUTracker {
   /// a window of it could be read. Orders only the row standing for the
   /// application itself, one with no window or one for its windows on
   /// other Spaces, and only while that row has no record of its own: a
-  /// record, written when the row was committed, comes first.
+  /// record, written when the row was committed, is read instead.
   func recordApplicationUse(_ ownerProcessIdentifier: pid_t) {
     applicationSequences[ownerProcessIdentifier] = nextSequence
     nextSequence += 1

@@ -32,10 +32,11 @@ extern AXError _AXUIElementGetWindow(AXUIElementRef element, CGWindowID *outWind
 /// Undocumented, but exported from ApplicationServices. It passes the same
 /// test as `_AXUIElementGetWindow`: no public API reaches every window on a
 /// Space no display is showing. `kAXWindowsAttribute` leaves those windows
-/// out, the application's main and focused windows name one each, and
-/// `CGWindowListCopyWindowInfo` names them but hands back no element to
-/// raise, close or minimize, so listing the rest and switching to them both
-/// need an element only this call makes.
+/// out, the application's main and focused windows hand back at most one
+/// of them each, usually the same one, and `CGWindowListCopyWindowInfo`
+/// names them but hands back no element to raise, close or minimize, so
+/// listing the rest and switching to them both need an element only this
+/// call makes.
 ///
 /// The token is 20 bytes: the process id (`Int32`), `Int32` 0, `Int32`
 /// 0x636F636F, then the element id (`UInt64`), all in native byte order.
