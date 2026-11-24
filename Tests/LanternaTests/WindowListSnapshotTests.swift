@@ -171,6 +171,25 @@ struct WindowListSnapshotTests {
     #expect(base.includingOwnWindows([item(2)]).missingOtherSpaceWindows == missing)
   }
 
+  /// So must the word that no shown Space could be read, or the line
+  /// written after a live pass never says so.
+  @Test
+  func appendingOwnWindowsKeepsSpacesUnread() {
+    let base = WindowListSnapshot(
+      items: [item(1)],
+      applicationCount: 1,
+      gatheringDuration: .milliseconds(10),
+      skipped: [],
+      droppedWithoutID: 0,
+      gatheredAt: .now,
+      spacesUnread: true
+    )
+
+    let rebuilt = base.includingOwnWindows([item(2)])
+    #expect(rebuilt.spacesUnread)
+    #expect(rebuilt.summaryLine.contains("; Spaces unread"))
+  }
+
   /// A title never reaches the log, whatever went wrong.
   @Test
   func summaryNeverCarriesAWindowTitle() {
