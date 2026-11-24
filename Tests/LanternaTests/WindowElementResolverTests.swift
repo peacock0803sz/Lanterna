@@ -80,15 +80,14 @@ struct WindowElementResolverTests {
   }
 
   /// The probe is told whom to look for and when to stop, so a press never
-  /// waits longer than the limit on the main actor.
+  /// waits on it longer than the limit on the main actor.
   @Test
-  func theProbeIsHandedTheTargetTheUsualIDsAndAShortDeadline() {
+  func theProbeIsHandedTheTargetAndAShortDeadline() {
     let peer = ScriptedProbe(probed: [7])
     _ = peer.resolver(probing: true).resolve(target(windowID: 7, pid: 321))
 
     #expect(peer.calls.count == 1)
     #expect(peer.calls.first?.pid == 321)
-    #expect(peer.calls.first?.ids == WindowProbe.elementIDs)
     #expect(peer.calls.first?.targets == [7])
     #expect(peer.calls.first?.deadline == peer.startedAt + WindowElementResolver.otherSpaceProbeLimit)
   }
@@ -173,12 +172,7 @@ private final class ScriptedProbe: @unchecked Sendable {
   var named = [String: CGWindowID]()
   /// The attributes the application was asked for its windows by.
   private(set) var namesAsked = [String]()
-  private(set) var calls = [(
-    pid: pid_t,
-    ids: Range<UInt64>,
-    targets: Set<CGWindowID>,
-    deadline: ContinuousClock.Instant
-  )]()
+  private(set) var calls = [(pid: pid_t, targets: Set<CGWindowID>, deadline: ContinuousClock.Instant)]()
 
   /// The element named `element`, reporting `id` as its window id.
   func window(_ element: CGWindowID, as id: CGWindowID) -> ProbedWindow {
@@ -203,8 +197,8 @@ private final class ScriptedProbe: @unchecked Sendable {
         return named[name].flatMap { elements[$0] }
       },
       probesOtherSpaces: probing,
-      probeWindows: { [self] pid, ids, targets, deadline in
-        calls.append((pid, ids, targets, deadline))
+      probeWindows: { [self] pid, targets, deadline in
+        calls.append((pid, targets, deadline))
         return probed
       },
       now: { [startedAt] in startedAt }

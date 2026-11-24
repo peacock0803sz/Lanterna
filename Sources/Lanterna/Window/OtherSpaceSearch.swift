@@ -76,7 +76,7 @@ extension AXApplicationWindowReader {
     }
     var namesNoWindow = false
     do throws(ReadFailure) {
-      for window in probeWindows(processIdentifier, WindowProbe.elementIDs, wanted, budget.deadline) {
+      for window in probeWindows(processIdentifier, wanted, budget.deadline) {
         try judge(window)
       }
       let remaining = wanted.subtracting(settled)

@@ -15,24 +15,17 @@ struct ProbedWindow {
 /// Finds the windows of one application by asking for its element ids one by
 /// one, instead of reading its window list.
 ///
-/// The list leaves out the windows on a Space no display is showing, and
-/// nothing public reaches them, so this is the only source of their elements:
-/// listing them and switching to them agree on what exists. It returns every
-/// window it finds, those the list holds too; callers subtract what they
-/// already have and name the windows they want, so the pass ends once those
-/// have turned up. How long a pass takes depends on the application and on
-/// how many ids it is handed, which is why every call carries a deadline.
+/// The list leaves out the windows on a Space no display is showing. Callers
+/// reach those two ways: the application's main and focused windows, which
+/// name one window each at any element id, and this probe, which finds the
+/// rest within `elementIDs`. It returns every window it finds, those the
+/// list holds too; callers subtract what they already have and name the
+/// windows they want, so the pass ends once those have turned up. How long
+/// a pass takes depends on the application, which is why every call carries
+/// a deadline.
 enum WindowProbe {
 
   // MARK: Internal
-
-  /// The ids looked through for every application with a window the list
-  /// lacks. Where measured, the windows of most applications answered near
-  /// the bottom of it, but a Chromium-based browser numbered its window past
-  /// the end; callers reach such a window through the application's main
-  /// window instead. Trying further cost each pass up to its whole budget
-  /// whenever the window was never going to answer.
-  static let elementIDs: Range<UInt64> = 0..<1000
 
   /// The 20-byte token naming one element of one process: the process id
   /// (`Int32`), `Int32` 0, `Int32` 0x636F636F, then the element id (`UInt64`),
@@ -46,20 +39,19 @@ enum WindowProbe {
     return token
   }
 
-  /// The windows found among `ids`, ending the pass at `deadline` or once
-  /// every window in `targets` has been found. An empty `targets` looks
-  /// through the whole range.
+  /// The windows found among `elementIDs`, ending the pass at `deadline` or
+  /// once every window in `targets` has been found. An empty `targets`
+  /// looks through the whole range.
   ///
   /// A nonexistent id answers an error at once. That is the common case and
   /// says nothing about the application, so it is skipped silently. Untitled
   /// helper windows the accessibility server never exposes are not found.
   static func windows(
     of pid: pid_t,
-    ids: Range<UInt64>,
     stoppingAfter targets: Set<CGWindowID>,
     until deadline: ContinuousClock.Instant
   ) -> [ProbedWindow] {
-    search(ids: ids, stoppingAfter: targets, until: deadline, now: { .now }) { id in
+    search(ids: elementIDs, stoppingAfter: targets, until: deadline, now: { .now }) { id in
       guard
         let element = _AXUIElementCreateWithRemoteToken(token(pid: pid, elementID: id) as CFData),
         AXUIElementSetMessagingTimeout(element, probeTimeout) == .success,
@@ -69,7 +61,7 @@ enum WindowProbe {
     }
   }
 
-  /// The loop behind `windows(of:ids:stoppingAfter:until:)`, apart from the
+  /// The loop behind `windows(of:stoppingAfter:until:)`, apart from the
   /// accessibility calls so when it stops can be tested. `look` answers
   /// one id: the window there, or nil.
   static func search(
@@ -96,6 +88,13 @@ enum WindowProbe {
 
   // MARK: Private
 
+  /// The ids looked through for every application with a window the list
+  /// lacks. Where measured, the windows of most applications answered near
+  /// the bottom of it, but a Chromium-based browser numbered its window past
+  /// the end; callers reach such a window through the application's main or
+  /// focused window instead. Trying further cost each pass up to its whole
+  /// budget whenever the window was never going to answer.
+  private static let elementIDs: Range<UInt64> = 0..<1000
   private static let probeTimeout: Float = 0.1
 
   private static func windowID(ifWindow element: AXUIElement) -> CGWindowID? {

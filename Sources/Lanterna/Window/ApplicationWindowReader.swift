@@ -186,10 +186,9 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
       let error = _AXUIElementGetWindow(element, &windowID)
       return (error, windowID)
     },
-    probeWindows: @escaping @Sendable (pid_t, Range<UInt64>, Set<CGWindowID>, ContinuousClock.Instant)
-      -> [ProbedWindow] = {
-        WindowProbe.windows(of: $0, ids: $1, stoppingAfter: $2, until: $3)
-      },
+    probeWindows: @escaping @Sendable (pid_t, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow] = {
+      WindowProbe.windows(of: $0, stoppingAfter: $1, until: $2)
+    },
     includesOtherSpaces: Bool = false,
     now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
   ) {
@@ -228,9 +227,9 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
   /// Half the timeout leaves a wide margin on both sides.
   static let unreachableAnswerCeiling = Duration.seconds(Double(messagingTimeout) / 2)
 
-  /// Internal rather than private, like `now` and the element `outcome`:
-  /// the look for windows on other Spaces lives in its own file.
-  let probeWindows: @Sendable (pid_t, Range<UInt64>, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow]
+  /// Internal rather than private, like the other members the look for
+  /// windows on other Spaces uses: that look lives in its own file.
+  let probeWindows: @Sendable (pid_t, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow]
   let now: @Sendable () -> ContinuousClock.Instant
 
   /// Decides what one element of a window list becomes.

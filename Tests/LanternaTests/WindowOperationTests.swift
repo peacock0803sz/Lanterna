@@ -193,7 +193,7 @@ struct WindowOperationTests {
         copyWindowID: { _ in (.success, 7) },
         copyNamedWindow: { _, _ in nil },
         probesOtherSpaces: { true },
-        probeWindows: { _, _, _, _ in [ProbedWindow(element: box.window, windowID: 7)] }
+        probeWindows: { _, _, _ in [ProbedWindow(element: box.window, windowID: 7)] }
       ),
       setMinimized: { element, minimized in
         box.writes.append((element, minimized))

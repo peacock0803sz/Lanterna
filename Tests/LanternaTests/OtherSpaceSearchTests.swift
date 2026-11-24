@@ -113,9 +113,9 @@ struct OtherSpaceSearchTests {
     #expect(read?.records.map(\.windowID) == [100, 101, 102, 103])
   }
 
-  /// A window the usual ids did not turn up may still be the application's
+  /// A window the probe did not turn up may still be the application's
   /// main window, which the application names whatever its element id.
-  /// The probe is asked once, over the usual ids only.
+  /// The probe is asked once.
   @Test
   func aMissingMainWindowIsReachedThroughTheApplication() {
     let application = FakeApplication(windowCount: 3)
@@ -127,7 +127,7 @@ struct OtherSpaceSearchTests {
     }
 
     let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [100, 101, 150]).get()
-    #expect(application.probes.map(\.ids) == [WindowProbe.elementIDs])
+    #expect(application.probes.count == 1)
     #expect(read?.records.map(\.windowID) == [101])
     #expect(read?.missingOtherSpaceWindows == [150])
     #expect(read?.otherSpacesCutShort == false)

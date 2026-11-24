@@ -100,7 +100,7 @@ final class ScriptedAccessibility: @unchecked Sendable {
         },
         copyNamedWindow: { _, _ in nil },
         probesOtherSpaces: { true },
-        probeWindows: { [self] _, _, _, _ in
+        probeWindows: { [self] _, _, _ in
           otherSpaceIndices.sorted().map { ProbedWindow(element: windows[$0], windowID: CGWindowID(100 + $0)) }
         },
         now: { [self] in clock }
