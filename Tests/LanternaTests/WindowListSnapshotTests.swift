@@ -116,8 +116,8 @@ struct WindowListSnapshotTests {
       + "; not found on other Spaces: Preview (2), Slack (1)")
   }
 
-  /// The new clause comes after every clause that was already there, so a
-  /// grep for any of those reads the same.
+  /// The not-found clause comes after every other clause, so the clauses
+  /// before it read the same with or without it.
   @Test
   func theNotFoundClauseComesAfterEveryOtherClause() {
     let line = snapshot(

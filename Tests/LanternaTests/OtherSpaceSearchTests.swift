@@ -171,8 +171,8 @@ struct OtherSpaceSearchTests {
     #expect(read?.missingOtherSpaceWindows == [101])
   }
 
-  /// An application with a row is asked too: the answers cost a message
-  /// each, and its main window may be the one elsewhere.
+  /// An application with a row is asked too: its main window may be the
+  /// one elsewhere.
   @Test
   func anApplicationWithARowIsAskedToo() {
     let application = FakeApplication(windowCount: 2)
@@ -197,10 +197,10 @@ struct OtherSpaceSearchTests {
     #expect(!application.attributesRead.contains(kAXFocusedWindowAttribute))
   }
 
-  /// An application that names neither a main nor a focused window while
-  /// the window server keeps one elsewhere is said to: a window it closed
-  /// but kept was seen to answer just so, where every application with a
-  /// real window there named it.
+  /// An application that answers both its main and its focused window with
+  /// an explicit "no value" while the window server keeps one elsewhere is
+  /// said to name none: a window it closed but kept was seen to answer just
+  /// so, where every application with a real window there named it.
   @Test
   func anApplicationNamingNoWindowIsSaidTo() {
     let application = FakeApplication(windowCount: 1)
@@ -236,6 +236,21 @@ struct OtherSpaceSearchTests {
     let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [150]).get()
     #expect(read?.namesNoWindow == false)
     #expect(read?.missingOtherSpaceWindows == [150])
+  }
+
+  /// Both answers have to be "no value": a refused focused window leaves
+  /// the main window's "no value" saying nothing on its own.
+  @Test
+  func noMainWindowWithARefusedFocusedWindowIsNotNamingNone() {
+    let application = FakeApplication(windowCount: 1)
+    application.listedIndices = []
+    application.attributeResult = { index, name in
+      index == nil && name == kAXFocusedWindowAttribute ? (.failure, nil) : nil
+    }
+
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [150]).get()
+    #expect(application.attributesRead.contains(kAXMainWindowAttribute))
+    #expect(read?.namesNoWindow == false)
   }
 
   /// Not asked, or asked without an answer, says nothing either way.

@@ -7,7 +7,7 @@ import Testing
 
 /// When resolving goes beyond the application's own window list: only with
 /// the setting on, only for a target the list lacks, and only as far as the
-/// probe finds it.
+/// application's main and focused windows or the probe find it.
 struct WindowElementResolverTests {
 
   // MARK: Internal
@@ -49,10 +49,11 @@ struct WindowElementResolverTests {
 
   /// The read may have reached a row through the application's main or
   /// focused window, at an element id the probe never tries, so those are
-  /// asked first. Each costs one message, where the probe costs a range.
+  /// asked before the probe. The probe here finds nothing, as it would for
+  /// such a window.
   @Test(arguments: [kAXMainWindowAttribute, kAXFocusedWindowAttribute])
   func aTargetTheApplicationNamesIsResolvedWithoutProbing(attribute: String) {
-    let peer = ScriptedProbe(probed: [7])
+    let peer = ScriptedProbe(probed: [])
     peer.named = [attribute: 7]
     let resolution = peer.resolver(probing: true).resolve(target(windowID: 7))
 
