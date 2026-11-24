@@ -320,7 +320,7 @@ struct WindowEnumerator {
   ///
   /// An application with a window row gets no row standing for the rest:
   /// its windows elsewhere that the read could not reach have no row, and
-  /// only the diagnostics line names them.
+  /// only the diagnostics line counts them, under the application's name.
   private func applicationRow(
     for read: ApplicationRead,
     of application: RunningApplicationInfo,

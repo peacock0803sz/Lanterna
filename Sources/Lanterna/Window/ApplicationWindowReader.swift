@@ -368,7 +368,7 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
   /// `cannotComplete` instead, so `failure` alone is no verdict on the
   /// application. The window list is the exception, and its caller
   /// handles it, as does the look for windows on other Spaces, which tells
-  /// "no main window" from a refusal. Everything else ends the read.
+  /// an explicit "no value" from a refusal. Everything else ends the read.
   func send(
     _ name: String,
     to element: AXUIElement,

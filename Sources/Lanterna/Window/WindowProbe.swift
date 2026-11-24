@@ -16,13 +16,12 @@ struct ProbedWindow {
 /// one, instead of reading its window list.
 ///
 /// The list leaves out the windows on a Space no display is showing. Callers
-/// reach those two ways: the application's main and focused windows, which
-/// name one window each at any element id, and this probe, which finds the
-/// rest within `elementIDs`. It returns every window it finds, those the
-/// list holds too; callers subtract what they already have and name the
-/// windows they want, so the pass ends once those have turned up. How long
-/// a pass takes depends on the application, which is why every call carries
-/// a deadline.
+/// also ask the application for its main and focused windows, which name a
+/// window at any element id; this probe finds windows only within
+/// `elementIDs`. It returns every window it finds, those the list holds
+/// too; callers subtract what they already have and name the windows they
+/// want, so the pass ends once those have turned up. How long a pass takes
+/// depends on the application, which is why every call carries a deadline.
 enum WindowProbe {
 
   // MARK: Internal

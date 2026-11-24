@@ -12,7 +12,8 @@ import Darwin
 /// activation from outside the panel. A use of a row arrives through
 /// `record(_:ownerProcessIdentifier:origin:)`; an outside activation also
 /// arrives through `recordApplicationUse(_:)`, which orders the row standing
-/// for the application itself even when no window of it can be read.
+/// for the application itself even when no window of it can be read, as
+/// long as that row has no record of its own.
 ///
 /// Identity is the row's identifier together with its owner, because the
 /// identifier alone does not survive reuse: a window id handed out again
@@ -26,7 +27,8 @@ struct MRUKey: Hashable, Sendable {
 
 // MARK: - MRUTracker
 
-/// The remembered uses of rows, one per window or windowless application.
+/// The remembered uses of rows, one per window or per row standing for an
+/// application.
 ///
 /// A sequence number and not a clock: only older-versus-newer is ever asked,
 /// and a counter needs no clock to inject and no same-instant tie to break.
@@ -43,8 +45,8 @@ final class MRUTracker {
 
   // MARK: Internal
 
-  /// The one remembered use of one row, a window or an application with
-  /// no window, in a shape the tests can hold.
+  /// The one remembered use of one row, a window or a row standing for an
+  /// application, in a shape the tests can hold.
   struct UsageRecord: Equatable, Sendable {
     let id: WindowItem.Identifier
     let ownerProcessIdentifier: pid_t
@@ -235,8 +237,9 @@ final class MRUTracker {
 
   /// Writes down that an application was brought forward, whether or not
   /// a window of it could be read. Orders only the row standing for the
-  /// application itself: one with no window, or one for its windows on
-  /// other Spaces.
+  /// application itself, one with no window or one for its windows on
+  /// other Spaces, and only while that row has no record of its own: a
+  /// record, written when the row was committed, comes first.
   func recordApplicationUse(_ ownerProcessIdentifier: pid_t) {
     applicationSequences[ownerProcessIdentifier] = nextSequence
     nextSequence += 1
@@ -247,9 +250,9 @@ final class MRUTracker {
   private var records = [MRUKey: UsageRecord]()
   /// When each application was last brought forward, numbered from the
   /// same counter as the records so the two compare. Read only for rows
-  /// standing for the application itself, and kept apart from the
-  /// records so an outside activation of an application with no readable
-  /// window never becomes a record of its own.
+  /// standing for the application itself that have no record, and kept
+  /// apart from the records so an outside activation of an application
+  /// with no readable window never becomes a record of its own.
   private var applicationSequences = [pid_t: UInt64]()
   private var nextSequence: UInt64 = 0
   /// What the last swept appearance knew. A record newer than this
