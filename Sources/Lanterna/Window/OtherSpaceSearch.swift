@@ -82,8 +82,8 @@ extension AXApplicationWindowReader {
       let remaining = wanted.subtracting(settled)
       if !remaining.isEmpty {
         let named = try namedWindows(of: application, within: budget)
-        namesNoWindow = named.isEmpty
-        for window in named where remaining.contains(window.windowID) {
+        namesNoWindow = named.answeredNone
+        for window in named.windows where remaining.contains(window.windowID) {
           try judge(window)
         }
       }
@@ -101,15 +101,21 @@ extension AXApplicationWindowReader {
 
   // MARK: Private
 
-  /// The application's main and focused windows, each once.
+  /// The application's main and focused windows, each once, and whether
+  /// both answers were an explicit "no value". Only that answer was seen
+  /// from a window closed but kept; a refusal says nothing about windows.
   private func namedWindows(
     of application: AXUIElement,
     within budget: ReadBudget
-  ) throws(ReadFailure) -> [ProbedWindow] {
+  ) throws(ReadFailure) -> (windows: [ProbedWindow], answeredNone: Bool) {
     var named = [ProbedWindow]()
+    var answeredNone = true
     for name in [kAXMainWindowAttribute, kAXFocusedWindowAttribute] {
+      let (error, value) = try send(name, to: application, within: budget)
+      answeredNone = answeredNone && error == .noValue
       guard
-        let value = try attribute(application, name, within: budget),
+        error == .success,
+        let value,
         CFGetTypeID(value) == AXUIElementGetTypeID()
       else { continue }
       let element = unsafeDowncast(value, to: AXUIElement.self)
@@ -120,7 +126,7 @@ extension AXApplicationWindowReader {
       else { continue }
       named.append(ProbedWindow(element: element, windowID: windowID))
     }
-    return named
+    return (named, answeredNone)
   }
 
 }

@@ -85,7 +85,13 @@ final class FakeApplication: @unchecked Sendable {
         noteMessage(to: index)
         clock = clock.advanced(by: costOverride(index, name) ?? costPerMessage)
         reads.append((index, name))
-        return attributeResult(index, name) ?? (.success, value(at: index, for: name))
+        if let answer = attributeResult(index, name) {
+          return answer
+        }
+        let value = value(at: index, for: name)
+        // The application answers a window it does not have the way the
+        // real API does: no value.
+        return (index == nil && value == nil ? .noValue : .success, value)
       },
       copyWindowID: { [self] element in
         guard let index = windowIndex(of: element) else {

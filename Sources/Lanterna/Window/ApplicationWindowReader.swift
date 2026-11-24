@@ -324,22 +324,6 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     }
   }
 
-  /// Reads one attribute, or `nil` when the element has no such value. An
-  /// absent value is an answer: an untitled window reports no title. So is a
-  /// refused one: the window of a Chromium web app shim answers its title
-  /// with `failure` while the rest of it reads normally.
-  ///
-  /// Internal rather than private, like `outcome`: the look for windows on
-  /// other Spaces asks the application for its main window.
-  func attribute(
-    _ element: AXUIElement,
-    _ name: String,
-    within budget: ReadBudget
-  ) throws(ReadFailure) -> CFTypeRef? {
-    let (error, value) = try send(name, to: element, within: budget)
-    return error == .success ? value : nil
-  }
-
   /// The window-server id, or `nil` when the fetch fails.
   ///
   /// The one call whose failure is expected rather than exceptional: an error
@@ -374,6 +358,42 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     }
   }
 
+  /// Sends one attribute read, separating the answers that are about the
+  /// attribute from the failures that are about the application.
+  ///
+  /// `success`, `noValue`, `attributeUnsupported` and `failure` come back as
+  /// answered: what each means depends on what was asked. A `failure` on a
+  /// window has been seen from an element declining one attribute while
+  /// the rest of it reads normally, and a hung application answers
+  /// `cannotComplete` instead, so `failure` alone is no verdict on the
+  /// application. The window list is the exception, and its caller
+  /// handles it, as does the look for windows on other Spaces, which tells
+  /// "no main window" from a refusal. Everything else ends the read.
+  func send(
+    _ name: String,
+    to element: AXUIElement,
+    within budget: ReadBudget
+  ) throws(ReadFailure) -> (AXError, CFTypeRef?) {
+    let sentAt = now()
+    guard !budget.isExpired(at: sentAt) else {
+      throw .timedOut
+    }
+    let (error, value) = copyAttribute(element, name)
+    switch error {
+    case .success,
+         .noValue,
+         .attributeUnsupported,
+         .failure:
+      return (error, value)
+    case .apiDisabled:
+      throw .permissionMissing
+    case .cannotComplete:
+      throw Self.failure(forCannotCompleteAfter: now() - sentAt)
+    default:
+      throw .unavailable(error)
+    }
+  }
+
   // MARK: Private
 
   private let setMessagingTimeout: @Sendable (AXUIElement, Float) -> AXError
@@ -386,6 +406,19 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
   /// a wait that ran out, or a refusal that never waited.
   private static func failure(forCannotCompleteAfter elapsed: Duration) -> ReadFailure {
     elapsed >= unreachableAnswerCeiling ? .timedOut : .unavailable(.cannotComplete)
+  }
+
+  /// Reads one attribute, or `nil` when the element has no such value. An
+  /// absent value is an answer: an untitled window reports no title. So is a
+  /// refused one: the window of a Chromium web app shim answers its title
+  /// with `failure` while the rest of it reads normally.
+  private func attribute(
+    _ element: AXUIElement,
+    _ name: String,
+    within budget: ReadBudget
+  ) throws(ReadFailure) -> CFTypeRef? {
+    let (error, value) = try send(name, to: element, within: budget)
+    return error == .success ? value : nil
   }
 
   private func applicationRead(
@@ -457,41 +490,6 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
       // accessibility server has no window list to give. A refusal that
       // is harmless on one window's attribute is not harmless here,
       // since without the list there is nothing to read.
-      throw .unavailable(error)
-    }
-  }
-
-  /// Sends one attribute read, separating the answers that are about the
-  /// attribute from the failures that are about the application.
-  ///
-  /// `success`, `noValue`, `attributeUnsupported` and `failure` come back as
-  /// answered: what each means depends on what was asked. A `failure` on a
-  /// window has been seen from an element declining one attribute while
-  /// the rest of it reads normally, and a hung application answers
-  /// `cannotComplete` instead, so `failure` alone is no verdict on the
-  /// application. The window list is the exception, and its caller
-  /// handles it. Everything else ends the read.
-  private func send(
-    _ name: String,
-    to element: AXUIElement,
-    within budget: ReadBudget
-  ) throws(ReadFailure) -> (AXError, CFTypeRef?) {
-    let sentAt = now()
-    guard !budget.isExpired(at: sentAt) else {
-      throw .timedOut
-    }
-    let (error, value) = copyAttribute(element, name)
-    switch error {
-    case .success,
-         .noValue,
-         .attributeUnsupported,
-         .failure:
-      return (error, value)
-    case .apiDisabled:
-      throw .permissionMissing
-    case .cannotComplete:
-      throw Self.failure(forCannotCompleteAfter: now() - sentAt)
-    default:
       throw .unavailable(error)
     }
   }

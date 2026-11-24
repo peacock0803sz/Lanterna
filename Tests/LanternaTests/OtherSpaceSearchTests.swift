@@ -222,6 +222,22 @@ struct OtherSpaceSearchTests {
     #expect(read?.namesNoWindow == false)
   }
 
+  /// Only an explicit "no value" to both counts. An application refusing
+  /// the attribute, as a Chromium web app shim does with some, has said
+  /// nothing about its windows.
+  @Test
+  func anApplicationRefusingTheAttributesIsNotSaidToNameNone() {
+    let application = FakeApplication(windowCount: 1)
+    application.listedIndices = []
+    application.attributeResult = { index, name in
+      index == nil && name != kAXWindowsAttribute ? (.failure, nil) : nil
+    }
+
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [150]).get()
+    #expect(read?.namesNoWindow == false)
+    #expect(read?.missingOtherSpaceWindows == [150])
+  }
+
   /// Not asked, or asked without an answer, says nothing either way.
   @Test
   func anApplicationNotAskedOrNotAnsweringIsNotSaidToNameNone() {
