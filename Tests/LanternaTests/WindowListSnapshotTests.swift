@@ -119,7 +119,7 @@ struct WindowListSnapshotTests {
   /// The not-found clause comes after the other clauses set here, so the
   /// clauses before it read the same with or without it.
   @Test
-  func theNotFoundClauseComesAfterEveryOtherClause() {
+  func theNotFoundClauseComesAfterTheOtherClauses() {
     let line = snapshot(
       skipped: [
         WindowListSnapshot.SkippedApplication(name: "TextEdit", reason: .timedOut, processIdentifier: 101)

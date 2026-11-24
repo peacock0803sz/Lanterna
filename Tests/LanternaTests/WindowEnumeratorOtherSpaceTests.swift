@@ -98,7 +98,7 @@ struct WindowEnumeratorOtherSpaceTests {
   /// An application that answers both its main and its focused window with
   /// an explicit "no value" keeps only a closed window elsewhere, as far as
   /// can be told: it is an application with no window, as without the
-  /// setting, and the summary line still names what was not found.
+  /// setting, and the snapshot still records the window as not found.
   @Test
   func anApplicationNamingNoWindowGetsNoStandIn() {
     let snapshot = WindowEnumerator(

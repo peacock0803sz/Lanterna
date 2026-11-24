@@ -73,8 +73,9 @@ struct MRUTrackerSparingTests {
   }
 
   /// A release that beats the show delay commits without showing, and
-  /// that way out hands the sweep the same spared records. The commit
-  /// writes its own row's use beside the one spared.
+  /// that path orders the rows through the same sweep, with the same
+  /// spared records. The commit writes its own row's use beside the one
+  /// spared.
   @Test
   func aCommitWithoutShowingSparesTheWindowsItsPassLeftMissing() async {
     let clock = SteppingClock(step: .seconds(4))
@@ -129,8 +130,8 @@ struct MRUTrackerSparingTests {
     return store
   }
 
-  /// A presenter held by Command, with a switcher that only records, so
-  /// nothing here reads the keyboard or brings an application forward.
+  /// A presenter with no release monitor and a switcher that only records,
+  /// so nothing here brings an application forward.
   private func presenter(
     over store: WindowListStore,
     tracker: MRUTracker,
@@ -142,8 +143,7 @@ struct MRUTrackerSparingTests {
       store: store,
       ownProcessIdentifier: ownProcess,
       writeLine: { _ in },
-      closesOnCommandRelease: { true },
-      commandIsHeld: { true },
+      modifierFlags: { .maskCommand },
       showDelayMs: showDelayMs,
       showDelaySleep: GatedSleep().sleep,
       switcher: switcher,
