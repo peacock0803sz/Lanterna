@@ -159,14 +159,15 @@ struct OtherSpaceSearchTests {
 
   /// Only a window still missing is taken from those answers: the
   /// application's word adds nothing the window server does not keep
-  /// elsewhere.
+  /// elsewhere. The application is hidden, whose found windows are listed
+  /// wherever they are kept, so only that rule keeps this one out.
   @Test
   func aMainWindowThatIsNotMissingIsNotListed() {
     let application = FakeApplication(windowCount: 2)
     application.listedIndices = []
     application.mainWindowIndex = 0
 
-    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [101]).get()
+    let read = try? application.read(includesOtherSpaces: true, otherSpaceWindows: [101], isHidden: true).get()
     #expect(read?.records.isEmpty == true)
     #expect(read?.missingOtherSpaceWindows == [101])
   }
