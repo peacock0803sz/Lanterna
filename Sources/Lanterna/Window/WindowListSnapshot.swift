@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// The result of one pass over every listable application.
@@ -22,11 +23,13 @@ struct WindowListSnapshot {
     droppedWithoutID: Int,
     gatheredAt: ContinuousClock.Instant,
     spacesUnread: Bool = false,
-    otherSpacesCutShort: Int = 0
+    otherSpacesCutShort: Int = 0,
+    missingOtherSpaceWindows: [MissingOtherSpace] = []
   ) {
     assert(Set(items.map(\.id)).count == items.count, "window ids must be unique")
     self.spacesUnread = spacesUnread
     self.otherSpacesCutShort = otherSpacesCutShort
+    self.missingOtherSpaceWindows = missingOtherSpaceWindows
     self.items = items
     self.applicationCount = applicationCount
     self.gatheringDuration = gatheringDuration
@@ -45,6 +48,14 @@ struct WindowListSnapshot {
     let name: String
     let reason: ReadFailure
     let processIdentifier: pid_t
+  }
+
+  /// Windows the window server keeps on a hidden Space for one application
+  /// that the read did not settle. The name is the one the panel shows.
+  struct MissingOtherSpace: Equatable {
+    let name: String
+    let processIdentifier: pid_t
+    let windowIDs: Set<CGWindowID>
   }
 
   /// Grouped by application in process-identifier order, and within an
@@ -66,6 +77,9 @@ struct WindowListSnapshot {
   /// How many applications ended their look for windows on other Spaces
   /// early, so a missing row there is explained.
   let otherSpacesCutShort: Int
+  /// The applications whose windows on hidden Spaces were not all settled,
+  /// in process order.
+  let missingOtherSpaceWindows: [MissingOtherSpace]
 
   // When this pass finished assembling. The sweep spares records newer
   // than this: a snapshot that predates a use could not have observed it.
@@ -77,10 +91,23 @@ struct WindowListSnapshot {
     Set(skipped.map(\.processIdentifier))
   }
 
-  /// The one line written after a pass. Counts, timings and skipped
-  /// application names only — never a window title. Rows on another
-  /// Space are counted only when there are some, so a pass with every
-  /// window in view reads as it always has.
+  /// The windows left missing on hidden Spaces, keyed as recent-use records.
+  /// The look did not reach them, so their rows being absent says nothing
+  /// about whether they closed, and the sweep keeps their records for the
+  /// pass that does reach them. A window an application closed but kept on
+  /// a hidden Space is spared too, for as long as it stays there.
+  var sparedRecords: Set<MRUKey> {
+    Set(missingOtherSpaceWindows.flatMap { missing in
+      missing.windowIDs.map {
+        MRUKey(id: WindowItem.Identifier(windowID: $0), ownerProcessIdentifier: missing.processIdentifier)
+      }
+    })
+  }
+
+  /// The one line written after a pass. Counts, timings, and the names of
+  /// applications skipped or with windows elsewhere not found — never a
+  /// window title. Rows on another Space are counted only when there are
+  /// some, so a pass with every window in view reads as it always has.
   var summaryLine: String {
     var line = "listed \(items.count) windows from \(applicationCount) applications "
       + "in \(Diagnostics.millisecondsText(gatheringDuration)) ms"
@@ -100,6 +127,11 @@ struct WindowListSnapshot {
     }
     if otherSpacesCutShort > 0 {
       line += "; other Spaces cut short in \(otherSpacesCutShort) applications"
+    }
+    // Last, so the clauses before it read as they always have.
+    if !missingOtherSpaceWindows.isEmpty {
+      let counts = missingOtherSpaceWindows.map { "\($0.name) (\($0.windowIDs.count))" }
+      line += "; not found on other Spaces: " + counts.joined(separator: ", ")
     }
     return line
   }

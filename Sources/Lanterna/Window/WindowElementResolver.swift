@@ -12,9 +12,9 @@ import Synchronization
 /// rows. One derivation of resolving for all three, so a row gone missing
 /// reads the same way in each.
 ///
-/// With the setting on, a target the list lacks is also looked for by probing
-/// the application's element ids, because the list leaves out windows on
-/// Spaces no display is showing.
+/// With the setting on, a target the list lacks is also looked for among the
+/// application's main and focused windows and then by probing its element
+/// ids, because the list leaves out windows on Spaces no display is showing.
 struct WindowElementResolver: Sendable {
 
   // MARK: Lifecycle
@@ -39,9 +39,18 @@ struct WindowElementResolver: Sendable {
       let error = _AXUIElementGetWindow(element, &windowID)
       return (error, windowID)
     },
+    copyNamedWindow: @escaping @Sendable (AXUIElement, String) -> AXUIElement? = { application, name in
+      var value: CFTypeRef?
+      guard
+        AXUIElementCopyAttributeValue(application, name as CFString, &value) == .success,
+        let value,
+        CFGetTypeID(value) == AXUIElementGetTypeID()
+      else { return nil }
+      return unsafeDowncast(value, to: AXUIElement.self)
+    },
     probesOtherSpaces: @escaping @Sendable () -> Bool = { false },
-    probeWindows: @escaping @Sendable (pid_t, CGWindowID?, ContinuousClock.Instant) -> [ProbedWindow] = {
-      WindowProbe.windows(of: $0, stoppingAt: $1, until: $2)
+    probeWindows: @escaping @Sendable (pid_t, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow] = {
+      WindowProbe.windows(of: $0, stoppingAfter: $1, until: $2)
     },
     now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
   ) {
@@ -49,6 +58,7 @@ struct WindowElementResolver: Sendable {
     self.setMessagingTimeout = setMessagingTimeout
     self.copyWindows = copyWindows
     self.copyWindowID = copyWindowID
+    self.copyNamedWindow = copyNamedWindow
     self.probesOtherSpaces = probesOtherSpaces
     self.probeWindows = probeWindows
     self.now = now
@@ -69,7 +79,9 @@ struct WindowElementResolver: Sendable {
   /// which draws the same line for the same code.
   static let unreachableAnswerCeiling = Duration.milliseconds(500)
   /// How long the probe may look for a target the list lacks. Resolving runs
-  /// on the main actor, so this is how long a press can hang on it.
+  /// on the main actor, so this is how long a press can hang on the probe.
+  /// The main and focused windows asked for before it are bounded by the
+  /// messaging timeout instead, each message on its own.
   static let otherSpaceProbeLimit = Duration.milliseconds(500)
 
   /// Slow `cannotComplete` answers are waits, fast ones refusals.
@@ -111,7 +123,7 @@ struct WindowElementResolver: Sendable {
     if let found = firstMatch(in: elements, for: target) {
       return found
     }
-    return otherSpaceElement(for: target) ?? .failure(.windowGone)
+    return otherSpaceElement(for: target, of: application) ?? .failure(.windowGone)
   }
 
   /// What a failed list read means. Apart so resolving stays readable:
@@ -141,19 +153,31 @@ struct WindowElementResolver: Sendable {
   private let setMessagingTimeout: @Sendable (AXUIElement, Float) -> AXError
   private let copyWindows: @Sendable (AXUIElement) -> (AXError, [AXUIElement]?)
   private let copyWindowID: @Sendable (AXUIElement) -> (AXError, CGWindowID)
+  private let copyNamedWindow: @Sendable (AXUIElement, String) -> AXUIElement?
   private let probesOtherSpaces: @Sendable () -> Bool
-  private let probeWindows: @Sendable (pid_t, CGWindowID?, ContinuousClock.Instant) -> [ProbedWindow]
+  private let probeWindows: @Sendable (pid_t, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow]
   private let now: @Sendable () -> ContinuousClock.Instant
 
   /// The target's element when it is on a Space no display is showing. The
   /// list leaves such windows out, and a row for one may be on screen.
   /// Nil with the setting off, which leaves the list's answer as it was.
-  private func otherSpaceElement(for target: ActivationTarget) -> Resolution? {
+  ///
+  /// The application's main and focused windows are asked for before the
+  /// probe here, where the read asks for them only after its probe left a
+  /// window missing: they reach a window at an element id the probe never
+  /// tries. Each costs the attribute read and, when it names a window, a
+  /// window-id read.
+  private func otherSpaceElement(for target: ActivationTarget, of application: AXUIElement) -> Resolution? {
     guard probesOtherSpaces(), let windowID = target.id.windowID else {
       return nil
     }
+    for name in [kAXMainWindowAttribute, kAXFocusedWindowAttribute] {
+      if let element = copyNamedWindow(application, name), prepare(element), copyWindowID(element) == (.success, windowID) {
+        return .element(element)
+      }
+    }
     let deadline = now() + Self.otherSpaceProbeLimit
-    let found = probeWindows(target.ownerProcessIdentifier, windowID, deadline)
+    let found = probeWindows(target.ownerProcessIdentifier, [windowID], deadline)
       .first { $0.windowID == windowID && prepare($0.element) }
     return found.map { .element($0.element) }
   }

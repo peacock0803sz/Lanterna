@@ -69,10 +69,11 @@ struct WindowRow: View {
           }
         }
 
-      if window.isWindowless {
-        // Matching reads the name column for this row, so the title
-        // column only says there is no window to name.
-        Text("No open windows")
+      if window.isWindowless || window.standsForWindowsElsewhere {
+        // Matching reads the name column for these rows, so the title
+        // column only says why there is no window to name: none open, or
+        // ones on other desktops that could not be read.
+        Text(window.isWindowless ? "No open windows" : window.elsewhereCaption)
           .font(.system(size: scaled(14)))
           .italic()
           .foregroundStyle(isSelected ? AnyShapeStyle(.white.opacity(0.85)) : AnyShapeStyle(.tertiary))

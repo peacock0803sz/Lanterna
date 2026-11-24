@@ -191,6 +191,7 @@ struct WindowOperationTests {
       resolver: WindowElementResolver(
         copyWindows: { _ in (.success, []) },
         copyWindowID: { _ in (.success, 7) },
+        copyNamedWindow: { _, _ in nil },
         probesOtherSpaces: { true },
         probeWindows: { _, _, _ in [ProbedWindow(element: box.window, windowID: 7)] }
       ),

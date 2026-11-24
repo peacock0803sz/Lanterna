@@ -317,6 +317,20 @@ struct PanelExitSwitchTests {
     #expect(fixture.log.logged.last?.context["raiseAlone"] == .string("notHeld"))
   }
 
+  /// A row standing for windows on other desktops says so in what the
+  /// commit takes, so the switch can bring the application forward without
+  /// reopening it. Every row here is one, so which is chosen does not matter.
+  @Test
+  func aStandInRowsTakeSaysItStandsForWindowsElsewhere() {
+    let rows = [standIn(pid: 321), standIn(pid: 322)]
+    let fixture = Fixture(store: WindowListStore(fixed: rows), windows: rows, closesOnCommandRelease: true)
+    fixture.presenter.handleHotkey(.forward, deliveryDelay: nil)
+    fixture.presenter.handleCommandRelease()
+
+    #expect(fixture.switcher.targets.count == 1)
+    #expect(fixture.switcher.targets.first?.standsForWindowsElsewhere == true)
+  }
+
   // MARK: Private
 
   private func released() -> Fixture {
@@ -328,7 +342,23 @@ struct PanelExitSwitchTests {
       id: row.id,
       ownerProcessIdentifier: row.ownerProcessIdentifier,
       appName: row.appName,
-      displayTitle: row.displayTitle
+      displayTitle: row.displayTitle,
+      standsForWindowsElsewhere: row.standsForWindowsElsewhere
+    )
+  }
+
+  private func standIn(pid: pid_t) -> WindowItem {
+    WindowItem(
+      id: .application(pid),
+      ownerProcessIdentifier: pid,
+      appName: "Preview",
+      bundleIdentifier: "com.apple.Preview",
+      windowTitle: "",
+      kind: .standard,
+      isMinimized: false,
+      isOnOtherSpace: true,
+      windowsElsewhere: 2,
+      icon: NSImage(size: NSSize(width: 1, height: 1))
     )
   }
 

@@ -30,6 +30,21 @@ struct WindowSwitcherPolicyTests {
     #expect(peer.reopenPIDs == [4242])
   }
 
+  /// A row standing for windows on other desktops is not an application
+  /// with no window: asking it to reopen could open yet another window, so
+  /// an engaged opening switch only brings it forward.
+  @Test
+  func anEngagedOpeningSwitchOnlyBringsAStandInForward() {
+    let peer = ScriptedAccessibility(windowCount: 0)
+    var target = application()
+    target.standsForWindowsElsewhere = true
+    let report = peer.switcher().switchTo(target, policy: engaged())
+
+    #expect(report == ActivationReport(outcome: .switched, reopen: nil, raiseAlone: nil))
+    #expect(peer.operationNames == ["activate"])
+    #expect(peer.reopenPIDs.isEmpty)
+  }
+
   /// A missing bundle keeps the take and says which half did not happen.
   @Test
   func aMissingBundleKeepsTheTakeWithItsNote() {

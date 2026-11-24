@@ -15,12 +15,13 @@ struct ProbedWindow {
 /// Finds the windows of one application by asking for its element ids one by
 /// one, instead of reading its window list.
 ///
-/// The list leaves out the windows on a Space no display is showing, and
-/// nothing public reaches them, so this is the only source of their elements:
-/// listing them and switching to them agree on what exists. It returns every
-/// window it finds, those the list holds too; callers subtract what they
-/// already have. A full pass costs tens to a couple of hundred milliseconds
-/// on an ordinary application, which is why every call carries a deadline.
+/// The list leaves out the windows on a Space no display is showing. Callers
+/// also ask the application for its main and focused windows, which name a
+/// window at any element id; this probe finds windows only within
+/// `elementIDs`. It returns every window it finds, those the list holds
+/// too; callers subtract what they already have and name the windows they
+/// want, so the pass ends once those have turned up. How long a pass takes
+/// depends on the application, which is why every call carries a deadline.
 enum WindowProbe {
 
   // MARK: Internal
@@ -37,29 +38,47 @@ enum WindowProbe {
     return token
   }
 
-  /// The windows found by id, ending the pass at `deadline` or, when `target`
-  /// is given, once a window with that id has been found.
+  /// The windows found among `elementIDs`, ending the pass at `deadline` or
+  /// once every window in `targets` has been found. An empty `targets`
+  /// looks through the whole range.
   ///
   /// A nonexistent id answers an error at once. That is the common case and
   /// says nothing about the application, so it is skipped silently. Untitled
   /// helper windows the accessibility server never exposes are not found.
   static func windows(
     of pid: pid_t,
-    stoppingAt target: CGWindowID?,
+    stoppingAfter targets: Set<CGWindowID>,
     until deadline: ContinuousClock.Instant
   ) -> [ProbedWindow] {
-    var found = [ProbedWindow]()
-    for id in elementIDs {
-      if ContinuousClock.now >= deadline {
-        break
-      }
+    search(ids: elementIDs, stoppingAfter: targets, until: deadline, now: { .now }) { id in
       guard
         let element = _AXUIElementCreateWithRemoteToken(token(pid: pid, elementID: id) as CFData),
         AXUIElementSetMessagingTimeout(element, probeTimeout) == .success,
         let windowID = windowID(ifWindow: element)
-      else { continue }
-      found.append(ProbedWindow(element: element, windowID: windowID))
-      if windowID == target {
+      else { return nil }
+      return ProbedWindow(element: element, windowID: windowID)
+    }
+  }
+
+  /// The loop behind `windows(of:stoppingAfter:until:)`, apart from the
+  /// accessibility calls so when it stops can be tested. `look` answers
+  /// one id: the window there, or nil.
+  static func search(
+    ids: Range<UInt64>,
+    stoppingAfter targets: Set<CGWindowID>,
+    until deadline: ContinuousClock.Instant,
+    now: () -> ContinuousClock.Instant,
+    look: (UInt64) -> ProbedWindow?
+  ) -> [ProbedWindow] {
+    var found = [ProbedWindow]()
+    var remaining = targets
+    for id in ids {
+      if now() >= deadline {
+        break
+      }
+      guard let window = look(id) else { continue }
+      found.append(window)
+      if remaining.remove(window.windowID) != nil, remaining.isEmpty {
         break
       }
     }
@@ -68,10 +87,12 @@ enum WindowProbe {
 
   // MARK: Private
 
-  /// Measured on one machine (macOS 26, about 20 regular applications): every
-  /// titled window of another Space answered within this range, and widening
-  /// it to 20000 found nothing more. Beyond that machine it is a guess; an
-  /// application that numbers its elements higher loses those windows.
+  /// The ids looked through for every application with a window the list
+  /// lacks. Where measured, the windows of most applications answered near
+  /// the bottom of it, but a Chromium-based browser numbered its window past
+  /// the end; callers reach such a window through the application's main or
+  /// focused window instead. Trying further cost each pass up to its whole
+  /// budget whenever the window was never going to answer.
   private static let elementIDs: Range<UInt64> = 0..<1000
   private static let probeTimeout: Float = 0.1
 

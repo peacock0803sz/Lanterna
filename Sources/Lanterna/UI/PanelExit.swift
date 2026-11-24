@@ -437,7 +437,8 @@ final class PanelExit {
       id: row.id,
       ownerProcessIdentifier: row.ownerProcessIdentifier,
       appName: row.appName,
-      displayTitle: row.displayTitle
+      displayTitle: row.displayTitle,
+      standsForWindowsElsewhere: row.standsForWindowsElsewhere
     )
   }
 

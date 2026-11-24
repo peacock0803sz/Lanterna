@@ -442,10 +442,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // The setting is read at pass time, so a toggle applies from the next
     // pass without a relaunch.
     let store = WindowListStore(gather: { [weak self] in
-      let reader = AXApplicationWindowReader(
-        includesOtherSpaces: self?.currentValues.listWindowsOnAllSpaces ?? false
-      )
-      let snapshot = await WindowEnumerator(reader: reader).enumerateRegularApplicationsOffMainThread()
+      // Read once, so the reader and the enumerator agree for the pass.
+      let includesOtherSpaces = self?.currentValues.listWindowsOnAllSpaces ?? false
+      let reader = AXApplicationWindowReader(includesOtherSpaces: includesOtherSpaces)
+      let snapshot = await WindowEnumerator(reader: reader, readsOtherSpaces: includesOtherSpaces)
+        .enumerateRegularApplicationsOffMainThread()
       return snapshot.includingOwnWindows(OwnWindows.items(
         prospects: OwnWindows.currentProspects(),
         owner: OwnWindows.currentOwner()

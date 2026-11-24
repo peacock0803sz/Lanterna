@@ -681,7 +681,11 @@ final class PanelPresenter {
     // Handing the list to the way out is the one statement here whose
     // position is free: it has to happen before the panel can go.
     tracker.noteSnapshotObserved(store.snapshot?.gatheredAt ?? now())
-    let ordered = tracker.ordered(windows, skipping: store.snapshot?.skippedOwners ?? [])
+    let ordered = tracker.ordered(
+      windows,
+      skipping: store.snapshot?.skippedOwners ?? [],
+      sparingRecords: store.snapshot?.sparedRecords ?? []
+    )
     // Each appearance reads its own switcher's list settings: the scope,
     // the display modes, and the parked-section placements seed this
     // showing alone, and the identity stays for the commit and the
@@ -999,7 +1003,11 @@ final class PanelPresenter {
     presses: [HotkeyCombination]
   ) -> [WindowItem] {
     tracker.noteSnapshotObserved(store.snapshot?.gatheredAt ?? now())
-    let ordered = tracker.ordered(items, skipping: store.snapshot?.skippedOwners ?? [])
+    let ordered = tracker.ordered(
+      items,
+      skipping: store.snapshot?.skippedOwners ?? [],
+      sparingRecords: store.snapshot?.sparedRecords ?? []
+    )
     _ = seedSwitcher(presses.first?.switcher ?? .main)
     keyCommands.beginFiltering(fullWindows: ordered, filtering: presses.first == .filter)
     let layout = keyCommands.shownLayout

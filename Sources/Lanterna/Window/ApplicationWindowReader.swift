@@ -54,6 +54,17 @@ struct ApplicationRead: Sendable, Equatable {
   /// or on a failed read. The windows listed are all kept; only some of those
   /// on other Spaces may be missing, which the diagnostics line says.
   var otherSpacesCutShort = false
+  /// Windows the window server keeps on a hidden Space for this application
+  /// that neither its list nor the look for windows elsewhere settled: not
+  /// listed, and not found and judged by the rule table before the look
+  /// ended. Disjoint from `records`.
+  var missingOtherSpaceWindows = Set<CGWindowID>()
+  /// Whether the application, asked after those windows, answered both its
+  /// main and its focused window with an explicit "no value". A refusal is
+  /// not that answer and leaves this false. A window it closed but kept on
+  /// a hidden Space was seen to leave it answering so, so the missing
+  /// windows are then not taken as windows it has.
+  var namesNoWindow = false
 }
 
 // MARK: - ReadFailure
@@ -110,7 +121,15 @@ extension ReadFailure: CustomStringConvertible {
 /// A protocol because the enumerator's assembly rules — ordering, skipping,
 /// fallbacks — are worth testing without a live accessibility connection.
 protocol ApplicationWindowReading: Sendable {
-  func read(processIdentifier: pid_t) -> Result<ApplicationRead, ReadFailure>
+  /// `otherSpaceWindows` are the application's windows the window server
+  /// keeps on Spaces no display shows, empty when that was not read.
+  /// `isHidden` is whether the application is hidden, read on the main
+  /// thread before the reading started.
+  func read(
+    processIdentifier: pid_t,
+    otherSpaceWindows: Set<CGWindowID>,
+    isHidden: Bool
+  ) -> Result<ApplicationRead, ReadFailure>
 }
 
 // MARK: - ReadBudget
@@ -168,8 +187,8 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
       let error = _AXUIElementGetWindow(element, &windowID)
       return (error, windowID)
     },
-    probeWindows: @escaping @Sendable (pid_t, CGWindowID?, ContinuousClock.Instant) -> [ProbedWindow] = {
-      WindowProbe.windows(of: $0, stoppingAt: $1, until: $2)
+    probeWindows: @escaping @Sendable (pid_t, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow] = {
+      WindowProbe.windows(of: $0, stoppingAfter: $1, until: $2)
     },
     includesOtherSpaces: Bool = false,
     now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
@@ -209,6 +228,11 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
   /// Half the timeout leaves a wide margin on both sides.
   static let unreachableAnswerCeiling = Duration.seconds(Double(messagingTimeout) / 2)
 
+  /// Internal rather than private, like the other members the look for
+  /// windows on other Spaces uses: that look lives in its own file.
+  let probeWindows: @Sendable (pid_t, Set<CGWindowID>, ContinuousClock.Instant) -> [ProbedWindow]
+  let now: @Sendable () -> ContinuousClock.Instant
+
   /// Decides what one element of a window list becomes.
   ///
   /// Pure, so the whole rule table is testable. The order matters: an element
@@ -243,13 +267,130 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     )
   }
 
-  func read(processIdentifier: pid_t) -> Result<ApplicationRead, ReadFailure> {
+  func read(
+    processIdentifier: pid_t,
+    otherSpaceWindows: Set<CGWindowID>,
+    isHidden: Bool
+  ) -> Result<ApplicationRead, ReadFailure> {
     do {
-      return try .success(applicationRead(of: processIdentifier))
+      return try .success(applicationRead(
+        of: processIdentifier,
+        otherSpaceWindows: otherSpaceWindows,
+        isHidden: isHidden
+      ))
     } catch {
       // Half of a wedged application's windows is a worse list than none
       // of them, so whatever was read so far goes with it.
       return .failure(error)
+    }
+  }
+
+  /// `windowID` is passed when the caller already read it, which saves the
+  /// round trip.
+  func outcome(
+    for window: AXUIElement,
+    windowID knownID: CGWindowID? = nil,
+    within budget: ReadBudget
+  ) throws(ReadFailure) -> ElementOutcome {
+    try prepare(window)
+    let role = try attribute(window, kAXRoleAttribute, within: budget) as? String
+    let subrole = try attribute(window, kAXSubroleAttribute, within: budget) as? String
+    // The rule table's first check, applied as soon as it can be: every
+    // message is a round trip, and a failing one discards the whole
+    // application, so an element that will not become a row is asked
+    // nothing more.
+    guard WindowKind.classify(role: role, subrole: subrole) != nil else {
+      return .excluded
+    }
+    return try Self.outcome(
+      role: role,
+      subrole: subrole,
+      title: attribute(window, kAXTitleAttribute, within: budget) as? String ?? "",
+      isMinimized: attribute(window, kAXMinimizedAttribute, within: budget) as? Bool ?? false,
+      isFullscreen: attribute(window, fullscreenAttributeName, within: budget) as? Bool ?? false,
+      windowID: knownID != nil ? knownID : windowID(of: window, within: budget)
+    )
+  }
+
+  /// Sets the client-side timeout before anything is sent to an element.
+  ///
+  /// Costs no round trip, so it is not charged to the budget. A failure is
+  /// not recoverable: sending anyway would fall back to the multi-second
+  /// default and blow the per-application budget.
+  func prepare(_ element: AXUIElement) throws(ReadFailure) {
+    let error = setMessagingTimeout(element, Self.messagingTimeout)
+    guard error == .success else {
+      throw .unavailable(error)
+    }
+  }
+
+  /// The window-server id, or `nil` when the fetch fails.
+  ///
+  /// The one call whose failure is expected rather than exceptional: an error
+  /// here is treated as "no id" — an element that is not a window worth
+  /// listing (`illegalArgument`, in practice) — rather than as a verdict on
+  /// the application that owns it; `outcome` reads a zero id the same way.
+  /// Two answers are about the application, not the element, and end the
+  /// read like they would anywhere else: `apiDisabled`, because permission
+  /// was revoked, and `cannotComplete`, because the fetch is a round trip
+  /// like any attribute read and reading its timeout as "no id" would turn a
+  /// hung application's last window into a dropped element and the rest into
+  /// the partial list that discarding the whole application exists to avoid.
+  /// Spending the budget ends the read for the same reason.
+  func windowID(
+    of element: AXUIElement,
+    within budget: ReadBudget
+  ) throws(ReadFailure) -> CGWindowID? {
+    let sentAt = now()
+    guard !budget.isExpired(at: sentAt) else {
+      throw .timedOut
+    }
+    let (error, windowID) = copyWindowID(element)
+    switch error {
+    case .success:
+      return windowID
+    case .apiDisabled:
+      throw .permissionMissing
+    case .cannotComplete:
+      throw Self.failure(forCannotCompleteAfter: now() - sentAt)
+    default:
+      return nil
+    }
+  }
+
+  /// Sends one attribute read, separating the answers that are about the
+  /// attribute from the failures that are about the application.
+  ///
+  /// `success`, `noValue`, `attributeUnsupported` and `failure` come back as
+  /// answered: what each means depends on what was asked. A `failure` on a
+  /// window has been seen from an element declining one attribute while
+  /// the rest of it reads normally, and a hung application answers
+  /// `cannotComplete` instead, so `failure` alone is no verdict on the
+  /// application. The window list is the exception, and its caller
+  /// handles it, as does the look for windows on other Spaces, which tells
+  /// an explicit "no value" from a refusal. Everything else ends the read.
+  func send(
+    _ name: String,
+    to element: AXUIElement,
+    within budget: ReadBudget
+  ) throws(ReadFailure) -> (AXError, CFTypeRef?) {
+    let sentAt = now()
+    guard !budget.isExpired(at: sentAt) else {
+      throw .timedOut
+    }
+    let (error, value) = copyAttribute(element, name)
+    switch error {
+    case .success,
+         .noValue,
+         .attributeUnsupported,
+         .failure:
+      return (error, value)
+    case .apiDisabled:
+      throw .permissionMissing
+    case .cannotComplete:
+      throw Self.failure(forCannotCompleteAfter: now() - sentAt)
+    default:
+      throw .unavailable(error)
     }
   }
 
@@ -258,9 +399,8 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
   private let setMessagingTimeout: @Sendable (AXUIElement, Float) -> AXError
   private let copyAttribute: @Sendable (AXUIElement, String) -> (AXError, CFTypeRef?)
   private let copyWindowID: @Sendable (AXUIElement) -> (AXError, CGWindowID)
-  private let probeWindows: @Sendable (pid_t, CGWindowID?, ContinuousClock.Instant) -> [ProbedWindow]
+
   private let includesOtherSpaces: Bool
-  private let now: @Sendable () -> ContinuousClock.Instant
 
   /// What a `kAXErrorCannotComplete` that took `elapsed` to come back means:
   /// a wait that ran out, or a refusal that never waited.
@@ -268,7 +408,24 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
     elapsed >= unreachableAnswerCeiling ? .timedOut : .unavailable(.cannotComplete)
   }
 
-  private func applicationRead(of processIdentifier: pid_t) throws(ReadFailure) -> ApplicationRead {
+  /// Reads one attribute, or `nil` when the element has no such value. An
+  /// absent value is an answer: an untitled window reports no title. So is a
+  /// refused one: the window of a Chromium web app shim answers its title
+  /// with `failure` while the rest of it reads normally.
+  private func attribute(
+    _ element: AXUIElement,
+    _ name: String,
+    within budget: ReadBudget
+  ) throws(ReadFailure) -> CFTypeRef? {
+    let (error, value) = try send(name, to: element, within: budget)
+    return error == .success ? value : nil
+  }
+
+  private func applicationRead(
+    of processIdentifier: pid_t,
+    otherSpaceWindows: Set<CGWindowID>,
+    isHidden: Bool
+  ) throws(ReadFailure) -> ApplicationRead {
     let budget = ReadBudget(startedAt: now())
     let application = AXUIElementCreateApplication(processIdentifier)
     try prepare(application)
@@ -286,40 +443,23 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
         droppedWithoutID += 1
       }
     }
-    let cutShort = includesOtherSpaces
-      && appendOtherSpaceRecords(to: &records, of: processIdentifier, within: budget)
+    let otherSpaces = includesOtherSpaces
+      ? appendOtherSpaceRecords(
+        to: &records,
+        of: processIdentifier,
+        through: application,
+        expecting: otherSpaceWindows,
+        isHidden: isHidden,
+        within: budget
+      )
+      : OtherSpaceLook()
     return ApplicationRead(
       records: records,
       droppedWithoutID: droppedWithoutID,
-      otherSpacesCutShort: cutShort
+      otherSpacesCutShort: otherSpaces.cutShort,
+      missingOtherSpaceWindows: otherSpaces.missing,
+      namesNoWindow: otherSpaces.namesNoWindow
     )
-  }
-
-  /// Adds the windows the application's list left out, those on Spaces no
-  /// display is showing. Answers whether the look ended early.
-  ///
-  /// Best effort: the list already read is a complete answer, so a budget
-  /// spent or a failure while probing keeps it instead of discarding the
-  /// application for a bonus.
-  private func appendOtherSpaceRecords(
-    to records: inout [WindowRecord],
-    of processIdentifier: pid_t,
-    within budget: ReadBudget
-  ) -> Bool {
-    var known = Set(records.map(\.windowID))
-    let probed = probeWindows(processIdentifier, nil, budget.deadline)
-    do throws(ReadFailure) {
-      for window in probed where known.insert(window.windowID).inserted {
-        if case .record(let record) = try outcome(for: window.element, windowID: window.windowID, within: budget) {
-          records.append(record)
-        }
-      }
-    } catch {
-      return true
-    }
-    // The probe answers with what it found by the deadline and does not say
-    // whether it stopped there.
-    return budget.isExpired(at: now())
   }
 
   /// The application's window list, empty when nothing is open.
@@ -351,127 +491,6 @@ struct AXApplicationWindowReader: ApplicationWindowReading {
       // is harmless on one window's attribute is not harmless here,
       // since without the list there is nothing to read.
       throw .unavailable(error)
-    }
-  }
-
-  /// `windowID` is passed when the caller already read it, which saves the
-  /// round trip.
-  private func outcome(
-    for window: AXUIElement,
-    windowID knownID: CGWindowID? = nil,
-    within budget: ReadBudget
-  ) throws(ReadFailure) -> ElementOutcome {
-    try prepare(window)
-    let role = try attribute(window, kAXRoleAttribute, within: budget) as? String
-    let subrole = try attribute(window, kAXSubroleAttribute, within: budget) as? String
-    // The rule table's first check, applied as soon as it can be: every
-    // message is a round trip, and a failing one discards the whole
-    // application, so an element that will not become a row is asked
-    // nothing more.
-    guard WindowKind.classify(role: role, subrole: subrole) != nil else {
-      return .excluded
-    }
-    return try Self.outcome(
-      role: role,
-      subrole: subrole,
-      title: attribute(window, kAXTitleAttribute, within: budget) as? String ?? "",
-      isMinimized: attribute(window, kAXMinimizedAttribute, within: budget) as? Bool ?? false,
-      isFullscreen: attribute(window, fullscreenAttributeName, within: budget) as? Bool ?? false,
-      windowID: knownID != nil ? knownID : windowID(of: window, within: budget)
-    )
-  }
-
-  /// Sets the client-side timeout before anything is sent to an element.
-  ///
-  /// Costs no round trip, so it is not charged to the budget. A failure is
-  /// not recoverable: sending anyway would fall back to the multi-second
-  /// default and blow the per-application budget.
-  private func prepare(_ element: AXUIElement) throws(ReadFailure) {
-    let error = setMessagingTimeout(element, Self.messagingTimeout)
-    guard error == .success else {
-      throw .unavailable(error)
-    }
-  }
-
-  /// Reads one attribute, or `nil` when the element has no such value. An
-  /// absent value is an answer: an untitled window reports no title. So is a
-  /// refused one: the window of a Chromium web app shim answers its title
-  /// with `failure` while the rest of it reads normally.
-  private func attribute(
-    _ element: AXUIElement,
-    _ name: String,
-    within budget: ReadBudget
-  ) throws(ReadFailure) -> CFTypeRef? {
-    let (error, value) = try send(name, to: element, within: budget)
-    return error == .success ? value : nil
-  }
-
-  /// Sends one attribute read, separating the answers that are about the
-  /// attribute from the failures that are about the application.
-  ///
-  /// `success`, `noValue`, `attributeUnsupported` and `failure` come back as
-  /// answered: what each means depends on what was asked. A `failure` on a
-  /// window has been seen from an element declining one attribute while
-  /// the rest of it reads normally, and a hung application answers
-  /// `cannotComplete` instead, so `failure` alone is no verdict on the
-  /// application. The window list is the exception, and its caller
-  /// handles it. Everything else ends the read.
-  private func send(
-    _ name: String,
-    to element: AXUIElement,
-    within budget: ReadBudget
-  ) throws(ReadFailure) -> (AXError, CFTypeRef?) {
-    let sentAt = now()
-    guard !budget.isExpired(at: sentAt) else {
-      throw .timedOut
-    }
-    let (error, value) = copyAttribute(element, name)
-    switch error {
-    case .success,
-         .noValue,
-         .attributeUnsupported,
-         .failure:
-      return (error, value)
-    case .apiDisabled:
-      throw .permissionMissing
-    case .cannotComplete:
-      throw Self.failure(forCannotCompleteAfter: now() - sentAt)
-    default:
-      throw .unavailable(error)
-    }
-  }
-
-  /// The window-server id, or `nil` when the fetch fails.
-  ///
-  /// The one call whose failure is expected rather than exceptional: an error
-  /// here is treated as "no id" — an element that is not a window worth
-  /// listing (`illegalArgument`, in practice) — rather than as a verdict on
-  /// the application that owns it; `outcome` reads a zero id the same way.
-  /// Two answers are about the application, not the element, and end the
-  /// read like they would anywhere else: `apiDisabled`, because permission
-  /// was revoked, and `cannotComplete`, because the fetch is a round trip
-  /// like any attribute read and reading its timeout as "no id" would turn a
-  /// hung application's last window into a dropped element and the rest into
-  /// the partial list that discarding the whole application exists to avoid.
-  /// Spending the budget ends the read for the same reason.
-  private func windowID(
-    of element: AXUIElement,
-    within budget: ReadBudget
-  ) throws(ReadFailure) -> CGWindowID? {
-    let sentAt = now()
-    guard !budget.isExpired(at: sentAt) else {
-      throw .timedOut
-    }
-    let (error, windowID) = copyWindowID(element)
-    switch error {
-    case .success:
-      return windowID
-    case .apiDisabled:
-      throw .permissionMissing
-    case .cannotComplete:
-      throw Self.failure(forCannotCompleteAfter: now() - sentAt)
-    default:
-      return nil
     }
   }
 

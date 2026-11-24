@@ -98,6 +98,7 @@ final class ScriptedAccessibility: @unchecked Sendable {
           clock = clock.advanced(by: idCost)
           return idAnswers[index] ?? (.success, CGWindowID(100 + index))
         },
+        copyNamedWindow: { _, _ in nil },
         probesOtherSpaces: { true },
         probeWindows: { [self] _, _, _ in
           otherSpaceIndices.sorted().map { ProbedWindow(element: windows[$0], windowID: CGWindowID(100 + $0)) }

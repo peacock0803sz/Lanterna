@@ -361,7 +361,11 @@ private final class ThreadRecordingReader: ApplicationWindowReading {
     mainThreadReads.withLock { $0 }
   }
 
-  func read(processIdentifier _: pid_t) -> Result<ApplicationRead, ReadFailure> {
+  func read(
+    processIdentifier _: pid_t,
+    otherSpaceWindows _: Set<CGWindowID>,
+    isHidden _: Bool
+  ) -> Result<ApplicationRead, ReadFailure> {
     if Thread.isMainThread {
       mainThreadReads.withLock { $0 += 1 }
     }

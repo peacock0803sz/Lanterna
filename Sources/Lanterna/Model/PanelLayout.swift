@@ -77,7 +77,9 @@ struct PanelLayout {
     max(blocks.count, 1)
   }
 
-  /// How many window rows the list draws. Headings are not windows.
+  /// How many window rows the list draws. Headings are not windows, nor
+  /// are rows for applications with no window; a row standing for windows
+  /// on hidden Spaces counts.
   var windowCount: Int {
     rows.count(where: { !$0.isWindowless })
   }
@@ -252,8 +254,8 @@ struct PanelLayout {
     let within: [(DisplaySubgroup, [WindowItem])]
     let atEnd: [(DisplaySubgroup, [WindowItem])]
 
-    /// Grouping by Space keeps rows with no window after every group:
-    /// they are on no Space to be grouped under.
+    /// Grouping by Space keeps rows for applications with no window after
+    /// every group: they are on no Space to be grouped under.
     private static func goesWithin(_ subgroup: DisplaySubgroup, grouping: GroupingPolicy) -> Bool {
       if grouping.mode == .bySpace, subgroup == .windowlessApp {
         return false
@@ -272,8 +274,10 @@ struct PanelLayout {
     return blocks
   }
 
-  /// Moves rows with no window out of the ordinary rows into their own
-  /// section, ahead of any rows already there, keeping their order.
+  /// Moves rows for applications with no window out of the ordinary rows
+  /// into their own section, ahead of any rows already there, keeping
+  /// their order. A row standing for windows elsewhere stays where its
+  /// kinds put it.
   private static func parkApplicationRows(
     ordinary: inout [WindowItem],
     subgroups: inout [(DisplaySubgroup, [WindowItem])]

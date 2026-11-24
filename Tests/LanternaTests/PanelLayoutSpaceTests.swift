@@ -40,6 +40,25 @@ private func applicationRow(_ pid: pid_t) -> WindowItem {
   )
 }
 
+/// An application row standing for its windows on hidden Spaces.
+@MainActor
+private func standIn(_ pid: pid_t, group: Int?, isHidden: Bool = false) -> WindowItem {
+  WindowItem(
+    id: .application(pid),
+    ownerProcessIdentifier: pid,
+    appName: "Preview",
+    bundleIdentifier: nil,
+    windowTitle: "",
+    kind: .standard,
+    isMinimized: false,
+    isHidden: isHidden,
+    isOnOtherSpace: true,
+    windowsElsewhere: 2,
+    spaceGroup: group.map { SpaceGroup(order: $0, title: "Desktop \($0 + 1)", detail: $0 == 0 ? "shown" : nil) },
+    icon: NSImage(size: NSSize(width: 1, height: 1))
+  )
+}
+
 // MARK: - PanelLayoutSpaceTests
 
 /// The list grouped by Space: groups in the order their Spaces draw, each
@@ -127,6 +146,46 @@ struct PanelLayoutSpaceTests {
     let layout = PanelLayout.make(rows: rows, modes: modes, query: "", grouping: grouping)
     #expect(layout.rowIDs.last == music.id)
     #expect(subgroups(layout) == ["windowlessApp at end"])
+  }
+
+  /// A row standing for windows elsewhere is filed under its Space like the
+  /// other-Space windows, shown or parked: grouping by Space puts those
+  /// under their own group, never after every group.
+  @Test(arguments: [DisplayMode.show, .separateAtBottom])
+  func aStandInJoinsItsSpacesGroup(mode: DisplayMode) {
+    let preview = standIn(60, group: 1)
+    let rows = [spaceRow(1, group: 0), preview, spaceRow(2, group: 1), applicationRow(50)]
+    var modes = DisplayModes.defaults
+    modes.otherSpace = mode
+    modes.windowlessApp = .separateAtBottom
+    let layout = PanelLayout.make(rows: rows, modes: modes, query: "", grouping: bySpace)
+    #expect(layout.rowIDs == [rows[0].id, preview.id, rows[2].id, rows[3].id])
+    #expect(subgroups(layout) == ["windowlessApp at end"])
+  }
+
+  /// A hidden application's stand-in parks with the hidden applications,
+  /// as its other-Space windows would.
+  @Test
+  func aHiddenApplicationsStandInParksWithHiddenApplications() {
+    let preview = standIn(60, group: 1, isHidden: true)
+    let rows = [spaceRow(1, group: 0), preview]
+    let layout = PanelLayout.make(rows: rows, modes: .defaults, query: "", grouping: bySpace)
+    #expect(subgroups(layout) == ["hiddenApp at end"])
+    #expect(layout.rowIDs.last == preview.id)
+  }
+
+  /// With grouping off a stand-in still stays out of the section for
+  /// applications with no window, and counts as a window row.
+  @Test
+  func aStandInIsNotParkedWithApplicationsWithNoWindow() {
+    let preview = standIn(60, group: nil)
+    let rows = [spaceRow(1, group: nil), preview, applicationRow(50)]
+    var modes = DisplayModes.defaults
+    modes.windowlessApp = .separateAtBottom
+    let layout = PanelLayout.make(rows: rows, modes: modes, query: "", grouping: GroupingPolicy())
+    #expect(layout.rowIDs == [rows[0].id, preview.id, rows[2].id])
+    #expect(subgroups(layout) == ["windowlessApp at end"])
+    #expect(layout.windowCount == 2)
   }
 
   /// Grouping off ignores where the sections were set to go.
