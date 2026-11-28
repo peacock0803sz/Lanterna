@@ -1,5 +1,5 @@
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The recent-use evidence the show line carries, and nothing else.
 ///

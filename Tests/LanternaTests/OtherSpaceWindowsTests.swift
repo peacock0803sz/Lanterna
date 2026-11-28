@@ -1,8 +1,8 @@
 import CoreGraphics
 import Foundation
-@testable import Lanterna
 import PrivateAPIs
 import Testing
+@testable import Lanterna
 
 /// Which windows count as kept on a hidden Space, fed made-up window lists
 /// and Space answers so nothing depends on this machine's desktops.

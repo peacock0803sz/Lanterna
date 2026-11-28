@@ -1,6 +1,6 @@
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The search text, the level floor and the one category narrow the list,
 /// alone and together, and Copy and Export take only what is left.

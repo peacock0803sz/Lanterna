@@ -107,7 +107,8 @@ struct SpaceSwitchHandler {
   /// genuine activation that landed mid-pass keeps its place.
   private func correctIfSettled(from optimistic: (owner: pid_t, windowID: CGWindowID)?) {
     guard
-      let frontmost = frontmostProcessIdentifier(), frontmost != ownProcessIdentifier,
+      let frontmost = frontmostProcessIdentifier(),
+      frontmost != ownProcessIdentifier,
       let windowID = reading.focusedWindowID(of: frontmost),
       optimistic.map({ $0.owner != frontmost || $0.windowID != windowID }) ?? true,
       store.snapshot?.items.contains(where: {

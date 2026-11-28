@@ -1,6 +1,6 @@
 import ApplicationServices
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The whole rule table, because this is where a window the user can see gets
 /// dropped or a panel they cannot switch to gets listed.

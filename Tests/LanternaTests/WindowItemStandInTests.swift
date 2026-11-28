@@ -1,6 +1,6 @@
 import AppKit
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// An application row that stands for windows on hidden Spaces the read
 /// could not reach, told apart from a row for an application with none.

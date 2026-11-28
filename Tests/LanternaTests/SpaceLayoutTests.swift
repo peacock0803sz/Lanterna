@@ -1,8 +1,8 @@
 import CoreGraphics
 import Foundation
-@testable import Lanterna
 import PrivateAPIs
 import Testing
+@testable import Lanterna
 
 // MARK: - SpaceLayoutTests
 

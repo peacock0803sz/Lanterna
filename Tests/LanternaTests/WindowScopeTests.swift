@@ -1,6 +1,6 @@
 import AppKit
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// One row of the named owner, named so the query decides which match.
 @MainActor

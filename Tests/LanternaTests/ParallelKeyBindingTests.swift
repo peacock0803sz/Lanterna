@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 private func key(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = []) -> ResolvedKey {
   ResolvedKey(keyCode: UInt16(keyCode), modifiers: modifiers)

@@ -202,7 +202,8 @@ extension AppConfiguration {
     var names = [Int: String]()
     for (key, value) in object {
       guard
-        let number = Int(key), String(number) == key,
+        let number = Int(key),
+        String(number) == key,
         (1 ... maximumGroupCount).contains(number),
         let name = value as? String
       else {
@@ -218,7 +219,8 @@ extension AppConfiguration {
       let object = entry as? [String: Any],
       let bundleID = (object["bundleID"] as? String).map(GroupAssignment.trimmed),
       !bundleID.isEmpty,
-      let rawGroup = object["group"], let group = jsonInt(rawGroup)
+      let rawGroup = object["group"],
+      let group = jsonInt(rawGroup)
     else {
       return .failure(UnreadableAssignment(text: "unreadable entry"))
     }

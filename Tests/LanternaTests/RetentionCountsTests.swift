@@ -1,5 +1,5 @@
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The diagnostics read every retained thing's number in one place.
 @MainActor

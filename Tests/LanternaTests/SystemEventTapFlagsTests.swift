@@ -1,6 +1,6 @@
 import CoreGraphics
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Which modifier changes count as Command, or Option, being let go.
 ///

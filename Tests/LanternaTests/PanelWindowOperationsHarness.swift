@@ -1,6 +1,6 @@
 import AppKit
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Rows with distinct names, so which rows survive is decided by the test.
 @MainActor

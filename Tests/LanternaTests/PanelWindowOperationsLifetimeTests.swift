@@ -1,5 +1,5 @@
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// An operation outlives the keystroke that started it: its reconciling
 /// waits for a fresh list, and the panel can go, or a later one come up,

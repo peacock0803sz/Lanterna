@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Editing the query through the whole presenter: what the control-held
 /// keys do to the narrowed list, and what the unbound ones leave alone.

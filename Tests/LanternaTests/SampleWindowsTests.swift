@@ -1,5 +1,5 @@
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The fixture stands in for the live list when `--sample-count` asks for
 /// it and in the appearance preview, and it is what CI and the layout tests

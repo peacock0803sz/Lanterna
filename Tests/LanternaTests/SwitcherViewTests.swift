@@ -1,7 +1,7 @@
 import AppKit
-@testable import Lanterna
 import SwiftUI
 import Testing
+@testable import Lanterna
 
 /// Every table under the view, depth first.
 @MainActor

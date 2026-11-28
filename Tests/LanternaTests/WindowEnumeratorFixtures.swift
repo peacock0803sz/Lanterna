@@ -1,7 +1,7 @@
 import AppKit
-@testable import Lanterna
 import PrivateAPIs
 import Synchronization
+@testable import Lanterna
 
 // MARK: - FakeReader
 

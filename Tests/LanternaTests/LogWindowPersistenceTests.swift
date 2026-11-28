@@ -1,6 +1,6 @@
 import AppKit
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The filters, the scope and the columns outlive the window: closing and
 /// opening it again finds them as they were.

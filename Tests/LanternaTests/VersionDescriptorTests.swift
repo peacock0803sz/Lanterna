@@ -1,5 +1,5 @@
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Deriving display values from the stamped `git describe` string.
 ///

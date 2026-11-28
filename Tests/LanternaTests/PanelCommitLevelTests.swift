@@ -1,6 +1,6 @@
-@testable import Lanterna
 import Logging
 import Testing
+@testable import Lanterna
 
 /// The levels beside the commit lines, split out the way long suites split:
 /// `PanelPresenterCommitTests` reached the body-length limit, so the level

@@ -22,9 +22,9 @@ enum BuildKind: String, Sendable {
     home: URL = FileManager.default.homeDirectoryForCurrentUser
   ) -> BuildKind {
     #if DEBUG
-    return .debug
+    .debug
     #else
-    return resolve(stamped: stamped, executable: executable, home: home)
+    resolve(stamped: stamped, executable: executable, home: home)
     #endif
   }
 

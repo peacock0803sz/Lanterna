@@ -1,6 +1,6 @@
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The search settings through a restart, in the settings editor's shape.
 ///

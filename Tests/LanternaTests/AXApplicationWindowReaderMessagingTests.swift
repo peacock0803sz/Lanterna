@@ -1,7 +1,7 @@
 import ApplicationServices
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// What the reader sends, and what it does with each answer.
 ///

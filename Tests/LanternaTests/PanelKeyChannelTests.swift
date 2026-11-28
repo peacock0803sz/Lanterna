@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// A press as the keyboard would make it, with nothing held and no repeat.
 private func aPress(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = []) -> PanelKeystroke {

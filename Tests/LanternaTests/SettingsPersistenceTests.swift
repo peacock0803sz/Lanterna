@@ -1,7 +1,7 @@
 import Foundation
-@testable import Lanterna
 import Logging
 import Testing
+@testable import Lanterna
 
 /// What survives a restart, and what an invalid file leaves behind.
 ///

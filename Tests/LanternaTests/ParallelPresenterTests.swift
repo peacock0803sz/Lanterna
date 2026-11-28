@@ -1,8 +1,8 @@
 import AppKit
 import Carbon.HIToolbox
 import CoreGraphics
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// One row of the named owner, so the scope decides which rows stay.
 @MainActor

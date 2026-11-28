@@ -1,6 +1,6 @@
 import AppKit
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// One row of an application known by its bundle identifier.
 @MainActor

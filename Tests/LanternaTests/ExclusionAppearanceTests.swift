@@ -1,7 +1,7 @@
 import AppKit
-@testable import Lanterna
 import Logging
 import Testing
+@testable import Lanterna
 
 /// Rows with distinct names, so which rows leave is decided by the test.
 @MainActor

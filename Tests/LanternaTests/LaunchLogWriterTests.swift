@@ -1,7 +1,7 @@
 import Foundation
-@testable import Lanterna
 import Synchronization
 import Testing
+@testable import Lanterna
 
 // MARK: - LaunchLogWriterTests
 

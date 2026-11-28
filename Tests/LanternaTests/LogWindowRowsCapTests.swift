@@ -1,6 +1,6 @@
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// This launch's rows stop growing: each of the live list and the
 /// waiting list holds at most the mirror's capacity, oldest numbers

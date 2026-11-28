@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// What the shortcut memory keeps while the process runs.
 ///

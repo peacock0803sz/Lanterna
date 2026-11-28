@@ -1,8 +1,8 @@
 import Foundation
-@testable import Lanterna
 import Logging
 import ServiceManagement
 import Testing
+@testable import Lanterna
 
 // MARK: - FakeLoginItem
 

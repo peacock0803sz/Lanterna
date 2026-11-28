@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Rows with distinct names, so which rows match is decided by the test.
 @MainActor

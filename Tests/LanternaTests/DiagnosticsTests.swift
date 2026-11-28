@@ -1,5 +1,5 @@
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The millisecond figure is what the manual acceptance check reads off the
 /// summary line to check the timing criteria, so the conversion is pinned term

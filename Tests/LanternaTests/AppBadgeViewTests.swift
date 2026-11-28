@@ -1,7 +1,7 @@
 import AppKit
-@testable import Lanterna
 import SwiftUI
 import Testing
+@testable import Lanterna
 
 // MARK: - AppBadgeViewTests
 

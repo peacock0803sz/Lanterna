@@ -1,6 +1,6 @@
 import AppKit
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The summary line is what the manual acceptance check greps, so its wording
 /// is pinned down here.

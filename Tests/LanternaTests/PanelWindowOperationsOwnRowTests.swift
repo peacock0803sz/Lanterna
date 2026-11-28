@@ -1,5 +1,5 @@
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The process's own row is never a target, whichever operation is asked.
 @MainActor

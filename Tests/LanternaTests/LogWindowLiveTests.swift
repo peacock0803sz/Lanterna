@@ -1,5 +1,5 @@
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// New lines join the list as they arrive; pausing holds the list still
 /// while they wait, and resuming shows exactly what waited.

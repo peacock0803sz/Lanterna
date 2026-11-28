@@ -1,8 +1,8 @@
 import Foundation
-@testable import Lanterna
 import Logging
 import Synchronization
 import Testing
+@testable import Lanterna
 
 // MARK: - DiagnosticsBufferTests
 

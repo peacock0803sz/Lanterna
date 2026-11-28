@@ -1,7 +1,7 @@
 import ApplicationServices
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 // MARK: - WindowSwitcherTests
 

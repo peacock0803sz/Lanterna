@@ -1,6 +1,6 @@
 import AppKit
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Informational windows stay owned by their holder after the user closes them.
 ///

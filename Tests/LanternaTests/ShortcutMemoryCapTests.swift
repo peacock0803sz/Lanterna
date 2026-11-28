@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The shortcut memory stops growing: past the entry cap the
 /// longest-ago recorded query leaves first.

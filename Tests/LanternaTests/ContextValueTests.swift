@@ -1,6 +1,6 @@
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The JSON a context and a message are written as, read back by the
 /// standard parser.

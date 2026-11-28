@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 struct AppearanceModeTests {
 
