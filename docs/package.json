@@ -28,7 +28,7 @@
     "wrangler": "^4.158.0"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.42.9",
+    "@astrojs/starlight": "^0.43.1",
     "astro": "^7.4.13",
     "sharp": "^0.35.5",
     "typescript": "^5.9.3"
