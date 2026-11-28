@@ -23,7 +23,7 @@
     "prettier": "^3.10.1",
     "prettier-plugin-astro": "^1.1.2",
     "textlint": "^16.1.3",
-    "textlint-rule-preset-ja-technical-writing": "^12.0.2",
+    "textlint-rule-preset-ja-technical-writing": "^12.1.0",
     "textlint-rule-terminology": "^5.2.16",
     "wrangler": "^4.158.0"
   },
