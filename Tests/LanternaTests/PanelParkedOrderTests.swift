@@ -1,5 +1,5 @@
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Parked rows sit below the ordinary rows, and the list everyone counts in
 /// has them there too: the second row an appearance opens on, the place an

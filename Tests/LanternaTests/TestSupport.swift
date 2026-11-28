@@ -1,7 +1,7 @@
 import CoreGraphics
 import Darwin
-@testable import Lanterna
 import Logging
+@testable import Lanterna
 
 /// Arbitrary and distinct. Nothing depends on the values, only on whether the
 /// process that came forward is the one the presenter was told to ignore.

@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Spelled as a press is made, with Command still down: this whole file is
 /// about the gesture that is still under way when the tap stops reporting.

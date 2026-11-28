@@ -1,6 +1,6 @@
 import Carbon.HIToolbox
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The filter invocation seen from outside the presenter.
 ///

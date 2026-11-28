@@ -1,6 +1,6 @@
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Save logs to disk switched at launch and while running: what reaches
 /// this launch's file, and what Delete Saved Logs takes with it.

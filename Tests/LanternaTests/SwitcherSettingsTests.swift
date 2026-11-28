@@ -1,6 +1,6 @@
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The switcher sections in the file and on the way back out: what each
 /// shape reads as, what an unreadable item falls back to, and which shape

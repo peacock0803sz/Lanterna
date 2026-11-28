@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 private func tabPress(_ modifiers: NSEvent.ModifierFlags) -> PanelKeystroke {
   PanelKeystroke(keyCode: UInt16(kVK_Tab), modifiers: modifiers, isARepeat: false)

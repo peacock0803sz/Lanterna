@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
-@testable import Lanterna
 import Logging
 import Testing
+@testable import Lanterna
 
 // MARK: - ApplicationReopenerTests
 

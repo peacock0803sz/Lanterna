@@ -1,7 +1,7 @@
 import Foundation
-@testable import Lanterna
 import PrivateAPIs
 import Testing
+@testable import Lanterna
 
 /// The other-Space decision, fed the shapes the window server answers with
 /// but none of its answers: nothing here depends on the Spaces this machine

@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Spelled as a press is made: a key, and whatever was held with it.
 private func tablePress(

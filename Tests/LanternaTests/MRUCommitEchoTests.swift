@@ -1,6 +1,6 @@
 import AppKit
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Builds the row the echo tests sort. Local because the sibling suite keeps
 /// its own builder private, and sharing one would couple the two files.

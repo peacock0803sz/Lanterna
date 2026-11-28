@@ -1,6 +1,6 @@
 import AppKit
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Builds the row the tracker sorts, with nothing the sort does not read.
 ///

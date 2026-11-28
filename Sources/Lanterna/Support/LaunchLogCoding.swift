@@ -44,7 +44,8 @@ enum LaunchLogCoding {
   static func entry(from line: Data, launch: LaunchID) -> Diagnostics.LogEntry? {
     guard
       let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
-      let sequence = (object["seq"] as? NSNumber)?.uint64Value, sequence > 0,
+      let sequence = (object["seq"] as? NSNumber)?.uint64Value,
+      sequence > 0,
       let milliseconds = (object["ts"] as? NSNumber)?.int64Value,
       let levelWord = object["level"] as? String,
       let level = Logger.Level(rawValue: levelWord),

@@ -1,6 +1,6 @@
 import AppKit
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Which presses a Keyboard tab capture takes, and when it lets go.
 @MainActor

@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Decodes a config object holding the given keybindings fragment.
 private func decodeBindings(_ fragment: String) -> Result<DecodedConfiguration, ConfigDecodeError> {

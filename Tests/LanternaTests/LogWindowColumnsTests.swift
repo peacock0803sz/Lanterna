@@ -1,5 +1,5 @@
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Choosing the table's columns: the defaults, the hidden fixed ones, the
 /// context keys, the last column that cannot go, and the way back.

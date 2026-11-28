@@ -1,6 +1,6 @@
 import ApplicationServices
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The look for an application's windows on other Spaces: what it is sent
 /// for, and what it reports as not found. Window `n` of a fake application

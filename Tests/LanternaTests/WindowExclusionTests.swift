@@ -1,6 +1,6 @@
 import AppKit
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Rows with distinct apps and titles, because exclusion reads both.
 ///

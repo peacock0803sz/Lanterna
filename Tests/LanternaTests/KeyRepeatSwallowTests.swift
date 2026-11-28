@@ -1,6 +1,6 @@
 import Carbon.HIToolbox
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 private func stroke(_ keyCode: Int, repeating: Bool) -> PanelKeystroke {
   PanelKeystroke(

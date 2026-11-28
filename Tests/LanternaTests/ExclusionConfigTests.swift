@@ -1,6 +1,6 @@
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The exclusions key on its own: shape, absence, and whole-file refusal.
 ///

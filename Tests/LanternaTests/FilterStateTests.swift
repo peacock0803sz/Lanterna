@@ -1,6 +1,6 @@
 import CoreGraphics
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The memory a filtering appearance keeps, held without any panel.
 ///

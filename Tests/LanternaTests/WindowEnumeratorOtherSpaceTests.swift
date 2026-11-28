@@ -1,6 +1,6 @@
 import AppKit
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// How a pass hands each application what the window server keeps of it on
 /// hidden Spaces, and whether it is hidden.

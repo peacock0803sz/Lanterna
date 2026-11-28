@@ -1,5 +1,5 @@
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// When the onboarding window opens is a property of the launch-time answers,
 /// not of the moment it is asked: deciding it from anything later would let a

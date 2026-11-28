@@ -1,6 +1,6 @@
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// A launch reads as its local start time, and its file name reads back
 /// into the same launch.

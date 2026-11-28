@@ -1,6 +1,6 @@
 import ApplicationServices
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The focused-window reader on its own: what each answer means, without any
 /// tracker behind it.

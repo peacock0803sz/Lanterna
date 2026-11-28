@@ -1,6 +1,6 @@
 import Carbon.HIToolbox
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The identifier is the only thing that survives the trip through Carbon and
 /// back, so the round trip is what keeps a press from being attributed to the

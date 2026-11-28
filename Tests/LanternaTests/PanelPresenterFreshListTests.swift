@@ -1,6 +1,6 @@
 import Darwin
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// A pass that found the given rows, timing out on the skipped owners.
 @MainActor

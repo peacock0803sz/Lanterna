@@ -1,7 +1,7 @@
-@testable import Lanterna
 import Logging
 import Synchronization
 import Testing
+@testable import Lanterna
 
 /// Nothing is thinned on the way out: every level reaches stderr and the
 /// mirror, and the log window is where lines are filtered.

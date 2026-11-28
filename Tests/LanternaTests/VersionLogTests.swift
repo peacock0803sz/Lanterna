@@ -1,5 +1,5 @@
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The on-screen version and the bundle version agree by one rule: the full
 /// describe string minus its leading `v` equals the short version. Anything

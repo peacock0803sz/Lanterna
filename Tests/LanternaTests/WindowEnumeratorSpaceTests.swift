@@ -1,7 +1,7 @@
 import AppKit
-@testable import Lanterna
 import Synchronization
 import Testing
+@testable import Lanterna
 
 // MARK: - RecordingSpaceLocator
 

@@ -1,6 +1,6 @@
 import CoreGraphics
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Identities made by hand rather than taken off `SampleWindows`, because
 /// nothing here needs a row to look like anything: the cursor is given

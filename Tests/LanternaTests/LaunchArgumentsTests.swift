@@ -1,6 +1,6 @@
-@testable import Lanterna
 import Logging
 import Testing
+@testable import Lanterna
 
 struct LaunchArgumentsTests {
 

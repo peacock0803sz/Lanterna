@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The copied text and the exported lines, pinned against the contract's
 /// examples.

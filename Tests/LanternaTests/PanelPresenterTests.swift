@@ -1,6 +1,6 @@
 import Darwin
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The tail every appearance line carries when the panel got the keyboard,
 /// which is what the stand-in answers unless a case says otherwise. Named

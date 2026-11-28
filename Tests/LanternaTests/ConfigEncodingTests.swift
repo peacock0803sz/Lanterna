@@ -1,7 +1,7 @@
 import Foundation
-@testable import Lanterna
 import Logging
 import Testing
+@testable import Lanterna
 
 /// What writing the config file produces, as text and as bytes.
 ///

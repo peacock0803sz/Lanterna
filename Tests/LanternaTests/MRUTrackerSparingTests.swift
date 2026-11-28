@@ -1,6 +1,6 @@
 import AppKit
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Builds the row these tests sort. Local because the sibling suites keep
 /// their own builders private.

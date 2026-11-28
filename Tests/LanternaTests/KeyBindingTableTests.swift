@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// Builds a raw binding the way the config file spells one.
 private func raw(_ keyCode: Int, _ modifiers: String...) -> RawKeyBinding {

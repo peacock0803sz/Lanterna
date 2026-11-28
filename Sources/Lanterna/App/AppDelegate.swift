@@ -1,12 +1,11 @@
 import AppKit
-import Logging
-
 // Named rather than left to AppKit's re-export: the two input-monitoring
 // calls below live in `CGEvent.h`, not in the Application Services umbrella
 // that `AccessibilityPermission` imports for the other permission this
 // project asks about.
 import CoreGraphics
 import Darwin
+import Logging
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {

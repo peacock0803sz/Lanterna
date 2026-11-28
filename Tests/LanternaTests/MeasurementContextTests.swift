@@ -1,5 +1,5 @@
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The values a switch line carries beside its wording. The keys are what
 /// the log window offers as columns, so their names and types are pinned.

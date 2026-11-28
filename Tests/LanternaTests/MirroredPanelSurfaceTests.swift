@@ -1,8 +1,8 @@
 import AppKit
 import CoreGraphics
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 @MainActor
 struct MirroredPanelSurfaceTests {

@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// A press the way the hardware spells one: the Option layer never
 /// reaches the characters, so an Option letter carries its plain letter.

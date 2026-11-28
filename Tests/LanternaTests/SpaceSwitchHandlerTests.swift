@@ -1,9 +1,9 @@
 import AppKit
 import CoreGraphics
 import Darwin
-@testable import Lanterna
 import Logging
 import Testing
+@testable import Lanterna
 
 /// A row naming an exact window, so the handler tests can stage a frontmost
 /// window the refreshed list does or does not hold. File-local like the

@@ -1,6 +1,6 @@
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// The log keys of the config file: the retired level key, read past so
 /// it never costs the rest of the file, and the switch for saving logs.

@@ -1,6 +1,6 @@
 import Foundation
-@testable import Lanterna
 import Testing
+@testable import Lanterna
 
 /// What the keys deciding which rows the switcher lists, and how it
 /// groups them, read as.
